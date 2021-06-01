@@ -1,8 +1,8 @@
 package registry
 
 import (
-	"github.com/jay-dee7/register-d/docker"
-	"github.com/jay-dee7/register-d/skynet"
+	"github.com/jay-dee7/parachute/docker"
+	"github.com/jay-dee7/parachute/skynet"
 )
 
 

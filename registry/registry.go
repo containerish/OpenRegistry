@@ -11,12 +11,16 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
-	"github.com/jay-dee7/register-d/docker"
-	"github.com/jay-dee7/register-d/skynet"
+	"github.com/jay-dee7/parachute/docker"
+	"github.com/jay-dee7/parachute/server"
+	"github.com/jay-dee7/parachute/skynet"
 )
 
 func New(c *Config) *Registry {
@@ -96,6 +100,40 @@ func (r *Registry) PushImage(reader io.Reader, imageID string) (string, error) {
 	}
 
 	return r.uploadDir(dirPath)
+}
+
+func (r *Registry) DownloadImage(skynetLink string) (string, error) {
+	tmp := os.TempDir()
+
+	path := fmt.Sprintf("%s/%s.tar", tmp, skynetLink)
+	if err := r.skynetClient.DownloadDir(skynetLink, path); err != nil {
+		return "", err
+	}
+
+	return path, nil
+}
+
+func (r *Registry) PullImage(skynetLink string) (string, error) {
+	r.runServer()
+
+	imageID := fmt.Sprintf("%s/%s", r.dockerLocalRegistryHost, skynetLink)
+
+	r.Debugf("registry -> pulling image: %s", imageID)
+	if err := r.dockerClient.PullImage(imageID); err != nil {
+		r.Debugf("registry -> pull image error: %s", err)
+		return "", err
+	}
+
+	return imageID, nil
+}
+
+func (r *Registry) retag(imageID, dockerHash string) error{
+	if err := r.dockerClient.TagImage(imageID, dockerHash); err != nil {
+		r.Debugf("registry -> error tagging image: %s", err.Error())
+		return err
+	}
+
+	return r.dockerClient.RemoveImage(imageID)
 }
 
 func (r *Registry) untar(reader io.Reader, dst string) error {
@@ -444,4 +482,28 @@ func (r *Registry) readJSONArray(path string) ([]map[string]interface{}, error) 
 
 func (r *Registry) sanitizeImageName(imageID string) string {
 	return imageID
+}
+
+func (r *Registry) runServer() {
+	timeout := time.Duration(5*time.Second)
+
+	client := &http.Client{
+		Timeout: timeout,
+	}
+
+	url := fmt.Sprintf("http://%s/health", r.dockerLocalRegistryHost)
+	resp, err := client.Get(url)
+	if err != nil || resp.StatusCode != 200 {
+		_, port, err := net.SplitHostPort(r.dockerLocalRegistryHost)
+		if err != nil {
+			log.Fatalln(err)
+		}
+
+		srv := server.NewServer(&server.Config{
+			Port: port,
+			Debug: r.debug,
+			SkynetPortalURL: r.skynetClient.PortalURL(),
+		})
+		go srv.Start()
+	}
 }

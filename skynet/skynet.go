@@ -4,12 +4,14 @@ import (
 	"io"
 
 	"github.com/NebulousLabs/go-skynet/v2"
+	"github.com/fatih/color"
 	tar "github.com/whyrusleeping/tar-utils"
 )
 
 func NewClient(c *Config) *Client {
+	skynetClient := skynet.New()
 	return &Client{
-		skynet:     &skynet.SkynetClient{},
+		skynet:     &skynetClient,
 		isRemote:   false,
 		host:       c.Host,
 		gatewayURL: c.GatewayURL,
@@ -38,7 +40,10 @@ func (c *Client) DownloadDir(skynetLink, dir string) error {
 
 func (c *Client) UploadDirectory(dirPath string) (string, error) {
 	opts := skynet.DefaultUploadOptions
-	return c.skynet.UploadDirectory(dirPath, opts)
+	link, err := c.skynet.UploadDirectory(dirPath, opts)
+	color.Red(link)
+
+	return link, err
 }
 
 func (c *Client) List(path string) ([]*SkynetMeta, error) {
@@ -57,5 +62,7 @@ func (c *Client) AddImage(manifests map[string][]byte, layers map[string][]byte)
 
 	uploadData["image"] = imageReader
 
-	return c.skynet.Upload(uploadData, opts)
+	link, err := c.skynet.Upload(uploadData, opts)
+	color.Red(link)
+	return link, err
 }
