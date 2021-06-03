@@ -39,7 +39,7 @@ func (s *skynetStore) Add(repo, ref, skynetLink string) {
 
 func (s *skynetStore) Get(repo, ref string) (string, bool) {
 	s.RLock()
-	s.RUnlock()
+	defer s.RUnlock()
 
 	k := key(repo, ref)
 
@@ -61,6 +61,7 @@ func (s *skynetStore) readSkynetLink(key string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+
 	return string(content), nil
 }
 

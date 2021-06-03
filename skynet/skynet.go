@@ -5,16 +5,26 @@ import (
 
 	"github.com/NebulousLabs/go-skynet/v2"
 	"github.com/fatih/color"
+	"github.com/jay-dee7/parachute/config"
 	tar "github.com/whyrusleeping/tar-utils"
 )
 
-func NewClient(c *Config) *Client {
+func NewClient(c *config.RegistryConfig) *Client {
+
+	opts := skynet.Options{
+		EndpointPath:    "",
+		APIKey:          "",
+		CustomUserAgent: "",
+	}
+
+	skynet.NewCustom(c.SkynetPortalURL, opts)
 	skynetClient := skynet.New()
+
 	return &Client{
 		skynet:     &skynetClient,
 		isRemote:   false,
 		host:       c.Host,
-		gatewayURL: c.GatewayURL,
+		gatewayURL: c.SkynetPortalURL,
 	}
 }
 

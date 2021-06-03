@@ -14,17 +14,14 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
+	"github.com/jay-dee7/parachute/config"
 )
 
-func New(c *Config) *Client {
-	if c == nil {
-		c = &Config{}
-	}
-
+func New(c *config.RegistryConfig) *Client {
 	return newConfigFromEnv(c)
 }
 
-func newConfigFromEnv(c *Config) *Client {
+func newConfigFromEnv(c *config.RegistryConfig) *Client {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 
@@ -37,7 +34,7 @@ func newConfigFromEnv(c *Config) *Client {
 
 	return &Client{
 		docker: dockerClient,
-		debug:  c.debug,
+		debug:  c.Debug,
 	}
 }
 
@@ -50,6 +47,7 @@ func (c *Client) HasImage(imageID string) (bool, error) {
 		All:     true,
 		Filters: args,
 	})
+
 	if err != nil {
 		return false, err
 	}
@@ -176,9 +174,9 @@ func (c *Client) LoadImage(input io.Reader) error {
 func (c *Client) LoadImageByFilePath(filepath string) error {
 	input, err := os.Open(filepath)
 	if err != nil {
-		fmt.Errorf("[docker] load image by filepath error; %v", err)
-		return err
+		return fmt.Errorf("[docker] load image by filepath error; %v", err)
 	}
+
 	return c.LoadImage(input)
 }
 

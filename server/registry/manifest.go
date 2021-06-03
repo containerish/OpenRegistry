@@ -60,7 +60,7 @@ func (m *manifests) handle(resp http.ResponseWriter, req *http.Request) *restErr
 			}
 		}
 
-		// Prepare reverse lookup by digest for pulling blobs from IPFS
+		// Prepare reverse lookup by digest for pulling blobs from skynet
 		cid, err := m.registry.resolveSkynetLink(repo, target)
 		if err != nil {
 			return &restError{
@@ -231,7 +231,7 @@ func computeDigest(b []byte) string {
 }
 
 func (m *manifests) getManifest(cid, target string) (*manifest, error) {
-	b, err := getContent(m.registry.config.SkynetPortal, cid, []string{"manifests", target})
+	b, err := getContent(m.registry.c.SkynetPortalURL, cid, []string{"manifests", target})
 	if err != nil {
 		return nil, err
 	}

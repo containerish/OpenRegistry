@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
-	"log"
 	"math/rand"
 	"net/http"
 	"path"
@@ -54,7 +53,6 @@ func (b *blobs) handle(rw http.ResponseWriter, req *http.Request) *restError {
 		}
 	}
 
-
 	target := elem[len(elem)-1]
 	service := elem[len(elem)-2]
 	digest := req.URL.Query().Get("digest")
@@ -64,19 +62,15 @@ func (b *blobs) handle(rw http.ResponseWriter, req *http.Request) *restError {
 		repo = strings.Join(elem[1:len(elem)-3], "/")
 	}
 
-	log.Printf("method: %s url: %s target: %s service: %s digest: %s\n", req.Method, req.URL.String(), target, service, digest)
 	if req.Method == "HEAD" {
-	    fmt.Println("HEAD ok")
 		return b.handleHead(rw, repo, target)
 	}
 
 	if req.Method == http.MethodGet {
-		fmt.Println("get ok")
 		return b.handleGet(rw, repo, target)
 	}
 
 	if req.Method == http.MethodPost && target == "uploads" && digest != "" {
-		fmt.Println("upload okyu")
 		return b.handlePost(rw, req, repo, digest)
 	}
 
@@ -90,12 +84,10 @@ func (b *blobs) handle(rw http.ResponseWriter, req *http.Request) *restError {
 
 
 	if req.Method == http.MethodPatch && service == "uploads" && contentRange != "" {
-		fmt.Println("upload okyu")
 		return b.handlePatch(rw, req, target, contentRange, elem)
 	}
 
 	if req.Method == "PATCH" && service == "uploads" && contentRange == "" {
-		fmt.Println("upload okyu")
 		b.lock.Lock()
 		defer b.lock.Unlock()
 		if _, ok := b.uploads[target]; ok {
@@ -117,7 +109,6 @@ func (b *blobs) handle(rw http.ResponseWriter, req *http.Request) *restError {
 	}
 
 	if req.Method == "PUT" && service == "uploads" && digest == "" {
-		fmt.Println("upload okyu")
 		return &restError{
 			Status:  http.StatusBadRequest,
 			Code:    "DIGEST_INVALID",
@@ -126,7 +117,6 @@ func (b *blobs) handle(rw http.ResponseWriter, req *http.Request) *restError {
 	}
 
 	if req.Method == "PUT" && service == "uploads" && digest != "" {
-		fmt.Println("upload okyu")
 		b.lock.Lock()
 		defer b.lock.Unlock()
 		l := bytes.NewBuffer(b.uploads[target])
@@ -140,7 +130,6 @@ func (b *blobs) handle(rw http.ResponseWriter, req *http.Request) *restError {
 				Message: "digest does not match contents",
 			}
 		}
-	fmt.Println("sha256 ok")
 
 		b.contents[d] = l.Bytes()
 		digests := b.layers[repo]
@@ -174,7 +163,7 @@ func (b *blobs) handleHead(rw http.ResponseWriter, repo, target string) *restErr
 		if err != nil {
 			return &restError{
 				Status:  http.StatusNotFound,
-				Code:    "BLOB_UNKNOWN",
+				Code:    "ERR_RESOLVE_LINK",
 				Message: err.Error(),
 			}
 		}

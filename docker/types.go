@@ -10,10 +10,6 @@ type (
 		debug  bool
 	}
 
-	Config struct {
-		Debug bool
-	}
-
 	ImageSummary struct {
 		ID string
 		Tags []string

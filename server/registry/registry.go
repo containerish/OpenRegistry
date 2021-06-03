@@ -3,45 +3,37 @@ package registry
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
-	"os"
 	"strconv"
 	"strings"
 
+	"github.com/jay-dee7/parachute/config"
 	"github.com/jay-dee7/parachute/skynet"
+	"github.com/rs/zerolog"
 )
 
-var contentTypes = map[string]string{
-	"manifestV2Schema":     "application/vnd.docker.distribution.manifest.v2+json",
-	"manifestListV2Schema": "application/vnd.docker.distribution.manifest.list.v2+json",
-}
+type (
+	registry struct {
+		l         zerolog.Logger
+		blobs     blobs
+		manifests manifests
 
-type Config struct {
-	SkynetHost      string
-	SkynetPortal    string
-	SkynetResolvers []string
-	SkynetStorePath string
-}
+		skyneStore   *skynetStore
+		c            *config.RegistryConfig
+		skyentClient *skynet.Client
+		resolver     SkynetLinkResolver
+	}
 
-type registry struct {
-	log       *log.Logger
-	blobs     blobs
-	manifests manifests
+	logMsg map[string]interface{}
 
-	skyneStore *skynetStore
+	restError struct {
+		Status  int
+		Code    string
+		Message string
+	}
 
-	config       *Config
-	skyentClient *skynet.Client
-
-	resolver SkynetLinkResolver
-}
-
-type restError struct {
-	Status  int
-	Code    string
-	Message string
-}
+	Option func(r *registry)
+)
 
 func (re *restError) Write(rw http.ResponseWriter) error {
 	rw.WriteHeader(re.Status)
@@ -49,26 +41,85 @@ func (re *restError) Write(rw http.ResponseWriter) error {
 	return json.NewEncoder(rw).Encode(re)
 }
 
+func (re *restError) ToMap() map[string]interface{} {
+
+	if re == nil {
+		return map[string]interface{}{}
+	}
+	m := make(map[string]interface{})
+
+	m["code"] = re.Code
+	m["status"] = re.Status
+	m["message"] = re.Message
+
+	return m
+}
+
+var contentTypes = map[string]string{
+	"manifestV2Schema":     "application/vnd.docker.distribution.manifest.v2+json",
+	"manifestListV2Schema": "application/vnd.docker.distribution.manifest.list.v2+json",
+}
+
+func New(l zerolog.Logger, c *config.RegistryConfig, opts ...Option) http.Handler {
+	client := skynet.NewClient(c)
+
+	r := &registry{
+		l: l,
+		c: c,
+		blobs: blobs{
+			contents: map[string][]byte{},
+			uploads:  map[string][]byte{},
+			layers:   map[string][]string{},
+			registry: &registry{},
+		},
+		manifests:    manifests{manifests: map[string]map[string]*manifest{}},
+		skyneStore:   newSkynetStore(c.SkynetStorePath),
+		skyentClient: client,
+		resolver:     nil,
+	}
+
+	r.blobs.registry = r
+	r.manifests.registry = r
+
+	r.resolver = NewResolver(client, c.SkynetLinkResolvers)
+
+	for _, o := range opts {
+		o(r)
+	}
+
+	return http.HandlerFunc(r.root)
+}
+
+func Logger(l zerolog.Logger) Option {
+	return func(r *registry) { r.l = l }
+}
+
 func (r *registry) skynetURL(s []string) string {
-	return fmt.Sprintf("%s/skynet/%s", r.config.SkynetPortal, strings.Join(s, "/"))
+	return fmt.Sprintf("%s/skynet/%s", r.c.SkynetPortalURL, strings.Join(s, "/"))
 }
 
 func (r *registry) v2(rw http.ResponseWriter, req *http.Request) *restError {
 	if isBlob(req) {
-		return r.blobs.handle(rw, req)
+		err := r.blobs.handle(rw, req)
+		r.debugf(err.ToMap())
+		return err
 	}
 
 	if isManifest(req) {
-		return r.manifests.handle(rw, req)
+		err := r.manifests.handle(rw, req)
+		r.debugf(err.ToMap())
+		return err
 	}
 
 	rw.Header().Set("Docker-Distribution-API-Version", "registry/2.0")
 	if req.URL.Path != "/v2/" && req.URL.Path != "/v2" {
-		return &restError{
+		err := &restError{
 			Status:  http.StatusNotFound,
 			Code:    "METHOD_UNKNOWN",
 			Message: fmt.Sprintf("invalid api version negotiation: %s", req.URL.Path),
 		}
+		r.debugf(err.ToMap())
+		return err
 	}
 
 	rw.WriteHeader(200)
@@ -100,14 +151,20 @@ func (r *registry) dig(rw http.ResponseWriter, req *http.Request) {
 	short := parser(query.Get("short"))
 	name, tag := spliter(query.Get("q"))
 
+	lm := make(logMsg)
 	if name == "" {
 		rw.WriteHeader(http.StatusBadRequest)
 		fmt.Fprintln(rw, "Required parameter 'q' missing. /dig=?=name:tag?short=true")
+
+		lm["error"] = "name is missing"
+		r.debugf(lm)
 		return
 	}
 
 	list := r.resolve(name, tag)
 	if len(list) == 0 {
+		lm["error"] = "status not found"
+		r.debugf(lm)
 		rw.WriteHeader(http.StatusNotFound)
 		return
 	}
@@ -119,58 +176,68 @@ func (r *registry) dig(rw http.ResponseWriter, req *http.Request) {
 		rw.Header().Set("X-Docker-Content-ID", skynetLink)
 
 		if short {
+			lm["skynetLink"] = skynetLink
+			r.debugf(lm)
 			fmt.Fprintln(rw, skynetLink)
 			return
 		}
 
 		mf, err := r.manifests.getManifest(skynetLink, tag)
 		if err == nil {
+			lm["error"] = err.Error()
+			r.debugf(lm)
 			fmt.Fprintln(rw, string(mf.blob))
 		}
 		return
 	}
 
+	lm["list"] = list
+	r.debugf(lm)
 	for _, l := range list {
 		fmt.Fprintln(rw, l)
 	}
 }
 
 func (r *registry) resolve(repo, ref string) []string {
-	r.log.Printf("resolving skynetLink: %s:%s", repo, ref)
+	lm := make(logMsg)
+	lm["repo"] = repo
+	lm["ref"] = ref
 
 	if skynetlink, ok := r.skyneStore.Get(repo, ref); ok {
+		lm["skynetLink"] = skynetlink
+		r.debugf(lm)
 		return []string{skynetlink}
 	}
 
-	// if skynetlink := ToB32(repo); skynetlink != "" {
-	// 	return []string{skynetlink}
-	// }
-
-	// if hash := SkynetHash(repo); hash != "" {
-	// 	if skynetlink := ToB32(hash); skynetlink != "" {
-	// 		return []string{skynetlink}
-	// 	}
-	// }
-
 	links := r.resolver.Resolve(repo, ref)
-	defer fmt.Println(links)
+	lm["links"] = links
+	r.debugf(lm)
 	return links
 }
 
 func (r *registry) resolveSkynetLink(repo, ref string) (string, error) {
+	lm := make(logMsg)
+
 	if ref == "" {
 		ref = "latest"
 	}
 
 	list := r.resolve(repo, ref)
 	if len(list) > 0 {
+		lm["link"] = list[0]
+		r.debugf(lm)
 		return list[0], nil
 	}
 
-	return "", fmt.Errorf("cannot resolve skynet link: %s:%s", repo, ref)
+	err := fmt.Errorf("cannot resolve skynet link: %s:%s", repo, ref)
+	lm["error"] = err.Error()
+	r.debugf(lm)
+	return "", err
 }
 
 func (r *registry) root(rw http.ResponseWriter, req *http.Request) {
+	lm := make(logMsg)
+
 	if isDig(req) {
 		r.dig(rw, req)
 		return
@@ -178,42 +245,18 @@ func (r *registry) root(rw http.ResponseWriter, req *http.Request) {
 
 	if err := r.v2(rw, req); err != nil {
 		err.Write(rw)
+		r.debugf(err.ToMap())
 		return
 	}
 
-	r.log.Printf("%s %s", req.Method, req.URL)
+	lm["method"] = req.Method
+	lm["url"] = req.URL
+	r.debugf(lm)
 }
 
-func New(config *Config, opts ...Option) http.Handler {
-	client := skynet.NewClient(&skynet.Config{
-		Host:       config.SkynetHost,
-		GatewayURL: config.SkynetPortal,
-	})
-
-	r := &registry{
-		log:          log.New(os.Stdout, "", log.LstdFlags),
-		blobs:        blobs{contents: map[string][]byte{}, uploads: map[string][]byte{}, layers: map[string][]string{}},
-		manifests:    manifests{manifests: map[string]map[string]*manifest{}},
-		skyneStore:   newSkynetStore(config.SkynetStorePath),
-		config:       config,
-		skyentClient: client,
-		resolver:     nil,
+func (r *registry) debugf(lm logMsg) {
+	if r.c.Debug {
+		e := r.l.Debug()
+		e.Fields(lm).Send()
 	}
-
-	r.blobs.registry = r
-	r.manifests.registry = r
-
-	r.resolver = NewResolver(client, config.SkynetResolvers)
-
-	for _, o := range opts {
-		o(r)
-	}
-
-	return http.HandlerFunc(r.root)
-}
-
-type Option func(r *registry)
-
-func Logger(l *log.Logger) Option {
-	return func(r *registry) { r.log = l }
 }

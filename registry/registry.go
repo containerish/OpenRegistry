@@ -11,41 +11,27 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
-	"net"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/jay-dee7/parachute/config"
 	"github.com/jay-dee7/parachute/docker"
 	"github.com/jay-dee7/parachute/server"
 	"github.com/jay-dee7/parachute/skynet"
 )
 
-func New(c *Config) *Registry {
-	if c == nil {
-		c = &Config{}
-	}
+func New(c *config.RegistryConfig) *Registry {
 
-	dockerLocalRegistryHost := c.DockerLocalRegistryHost
+	skynetClient := skynet.NewClient(c)
 
-	if dockerLocalRegistryHost == "" {
-		dockerLocalRegistryHost = os.Getenv("DOCKER_LOCAL_REGISTRY_HOST")
-		if dockerLocalRegistryHost == "" {
-			dockerLocalRegistryHost = "0.0.0.0"
-		}
-	}
-
-	skynetClient := skynet.NewClient(&skynet.Config{
-		Host:       c.Skynethost,
-		GatewayURL: c.SkynetGateway,
-	})
-
-	dockerClient := docker.New(&docker.Config{})
+	dockerClient := docker.New(c)
 
 	return &Registry{
-		dockerLocalRegistryHost: dockerLocalRegistryHost,
+		c:                       c,
+		dockerLocalRegistryHost: c.Host,
 		dockerClient:            dockerClient,
 		skynetClient:            skynetClient,
 		debug:                   false,
@@ -492,18 +478,10 @@ func (r *Registry) runServer() {
 	}
 
 	url := fmt.Sprintf("http://%s/health", r.dockerLocalRegistryHost)
+
 	resp, err := client.Get(url)
 	if err != nil || resp.StatusCode != 200 {
-		_, port, err := net.SplitHostPort(r.dockerLocalRegistryHost)
-		if err != nil {
-			log.Fatalln(err)
-		}
-
-		srv := server.NewServer(&server.Config{
-			Port: port,
-			Debug: r.debug,
-			SkynetPortalURL: r.skynetClient.PortalURL(),
-		})
+		srv := server.NewServer(r.c)
 		go srv.Start()
 	}
 }
