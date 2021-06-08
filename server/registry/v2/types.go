@@ -15,7 +15,6 @@ import (
 	skynetsdk "github.com/NebulousLabs/go-skynet/v2"
 	"github.com/docker/distribution/uuid"
 	"github.com/fatih/color"
-	"github.com/google/go-containerregistry/pkg/v1/types"
 	"github.com/jay-dee7/parachute/cache"
 	"github.com/jay-dee7/parachute/skynet"
 	"github.com/labstack/echo/v4"
@@ -29,6 +28,7 @@ type (
 		skynet     *skynet.Client
 		b          blobs
 		localCache cache.Store
+		echoLogger echo.Logger
 	}
 
 	blobs struct {
@@ -58,16 +58,20 @@ type (
 	ImageManifest struct {
 		SchemaVersion int    `json:"schemaVersion"`
 		MediaType     string `json:"mediaType"`
-		Config        struct {
-			MediaType string `json:"mediaType"`
-			Size      int    `json:"size"`
-			Digest    string `json:"digest"`
-		} `json:"config"`
-		Layers []struct {
-			MediaType string `json:"mediaType"`
-			Size      int    `json:"size"`
-			Digest    string `json:"digest"`
-		} `json:"layers"`
+		Layers        Layers `json:"layers"`
+		Config        Config `json:"config"`
+	}
+
+	Layers []struct {
+		MediaType string `json:"mediaType"`
+		Size      int    `json:"size"`
+		Digest    string `json:"digest"`
+	}
+
+	Config struct {
+		MediaType string `json:"mediaType"`
+		Size      int    `json:"size"`
+		Digest    string `json:"digest"`
 	}
 )
 
@@ -107,8 +111,15 @@ const (
 	RegistryErrorCodeUnsupported         = "UNSUPPORTED"           // operation is not supported
 )
 
-func NewRegistry(logger zerolog.Logger, c cache.Store) (Registry, error) {
-	return &registry{log: logger, localCache: c}, nil
+func NewRegistry(logger zerolog.Logger, c cache.Store, echoLogger echo.Logger) (Registry, error) {
+	return &registry{
+		log:        logger,
+		debug:      false,
+		skynet:     &skynet.Client{},
+		b:          blobs{},
+		localCache: c,
+		echoLogger: echoLogger,
+	}, nil
 }
 
 func (r *registry) errorResponse(code, msg string, detail map[string]interface{}) []byte {
@@ -134,8 +145,29 @@ func (r *registry) DeleteLayer(ctx echo.Context) error {
 	return nil
 }
 
+// PUT /v2/<name>/blobs/uploads/<uuid>?digest=<digest>
 func (r *registry) MonolithicUpload(ctx echo.Context) error {
-	return ctx.NoContent(http.StatusNotImplemented)
+	namespace := ctx.Param("namespace")
+	uuid := ctx.Param("uuid")
+	digest := ctx.QueryParam("digest")
+
+	link, err := r.skynet.Upload(digest, ctx.Request().Body)
+	if err != nil {
+		return err
+	}
+
+	metadata := map[string]string{
+		"uuid":    uuid,
+		"digest":  digest,
+		"skylink": link,
+	}
+
+	bz, err := json.Marshal(metadata)
+	if err != nil {
+		return err
+	}
+
+	return r.localCache.Set([]byte(namespace), bz)
 }
 
 // PUT /v2/<name>/blobs/uploads/<uuid>?digest=<digest>
@@ -176,11 +208,10 @@ func (r *registry) CompleteUpload(ctx echo.Context) error {
 		return ctx.JSONBlob(http.StatusRequestedRangeNotSatisfiable, errMsg)
 	}
 
-	key := namespace + "/" + uuid
-
 	val := map[string]string{
 		"namespace":    namespace,
 		"uuid":         uuid,
+		"digest":       digest,
 		"contentRange": contentRange,
 		"skynetUrl":    skylink,
 	}
@@ -190,7 +221,7 @@ func (r *registry) CompleteUpload(ctx echo.Context) error {
 		color.Red("error marshaling JSON: %s\n", err.Error())
 	}
 
-	r.localCache.Update([]byte(key), bz)
+	r.localCache.Update([]byte(namespace), bz)
 
 	locationHeader := fmt.Sprintf("/v2/%s/blobs/%s", namespace, digest)
 	ctx.Response().Header().Set("Content-Length", "0")
@@ -229,8 +260,8 @@ func (r *registry) LayerExists(ctx echo.Context) error {
 
 // HEAD /v2/<name>/manifests/<reference>
 func (r *registry) ManifestExists(ctx echo.Context) error {
-	namespace := ctx.Get("namespace").(string)
-	ref := ctx.Get("reference").(string) // ref can be either tag or digest
+	namespace := ctx.Param("namespace")
+	ref := ctx.Param("reference") // ref can be either tag or digest
 	digest, rerr := r.getDigestFromURI(ctx.Request().URL)
 	if rerr != nil {
 		return ctx.String(http.StatusNotFound, "Not Found")
@@ -245,31 +276,45 @@ func (r *registry) ManifestExists(ctx echo.Context) error {
 		return ctx.JSON(http.StatusNotFound, errMsg)
 	}
 
-	bz, err := r.localCache.Get([]byte(key))
-	if err != nil {
-		errMsg := r.errorResponse(RegistryErrorCodeManifestBlobUnknown, err.Error(), nil)
-		return ctx.JSON(http.StatusNotFound, errMsg)
-	}
+	var (
+		bz   []byte
+		size uint64
+		ok   bool
+	)
 
-	var meta skynet.SkynetMeta
-	if err = json.Unmarshal(bz, &meta); err != nil {
-		details := echo.Map{
-			"error": err.Error(),
+	size, ok = r.skynet.Metadata(key)
+	if !ok {
+		lm := logMsg{
+			"warn":    "metadata not found for skylink",
+			"skylink": key,
 		}
-		errMsg := r.errorResponse(RegistryErrorCodeManifestBlobUnknown, err.Error(), details)
-		return ctx.JSON(http.StatusNotFound, errMsg)
+		r.debugf(lm)
+		bz, err = r.localCache.Get([]byte(key))
+		if err != nil {
+			errMsg := r.errorResponse(RegistryErrorCodeManifestBlobUnknown, err.Error(), nil)
+			return ctx.JSON(http.StatusNotFound, errMsg)
+		}
+		var meta skynet.SkynetMeta
+		if err = json.Unmarshal(bz, &meta); err != nil {
+			details := echo.Map{
+				"error": err.Error(),
+			}
+			errMsg := r.errorResponse(RegistryErrorCodeManifestBlobUnknown, err.Error(), details)
+			return ctx.JSON(http.StatusNotFound, errMsg)
+		}
+		size = meta.Size
 	}
 
-	ctx.Response().Header().Set("Content-Length", fmt.Sprintf("%d", meta.Size))
+	ctx.Response().Header().Set("Content-Length", fmt.Sprintf("%d", size))
 	ctx.Response().Header().Set("Docker-Content-Digest", digest)
 	return ctx.String(http.StatusOK, "OK")
 }
 
 // PATCH /v2/<name>/blobs/uploads/<uuid>
 func (r *registry) ChunkedUpload(ctx echo.Context) error {
-	namespace := ctx.Get("namespace").(string)
-	uuid := ctx.Get("uuid").(string)
-	contentRange := ctx.Get("Content-Range").(string)
+	namespace := ctx.Param("namespace")
+	uuid := ctx.Param("uuid")
+	contentRange := ctx.Request().Header.Get("Content-Range")
 
 	elem := strings.Split(ctx.Request().URL.Path, "/")
 	elem = elem[1:]
@@ -316,10 +361,7 @@ func (r *registry) ChunkedUpload(ctx echo.Context) error {
 		return ctx.JSONBlob(http.StatusRequestedRangeNotSatisfiable, errMsg)
 	}
 
-	key := namespace + "/" + uuid
-
 	val := map[string]string{
-		"namespace":    namespace,
 		"uuid":         uuid,
 		"contentRange": contentRange,
 		"skynetUrl":    skylink,
@@ -330,7 +372,7 @@ func (r *registry) ChunkedUpload(ctx echo.Context) error {
 		color.Red("error marshaling JSON: %s\n", err.Error())
 	}
 
-	r.localCache.Update([]byte(key), bz)
+	r.localCache.Update([]byte(namespace), bz)
 
 	p := path.Join(elem[1 : len(elem)-3]...)
 	locationHeader := fmt.Sprintf("/v2/%s/blobs/uploads/%s", p, uuid)
@@ -347,8 +389,8 @@ func (r *registry) CancelUpload(ctx echo.Context) error {
 
 // GET /v2/<name>/manifests/<reference>
 func (r *registry) PullManifest(ctx echo.Context) error {
-	namespace := ctx.Get("namespace").(string)
-	ref := ctx.Get("reference").(string)
+	namespace := ctx.Param("namespace")
+	ref := ctx.Param("reference")
 
 	skynetLink, err := r.localCache.GetSkynetURL(namespace, ref)
 	if err != nil {
@@ -379,6 +421,8 @@ func (r *registry) digest(bz []byte) string {
 
 func (r *registry) PushManifest(ctx echo.Context) error {
 	namespace := ctx.Param("namespace")
+	ref := ctx.Param("reference")
+	contentType := ctx.Request().Header.Get("Content-Type")
 
 	bz, err := io.ReadAll(ctx.Request().Body)
 	if err != nil {
@@ -386,41 +430,71 @@ func (r *registry) PushManifest(ctx echo.Context) error {
 		return ctx.JSONBlob(http.StatusBadRequest, errMsg)
 	}
 
-	digest := r.digest(bz)
-	mf := ImageManifest{
-		SchemaVersion: 2,
-		MediaType:     ctx.Request().Header.Get("Content-Type"),
-		Config: struct {
-			MediaType string "json:\"mediaType\""
-			Size      int    "json:\"size\""
-			Digest    string "json:\"digest\""
-		}{},
-		Layers: []struct {
-			MediaType string "json:\"mediaType\""
-			Size      int    "json:\"size\""
-			Digest    string "json:\"digest\""
-		}{},
+	defer ctx.Request().Body.Close()
+
+	var manifest ManifestList
+	if err = json.Unmarshal(bz, &manifest); err != nil {
+		errMsg := r.errorResponse(RegistryErrorCodeBlobUnknown, err.Error(), nil)
+		return ctx.JSONBlob(http.StatusBadRequest, errMsg)
 	}
 
-	if mf.MediaType == string(types.OCIImageIndex) || mf.MediaType == string(types.DockerManifestList) {
-		var mfList ManifestList
-		if err := json.NewDecoder(ctx.Request().Body).Decode(&mfList); err != nil {
-			errMsg := r.errorResponse(RegistryErrorCodeManifestUnknown, err.Error(), nil)
-			return ctx.JSONBlob(http.StatusNotFound, errMsg)
-		}
-
-		for _, desc := range mfList.Manifests {
-			val, _ := r.localCache.Get([]byte(namespace))
-			var m map[string]string
-			_ = json.Unmarshal(val, &m)
-			if _, found := m[desc.Digest]; !found {
-				errMsg := r.errorResponse(RegistryErrorCodeManifestUnknown, "sub-manifest not found: "+desc.Digest, nil)
-				return ctx.JSONBlob(http.StatusNotFound, errMsg)
-			}
-		}
+	skynetLink, err := r.skynet.Upload(ref, ctx.Request().Body)
+	if err != nil {
+		errMsg := r.errorResponse(RegistryErrorCodeBlobUnknown, err.Error(), nil)
+		return ctx.JSONBlob(http.StatusBadRequest, errMsg)
 	}
 
-	r.skynet.AddImage(manifests, layers)
+	metadata := map[string]string{
+		"reference":   ref,
+		"contentType": contentType,
+		"skylink":     skynetLink,
+	}
+
+	bz, err = json.Marshal(metadata)
+	if err != nil {
+		errMsg := r.errorResponse(RegistryErrorCodeBlobUnknown, err.Error(), nil)
+		return ctx.JSONBlob(http.StatusBadRequest, errMsg)
+	}
+
+	r.localCache.Update([]byte(namespace), bz)
+	// ctx.Response().Header().Set("Docker-Content-Digest", digest)
+	ctx.Response().Header().Set("X-Docker-Content-ID", skynetLink)
+	ctx.Response().WriteHeader(http.StatusCreated)
+
+	// digest := r.digest(bz)
+	// mf := ImageManifest{
+	// 	SchemaVersion: 2,
+	// 	MediaType:     contentType,
+	// 	Config:        Config{MediaType: "", Size: 0, Digest: digest},
+	// }
+
+	// bz, err := r.localCache.Get([]byte(namespace))
+	// if err != nil {
+	// 	errMsg := r.errorResponse(RegistryErrorCodeBlobUnknown, err.Error(), nil)
+	// 	ctx.JSONBlob(http.StatusBadRequest, errMsg)
+	// }
+
+	// mf.Layers = append(mf.Layers, layer)
+
+	// if mf.MediaType == string(types.OCIImageIndex) || mf.MediaType == string(types.DockerManifestList) {
+	// 	var mfList ManifestList
+	// 	if err := json.NewDecoder(ctx.Request().Body).Decode(&mfList); err != nil {
+	// 		errMsg := r.errorResponse(RegistryErrorCodeManifestUnknown, err.Error(), nil)
+	// 		return ctx.JSONBlob(http.StatusNotFound, errMsg)
+	// 	}
+
+	// 	for _, desc := range mfList.Manifests {
+	// 		val, _ := r.localCache.Get([]byte(namespace))
+	// 		var m map[string]string
+	// 		_ = json.Unmarshal(val, &m)
+	// 		if _, found := m[desc.Digest]; !found {
+	// 			errMsg := r.errorResponse(RegistryErrorCodeManifestUnknown, "sub-manifest not found: "+desc.Digest, nil)
+	// 			return ctx.JSONBlob(http.StatusNotFound, errMsg)
+	// 		}
+	// 	}
+	// }
+
+	// r.skynet.AddImage(manifests, layers)
 
 	return nil
 }
@@ -431,7 +505,7 @@ func (r *registry) DeleteImage(ctx echo.Context) error {
 
 // GET /v2/<name>/blobs/<digest>
 func (r *registry) PullLayer(ctx echo.Context) error {
-	namespace := ctx.Get("namespace").(string)
+	namespace := ctx.Param("namespace")
 	digest, rerr := r.getDigestFromURI(ctx.Request().URL)
 	if rerr != nil {
 		bz, _ := json.Marshal(rerr)
@@ -469,6 +543,10 @@ func (r *registry) PushImage(ctx echo.Context) error {
 }
 
 func (r *registry) StartUpload(ctx echo.Context) error {
+	for k, h := range ctx.Request().Header {
+		color.Red("StartUpload: %s=%s", k, h[0])
+	}
+
 	elem := strings.Split(ctx.Request().URL.Path, "/")
 	elem = elem[1:]
 	if elem[len(elem)-1] == "" {
@@ -484,6 +562,7 @@ func (r *registry) StartUpload(ctx echo.Context) error {
 		errMsg := r.errorResponse(RegistryErrorCodeNameInvalid, "blobs must be attached to a repo", nil)
 		return ctx.JSONBlob(http.StatusNotFound, errMsg)
 	}
+
 	id := ""
 	p := path.Join(elem[1 : len(elem)-2]...)
 	locationHeader := fmt.Sprintf("/v2/%s/blobs/uploads/%s", p, id)
@@ -495,6 +574,11 @@ func (r *registry) StartUpload(ctx echo.Context) error {
 
 // POST /v2/<name>/blobs/uploads/
 func (r *registry) PushLayer(ctx echo.Context) error {
+
+	for k, v := range ctx.Request().Header {
+		color.Red("pushLayer: %s=%s", k, v[0])
+	}
+
 	elem := strings.Split(ctx.Request().URL.Path, "/")
 	elem = elem[1:]
 	if elem[len(elem)-1] == "" {
@@ -508,7 +592,7 @@ func (r *registry) PushLayer(ctx echo.Context) error {
 
 	id := uuid.Generate()
 	p := path.Join(elem[1 : len(elem)-2]...)
-	locationHeader := fmt.Sprintf("/v2/%s/blobs/uploads/%s", p, id)
+	locationHeader := fmt.Sprintf("/v2/%s/blobs/uploads/%s", p, id.String())
 	ctx.Response().Header().Set("Location", locationHeader)
 	ctx.Response().Header().Set("Docker-Upload-UUID", id.String())
 	ctx.Response().Header().Set("Range", "0-0")
@@ -523,6 +607,11 @@ func (r *registry) List(ctx echo.Context) error {
 }
 
 func (r *registry) debugf(lm logMsg) {
+
+	if r.debug {
+		r.echoLogger.Debug(lm)
+	}
+
 	if r.debug {
 		e := r.log.Debug()
 		e.Fields(lm).Send()
@@ -568,6 +657,9 @@ type Registry interface {
 	// Content-Length: 0
 	// Docker-Upload-UUID: <uuid>
 	PushImage(ctx echo.Context) error
+
+
+	StartUpload(ctx echo.Context) error
 
 	PushLayer(ctx echo.Context) error
 

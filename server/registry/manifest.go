@@ -10,7 +10,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/fatih/color"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/types"
 	"github.com/jay-dee7/parachute/server/registry/image"
@@ -151,40 +150,40 @@ func (m *manifests) handle(resp http.ResponseWriter, req *http.Request) *restErr
 		m.manifests[repo][target] = &mf
 		m.manifests[repo][digest] = &mf
 
-		layers, ok := m.registry.blobs.get(repo)
-		if !ok {
-			return &restError{
-				Status:  http.StatusNotFound,
-				Code:    "MANIFEST_BLOB_UNKNOWN",
-				Message: fmt.Sprintf("layers for %q not found", repo),
-			}
-		}
+		// layers, ok := m.registry.blobs.get(repo)
+		// if !ok {
+		// 	return &restError{
+		// 		Status:  http.StatusNotFound,
+		// 		Code:    "MANIFEST_BLOB_UNKNOWN",
+		// 		Message: fmt.Sprintf("layers for %q not found", repo),
+		// 	}
+		// }
 
-		// TODO cache e.g. move to disk?
-		m.registry.blobs.remove(repo)
+		// // TODO cache e.g. move to disk?
+		// m.registry.blobs.remove(repo)
 
-		refs := make(map[string][]byte)
-		refs[target] = mf.blob
-		refs[digest] = mf.blob
-		refs["latest"] = mf.blob // <cid>/latest
+		// refs := make(map[string][]byte)
+		// refs[target] = mf.blob
+		// refs[digest] = mf.blob
+		// refs["latest"] = mf.blob // <cid>/latest
 
-		cid, err := m.registry.skyentClient.AddImage(refs, layers)
-		if err != nil {
-			return &restError{
-				Status:  http.StatusInternalServerError,
-				Code:    "",
-				Message: err.Error(),
-			}
-		}
+		// cid, err := m.registry.skyentClient.AddImage(refs, layers)
+		// if err != nil {
+		// 	return &restError{
+		// 		Status:  http.StatusInternalServerError,
+		// 		Code:    "",
+		// 		Message: err.Error(),
+		// 	}
+		// }
 
-		color.Red(cid)
+		// color.Red(cid)
 
-		m.registry.skyneStore.Add(repo, target, cid)
-		m.registry.skyneStore.Add(repo, digest, cid)
-		m.registry.skyneStore.Add(cid, "latest", cid) // <cid>/latest
+		// m.registry.skyneStore.Add(repo, target, cid)
+		// m.registry.skyneStore.Add(repo, digest, cid)
+		// m.registry.skyneStore.Add(cid, "latest", cid) // <cid>/latest
 
-		resp.Header().Set("Docker-Content-Digest", digest)
-		resp.Header().Set("X-Docker-Content-ID", cid)
+		// resp.Header().Set("Docker-Content-Digest", digest)
+		// resp.Header().Set("X-Docker-Content-ID", cid)
 		resp.WriteHeader(http.StatusCreated)
 		return nil
 	}

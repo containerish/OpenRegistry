@@ -7,6 +7,7 @@ require (
 	github.com/NebulousLabs/go-skynet/v2 v2.0.1
 	github.com/containerd/containerd v1.5.2 // indirect
 	github.com/dgraph-io/badger/v3 v3.2103.0 // indirect
+	github.com/docker/distribution v2.7.1+incompatible // indirect
 	github.com/docker/docker v20.10.6+incompatible
 	github.com/fatih/color v1.7.0
 	github.com/google/go-containerregistry v0.5.1
@@ -22,4 +23,4 @@ require (
 	google.golang.org/grpc v1.38.0 // indirect
 )
 
-replace github.com/NebulousLabs/go-skynet/v2 =>  /Users/jasdeep/oss/go-skynet
+replace github.com/NebulousLabs/go-skynet/v2 => /Users/jasdeep/oss/go-skynet

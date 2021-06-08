@@ -1,7 +1,10 @@
 package skynet
 
 import (
+	"fmt"
 	"io"
+	"log"
+	"strconv"
 
 	"github.com/NebulousLabs/go-skynet/v2"
 	"github.com/fatih/color"
@@ -12,9 +15,7 @@ import (
 func NewClient(c *config.RegistryConfig) *Client {
 
 	opts := skynet.Options{
-		EndpointPath:    "",
-		APIKey:          "",
-		CustomUserAgent: "",
+		CustomUserAgent: c.SkynetConfig.CustomUserAgent,
 	}
 
 	skynet.NewCustom(c.SkynetPortalURL, opts)
@@ -57,20 +58,13 @@ func (c *Client) DownloadDir(skynetLink, dir string, headers ...skynet.Header) e
 	return ext.Extract(tarball)
 }
 
-func (c *Client) UploadDirectory(dirPath string, headers ...skynet.Header) (string, error) {
-	opts := skynet.DefaultUploadOptions
-	link, err := c.skynet.UploadDirectory(dirPath, opts, headers...)
-	color.Red(link)
-
-	return link, err
-}
-
 func (c *Client) List(path string) ([]*SkynetMeta, error) {
 	return nil, nil
 }
 
-func (c *Client) AddImage(manifests map[string][]byte, layers map[string][]byte, headers ...skynet.Header) (string, error) {
+func (c *Client) AddImage(namespace string, manifests map[string][]byte, layers map[string][]byte, headers ...skynet.Header) (string, error) {
 	opts := skynet.DefaultUploadOptions
+	opts.CustomDirname = namespace
 
 	uploadData := make(skynet.UploadData)
 
@@ -81,7 +75,29 @@ func (c *Client) AddImage(manifests map[string][]byte, layers map[string][]byte,
 
 	uploadData["image"] = imageReader
 
-	link, err := c.skynet.UploadDirectory(uploadData, opts, headers...)
+	link, err := c.skynet.Upload(uploadData, opts, headers...)
 	color.Red(link)
 	return link, err
+}
+
+func (c *Client) Metadata(skylink string) (uint64, bool){
+	opts := skynet.DefaultMetadataOptions
+	info, err := c.skynet.Metadata(skylink, opts)
+	if err != nil {
+		log.Printf("error getting metadat: %s", err)
+		return 0, false
+	}
+
+	fmt.Println(info)
+	ct := info.Get("content-length")
+	if ct == "" {
+		return 0, false
+	}
+
+	contentLength, err := strconv.ParseUint(ct, 10, 64)
+	if err != nil {
+		return 0, false
+	}
+
+	return contentLength, true
 }
