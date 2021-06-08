@@ -28,16 +28,25 @@ func NewClient(c *config.RegistryConfig) *Client {
 	}
 }
 
-func (c *Client) Download(path string) (io.ReadCloser, error) {
-	opts := skynet.DefaultDownloadOptions
+func (c *Client) Upload(digest string, content io.ReadCloser, headers ...skynet.Header) (string, error) {
+	opts := skynet.DefaultUploadOptions
 
-	return c.skynet.Download(path, opts)
+	data := make(skynet.UploadData)
+	data[digest] = content
+
+	return c.skynet.Upload(data, opts, headers...)
 }
 
-func (c *Client) DownloadDir(skynetLink, dir string) error {
+func (c *Client) Download(path string, headers ...skynet.Header) (io.ReadCloser, error) {
 	opts := skynet.DefaultDownloadOptions
 
-	tarball, err := c.skynet.Download(skynetLink, opts)
+	return c.skynet.Download(path, opts, headers...)
+}
+
+func (c *Client) DownloadDir(skynetLink, dir string, headers ...skynet.Header) error {
+	opts := skynet.DefaultDownloadOptions
+
+	tarball, err := c.skynet.Download(skynetLink, opts, headers...)
 	if err != nil {
 		return err
 	}
@@ -48,9 +57,9 @@ func (c *Client) DownloadDir(skynetLink, dir string) error {
 	return ext.Extract(tarball)
 }
 
-func (c *Client) UploadDirectory(dirPath string) (string, error) {
+func (c *Client) UploadDirectory(dirPath string, headers ...skynet.Header) (string, error) {
 	opts := skynet.DefaultUploadOptions
-	link, err := c.skynet.UploadDirectory(dirPath, opts)
+	link, err := c.skynet.UploadDirectory(dirPath, opts, headers...)
 	color.Red(link)
 
 	return link, err
@@ -60,7 +69,7 @@ func (c *Client) List(path string) ([]*SkynetMeta, error) {
 	return nil, nil
 }
 
-func (c *Client) AddImage(manifests map[string][]byte, layers map[string][]byte) (string, error) {
+func (c *Client) AddImage(manifests map[string][]byte, layers map[string][]byte, headers ...skynet.Header) (string, error) {
 	opts := skynet.DefaultUploadOptions
 
 	uploadData := make(skynet.UploadData)
@@ -72,7 +81,7 @@ func (c *Client) AddImage(manifests map[string][]byte, layers map[string][]byte)
 
 	uploadData["image"] = imageReader
 
-	link, err := c.skynet.Upload(uploadData, opts)
+	link, err := c.skynet.UploadDirectory(uploadData, opts, headers...)
 	color.Red(link)
 	return link, err
 }

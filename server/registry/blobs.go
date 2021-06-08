@@ -11,6 +11,8 @@ import (
 	"path"
 	"strings"
 	"sync"
+
+	"github.com/fatih/color"
 )
 
 func isBlob(r *http.Request) bool {
@@ -58,6 +60,7 @@ func (b *blobs) handle(rw http.ResponseWriter, req *http.Request) *restError {
 	digest := req.URL.Query().Get("digest")
 	contentRange := req.Header.Get("Content-Range")
 	repo := strings.Join(elem[1:len(elem)-2], "/")
+
 	if service == "uploads" {
 		repo = strings.Join(elem[1:len(elem)-3], "/")
 	}
@@ -81,7 +84,6 @@ func (b *blobs) handle(rw http.ResponseWriter, req *http.Request) *restError {
 		rw.WriteHeader(http.StatusAccepted)
 		return nil
 	}
-
 
 	if req.Method == http.MethodPatch && service == "uploads" && contentRange != "" {
 		return b.handlePatch(rw, req, target, contentRange, elem)
@@ -148,61 +150,61 @@ func (b *blobs) handle(rw http.ResponseWriter, req *http.Request) *restError {
 }
 
 func (b *blobs) handleHead(rw http.ResponseWriter, repo, target string) *restError {
-		b.lock.Lock()
-		defer b.lock.Unlock()
+	b.lock.Lock()
+	defer b.lock.Unlock()
 
-		// content is available if image is locally pushed
-		if c, ok := b.contents[target]; ok {
-			rw.Header().Set("Content-Length", fmt.Sprint(len(c)))
-			rw.Header().Set("Docker-Content-Digest", target)
-			rw.WriteHeader(http.StatusOK)
-			return nil
-		}
-
-		skynetlink, err := b.registry.resolveSkynetLink(repo, target)
-		if err != nil {
-			return &restError{
-				Status:  http.StatusNotFound,
-				Code:    "ERR_RESOLVE_LINK",
-				Message: err.Error(),
-			}
-		}
-
-		uri := b.registry.skynetURL([]string{skynetlink, "blobs", target})
-		resp, err := http.Head(uri)
-		if err != nil {
-			return &restError{
-				Status:  http.StatusNotFound,
-				Code:    "BLOB_UNKNOWN",
-				Message: err.Error(),
-			}
-		}
-
-		defer resp.Body.Close()
-		if resp.StatusCode != http.StatusOK {
-			return &restError{
-				Status:  http.StatusNotFound,
-				Code:    "BLOB_UNKNOWN",
-				Message: resp.Status,
-			}
-		}
-
-		bz, err := io.ReadAll(resp.Body)
-		size := len(bz)
-		if err != nil {
-			return &restError{
-				Status:  http.StatusNotFound,
-				Code:    "BLOB_UNKNOWN",
-				Message: err.Error(),
-			}
-		}
-
-		rw.Header().Set("Content-Length", fmt.Sprint(size))
+	// content is available if image is locally pushed
+	if c, ok := b.contents[target]; ok {
+		rw.Header().Set("Content-Length", fmt.Sprint(len(c)))
 		rw.Header().Set("Docker-Content-Digest", target)
-		rw.WriteHeader(resp.StatusCode)
-		io.CopyN(rw, bytes.NewReader(bz), int64(size))
-
+		rw.WriteHeader(http.StatusOK)
 		return nil
+	}
+
+	skynetlink, err := b.registry.resolveSkynetLink(repo, target)
+	if err != nil {
+		return &restError{
+			Status:  http.StatusNotFound,
+			Code:    "ERR_RESOLVE_LINK",
+			Message: err.Error(),
+		}
+	}
+
+	uri := b.registry.skynetURL([]string{skynetlink, "blobs", target})
+	resp, err := http.Head(uri)
+	if err != nil {
+		return &restError{
+			Status:  http.StatusNotFound,
+			Code:    "BLOB_UNKNOWN",
+			Message: err.Error(),
+		}
+	}
+
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return &restError{
+			Status:  http.StatusNotFound,
+			Code:    "BLOB_UNKNOWN",
+			Message: resp.Status,
+		}
+	}
+
+	bz, err := io.ReadAll(resp.Body)
+	size := len(bz)
+	if err != nil {
+		return &restError{
+			Status:  http.StatusNotFound,
+			Code:    "BLOB_UNKNOWN",
+			Message: err.Error(),
+		}
+	}
+
+	rw.Header().Set("Content-Length", fmt.Sprint(size))
+	rw.Header().Set("Docker-Content-Digest", target)
+	rw.WriteHeader(resp.StatusCode)
+	io.CopyN(rw, bytes.NewReader(bz), int64(size))
+
+	return nil
 }
 
 func (b *blobs) handleGet(rw http.ResponseWriter, repo, target string) *restError {
@@ -216,12 +218,13 @@ func (b *blobs) handleGet(rw http.ResponseWriter, repo, target string) *restErro
 	}
 
 	uri := b.registry.skynetURL([]string{skynetlink, "blobs", target})
+	color.Red("%s - %s\n - %s\n", skynetlink, target, uri)
 
 	resp, err := http.DefaultClient.Get(uri)
 	if err != nil {
 		return &restError{
 			Status:  http.StatusNotFound,
-			Code:    "BLOB_UNKNOWN",
+			Code:    "GET_REQUEST_FAILED",
 			Message: err.Error(),
 		}
 	}
@@ -279,29 +282,30 @@ func (b *blobs) handlePost(rw http.ResponseWriter, req *http.Request, repo, dige
 
 func (b *blobs) handlePatch(rw http.ResponseWriter, req *http.Request, target, contentRange string, elem []string) *restError {
 	start, end := 0, 0
-		if _, err := fmt.Sscanf(contentRange, "%d-%d", &start, &end); err != nil {
-			return &restError{
-				Status:  http.StatusRequestedRangeNotSatisfiable,
-				Code:    "BLOB_UPLOAD_UNKNOWN",
-				Message: "handle path error: " + err.Error(),
-			}
+	if _, err := fmt.Sscanf(contentRange, "%d-%d", &start, &end); err != nil {
+		return &restError{
+			Status:  http.StatusRequestedRangeNotSatisfiable,
+			Code:    "BLOB_UPLOAD_UNKNOWN",
+			Message: "handle path error: " + err.Error(),
 		}
-		b.lock.Lock()
-		defer b.lock.Unlock()
-		if start != len(b.uploads[target]) {
-			return &restError{
-				Status:  http.StatusRequestedRangeNotSatisfiable,
-				Code:    "BLOB_UPLOAD_UNKNOWN",
-				Message: "Your content range doesn't match what we have",
-			}
+	}
+	b.lock.Lock()
+	defer b.lock.Unlock()
+
+	if start != len(b.uploads[target]) {
+		return &restError{
+			Status:  http.StatusRequestedRangeNotSatisfiable,
+			Code:    "BLOB_UPLOAD_UNKNOWN",
+			Message: "Your content range doesn't match what we have",
 		}
-		l := bytes.NewBuffer(b.uploads[target])
-		io.Copy(l, req.Body)
-		b.uploads[target] = l.Bytes()
-		rw.Header().Set("Location", "/"+path.Join("v2", path.Join(elem[1:len(elem)-3]...), "blobs/uploads", target))
-		rw.Header().Set("Range", fmt.Sprintf("0-%d", len(l.Bytes())-1))
-		rw.WriteHeader(http.StatusNoContent)
-		return nil
+	}
+	l := bytes.NewBuffer(b.uploads[target])
+	io.Copy(l, req.Body)
+	b.uploads[target] = l.Bytes()
+	rw.Header().Set("Location", "/"+path.Join("v2", path.Join(elem[1:len(elem)-3]...), "blobs/uploads", target))
+	rw.Header().Set("Range", fmt.Sprintf("0-%d", len(l.Bytes())-1))
+	rw.WriteHeader(http.StatusNoContent)
+	return nil
 }
 
 func (b *blobs) remove(repo string) {

@@ -6,26 +6,27 @@ import (
 	"os"
 	"os/user"
 
+	"github.com/fatih/color"
 	"github.com/spf13/viper"
 )
 
 type (
 	RegistryConfig struct {
-		Debug               bool         `yaml:"debug"`
-		Host                string       `yaml:"host"`
-		Port                uint         `yaml:"port"`
-		SkynetPortalURL     string       `yaml:"skynet_portal_url"`
-		SkynetLinkResolvers []string     `yaml:"skynet_link_resolvers"`
-		SkynetStorePath     string       `yaml:"skynet_store_path"`
-		TLSCertPath         string       `yaml:"tls_cert_path"`
-		TLSKeyPath          string       `yaml:"tls_key_path"`
-		SkynetConfig        SkynetConfig `yaml:"skynet_config"`
+		Debug               bool         `mapstructure:"debug"`
+		Host                string       `mapstructure:"host"`
+		Port                uint         `mapstructure:"port"`
+		SkynetPortalURL     string       `mapstructure:"skynet_portal_url"`
+		SkynetLinkResolvers []string     `mapstructure:"skynet_link_resolvers"`
+		SkynetStorePath     string       `mapstructure:"skynet_store_path"`
+		TLSCertPath         string       `mapstructure:"tls_cert_path"`
+		TLSKeyPath          string       `mapstructure:"tls_key_path"`
+		SkynetConfig        SkynetConfig `mapstructure:"skynet_config"`
 	}
 
 	SkynetConfig struct {
-		EndpointPath    string `yaml:"endpoint_path"`
-		ApiKey          string `yaml:"api_key"`
-		CustomUserAgent string `yaml:"custom_user_agent"`
+		EndpointPath    string `mapstructure:"endpoint_path"`
+		ApiKey          string `mapstructure:"api_key"`
+		CustomUserAgent string `mapstructure:"custom_user_agent"`
 	}
 )
 
@@ -42,6 +43,7 @@ func Load(path string) (*RegistryConfig, error) {
 
 	err := viper.ReadInConfig()
 	if err != nil {
+		color.Red("error loading config: %s", err)
 		setDefaults()
 	}
 

@@ -1,0 +1,12 @@
+debug: true
+host: 0.0.0.0
+port: 5000
+tls_key_path: ./certs/private_key.txt
+tls_cert_path: ./certs/certificate.txt
+skynet_store_path: /Users/jasdeep/.parachute
+skynet_link_resolvers: /Users/jasdeep/.parachute/links
+skynet_portal_url: https://siasky.net
+skynet_config:
+  endpoint_path: ""
+  api_key: ""
+  custom_user_agent: "parachute-registry"

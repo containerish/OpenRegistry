@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log"
 	"os"
 
 	"github.com/fatih/color"
@@ -10,19 +9,30 @@ import (
 	"github.com/rs/zerolog"
 )
 func main() {
+	var configPath string
+	if len(os.Args) != 2 {
+		configPath = "./"
+	}
 
-	path := "./"
-	config, err := config.Load(path)
+	config, err := config.Load(configPath)
 	if err != nil {
 		color.Red("error reading config file: %s", err.Error())
 		os.Exit(1)
 	}
 
+	color.Green("config: %s", config)
+
 	l := setupLogger()
 	srv := server.NewServer(l, config)
-	defer srv.Stop()
 
-	log.Fatalln(srv.Start())
+	var errSig chan error
+	errSig <- srv.Start()
+
+	color.Yellow("docker registry server start error: %s", <-errSig)
+
+	errSig <- srv.Stop()
+
+	color.Yellow("docker registry server stopped: %s", <-errSig)
 }
 
 func setupLogger() zerolog.Logger {

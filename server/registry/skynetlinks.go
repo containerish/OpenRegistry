@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+
+	"github.com/fatih/color"
 )
 
 type skynetStore struct {
@@ -50,6 +52,7 @@ func (s *skynetStore) Get(repo, ref string) (string, bool) {
 			ok = true
 		}
 	}
+	defer color.Green("link: %s\n", val)
 
 	return val, ok
 }
@@ -62,6 +65,7 @@ func (s *skynetStore) readSkynetLink(key string) (string, error) {
 		return "", err
 	}
 
+	color.Blue("%s\n%s\n", p, content)
 	return string(content), nil
 }
 

@@ -95,7 +95,13 @@ func Logger(l zerolog.Logger) Option {
 }
 
 func (r *registry) skynetURL(s []string) string {
-	return fmt.Sprintf("%s/skynet/%s", r.c.SkynetPortalURL, strings.Join(s, "/"))
+	skynetLink := s[0]
+	skynetLink = strings.TrimPrefix(skynetLink, "sia://")
+	uri := fmt.Sprintf("%s/%s", r.c.SkynetPortalURL, "/" + skynetLink)
+
+	lm := make(logMsg); lm["uri"] = uri; r.debugf(lm)
+
+	return uri
 }
 
 func (r *registry) v2(rw http.ResponseWriter, req *http.Request) *restError {
