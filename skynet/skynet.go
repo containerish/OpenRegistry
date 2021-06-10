@@ -1,6 +1,7 @@
 package skynet
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"log"
@@ -29,12 +30,17 @@ func NewClient(c *config.RegistryConfig) *Client {
 	}
 }
 
-func (c *Client) Upload(digest string, content io.ReadCloser, headers ...skynet.Header) (string, error) {
+func (c *Client) Upload(digest string, content []byte, headers ...skynet.Header) (string, error) {
 	opts := skynet.DefaultUploadOptions
 
 	data := make(skynet.UploadData)
-	data[digest] = content
 
+	buf := bytes.NewBuffer(content)
+	color.Green("%d", buf.Len())
+
+	data[digest] = buf
+
+	// c.skynet.UploadFile()
 	return c.skynet.Upload(data, opts, headers...)
 }
 

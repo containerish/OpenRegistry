@@ -11,14 +11,19 @@ require (
 	github.com/docker/docker v20.10.6+incompatible
 	github.com/fatih/color v1.7.0
 	github.com/google/go-containerregistry v0.5.1
+	github.com/labstack/echo-contrib v0.11.0 // indirect
 	github.com/labstack/echo/v4 v4.3.0
+	github.com/mattn/go-isatty v0.0.13 // indirect
+	github.com/prometheus/common v0.28.0 // indirect
 	github.com/rs/zerolog v1.22.0
 	github.com/sirupsen/logrus v1.8.1 // indirect
 	github.com/spf13/viper v1.7.1
+	github.com/uber-go/atomic v1.4.0 // indirect
 	github.com/whyrusleeping/tar-utils v0.0.0-20201201191210-20a61371de5b
 	gitlab.com/NebulousLabs/errors v0.0.0-20200929122200-06c536cf6975 // indirect
-	golang.org/x/net v0.0.0-20210521195947-fe42d452be8f // indirect
-	golang.org/x/sys v0.0.0-20210521203332-0cec03c779c1 // indirect
+	golang.org/x/crypto v0.0.0-20210513164829-c07d793c2f9a // indirect
+	golang.org/x/sys v0.0.0-20210608053332-aa57babbf139 // indirect
+	golang.org/x/time v0.0.0-20210608053304-ed9ce3a009e4 // indirect
 	google.golang.org/genproto v0.0.0-20210521181308-5ccab8a35a9a // indirect
 	google.golang.org/grpc v1.38.0 // indirect
 )

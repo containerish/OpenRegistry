@@ -8,6 +8,8 @@ import (
 	"github.com/jay-dee7/parachute/cache"
 	"github.com/jay-dee7/parachute/config"
 	"github.com/jay-dee7/parachute/server/registry/v2"
+	"github.com/jay-dee7/parachute/skynet"
+	"github.com/labstack/echo-contrib/prometheus"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/rs/zerolog"
@@ -29,6 +31,8 @@ func main() {
 
 	var errSig chan error
 	e := echo.New()
+	p := prometheus.NewPrometheus("echo", nil)
+	p.Use(e)
 
 	l := setupLogger()
 	localCache, err := cache.New("/tmp/badger")
@@ -36,8 +40,11 @@ func main() {
 		l.Err(err).Send()
 		return
 	}
+	defer localCache.Close()
 
-	reg, err := registry.NewRegistry(l, localCache, e.Logger)
+	skynetClient := skynet.NewClient(config)
+
+	reg, err := registry.NewRegistry(skynetClient, l, localCache, e.Logger)
 	if err != nil {
 		l.Err(err).Send()
 		return
@@ -47,44 +54,58 @@ func main() {
 		Skipper: func(echo.Context) bool {
 			return false
 		},
-		Format:           "method=${method}, uri=${uri}, status=${status} error=${error} latency=${latency} bytes_in=${bytes_in} bytes_out=${bytes_out} range=${Content-Range}\n",
+		Format:           "method=${method}, uri=${uri}, status=${status} latency=${latency}\n",
 		CustomTimeFormat: "",
 		Output:           nil,
 	}))
 
 	e.Use(middleware.Recover())
 
-	router := e.Group("/v2/:namespace")
+	internal := e.Group("/internal")
 
-	// PUT /v2/<name>/blobs/uploads/<uuid>?digest=<digest>
-	router.Add(http.MethodPut, "/blobs/uploads/:uuid", reg.MonolithicUpload)
+	internal.Add(http.MethodGet, "/metadata", localCache.Metadata)
 
-	// PUT /v2/<name>/blobs/uploads/<uuid>?digest=<digest>
-	router.Add(http.MethodPut, "/blobs/uploads/:uuid", reg.CompleteUpload)
+	router := e.Group("/v2/:username/:imagename")
 
+	// ALL THE HEAD METHODS //
 	// HEAD /v2/<name>/blobs/<digest>
 	router.Add(http.MethodHead, "/blobs/:reference", reg.ManifestExists) // (LayerExists) should be called reference/digest
 
 	// HEAD /v2/<name>/manifests/<reference>
 	router.Add(http.MethodHead, "/manifests/:reference", reg.ManifestExists) //should be called reference/digest
 
-	// PATCH /v2/<name>/blobs/uploads/<uuid>
-	router.Add(http.MethodPatch, "/blobs/uploads/:uuid", reg.ChunkedUpload)
+	// ALL THE PUT METHODS
+	// PUT /v2/<name>/blobs/uploads/<uuid>?digest=<digest>
+	router.Add(http.MethodPut, "/blobs/uploads/:uuid", reg.MonolithicUpload)
 
-	// GET /v2/<name>/manifests/<reference>
-	router.Add(http.MethodGet, "/manifests/:reference", reg.PullManifest)
+	// PUT /v2/<name>/blobs/uploads/<uuid>?digest=<digest>
+	router.Add(http.MethodPut, "/blobs/uploads/:uuid", reg.CompleteUpload)
 
 	// PUT /v2/<name>/manifests/<reference>
 	router.Add(http.MethodPut, "/manifests/:reference", reg.PushManifest)
 
-	// GET /v2/<name>/blobs/<digest>
-	router.Add(http.MethodGet, "/manifests/:digest", reg.PullLayer)
-
+	// POST METHODS
 	// POST /v2/<name>/blobs/uploads/
-	router.Add(http.MethodPost, "/blobs/uploads/", reg.StartUpload)
+	// router.Add(http.MethodPost, "/blobs/uploads/", reg.StartUpload)
 
 	// POST /v2/<name>/blobs/uploads/
 	router.Add(http.MethodPost, "/blobs/uploads/:uuid", reg.PushLayer)
+
+	// PATCH
+
+	// PATCH /v2/<name>/blobs/uploads/<uuid>
+	// router.Add(http.MethodPatch, "/blobs/uploads/:uuid", reg.ChunkedUpload)
+	// router.Add(http.MethodPatch, "/blobs/uploads/", reg.ChunkedUpload)
+
+	// GET
+	// GET /v2/<name>/manifests/<reference>
+	router.Add(http.MethodGet, "/manifests/:reference", reg.PullManifest)
+
+	// GET /v2/<name>/blobs/<digest>
+	router.Add(http.MethodGet, "/manifests/:digest", reg.PullLayer)
+
+	// GET GET /v2/<name>/blobs/uploads/<uuid>
+	router.Add(http.MethodGet, "/blobs/uploads/:uuid", reg.UploadProgress)
 
 	e.Add(http.MethodGet, "/v2/", reg.ApiVersion)
 

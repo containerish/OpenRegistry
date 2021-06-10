@@ -2,13 +2,43 @@ package cache
 
 import (
 	"encoding/json"
-	"strings"
+	"fmt"
+	"net/http"
 
 	badger "github.com/dgraph-io/badger/v3"
+	"github.com/labstack/echo/v4"
 )
 
 type dataStore struct {
 	db *badger.DB
+}
+
+type Metadata struct {
+	Namespace string
+	Layers    []Layer
+	Manifests []Manifest
+}
+
+type Layer struct {
+	Digest     string
+	Size uint64
+	UUID       string
+	SkynetLink string
+}
+
+type Manifest struct {
+	SkynetLink string
+	Reference string
+}
+
+func (md Metadata) Bytes() []byte {
+	bz, err := json.Marshal(md)
+	if err != nil {
+		fmt.Println(err.Error())
+		return []byte{}
+	}
+
+	return bz
 }
 
 type Store interface {
@@ -19,6 +49,7 @@ type Store interface {
 	ListAll() ([]byte, error)
 	Delete(key []byte) error
 	GetSkynetURL(key string, args ...string) (string, error)
+	Metadata(ctx echo.Context) error
 	Close() error
 }
 
@@ -35,25 +66,35 @@ func New(storeLocation string) (Store, error) {
 	return &dataStore{db: db}, nil
 }
 
+func (ds *dataStore) Metadata(ctx echo.Context) error {
+	key := ctx.QueryParam("namespace")
+
+	val, err := ds.Get([]byte(key))
+	if err != nil {
+		ctx.String(http.StatusNotFound, err.Error())
+	}
+
+	return ctx.JSONBlob(http.StatusOK, val)
+}
+
 func (ds *dataStore) Update(key, value []byte) error {
 	item, err := ds.Get(key)
 	if err != nil {
 		return ds.Set(key, value)
 	}
 
-	resp := make(map[string]string)
+	var resp Metadata
 	if err = json.Unmarshal(item, &resp); err != nil {
 		return err
 	}
 
-	v := make(map[string]string)
+	var v Metadata
 	if err = json.Unmarshal(value, &v); err != nil {
 		return err
 	}
 
-	for k, v := range v {
-		resp[k] = v
-	}
+	resp.Layers = append(resp.Layers, v.Layers...)
+	resp.Manifests = append(resp.Manifests, v.Manifests...)
 
 	bz, err := json.Marshal(resp)
 	if err != nil {
@@ -63,10 +104,23 @@ func (ds *dataStore) Update(key, value []byte) error {
 	return ds.Set(key, bz)
 }
 
-func (ds *dataStore) GetSkynetURL(key string, args ...string) (string, error) {
-	if len(args) > 0 {
-		key = key + "/" + strings.Join(args, "/")
+func (md Metadata) Find(ref string) (string, error) {
+	for _, l := range md.Layers {
+		if l.Digest == ref {
+			return l.SkynetLink, nil
+		}
 	}
+
+	for _, m := range md.Manifests {
+		if m.Reference == ref {
+			return m.SkynetLink, nil
+		}
+	}
+
+	return "", fmt.Errorf("ref does not exists")
+}
+
+func (ds *dataStore) GetSkynetURL(key string, args ...string) (string, error) {
 
 	var res []byte
 	err := ds.db.View(func(txn *badger.Txn) error {
@@ -86,13 +140,13 @@ func (ds *dataStore) GetSkynetURL(key string, args ...string) (string, error) {
 		return "", err
 	}
 
-	var info struct {
-		SkynetLink string `json:"skynetLink"`
+	var md Metadata
+	err = json.Unmarshal(res, &md)
+	if err != nil {
+		return "", err
 	}
 
-	err = json.Unmarshal(res, &info)
-	return info.SkynetLink, err
-
+	return md.Find(args[0])
 }
 
 func (ds *dataStore) Set(key, value []byte) error {
@@ -185,5 +239,5 @@ func (ds *dataStore) Delete(key []byte) error {
 }
 
 func (ds *dataStore) Close() error {
-	return ds.Close()
+	return ds.db.Close()
 }
