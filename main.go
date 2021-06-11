@@ -56,7 +56,7 @@ func main() {
 		},
 		Format:           "method=${method}, uri=${uri}, status=${status} latency=${latency}\n",
 		CustomTimeFormat: "",
-		Output:           nil,
+		Output:           os.Stdout,
 	}))
 
 	e.Use(middleware.Recover())
@@ -76,7 +76,7 @@ func main() {
 
 	// ALL THE PUT METHODS
 	// PUT /v2/<name>/blobs/uploads/<uuid>?digest=<digest>
-	router.Add(http.MethodPut, "/blobs/uploads/:uuid", reg.MonolithicUpload)
+	// router.Add(http.MethodPut, "/blobs/uploads/:uuid", reg.MonolithicUpload)
 
 	// PUT /v2/<name>/blobs/uploads/<uuid>?digest=<digest>
 	router.Add(http.MethodPut, "/blobs/uploads/:uuid", reg.CompleteUpload)
@@ -86,7 +86,8 @@ func main() {
 
 	// POST METHODS
 	// POST /v2/<name>/blobs/uploads/
-	// router.Add(http.MethodPost, "/blobs/uploads/", reg.StartUpload)
+	router.Add(http.MethodPost, "/blobs/uploads", reg.StartUpload)
+	router.Add(http.MethodPost, "/blobs/uploads/", reg.StartUpload)
 
 	// POST /v2/<name>/blobs/uploads/
 	router.Add(http.MethodPost, "/blobs/uploads/:uuid", reg.PushLayer)
@@ -94,7 +95,7 @@ func main() {
 	// PATCH
 
 	// PATCH /v2/<name>/blobs/uploads/<uuid>
-	// router.Add(http.MethodPatch, "/blobs/uploads/:uuid", reg.ChunkedUpload)
+	router.Add(http.MethodPatch, "/blobs/uploads/:uuid", reg.ChunkedUpload)
 	// router.Add(http.MethodPatch, "/blobs/uploads/", reg.ChunkedUpload)
 
 	// GET

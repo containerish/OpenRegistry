@@ -2,7 +2,6 @@ package skynet
 
 import (
 	"bytes"
-	"fmt"
 	"io"
 	"log"
 	"strconv"
@@ -36,7 +35,7 @@ func (c *Client) Upload(digest string, content []byte, headers ...skynet.Header)
 	data := make(skynet.UploadData)
 
 	buf := bytes.NewBuffer(content)
-	color.Green("%d", buf.Len())
+	color.Green("buffer size = %d", buf.Len())
 
 	data[digest] = buf
 
@@ -94,7 +93,6 @@ func (c *Client) Metadata(skylink string) (uint64, bool){
 		return 0, false
 	}
 
-	fmt.Println(info)
 	ct := info.Get("content-length")
 	if ct == "" {
 		return 0, false

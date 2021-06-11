@@ -21,14 +21,15 @@ type Metadata struct {
 
 type Layer struct {
 	Digest     string
-	Size uint64
+	Size       uint64
 	UUID       string
 	SkynetLink string
 }
 
 type Manifest struct {
 	SkynetLink string
-	Reference string
+	Reference  string
+	Digest string
 }
 
 func (md Metadata) Bytes() []byte {
@@ -93,8 +94,10 @@ func (ds *dataStore) Update(key, value []byte) error {
 		return err
 	}
 
-	resp.Layers = append(resp.Layers, v.Layers...)
-	resp.Manifests = append(resp.Manifests, v.Manifests...)
+	layers, manifests := ds.removeDuplicates(resp, v)
+
+	resp.Layers = layers
+	resp.Manifests = manifests
 
 	bz, err := json.Marshal(resp)
 	if err != nil {
@@ -102,6 +105,47 @@ func (ds *dataStore) Update(key, value []byte) error {
 	}
 
 	return ds.Set(key, bz)
+}
+
+func (ds *dataStore) removeDuplicates(src, dst Metadata) ([]Layer, []Manifest) {
+	combinedLayers := make([]Layer, len(src.Layers)+len(dst.Layers))
+	combinedManifests := make([]Manifest, len(src.Manifests)+len(dst.Manifests))
+
+	combinedLayers = append(combinedLayers, src.Layers...)
+	combinedLayers = append(combinedLayers, dst.Layers...)
+
+	combinedManifests = append(combinedManifests, src.Manifests...)
+	combinedManifests = append(combinedManifests, dst.Manifests...)
+
+	return ds.removeDuplicateLayers(combinedLayers), ds.removeDuplicateManifests(combinedManifests)
+}
+
+func (ds *dataStore) removeDuplicateManifests(list []Manifest) []Manifest {
+	seenMap := make(map[string]bool)
+	var manifests []Manifest
+
+	for _, l := range list {
+		if !seenMap[l.Reference] {
+			seenMap[l.Reference] = true
+			manifests = append(manifests, l)
+		}
+	}
+
+	return manifests
+}
+
+func (ds *dataStore) removeDuplicateLayers(list []Layer) []Layer {
+	seenMap := make(map[string]bool)
+	var layers []Layer
+
+	for _, l := range list {
+		if !seenMap[l.Digest] {
+			seenMap[l.Digest] = true
+			layers = append(layers, l)
+		}
+	}
+
+	return layers
 }
 
 func (md Metadata) Find(ref string) (string, error) {

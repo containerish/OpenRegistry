@@ -29,6 +29,7 @@ type (
 		b          blobs
 		localCache cache.Store
 		echoLogger echo.Logger
+		mu         *sync.RWMutex
 	}
 
 	blobs struct {
@@ -119,6 +120,7 @@ func NewRegistry(skynetClient *skynet.Client, logger zerolog.Logger, c cache.Sto
 		b:          blobs{},
 		localCache: c,
 		echoLogger: echoLogger,
+		mu:         &sync.RWMutex{},
 	}, nil
 }
 
@@ -152,6 +154,11 @@ func (r *registry) MonolithicUpload(ctx echo.Context) error {
 	digest := ctx.QueryParam("digest")
 
 	bz, err := io.ReadAll(ctx.Request().Body)
+	if err != nil {
+		errMsg := r.errorResponse(RegistryErrorCodeBlobUploadInvalid, err.Error(), nil)
+		return ctx.JSONBlob(http.StatusBadRequest, errMsg)
+	}
+	defer ctx.Request().Body.Close()
 
 	link, err := r.skynet.Upload(digest, bz)
 	if err != nil {
@@ -165,12 +172,15 @@ func (r *registry) MonolithicUpload(ctx echo.Context) error {
 		},
 	}
 
-	return r.localCache.Update([]byte(namespace), metadata.Bytes())
+	r.localCache.Update([]byte(namespace), metadata.Bytes())
+	locationHeader := fmt.Sprintf("%s", link)
+	ctx.Response().Header().Set("Location", locationHeader)
+	return ctx.NoContent(http.StatusCreated)
 }
 
 // PUT /v2/<name>/blobs/uploads/<uuid>?digest=<digest>
 func (r *registry) CompleteUpload(ctx echo.Context) error {
-	digest := ctx.QueryParam("digest")
+	dig := ctx.QueryParam("digest")
 	namespace := ctx.Param("username") + "/" + ctx.Param("imagename")
 	uuid := ctx.Param("uuid")
 	// contentRange := ctx.Request().Header.Get("Content-Range")
@@ -180,15 +190,16 @@ func (r *registry) CompleteUpload(ctx echo.Context) error {
 		errMsg := r.errorResponse(RegistryErrorCodeDigestInvalid, err.Error(), nil)
 		return ctx.JSONBlob(http.StatusBadRequest, errMsg)
 	}
+	defer ctx.Request().Body.Close()
 
-	hash := sha256.Sum256(bz)
-	dockerfy := "sha256:" + hex.EncodeToString(hash[:])
+	ourHash := digest(bz)
 
-	if dockerfy != digest {
+	if ourHash != dig {
 		details := map[string]interface{}{
-			"headerDigest": digest, "serverSideDigest": dockerfy,
+			"headerDigest": dig, "serverSideDigest": ourHash,
 		}
 		errMsg := r.errorResponse(RegistryErrorCodeDigestInvalid, "digest mismatch", details)
+		r.debugf(details)
 		return ctx.JSONBlob(http.StatusBadRequest, errMsg)
 	}
 
@@ -200,12 +211,7 @@ func (r *registry) CompleteUpload(ctx echo.Context) error {
 		})
 	}
 
-	bz, err = io.ReadAll(ctx.Request().Body)
-	if err != nil {
-		panic(err)
-	}
-
-	skylink, err := r.skynet.Upload(digest, bz, headers...)
+	skylink, err := r.skynet.Upload(dig, bz, headers...)
 	if err != nil {
 		errMsg := r.errorResponse(RegistryErrorCodeBlobUploadInvalid, err.Error(), nil)
 		return ctx.JSONBlob(http.StatusRequestedRangeNotSatisfiable, errMsg)
@@ -213,15 +219,19 @@ func (r *registry) CompleteUpload(ctx echo.Context) error {
 
 	val := cache.Metadata{
 		Namespace: namespace,
-		Layers:    []cache.Layer{{Digest: digest, UUID: uuid, SkynetLink: skylink}},
-		Manifests: []cache.Manifest{},
+		Layers: []cache.Layer{{
+			Digest:     dig,
+			Size:       uint64(len(bz)),
+			UUID:       uuid,
+			SkynetLink: skylink,
+		}},
 	}
 
 	r.localCache.Update([]byte(namespace), val.Bytes())
 
-	locationHeader := fmt.Sprintf("/v2/%s/blobs/%s", namespace, digest)
+	locationHeader := fmt.Sprintf("/v2/%s/blobs/%s", namespace, ourHash)
 	ctx.Response().Header().Set("Content-Length", "0")
-	ctx.Response().Header().Set("Docker-Content-Digest", digest)
+	ctx.Response().Header().Set("Docker-Content-Digest", ourHash)
 	ctx.Response().Header().Set("Location", locationHeader)
 
 	return ctx.NoContent(http.StatusCreated)
@@ -258,10 +268,6 @@ func (r *registry) LayerExists(ctx echo.Context) error {
 func (r *registry) ManifestExists(ctx echo.Context) error {
 	namespace := ctx.Param("username") + "/" + ctx.Param("imagename")
 	ref := ctx.Param("reference") // ref can be either tag or digest
-	digest, rerr := r.getDigestFromURI(ctx.Request().URL)
-	if rerr != nil {
-		return ctx.String(http.StatusNotFound, "Not Found")
-	}
 
 	skylink, err := r.localCache.GetSkynetURL(namespace, ref)
 	if err != nil {
@@ -299,6 +305,17 @@ func (r *registry) ManifestExists(ctx echo.Context) error {
 	}
 	// }
 
+	bz, err := r.localCache.Get([]byte(namespace))
+	var md cache.Metadata
+	json.Unmarshal(bz, &md)
+
+	digest := ""
+	for _, m := range md.Manifests {
+		if m.Reference == ref {
+			digest = m.Digest
+		}
+	}
+
 	ctx.Response().Header().Set("Content-Length", fmt.Sprintf("%d", size))
 	ctx.Response().Header().Set("Docker-Content-Digest", digest)
 	return ctx.String(http.StatusOK, "OK")
@@ -307,41 +324,8 @@ func (r *registry) ManifestExists(ctx echo.Context) error {
 // PATCH /v2/<name>/blobs/uploads/<uuid>
 func (r *registry) ChunkedUpload(ctx echo.Context) error {
 	namespace := ctx.Param("username") + "/" + ctx.Param("imagename")
-	uuid := ctx.Param("uuid")
-	contentRange := ctx.Request().Header.Get("Content-Range")
+	chunkID := ctx.Param("uuid")
 
-	elem := strings.Split(ctx.Request().URL.Path, "/")
-	elem = elem[1:]
-	if elem[len(elem)-1] == "" {
-		elem = elem[:len(elem)-1]
-	}
-	// Must have a path of form /v2/{name}/blobs/{upload,sha256:}
-	if len(elem) < 4 {
-		errMsg := r.errorResponse(RegistryErrorCodeNameInvalid, "blobs must be attached to a repo", nil)
-		return ctx.JSONBlob(http.StatusBadRequest, errMsg)
-	}
-
-	digest, rerr := r.getDigestFromURI(ctx.Request().URL)
-	if rerr != nil {
-		return ctx.String(http.StatusNotFound, "Not Found")
-	}
-
-	start, end := 0, 0
-	if _, err := fmt.Sscanf(contentRange, "%d-%d", &start, &end); err != nil {
-		errMsg := r.errorResponse(RegistryErrorCodeBlobUploadUnknown, err.Error(), nil)
-		_ = errMsg
-		// return ctx.JSONBlob(http.StatusRequestedRangeNotSatisfiable, errMsg)
-	}
-
-	// b.lock.Lock()
-	// defer b.lock.Unlock()
-
-	// if start != len(r.b.uploads[digest]) {
-	// 	errMsg := r.errorResponse(RegistryErrorCodeBlobUploadUnknown, "content mismatch", nil)
-	// 	return ctx.JSONBlob(http.StatusRequestedRangeNotSatisfiable, errMsg)
-	// }
-
-	// r.b.uploads[digest] = l.Bytes()
 	var headers []skynetsdk.Header
 
 	for k, v := range ctx.Request().Header {
@@ -354,14 +338,16 @@ func (r *registry) ChunkedUpload(ctx echo.Context) error {
 	if err != nil {
 		panic(err)
 	}
+	defer ctx.Request().Body.Close()
 
-	skylink, err := r.skynet.Upload(digest, bz, headers...)
+	dig := digest(bz)
+	skylink, err := r.skynet.Upload(dig, bz, headers...)
 	if err != nil {
 		errMsg := r.errorResponse(RegistryErrorCodeBlobUploadInvalid, err.Error(), nil)
 		lm := logMsg{
 			"error":  err.Error(),
-			"digest": digest,
-			"uuid":   uuid,
+			"digest": dig,
+			"uuid":   chunkID,
 		}
 		r.debugf(lm)
 		return ctx.JSONBlob(http.StatusRequestedRangeNotSatisfiable, errMsg)
@@ -369,25 +355,24 @@ func (r *registry) ChunkedUpload(ctx echo.Context) error {
 
 	val := cache.Metadata{
 		Namespace: namespace,
-		Layers: []cache.Layer{
-			{
-				Digest:     digest,
-				UUID:       uuid,
-				SkynetLink: skylink,
-			},
-		},
-		Manifests: []cache.Manifest{},
+		Layers:    []cache.Layer{{Digest: dig, Size: uint64(len(bz)), UUID: chunkID, SkynetLink: skylink}},
 	}
 
 	r.localCache.Update([]byte(namespace), val.Bytes())
 
-	p := path.Join(elem[1 : len(elem)-3]...)
-	locationHeader := fmt.Sprintf("/v2/%s/blobs/uploads/%s", p, uuid)
+	// id := uuid.Generate()
+
+	locationHeader := fmt.Sprintf("/v2/%s/blobs/uploads/%s", namespace, chunkID)
 
 	ctx.Response().Header().Set("Location", locationHeader)
-	ctx.Response().Header().Set("Range", fmt.Sprintf("0-%d", ctx.Request().ContentLength-1))
-	ctx.Response().WriteHeader(http.StatusNoContent)
-	return nil
+	ctx.Response().Header().Set("Range", fmt.Sprintf("bytes=0-%d", len(bz)-1))
+	ctx.Response().Header().Set("Docker-Upload-UUID", chunkID)
+	defer func() {
+		for k, v := range ctx.Response().Header() {
+			color.Blue("%s=%v", k, v)
+		}
+	}()
+	return ctx.NoContent(http.StatusAccepted)
 }
 
 func (r *registry) CancelUpload(ctx echo.Context) error {
@@ -421,14 +406,22 @@ func (r *registry) PullManifest(ctx echo.Context) error {
 	return ctx.JSONBlob(http.StatusOK, bz)
 }
 
-func (r *registry) digest(bz []byte) string {
-	hash := sha256.Sum256(bz)
-	return "sha256:" + hex.EncodeToString(hash[:])
+func digest(bz []byte) string {
+	hash := sha256.New()
+	_, err := hash.Write(bz)
+	if err != nil {
+		panic(err)
+	}
+
+	return "sha256:" + hex.EncodeToString(hash.Sum(nil))
 }
 
 func (r *registry) PushManifest(ctx echo.Context) error {
 	namespace := ctx.Param("username") + "/" + ctx.Param("imagename")
 	ref := ctx.Param("reference")
+	for k, h := range ctx.Request().Header {
+		color.Cyan("%s=%s", k, h[0])
+	}
 	// contentType := ctx.Request().Header.Get("Content-Type")
 
 	bz, err := io.ReadAll(ctx.Request().Body)
@@ -436,7 +429,6 @@ func (r *registry) PushManifest(ctx echo.Context) error {
 		errMsg := r.errorResponse(RegistryErrorCodeManifestInvalid, err.Error(), nil)
 		return ctx.JSONBlob(http.StatusBadRequest, errMsg)
 	}
-
 	defer ctx.Request().Body.Close()
 
 	var manifest ManifestList
@@ -445,12 +437,15 @@ func (r *registry) PushManifest(ctx echo.Context) error {
 		return ctx.JSONBlob(http.StatusBadRequest, errMsg)
 	}
 
-	bz, err = io.ReadAll(ctx.Request().Body)
+	color.Blue("%s", bz)
+
 	skynetLink, err := r.skynet.Upload(ref, bz)
 	if err != nil {
 		errMsg := r.errorResponse(RegistryErrorCodeBlobUnknown, err.Error(), nil)
 		return ctx.JSONBlob(http.StatusBadRequest, errMsg)
 	}
+
+	dig := digest(bz)
 
 	metadata := cache.Metadata{
 		Namespace: namespace,
@@ -458,13 +453,14 @@ func (r *registry) PushManifest(ctx echo.Context) error {
 		Manifests: []cache.Manifest{{
 			SkynetLink: skynetLink,
 			Reference:  ref,
+			Digest: dig,
 		}},
 	}
 
 	r.localCache.Update([]byte(namespace), metadata.Bytes())
-	// ctx.Response().Header().Set("Docker-Content-Digest", digest)
+	ctx.Response().Header().Set("Docker-Content-Digest", dig)
 	ctx.Response().Header().Set("X-Docker-Content-ID", skynetLink)
-	ctx.Response().WriteHeader(http.StatusCreated)
+	return ctx.NoContent(http.StatusCreated)
 
 	// digest := r.digest(bz)
 	// mf := ImageManifest{
@@ -500,8 +496,6 @@ func (r *registry) PushManifest(ctx echo.Context) error {
 	// }
 
 	// r.skynet.AddImage(manifests, layers)
-
-	return nil
 }
 
 func (r *registry) DeleteImage(ctx echo.Context) error {
@@ -511,11 +505,7 @@ func (r *registry) DeleteImage(ctx echo.Context) error {
 // GET /v2/<name>/blobs/<digest>
 func (r *registry) PullLayer(ctx echo.Context) error {
 	namespace := ctx.Param("username") + "/" + ctx.Param("imagename")
-	digest, rerr := r.getDigestFromURI(ctx.Request().URL)
-	if rerr != nil {
-		bz, _ := json.Marshal(rerr)
-		return ctx.JSONBlob(http.StatusNotFound, bz)
-	}
+	digest := ctx.Param("digest")
 
 	skynetlink, err := r.localCache.GetSkynetURL(namespace, digest)
 	if err != nil {
@@ -523,21 +513,23 @@ func (r *registry) PullLayer(ctx echo.Context) error {
 		return ctx.JSONBlob(http.StatusNotFound, errMsg)
 	}
 
-	resp, err := http.DefaultClient.Get(skynetlink)
+	size, _ := r.skynet.Metadata(skynetlink)
+
+	resp, err := r.skynet.Download(skynetlink)
 	if err != nil {
 		errMsg := r.errorResponse(RegistryErrorCodeBlobUnknown, err.Error(), nil)
 		return ctx.JSONBlob(http.StatusNotFound, errMsg)
 	}
+	defer resp.Close()
 
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		errMsg := r.errorResponse(RegistryErrorCodeBlobUnknown, err.Error(), nil)
-		return ctx.JSONBlob(http.StatusNotFound, errMsg)
-	}
+	// if resp.StatusCode != http.StatusOK {
+	// 	errMsg := r.errorResponse(RegistryErrorCodeBlobUnknown, err.Error(), nil)
+	// 	return ctx.JSONBlob(http.StatusNotFound, errMsg)
+	// }
 
-	ctx.Response().Header().Set("Content-Length", fmt.Sprintf("%d", resp.ContentLength))
+	ctx.Response().Header().Set("Content-Length", fmt.Sprintf("%d", size))
 	ctx.Response().Header().Set("Docker-Content-Digest", digest)
-	return ctx.Stream(http.StatusOK, "application/octet-stream", resp.Body)
+	return ctx.Stream(http.StatusOK, "application/octet-stream", resp)
 }
 
 func (r *registry) BlobMount(ctx echo.Context) error {
@@ -549,26 +541,57 @@ func (r *registry) PushImage(ctx echo.Context) error {
 
 func (r *registry) StartUpload(ctx echo.Context) error {
 
-	elem := strings.Split(ctx.Request().URL.Path, "/")
-	elem = elem[1:]
-	if elem[len(elem)-1] == "" {
-		elem = elem[:len(elem)-1]
-	}
+	namespace := ctx.Param("username") + "/" + ctx.Param("imagename")
+	ourDig := ctx.QueryParam("digest")
+	color.Red("digest: %s", ourDig)
+	if ourDig != "" {
+		var headers []skynetsdk.Header
 
-	// Must have a path of form /v2/{name}/blobs/{upload,sha256:}
-	if len(elem) < 4 {
-		errMsg := r.errorResponse(RegistryErrorCodeNameInvalid, "blobs must be attached to a repo", nil)
-		return ctx.JSONBlob(http.StatusNotFound, errMsg)
+		for k, v := range ctx.Request().Header {
+			headers = append(headers, skynetsdk.Header{
+				Key: k, Value: v[0],
+			})
+		}
+
+		bz, err := io.ReadAll(ctx.Request().Body)
+		if err != nil {
+			panic(err)
+		}
+		defer ctx.Request().Body.Close()
+
+		dig := digest(bz)
+		skylink, err := r.skynet.Upload(dig, bz, headers...)
+		if err != nil {
+			errMsg := r.errorResponse(RegistryErrorCodeBlobUploadInvalid, err.Error(), nil)
+			lm := logMsg{
+				"error":  err.Error(),
+				"digest": dig,
+			}
+			r.debugf(lm)
+			return ctx.JSONBlob(http.StatusRequestedRangeNotSatisfiable, errMsg)
+		}
+
+		val := cache.Metadata{
+			Namespace: namespace,
+			Layers: []cache.Layer{{
+				Digest:     dig,
+				Size:       uint64(len(bz)),
+				SkynetLink: skylink,
+			}},
+		}
+
+		r.localCache.Update([]byte(namespace), val.Bytes())
+		ctx.Response().Header().Set("Location", skylink)
+		return ctx.NoContent(http.StatusCreated)
 	}
 
 	id := uuid.Generate()
-	p := path.Join(elem[1 : len(elem)-2]...)
-	locationHeader := fmt.Sprintf("/v2/%s/blobs/uploads/%s", p, id)
+	locationHeader := fmt.Sprintf("/v2/%s/blobs/uploads/%s", namespace, id.String())
+
 	ctx.Response().Header().Set("Location", locationHeader)
 	ctx.Response().Header().Set("Content-Length", "0")
 	ctx.Response().Header().Set("Docker-Upload-UUID", id.String())
-	ctx.Response().Header().Set("Range", fmt.Sprintf("bytes=0-%d", 0))
-
+	ctx.Response().Header().Set("Range", fmt.Sprintf("bytes=0-%d", 228940))
 	return ctx.NoContent(http.StatusAccepted)
 }
 
@@ -620,7 +643,7 @@ func (r *registry) PushLayer(ctx echo.Context) error {
 	locationHeader := fmt.Sprintf("/v2/%s/blobs/uploads/%s", p, id.String())
 	ctx.Response().Header().Set("Location", locationHeader)
 	ctx.Response().Header().Set("Docker-Upload-UUID", id.String())
-	ctx.Response().Header().Set("Range", "0-0")
+	ctx.Response().Header().Set("Range", "bytes=0-0")
 	return ctx.NoContent(http.StatusAccepted)
 }
 
@@ -635,6 +658,7 @@ func (r *registry) debugf(lm logMsg) {
 
 	if r.debug {
 		r.echoLogger.Debug(lm)
+		return
 	}
 
 	if r.debug {
@@ -651,7 +675,6 @@ func (r *registry) ApiVersion(ctx echo.Context) error {
 }
 
 type Registry interface {
-
 	UploadProgress(ctx echo.Context) error
 
 	// GET /v2/<name>/blobs/<digest>
