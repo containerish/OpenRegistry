@@ -6,7 +6,6 @@ import (
 	"os"
 	"os/user"
 
-	"github.com/fatih/color"
 	"github.com/spf13/viper"
 )
 
@@ -43,7 +42,6 @@ func Load(path string) (*RegistryConfig, error) {
 
 	err := viper.ReadInConfig()
 	if err != nil {
-		color.Red("error loading config: %s", err)
 		setDefaults()
 	}
 

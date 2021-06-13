@@ -27,12 +27,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	color.Green("config: %s", config)
-
 	var errSig chan error
 	e := echo.New()
 	p := prometheus.NewPrometheus("echo", nil)
 	p.Use(e)
+	e.HideBanner = true
+	e.HidePort = true
 
 	l := setupLogger()
 	localCache, err := cache.New("/tmp/badger")
@@ -55,7 +55,6 @@ func main() {
 			return false
 		},
 		Format:           "method=${method}, uri=${uri}, status=${status} latency=${latency}\n",
-		CustomTimeFormat: "",
 		Output:           os.Stdout,
 	}))
 
@@ -69,7 +68,7 @@ func main() {
 
 	// ALL THE HEAD METHODS //
 	// HEAD /v2/<name>/blobs/<digest>
-	router.Add(http.MethodHead, "/blobs/:reference", reg.ManifestExists) // (LayerExists) should be called reference/digest
+	router.Add(http.MethodHead, "/blobs/:digest", reg.LayerExists) // (LayerExists) should be called reference/digest
 
 	// HEAD /v2/<name>/manifests/<reference>
 	router.Add(http.MethodHead, "/manifests/:reference", reg.ManifestExists) //should be called reference/digest
@@ -78,15 +77,17 @@ func main() {
 	// PUT /v2/<name>/blobs/uploads/<uuid>?digest=<digest>
 	// router.Add(http.MethodPut, "/blobs/uploads/:uuid", reg.MonolithicUpload)
 
+
+	router.Add(http.MethodPut, "/blobs/uploads/", reg.CompleteUpload)
+
 	// PUT /v2/<name>/blobs/uploads/<uuid>?digest=<digest>
-	router.Add(http.MethodPut, "/blobs/uploads/:uuid", reg.CompleteUpload)
+	router.Add(http.MethodPut, "/blobs/uploads/:reference", reg.CompleteUpload)
 
 	// PUT /v2/<name>/manifests/<reference>
 	router.Add(http.MethodPut, "/manifests/:reference", reg.PushManifest)
 
 	// POST METHODS
 	// POST /v2/<name>/blobs/uploads/
-	router.Add(http.MethodPost, "/blobs/uploads", reg.StartUpload)
 	router.Add(http.MethodPost, "/blobs/uploads/", reg.StartUpload)
 
 	// POST /v2/<name>/blobs/uploads/
@@ -103,10 +104,12 @@ func main() {
 	router.Add(http.MethodGet, "/manifests/:reference", reg.PullManifest)
 
 	// GET /v2/<name>/blobs/<digest>
-	router.Add(http.MethodGet, "/manifests/:digest", reg.PullLayer)
+	router.Add(http.MethodGet, "/blobs/:digest", reg.PullLayer)
 
 	// GET GET /v2/<name>/blobs/uploads/<uuid>
 	router.Add(http.MethodGet, "/blobs/uploads/:uuid", reg.UploadProgress)
+
+	// router.Add(http.MethodGet, "/blobs/:digest", reg.DownloadBlob)
 
 	e.Add(http.MethodGet, "/v2/", reg.ApiVersion)
 

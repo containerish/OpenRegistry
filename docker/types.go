@@ -11,7 +11,7 @@ type (
 	}
 
 	ImageSummary struct {
-		ID string
+		ID   string
 		Tags []string
 		Size int64
 	}

@@ -6,40 +6,13 @@ import (
 	"net/http"
 
 	badger "github.com/dgraph-io/badger/v3"
+	"github.com/fatih/color"
+	"github.com/jay-dee7/parachute/types"
 	"github.com/labstack/echo/v4"
 )
 
 type dataStore struct {
 	db *badger.DB
-}
-
-type Metadata struct {
-	Namespace string
-	Layers    []Layer
-	Manifests []Manifest
-}
-
-type Layer struct {
-	Digest     string
-	Size       uint64
-	UUID       string
-	SkynetLink string
-}
-
-type Manifest struct {
-	SkynetLink string
-	Reference  string
-	Digest string
-}
-
-func (md Metadata) Bytes() []byte {
-	bz, err := json.Marshal(md)
-	if err != nil {
-		fmt.Println(err.Error())
-		return []byte{}
-	}
-
-	return bz
 }
 
 type Store interface {
@@ -49,7 +22,8 @@ type Store interface {
 	ListWithPrefix(prefix []byte) ([]byte, error)
 	ListAll() ([]byte, error)
 	Delete(key []byte) error
-	GetSkynetURL(key string, args ...string) (string, error)
+	GetSkynetURL(key string, ref string) (string, error)
+	ResolveManifestRef(namespace, ref string) (string, error)
 	Metadata(ctx echo.Context) error
 	Close() error
 }
@@ -84,20 +58,20 @@ func (ds *dataStore) Update(key, value []byte) error {
 		return ds.Set(key, value)
 	}
 
-	var resp Metadata
+	var resp types.Metadata
 	if err = json.Unmarshal(item, &resp); err != nil {
 		return err
 	}
 
-	var v Metadata
+	var v types.Metadata
 	if err = json.Unmarshal(value, &v); err != nil {
 		return err
 	}
 
-	layers, manifests := ds.removeDuplicates(resp, v)
-
-	resp.Layers = layers
-	resp.Manifests = manifests
+	resp.Manifest.Layers = ds.removeDuplicateLayers(resp.Manifest.Layers, v.Manifest.Layers)
+	resp.Manifest.Config = v.Manifest.Config
+	resp.Manifest.MediaType = v.Manifest.MediaType
+	resp.Manifest.SchemaVersion = v.Manifest.SchemaVersion
 
 	bz, err := json.Marshal(resp)
 	if err != nil {
@@ -107,39 +81,16 @@ func (ds *dataStore) Update(key, value []byte) error {
 	return ds.Set(key, bz)
 }
 
-func (ds *dataStore) removeDuplicates(src, dst Metadata) ([]Layer, []Manifest) {
-	combinedLayers := make([]Layer, len(src.Layers)+len(dst.Layers))
-	combinedManifests := make([]Manifest, len(src.Manifests)+len(dst.Manifests))
+func (ds *dataStore) removeDuplicateLayers(src, dst []*types.Layer) []*types.Layer {
+	list := make([]*types.Layer, len(src)+len(dst))
+	list = append(list, src...)
+	list = append(list, dst...)
 
-	combinedLayers = append(combinedLayers, src.Layers...)
-	combinedLayers = append(combinedLayers, dst.Layers...)
-
-	combinedManifests = append(combinedManifests, src.Manifests...)
-	combinedManifests = append(combinedManifests, dst.Manifests...)
-
-	return ds.removeDuplicateLayers(combinedLayers), ds.removeDuplicateManifests(combinedManifests)
-}
-
-func (ds *dataStore) removeDuplicateManifests(list []Manifest) []Manifest {
 	seenMap := make(map[string]bool)
-	var manifests []Manifest
+	var layers []*types.Layer
 
 	for _, l := range list {
-		if !seenMap[l.Reference] {
-			seenMap[l.Reference] = true
-			manifests = append(manifests, l)
-		}
-	}
-
-	return manifests
-}
-
-func (ds *dataStore) removeDuplicateLayers(list []Layer) []Layer {
-	seenMap := make(map[string]bool)
-	var layers []Layer
-
-	for _, l := range list {
-		if !seenMap[l.Digest] {
+		if l != nil && !seenMap[l.Digest] {
 			seenMap[l.Digest] = true
 			layers = append(layers, l)
 		}
@@ -148,24 +99,44 @@ func (ds *dataStore) removeDuplicateLayers(list []Layer) []Layer {
 	return layers
 }
 
-func (md Metadata) Find(ref string) (string, error) {
-	for _, l := range md.Layers {
-		if l.Digest == ref {
-			return l.SkynetLink, nil
+func (ds *dataStore) ResolveManifestRef(namespace, ref string) (string, error) {
+	color.Yellow("key=%s ref=%s\n", namespace, ref)
+	var res []byte
+	err := ds.db.View(func(txn *badger.Txn) error {
+		item, err := txn.Get([]byte(namespace))
+		if err != nil {
+			return err
 		}
+
+		return item.Value(func(v []byte) error {
+			res = make([]byte, len(v))
+			copy(res, v)
+			return nil
+		})
+	})
+
+	if err != nil {
+		return "", err
 	}
 
-	for _, m := range md.Manifests {
-		if m.Reference == ref {
-			return m.SkynetLink, nil
-		}
+	var md types.Metadata
+	err = json.Unmarshal(res, &md)
+	if err != nil {
+		return "", err
 	}
 
-	return "", fmt.Errorf("ref does not exists")
+	mdRef := md.Manifest.Config.Reference
+	mdDigest := md.Manifest.Config.Digest
+	if ref == mdRef || ref == mdDigest {
+		return md.Manifest.Config.SkynetLink, nil
+	}
+
+	return "", fmt.Errorf("ref not found")
 }
 
-func (ds *dataStore) GetSkynetURL(key string, args ...string) (string, error) {
+func (ds *dataStore) GetSkynetURL(key, ref string) (string, error) {
 
+	color.Yellow("key=%s ref=%s\n", key, ref)
 	var res []byte
 	err := ds.db.View(func(txn *badger.Txn) error {
 		item, err := txn.Get([]byte(key))
@@ -184,13 +155,13 @@ func (ds *dataStore) GetSkynetURL(key string, args ...string) (string, error) {
 		return "", err
 	}
 
-	var md Metadata
+	var md types.Metadata
 	err = json.Unmarshal(res, &md)
 	if err != nil {
 		return "", err
 	}
 
-	return md.Find(args[0])
+	return md.FindLinkForDigest(ref)
 }
 
 func (ds *dataStore) Set(key, value []byte) error {

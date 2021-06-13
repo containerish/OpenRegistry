@@ -7,7 +7,6 @@ import (
 	"strconv"
 
 	"github.com/NebulousLabs/go-skynet/v2"
-	"github.com/fatih/color"
 	"github.com/jay-dee7/parachute/config"
 	tar "github.com/whyrusleeping/tar-utils"
 )
@@ -29,17 +28,16 @@ func NewClient(c *config.RegistryConfig) *Client {
 	}
 }
 
-func (c *Client) Upload(digest string, content []byte, headers ...skynet.Header) (string, error) {
+func (c *Client) Upload(namespace, digest string, content []byte, headers ...skynet.Header) (string, error) {
 	opts := skynet.DefaultUploadOptions
+	opts.CustomDirname = namespace
 
 	data := make(skynet.UploadData)
 
 	buf := bytes.NewBuffer(content)
-	color.Green("buffer size = %d", buf.Len())
 
 	data[digest] = buf
 
-	// c.skynet.UploadFile()
 	return c.skynet.Upload(data, opts, headers...)
 }
 
@@ -81,7 +79,6 @@ func (c *Client) AddImage(namespace string, manifests map[string][]byte, layers 
 	uploadData["image"] = imageReader
 
 	link, err := c.skynet.Upload(uploadData, opts, headers...)
-	color.Red(link)
 	return link, err
 }
 
