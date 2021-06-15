@@ -113,17 +113,16 @@ func (b *blobs) HEAD(ctx echo.Context) error {
 
 func (b *blobs) UploadBlob(ctx echo.Context) error {
 	namespace := ctx.Param("username") + "/" + ctx.Param("imagename")
-	// uuid := ctx.Param("uuid")
+	// uuid := ctx.Param("buggu")
 	contentRange := ctx.Request().Header.Get("Content-Range")
-	// color.Yellow("%v", len(uuid))
 	// if uuid == "" || uuid == " " {
 	// 	parts := strings.Split(ctx.Request().RequestURI, "/")
 	// 	color.Green("%v", parts)
-	// 		uuid = parts[5]
+	// 		uuid = parts[6]
 	// }
 
 	uuid := strings.Split(ctx.Request().RequestURI, "/")[6]
-	color.Magenta(strings.Split(ctx.Request().RequestURI, "/")[6])
+	// color.Magenta(strings.Split(ctx.Request().RequestURI, "/")[6])
 
 	color.Red("namespace: %s", namespace)
 	color.Red("uuid %s uri:=%s",uuid, ctx.Request().RequestURI)
