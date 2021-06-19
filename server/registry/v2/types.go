@@ -82,7 +82,7 @@ func (r *registry) MonolithicUpload(ctx echo.Context) error {
 func (r *registry) CompleteUpload(ctx echo.Context) error {
 	dig := ctx.QueryParam("digest")
 	namespace := ctx.Param("username") + "/" + ctx.Param("imagename")
-	ref := ctx.Param("reference")
+	uuid := ctx.Param("uuid")
 	// contentRange := ctx.Request().Header.Get("Content-Range")
 
 	bz, err := io.ReadAll(ctx.Request().Body)
@@ -90,16 +90,17 @@ func (r *registry) CompleteUpload(ctx echo.Context) error {
 		errMsg := r.errorResponse(RegistryErrorCodeDigestInvalid, err.Error(), nil)
 		return ctx.JSONBlob(http.StatusBadRequest, errMsg)
 	}
-	defer ctx.Request().Body.Close()
 
-	buf := bytes.NewBuffer(r.b.uploads[ref])
-	io.CopyN(buf, ctx.Request().Body, ctx.Request().ContentLength)
+	buf := bytes.NewBuffer(r.b.uploads[uuid])
+	buf.Write(bz)
+	// io.Copy(buf, ctx.Request().Body)
+	// io.CopyN(buf, ctx.Request().Body, ctx.Request().ContentLength-1)
 
 	ourHash := digest(buf.Bytes())
 
 	if ourHash != dig {
 		details := map[string]interface{}{
-			"headerDigest": dig, "serverSideDigest": ourHash,
+			"headerDigest": dig, "serverSideDigest": ourHash, "bodyDigest": digest(bz),
 		}
 		errMsg := r.errorResponse(RegistryErrorCodeDigestInvalid, "digest mismatch", details)
 		r.debugf(details)
@@ -130,15 +131,8 @@ func (r *registry) CompleteUpload(ctx echo.Context) error {
 		Manifest: types.ImageManifest{
 			SchemaVersion: 2,
 			MediaType:     "",
-			Layers: []*types.Layer{
-				{
-					MediaType:  "",
-					Size:       len(bz),
-					Digest:     dig,
-					SkynetLink: skylink,
-					UUID:       ref,
-				},
-			},
+			Layers:        []*types.Layer{{MediaType: "", Size: len(bz), Digest: dig, SkynetLink: skylink, UUID: uuid}},
+			Config:        types.Config{},
 		},
 	}
 
@@ -157,6 +151,7 @@ func (r *registry) CompleteUpload(ctx echo.Context) error {
 // Docker-Content-Digest: <digest>
 func (r *registry) LayerExists(ctx echo.Context) error {
 	return r.b.HEAD(ctx)
+
 	namespace := ctx.Param("username") + "/" + ctx.Param("imagename")
 	digest := ctx.Param("digest") // ref can be either tag or digest
 
@@ -349,7 +344,7 @@ func (r *registry) CancelUpload(ctx echo.Context) error {
 	return nil
 }
 
-// GET /v2/<name>/manifests/<reference>
+// PullManifest GET /v2/<name>/manifests/<reference>
 func (r *registry) PullManifest(ctx echo.Context) error {
 	namespace := ctx.Param("username") + "/" + ctx.Param("imagename")
 	ref := ctx.Param("reference")
@@ -544,6 +539,7 @@ func (r *registry) PullLayer(ctx echo.Context) error {
 func (r *registry) BlobMount(ctx echo.Context) error {
 	return nil
 }
+
 func (r *registry) PushImage(ctx echo.Context) error {
 	return nil
 }

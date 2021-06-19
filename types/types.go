@@ -62,14 +62,14 @@ func (md Metadata) Bytes() []byte {
 }
 
 func (md Metadata) FindLinkForDigest(ref string) (string, error) {
+	if md.Manifest.Config.Digest == ref {
+		return md.Manifest.Config.SkynetLink, nil
+	}
+
 	for _, l := range md.Manifest.Layers {
 		if l.Digest == ref {
 			return l.SkynetLink, nil
 		}
-	}
-
-	if md.Manifest.Config.Digest == ref {
-		return md.Manifest.Config.SkynetLink, nil
 	}
 
 	return "", fmt.Errorf("ref does not exists")

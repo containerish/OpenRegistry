@@ -32,7 +32,6 @@ func main() {
 	p := prometheus.NewPrometheus("echo", nil)
 	p.Use(e)
 	e.HideBanner = true
-	e.HidePort = true
 
 	l := setupLogger()
 	localCache, err := cache.New("/tmp/badger")
@@ -81,7 +80,7 @@ func main() {
 	router.Add(http.MethodPut, "/blobs/uploads/", reg.CompleteUpload)
 
 	// PUT /v2/<name>/blobs/uploads/<uuid>?digest=<digest>
-	router.Add(http.MethodPut, "/blobs/uploads/:reference", reg.CompleteUpload)
+	router.Add(http.MethodPut, "/blobs/uploads/:uuid", reg.CompleteUpload)
 
 	// PUT /v2/<name>/manifests/<reference>
 	router.Add(http.MethodPut, "/manifests/:reference", reg.PushManifest)
@@ -96,7 +95,7 @@ func main() {
 	// PATCH
 
 	// PATCH /v2/<name>/blobs/uploads/<uuid>
-	router.Add(http.MethodPatch, "/blobs/uploads/:buggu", reg.ChunkedUpload)
+	router.Add(http.MethodPatch, "/blobs/uploads/:uuid", reg.ChunkedUpload)
 	// router.Add(http.MethodPatch, "/blobs/uploads/", reg.ChunkedUpload)
 
 	// GET
@@ -114,6 +113,7 @@ func main() {
 	e.Add(http.MethodGet, "/v2/", reg.ApiVersion)
 
 	e.Start(config.Address())
+    // e.StartTLS(config.Address(), config.TLSCertPath, config.TLSKeyPath)
 
 // 	go func() {
 // 		if err := e.Start(config.Address()); err != nil && err != http.ErrServerClosed {

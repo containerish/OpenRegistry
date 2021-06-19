@@ -124,9 +124,6 @@ func (b *blobs) UploadBlob(ctx echo.Context) error {
 	uuid := strings.Split(ctx.Request().RequestURI, "/")[6]
 	// color.Magenta(strings.Split(ctx.Request().RequestURI, "/")[6])
 
-	color.Red("namespace: %s", namespace)
-	color.Red("uuid %s uri:=%s",uuid, ctx.Request().RequestURI)
-
 	if contentRange == "" {
 		if _, ok := b.uploads[uuid]; ok {
 			errMsg := b.errorResponse(RegistryErrorCodeBlobUploadInvalid, "stream upload after first write are not allowed", nil)
@@ -140,10 +137,11 @@ func (b *blobs) UploadBlob(ctx echo.Context) error {
 		locationHeader := fmt.Sprintf("/v2/%s/blobs/uploads/%s", namespace, uuid)
 		ctx.Response().Header().Set("Location", locationHeader)
 		ctx.Response().Header().Set("Range", fmt.Sprintf("0-%d", len(bz)-1))
-		return ctx.NoContent(http.StatusNoContent)
+		return ctx.NoContent(http.StatusAccepted)
 	}
 
 	start, end := 0, 0
+	// 0-90
 	if _, err := fmt.Sscanf(contentRange, "%d-%d", &start, &end); err != nil {
 		details := map[string]interface{}{
 			"error":       "content range is invalid",
@@ -159,8 +157,8 @@ func (b *blobs) UploadBlob(ctx echo.Context) error {
 		return ctx.JSONBlob(http.StatusRequestedRangeNotSatisfiable, errMsg)
 	}
 
-	buf := bytes.NewBuffer(b.uploads[uuid])
-	io.Copy(buf, ctx.Request().Body)
+	buf := bytes.NewBuffer(b.uploads[uuid]) // 90
+	io.Copy(buf, ctx.Request().Body) // 10
 	defer ctx.Request().Body.Close()
 
 	b.uploads[uuid] = buf.Bytes()
@@ -168,5 +166,5 @@ func (b *blobs) UploadBlob(ctx echo.Context) error {
 	locationHeader := fmt.Sprintf("/v2/%s/blobs/uploads/%s", namespace, uuid)
 	ctx.Response().Header().Set("Location", locationHeader)
 	ctx.Response().Header().Set("Range", fmt.Sprintf("0-%d", buf.Len()-1))
-	return ctx.NoContent(http.StatusNoContent)
+	return ctx.NoContent(http.StatusAccepted)
 }

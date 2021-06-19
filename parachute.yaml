@@ -1,5 +1,5 @@
 debug: true
-host: 0.0.0.0
+host: 100.87.37.43
 port: 5000
 tls_key_path: ./certs/private_key.txt
 tls_cert_path: ./certs/certificate.txt

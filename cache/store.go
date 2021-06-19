@@ -16,11 +16,11 @@ type dataStore struct {
 }
 
 type Store interface {
+	Get(key []byte) ([]byte, error)
 	Set(key, value []byte) error
 	Update(key, value []byte) error
-	Get(key []byte) ([]byte, error)
-	ListWithPrefix(prefix []byte) ([]byte, error)
 	ListAll() ([]byte, error)
+	ListWithPrefix(prefix []byte) ([]byte, error)
 	Delete(key []byte) error
 	GetSkynetURL(key string, ref string) (string, error)
 	ResolveManifestRef(namespace, ref string) (string, error)
@@ -46,7 +46,7 @@ func (ds *dataStore) Metadata(ctx echo.Context) error {
 
 	val, err := ds.Get([]byte(key))
 	if err != nil {
-		ctx.String(http.StatusNotFound, err.Error())
+		return ctx.String(http.StatusNotFound, err.Error())
 	}
 
 	return ctx.JSONBlob(http.StatusOK, val)
@@ -102,7 +102,7 @@ func (ds *dataStore) removeDuplicateLayers(src, dst []*types.Layer) []*types.Lay
 func (ds *dataStore) ResolveManifestRef(namespace, ref string) (string, error) {
 	color.Yellow("key=%s ref=%s\n", namespace, ref)
 	var res []byte
-	err := ds.db.View(func(txn *badger.Txn) error {
+	fn := func(txn *badger.Txn) error {
 		item, err := txn.Get([]byte(namespace))
 		if err != nil {
 			return err
@@ -113,7 +113,9 @@ func (ds *dataStore) ResolveManifestRef(namespace, ref string) (string, error) {
 			copy(res, v)
 			return nil
 		})
-	})
+	}
+
+	err := ds.db.View(fn)
 
 	if err != nil {
 		return "", err

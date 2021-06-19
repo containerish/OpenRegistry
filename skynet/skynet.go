@@ -17,8 +17,8 @@ func NewClient(c *config.RegistryConfig) *Client {
 		CustomUserAgent: c.SkynetConfig.CustomUserAgent,
 	}
 
-	skynet.NewCustom(c.SkynetPortalURL, opts)
-	skynetClient := skynet.New()
+	skynetClient := skynet.NewCustom(c.SkynetPortalURL, opts)
+	//skynetClient := skynet.New()
 
 	return &Client{
 		skynet:     &skynetClient,
@@ -30,6 +30,7 @@ func NewClient(c *config.RegistryConfig) *Client {
 
 func (c *Client) Upload(namespace, digest string, content []byte, headers ...skynet.Header) (string, error) {
 	opts := skynet.DefaultUploadOptions
+
 	opts.CustomDirname = namespace
 
 	data := make(skynet.UploadData)
