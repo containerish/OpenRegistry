@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/jay-dee7/parachute/auth"
 	"net/http"
 	"os"
 
@@ -41,6 +42,8 @@ func main() {
 	}
 	defer localCache.Close()
 
+	authSvc := auth.New(localCache,config)
+
 	skynetClient := skynet.NewClient(config)
 
 	reg, err := registry.NewRegistry(skynetClient, l, localCache, e.Logger)
@@ -60,6 +63,10 @@ func main() {
 	e.Use(middleware.Recover())
 
 	internal := e.Group("/internal")
+	authRouter := e.Group("/auth")
+	authRouter.Add(http.MethodPost,"/signup", authSvc.SignUp)
+	authRouter.Add(http.MethodPost,"/signin", authSvc.SignIn)
+
 
 	internal.Add(http.MethodGet, "/metadata", localCache.Metadata)
 

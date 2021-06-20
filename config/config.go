@@ -19,6 +19,7 @@ type (
 		SkynetStorePath     string       `mapstructure:"skynet_store_path"`
 		TLSCertPath         string       `mapstructure:"tls_cert_path"`
 		TLSKeyPath          string       `mapstructure:"tls_key_path"`
+		SigningSecret       string       `mapstructure:"signing_secret"`
 		SkynetConfig        SkynetConfig `mapstructure:"skynet_config"`
 	}
 
@@ -49,6 +50,11 @@ func Load(path string) (*RegistryConfig, error) {
 	err = viper.Unmarshal(&config)
 	if err != nil {
 		return nil, err
+	}
+
+	if config.SigningSecret == "" {
+		fmt.Println("signing secret absent")
+		os.Exit(1)
 	}
 
 	return &config, nil
