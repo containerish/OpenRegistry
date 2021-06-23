@@ -12,6 +12,7 @@ import (
 type (
 	RegistryConfig struct {
 		Debug               bool         `mapstructure:"debug"`
+		Environment         string       `mapstructure:"environment"`
 		Host                string       `mapstructure:"host"`
 		Port                uint         `mapstructure:"port"`
 		SkynetPortalURL     string       `mapstructure:"skynet_portal_url"`
@@ -67,6 +68,8 @@ func setDefaults() {
 	os.MkdirAll(defaultLinkResolverPath, os.ModePerm)
 
 	viper.SetDefault("debug", true)
+	viper.SetDefault("environment", "devel")
+	viper.SetDefault("domain", "alpha.openregistry.dev")
 	viper.SetDefault("host", "0.0.0.0")
 	viper.SetDefault("port", "5000")
 	viper.SetDefault("tls_key_path", "./certs/key.pem")

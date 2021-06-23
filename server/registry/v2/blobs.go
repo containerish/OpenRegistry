@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/fatih/color"
-	"github.com/jay-dee7/parachute/types"
 	"github.com/labstack/echo/v4"
 )
 
@@ -61,19 +60,31 @@ func (b *blobs) remove(repo string) {
 	}
 }
 
-func (b *blobs) HEAD(ctx echo.Context) error {
+func (b *blobs) PrintContents(ctx echo.Context) error {
+	l := 0
 
-	digest := ctx.Param("digest")
-	namespace := ctx.Param("username") + "/" + ctx.Param("imagename")
-
-	// content is available if image is locally pushed
-	if c, ok := b.contents[digest]; ok {
-		ctx.Response().Header().Set("Content-Length", fmt.Sprint(len(c)))
-		ctx.Response().Header().Set("Docker-Content-Digest", digest)
-		return ctx.NoContent(http.StatusOK)
+	for _,v := range b.contents {
+		l = l + len(v)
 	}
 
-	skylink, err := b.registry.localCache.GetSkynetURL(namespace, digest)
+	return ctx.JSON(http.StatusOK, echo.Map{
+		"bufLength": l,
+	})
+}
+
+func (b *blobs) HEAD(ctx echo.Context) error {
+
+	// namespace := ctx.Param("username") + "/" + ctx.Param("imagename")
+	digest := ctx.Param("digest")
+
+	// content is available if image is locally pushed
+	// if c, ok := b.contents[digest]; ok {
+	// 	ctx.Response().Header().Set("Content-Length", fmt.Sprint(len(c)))
+	// 	ctx.Response().Header().Set("Docker-Content-Digest", digest)
+	// 	return ctx.NoContent(http.StatusOK)
+	// }
+
+	layerRef, err := b.registry.localCache.GetDigest(digest)
 	if err != nil {
 		details := echo.Map{
 			"skynet": "skynet link not found",
@@ -82,32 +93,27 @@ func (b *blobs) HEAD(ctx echo.Context) error {
 		return ctx.JSON(http.StatusNotFound, errMsg)
 	}
 
-	size, ok := b.registry.skynet.Metadata(skylink)
+	size, ok := b.registry.skynet.Metadata(layerRef.Skylink)
 	if !ok {
 		errMsg := b.errorResponse(RegistryErrorCodeManifestBlobUnknown, "Manifest does not exist", nil)
 		return ctx.JSON(http.StatusNotFound, errMsg)
 	}
 
-	bz, err := b.registry.localCache.Get([]byte(namespace))
-	if err != nil {
-		errMsg := b.errorResponse(RegistryErrorCodeManifestInvalid, err.Error(), nil)
-		return ctx.JSONBlob(http.StatusNotFound, errMsg)
-	}
+	// bz, err := b.registry.localCache.Get([]byte(namespace))
+	// if err != nil {
+	// 	errMsg := b.errorResponse(RegistryErrorCodeManifestInvalid, err.Error(), nil)
+	// 	return ctx.JSONBlob(http.StatusNotFound, errMsg)
+	// }
 
-	var md types.Metadata
-	if err = json.Unmarshal(bz, &md); err != nil {
-		errMsg := b.errorResponse(RegistryErrorCodeManifestInvalid, err.Error(), nil)
-		return ctx.JSONBlob(http.StatusNotFound, errMsg)
-	}
-
-	if err != nil {
-		errMsg := b.errorResponse(RegistryErrorCodeManifestInvalid, err.Error(), nil)
-		return ctx.JSONBlob(http.StatusNotFound, errMsg)
-	}
+	// var md types.Metadata
+	// if err = json.Unmarshal(bz, &md); err != nil {
+	// 	errMsg := b.errorResponse(RegistryErrorCodeManifestInvalid, err.Error(), nil)
+	// 	return ctx.JSONBlob(http.StatusNotFound, errMsg)
+	// }
 
 	ctx.Response().Header().Set("Content-Length", fmt.Sprintf("%d", size))
 	ctx.Response().Header().Set("Docker-Content-Digest", digest)
-	io.CopyN(ctx.Response(), bytes.NewReader(bz), int64(size))
+	// io.CopyN(ctx.Response(), bytes.NewReader(bz), int64(size))
 	return ctx.String(http.StatusOK, "OK")
 }
 
@@ -134,6 +140,7 @@ func (b *blobs) UploadBlob(ctx echo.Context) error {
 		defer ctx.Request().Body.Close()
 
 		b.uploads[uuid] = bz
+
 		locationHeader := fmt.Sprintf("/v2/%s/blobs/uploads/%s", namespace, uuid)
 		ctx.Response().Header().Set("Location", locationHeader)
 		ctx.Response().Header().Set("Range", fmt.Sprintf("0-%d", len(bz)-1))
@@ -151,18 +158,16 @@ func (b *blobs) UploadBlob(ctx echo.Context) error {
 		return ctx.JSONBlob(http.StatusRequestedRangeNotSatisfiable, errMsg)
 	}
 
-
 	if start != len(b.uploads[uuid]) {
 		errMsg := b.errorResponse(RegistryErrorCodeBlobUploadUnknown, "content range mismatch", nil)
 		return ctx.JSONBlob(http.StatusRequestedRangeNotSatisfiable, errMsg)
 	}
 
 	buf := bytes.NewBuffer(b.uploads[uuid]) // 90
-	io.Copy(buf, ctx.Request().Body) // 10
+	io.Copy(buf, ctx.Request().Body)        // 10
 	defer ctx.Request().Body.Close()
 
 	b.uploads[uuid] = buf.Bytes()
-
 	locationHeader := fmt.Sprintf("/v2/%s/blobs/uploads/%s", namespace, uuid)
 	ctx.Response().Header().Set("Location", locationHeader)
 	ctx.Response().Header().Set("Range", fmt.Sprintf("0-%d", buf.Len()-1))

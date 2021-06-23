@@ -1,8 +1,9 @@
 debug: true
+domain: "beta.openregistry.dev"
 host: 100.87.37.43
 port: 5000
-tls_key_path: ./certs/private_key.txt
-tls_cert_path: ./certs/certificate.txt
+tls_key_path: ./certs/beta-openregistry.key
+tls_cert_path: ./certs/beta-openregistry.crt
 skynet_store_path: /Users/jasdeep/.parachute
 skynet_link_resolvers: /Users/jasdeep/.parachute/links
 skynet_portal_url: https://siasky.net

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"net/http"
 	"os"
 
@@ -27,11 +28,13 @@ func main() {
 		os.Exit(1)
 	}
 
-	var errSig chan error
 	e := echo.New()
 	p := prometheus.NewPrometheus("echo", nil)
 	p.Use(e)
 	e.HideBanner = true
+
+	// e.Use(middleware.HTTPSNonWWWRedirect())
+	// e.Use(middleware.HTTPSRedirect())
 
 	l := setupLogger()
 	localCache, err := cache.New("/tmp/badger")
@@ -53,15 +56,17 @@ func main() {
 		Skipper: func(echo.Context) bool {
 			return false
 		},
-		Format:           "method=${method}, uri=${uri}, status=${status} latency=${latency}\n",
-		Output:           os.Stdout,
+		Format: "method=${method}, uri=${uri}, status=${status} latency=${latency}\n",
+		Output: os.Stdout,
 	}))
 
 	e.Use(middleware.Recover())
 
 	internal := e.Group("/internal")
 
+	internal.Add(http.MethodGet, "/buf", reg.Length)
 	internal.Add(http.MethodGet, "/metadata", localCache.Metadata)
+	internal.Add(http.MethodGet, "/digests", localCache.LayerDigests)
 
 	router := e.Group("/v2/:username/:imagename")
 
@@ -75,7 +80,6 @@ func main() {
 	// ALL THE PUT METHODS
 	// PUT /v2/<name>/blobs/uploads/<uuid>?digest=<digest>
 	// router.Add(http.MethodPut, "/blobs/uploads/:uuid", reg.MonolithicUpload)
-
 
 	router.Add(http.MethodPut, "/blobs/uploads/", reg.CompleteUpload)
 
@@ -112,28 +116,7 @@ func main() {
 
 	e.Add(http.MethodGet, "/v2/", reg.ApiVersion)
 
-	e.Start(config.Address())
-    // e.StartTLS(config.Address(), config.TLSCertPath, config.TLSKeyPath)
-
-// 	go func() {
-// 		if err := e.Start(config.Address()); err != nil && err != http.ErrServerClosed {
-// 			e.Logger.Fatal("shutting down the server")
-// 		}
-// 	}()
-
-// 	// Wait for interrupt signal to gracefully shutdown the server with a timeout of 10 seconds.
-// 	// Use a buffered channel to avoid missing signals as recommended for signal.Notify
-// 	quit := make(chan os.Signal, 1)
-// 	signal.Notify(quit, os.Interrupt)
-// 	<-quit
-// 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-// 	defer cancel()
-
-// 	if err := e.Shutdown(ctx); err != nil {
-// 		e.Logger.Fatal(err)
-// 	}
-
-	color.Yellow("docker registry server stopped: %s", <-errSig)
+	log.Println(e.Start(config.Address()))
 }
 
 func setupLogger() zerolog.Logger {

@@ -1,1 +1,0 @@
-subjectAltName=DNS:jsdp.dev,DNS:parachute.jsdp.dev
