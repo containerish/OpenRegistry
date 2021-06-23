@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/NebulousLabs/go-skynet/v2"
 	badger "github.com/dgraph-io/badger/v3"
 	"github.com/fatih/color"
 	"github.com/jay-dee7/parachute/types"
@@ -23,6 +24,7 @@ type Store interface {
 	ListWithPrefix(prefix []byte) ([]byte, error)
 	Delete(key []byte) error
 	GetSkynetURL(key string, ref string) (string, error)
+	GetSkynetURLWithHeaders(key string, ref string) (string, []skynet.Header, error)
 	ResolveManifestRef(namespace, ref string) (string, error)
 	Metadata(ctx echo.Context) error
 	Close() error
@@ -43,6 +45,16 @@ func New(storeLocation string) (Store, error) {
 
 func (ds *dataStore) Metadata(ctx echo.Context) error {
 	key := ctx.QueryParam("namespace")
+	if key == "" {
+		bz, err := ds.ListAll()
+		if err != nil {
+			return ctx.JSON(http.StatusOK, echo.Map{
+				"message": "so empty!!",
+			})
+		}
+
+		return ctx.JSONBlob(http.StatusOK, bz)
+	}
 
 	val, err := ds.Get([]byte(key))
 	if err != nil {
@@ -68,10 +80,19 @@ func (ds *dataStore) Update(key, value []byte) error {
 		return err
 	}
 
-	resp.Manifest.Layers = ds.removeDuplicateLayers(resp.Manifest.Layers, v.Manifest.Layers)
-	resp.Manifest.Config = v.Manifest.Config
-	resp.Manifest.MediaType = v.Manifest.MediaType
-	resp.Manifest.SchemaVersion = v.Manifest.SchemaVersion
+	if len(v.Manifest.Layers) != 0 {
+		resp.Manifest.Layers = ds.removeDuplicateLayers(resp.Manifest.Layers, v.Manifest.Layers)
+	}
+
+	resp.Manifest.Config = append(resp.Manifest.Config, v.Manifest.Config...)
+
+	if v.Manifest.MediaType != "" {
+		resp.Manifest.MediaType = v.Manifest.MediaType
+	}
+
+	if v.Manifest.SchemaVersion != 0 {
+		resp.Manifest.SchemaVersion = v.Manifest.SchemaVersion
+	}
 
 	bz, err := json.Marshal(resp)
 	if err != nil {
@@ -100,7 +121,6 @@ func (ds *dataStore) removeDuplicateLayers(src, dst []*types.Layer) []*types.Lay
 }
 
 func (ds *dataStore) ResolveManifestRef(namespace, ref string) (string, error) {
-	color.Yellow("key=%s ref=%s\n", namespace, ref)
 	var res []byte
 	fn := func(txn *badger.Txn) error {
 		item, err := txn.Get([]byte(namespace))
@@ -115,25 +135,69 @@ func (ds *dataStore) ResolveManifestRef(namespace, ref string) (string, error) {
 		})
 	}
 
-	err := ds.db.View(fn)
+	if err := ds.db.View(fn); err != nil {
+		return "", err
+	}
 
+	var md types.Metadata
+	err := json.Unmarshal(res, &md)
 	if err != nil {
 		return "", err
+	}
+
+	for _, c := range md.Manifest.Config {
+	mdRef := c.Reference
+	mdDigest := c.Digest
+	if ref == mdRef || ref == mdDigest {
+		return c.SkynetLink, nil
+	}
+}
+
+	return "", fmt.Errorf("ref not found")
+}
+
+func (ds *dataStore) GetSkynetURLWithHeaders(key, ref string) (string, []skynet.Header, error) {
+
+	color.Yellow("key=%s ref=%s\n", key, ref)
+	var res []byte
+	err := ds.db.View(func(txn *badger.Txn) error {
+		item, err := txn.Get([]byte(key))
+		if err != nil {
+			return err
+		}
+
+		return item.Value(func(v []byte) error {
+			res = make([]byte, len(v))
+			copy(res, v)
+			return nil
+		})
+	})
+
+	if err != nil {
+		return "", nil, err
 	}
 
 	var md types.Metadata
 	err = json.Unmarshal(res, &md)
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 
-	mdRef := md.Manifest.Config.Reference
-	mdDigest := md.Manifest.Config.Digest
-	if ref == mdRef || ref == mdDigest {
-		return md.Manifest.Config.SkynetLink, nil
+	skylink, err := md.FindLinkForDigest(ref)
+	if err != nil {
+		return "", nil, err
 	}
 
-	return "", fmt.Errorf("ref not found")
+	layer := md.FindLayer(ref)
+
+	headers := []skynet.Header{
+		{
+			Key:   "Range",
+			Value: fmt.Sprintf("bytes=%d-%d", layer.RangeStart, layer.RangeEnd),
+		},
+	}
+
+	return skylink, headers, nil
 }
 
 func (ds *dataStore) GetSkynetURL(key, ref string) (string, error) {

@@ -63,8 +63,8 @@ func (b *blobs) remove(repo string) {
 
 func (b *blobs) HEAD(ctx echo.Context) error {
 
-	digest := ctx.Param("digest")
 	namespace := ctx.Param("username") + "/" + ctx.Param("imagename")
+	digest := ctx.Param("digest")
 
 	// content is available if image is locally pushed
 	if c, ok := b.contents[digest]; ok {
@@ -151,18 +151,16 @@ func (b *blobs) UploadBlob(ctx echo.Context) error {
 		return ctx.JSONBlob(http.StatusRequestedRangeNotSatisfiable, errMsg)
 	}
 
-
 	if start != len(b.uploads[uuid]) {
 		errMsg := b.errorResponse(RegistryErrorCodeBlobUploadUnknown, "content range mismatch", nil)
 		return ctx.JSONBlob(http.StatusRequestedRangeNotSatisfiable, errMsg)
 	}
 
 	buf := bytes.NewBuffer(b.uploads[uuid]) // 90
-	io.Copy(buf, ctx.Request().Body) // 10
+	io.Copy(buf, ctx.Request().Body)        // 10
 	defer ctx.Request().Body.Close()
 
 	b.uploads[uuid] = buf.Bytes()
-
 	locationHeader := fmt.Sprintf("/v2/%s/blobs/uploads/%s", namespace, uuid)
 	ctx.Response().Header().Set("Location", locationHeader)
 	ctx.Response().Header().Set("Range", fmt.Sprintf("0-%d", buf.Len()-1))
