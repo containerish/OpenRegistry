@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/NebulousLabs/go-skynet/v2"
 	badger "github.com/dgraph-io/badger/v3"
 	"github.com/jay-dee7/parachute/types"
 	"github.com/labstack/echo/v4"
@@ -24,6 +25,7 @@ type Store interface {
 	ListWithPrefix(prefix []byte) ([]byte, error)
 	Delete(key []byte) error
 	GetSkynetURL(key string, ref string) (string, error)
+	GetSkynetURLWithHeaders(key string, ref string) (string, []skynet.Header, error)
 	ResolveManifestRef(namespace, ref string) (string, error)
 	Metadata(ctx echo.Context) error
 	LayerDigests(ctx echo.Context) error

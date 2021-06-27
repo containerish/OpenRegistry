@@ -38,7 +38,6 @@ func newConfigFromEnv(c *config.RegistryConfig) *Client {
 	}
 }
 
-
 func (c *Client) HasImage(imageID string) (bool, error) {
 	args := filters.NewArgs()
 	args.Add("references", StripImageTagHost(imageID))
@@ -94,10 +93,10 @@ func (c *Client) PullImage(imageID string) error {
 
 func (c *Client) PushImage(imageID string) error {
 	r, err := c.docker.ImagePush(context.Background(), imageID, types.ImagePushOptions{
-		All:          false,
-		RegistryAuth: "anything-will-work",
-		PrivilegeFunc: func() (string, error) {return "", nil},
-		Platform: "",
+		All:           false,
+		RegistryAuth:  "anything-will-work",
+		PrivilegeFunc: func() (string, error) { return "", nil },
+		Platform:      "",
 	})
 	if err != nil {
 		return err

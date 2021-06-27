@@ -113,7 +113,7 @@ func (r *Registry) PullImage(skynetLink string) (string, error) {
 	return imageID, nil
 }
 
-func (r *Registry) retag(imageID, dockerHash string) error{
+func (r *Registry) retag(imageID, dockerHash string) error {
 	if err := r.dockerClient.TagImage(imageID, dockerHash); err != nil {
 		r.Debugf("registry -> error tagging image: %s", err.Error())
 		return err
@@ -127,8 +127,8 @@ func (r *Registry) untar(reader io.Reader, dst string) error {
 
 	for {
 		h, err := tr.Next()
-		switch{
-		case err == io.EOF :
+		switch {
+		case err == io.EOF:
 			return nil
 		case err != nil:
 			return err
@@ -145,7 +145,7 @@ func (r *Registry) untar(reader io.Reader, dst string) error {
 					return err
 				}
 			}
-			case tar.TypeReg:
+		case tar.TypeReg:
 			f, err := os.OpenFile(target, os.O_CREATE|os.O_RDWR, os.FileMode(h.Mode))
 			if err != nil {
 				return err
@@ -184,7 +184,7 @@ func (r *Registry) Debugf(s string, args ...interface{}) {
 	}
 }
 
-func (r *Registry) writeJSON(data interface{}, path string) error{
+func (r *Registry) writeJSON(data interface{}, path string) error {
 	bz, err := json.Marshal(data)
 	if err != nil {
 		return err
@@ -357,9 +357,9 @@ func (r *Registry) dirSetup(tmp, imageID string) (string, error) {
 		}
 	}
 
-	r.createDirs(workdir+name)
+	r.createDirs(workdir + name)
 
-	manifestJSON, err := r.readJSONArray(tmp+"/manifest.json")
+	manifestJSON, err := r.readJSONArray(tmp + "/manifest.json")
 	if err != nil {
 		return "", err
 	}
@@ -406,7 +406,7 @@ func (r *Registry) dirSetup(tmp, imageID string) (string, error) {
 	writeManifest := func() error {
 		tag := ref(imageID)
 		if tag != "latest" {
-			if err = r.writeJSON(mf, workdir + "/manifests/latest"); err != nil {
+			if err = r.writeJSON(mf, workdir+"/manifests/latest"); err != nil {
 				return err
 			}
 		}
@@ -433,8 +433,8 @@ func (r *Registry) dirSetup(tmp, imageID string) (string, error) {
 
 func (r *Registry) createDirs(workdir string) {
 	os.MkdirAll(workdir, os.ModePerm)
-	os.MkdirAll(workdir + "/manifests", os.ModePerm)
-	os.MkdirAll(workdir + "/blobs", os.ModePerm)
+	os.MkdirAll(workdir+"/manifests", os.ModePerm)
+	os.MkdirAll(workdir+"/blobs", os.ModePerm)
 }
 
 func (r *Registry) readJSON(path string) (map[string]map[string]string, error) {
@@ -471,7 +471,7 @@ func (r *Registry) sanitizeImageName(imageID string) string {
 }
 
 func (r *Registry) runServer() {
-	timeout := time.Duration(5*time.Second)
+	timeout := time.Duration(5 * time.Second)
 
 	client := &http.Client{
 		Timeout: timeout,

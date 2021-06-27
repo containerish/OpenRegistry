@@ -268,6 +268,7 @@ func (r *registry) PullManifest(ctx echo.Context) error {
 		ctx.JSON(http.StatusNotFound, errMsg)
 	}
 
+	color.Magenta("skylink: %s - ref: %s namespace: %s\n", skynetLink, ref, namespace)
 	resp, err := r.skynet.Download(skynetLink)
 	if err != nil {
 		errMsg := r.errorResponse(RegistryErrorCodeManifestInvalid, err.Error(), nil)
@@ -502,6 +503,8 @@ func (r *registry) StartUpload(ctx echo.Context) error {
 
 		layer := &types.Layer{
 			MediaType:  "application/vnd.docker.image.rootfs.diff.tar.gzip",
+			RangeStart: uint32(0),
+			RangeEnd:   uint32(len(bz)-1),
 			Size:       len(bz),
 			Digest:     dig,
 			SkynetLink: skylink,
