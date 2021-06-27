@@ -1,11 +1,12 @@
 debug: true
-host: 100.87.37.43
+host: 0.0.0.0
 port: 5000
 tls_key_path: ./certs/private_key.txt
 tls_cert_path: ./certs/certificate.txt
 skynet_store_path: /Users/jasdeep/.parachute
 skynet_link_resolvers: /Users/jasdeep/.parachute/links
 skynet_portal_url: https://siasky.net
+signing_secret: 3tYnaKp@^%hbQA%J&x3cX!r2#mK%EBfAbTvPMv5CU2DP7bAoQGnUfT2&dW
 skynet_config:
   endpoint_path: ""
   api_key: ""

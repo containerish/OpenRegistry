@@ -11,9 +11,9 @@ import (
 )
 
 type Server struct {
-	c *config.RegistryConfig
+	c  *config.RegistryConfig
 	ln net.Listener
-	l zerolog.Logger
+	l  zerolog.Logger
 }
 
 type InfoResponse struct {
@@ -23,7 +23,6 @@ type InfoResponse struct {
 	Handles     []string `json:"handles"`
 	Problematic []string `json:"problematic"`
 }
-
 
 func NewServer(logger zerolog.Logger, c *config.RegistryConfig) *Server {
 	return &Server{c: c, ln: nil, l: logger}

@@ -73,4 +73,3 @@ func (r *registry) getHttpUrlFromSkylink(s string) string {
 	link := strings.TrimPrefix(s, "sia://")
 	return fmt.Sprintf("https://skyportal.xyz/%s", link)
 }
-
