@@ -22,7 +22,9 @@ const UserNameSpace = "users"
 
 func (a *auth) ValidateUser(u User) error {
 
-	if err := verifyEmail(u.Email); err!= nil {return err}
+	if err := verifyEmail(u.Email); err != nil {
+		return err
+	}
 	key := fmt.Sprintf("%s/%s", UserNameSpace, u.Email)
 	_, err := a.store.Get([]byte(key))
 	if err == nil {
@@ -39,7 +41,6 @@ func (a *auth) ValidateUser(u User) error {
 	}
 
 	if bz != nil {
-
 		var userList []User
 		fmt.Printf("%s\n", bz)
 		if err := json.Unmarshal(bz, &userList); err != nil {
@@ -169,7 +170,7 @@ func (a *auth) SignUp(ctx echo.Context) error {
 	u.Password = hpwd
 	bz, _ = json.Marshal(u)
 
-	key := fmt.Sprintf("%s/%s", UserNameSpace, u.Email)
+	key := fmt.Sprintf("%s/%s", UserNameSpace, u.Username)
 	if err := a.store.Set([]byte(key), bz); err != nil {
 		return ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error": err.Error(),

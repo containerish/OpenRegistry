@@ -12,7 +12,6 @@ import (
 	"github.com/jay-dee7/parachute/skynet"
 )
 
-
 type SkynetLinkResolver interface {
 	Resolve(repo string, refernce string) []string
 }
@@ -48,7 +47,7 @@ type fileResolver struct {
 func NewFileResolver(uri string) SkynetLinkResolver {
 	p := filepath.Clean(strings.TrimPrefix(uri, "file:"))
 
-	return &fileResolver{ root: p }
+	return &fileResolver{root: p}
 }
 
 func (r *fileResolver) Resolve(repo, ref string) []string {
@@ -78,12 +77,12 @@ func (r *fileResolver) Resolve(repo, ref string) []string {
 }
 
 type skynetResolver struct {
-	client *skynet.Client
+	client     *skynet.Client
 	skynetLink string
 }
 
-func NewSkynetResolver(client *skynet.Client, root string) (SkynetLinkResolver,) {
-	return &skynetResolver{ client: client, skynetLink: root,}
+func NewSkynetResolver(client *skynet.Client, root string) SkynetLinkResolver {
+	return &skynetResolver{client: client, skynetLink: root}
 }
 
 func (r *skynetResolver) Resolve(repo, ref string) []string {
@@ -109,7 +108,6 @@ func (r *skynetResolver) Resolve(repo, ref string) []string {
 	return nil
 }
 
-
 func (r *skynetResolver) getContent(repo, ref string) ([]byte, error) {
 	resp, err := r.client.Download(fmt.Sprintf("%s/%s/%s", r.skynetLink, repo, ref))
 	if err != nil {
@@ -130,9 +128,9 @@ func NewResolver(client *skynet.Client, list []string) SkynetLinkResolver {
 
 	for _, l := range list {
 		switch {
-		case strings.HasPrefix(l , "file:"):
+		case strings.HasPrefix(l, "file:"):
 			resolvers = append(resolvers, NewFileResolver(l))
-		case strings.HasPrefix(l , "/skynet/"):
+		case strings.HasPrefix(l, "/skynet/"):
 			resolvers = append(resolvers, NewSkynetResolver(client, l))
 		default:
 			resolvers = append(resolvers, NewSkynetResolver(client, l))

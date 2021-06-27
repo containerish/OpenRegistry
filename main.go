@@ -1,11 +1,8 @@
 package main
 
 import (
-	"github.com/jay-dee7/parachute/auth"
-	"net/http"
-	"os"
-
 	"github.com/fatih/color"
+	"github.com/jay-dee7/parachute/auth"
 	"github.com/jay-dee7/parachute/cache"
 	"github.com/jay-dee7/parachute/config"
 	"github.com/jay-dee7/parachute/server/registry/v2"
@@ -14,6 +11,9 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/rs/zerolog"
+	"log"
+	"net/http"
+	"os"
 )
 
 func main() {
@@ -22,13 +22,12 @@ func main() {
 		configPath = "./"
 	}
 
-	config, err := config.Load(configPath)
+	cfg, err := config.Load(configPath)
 	if err != nil {
-		color.Red("error reading config file: %s", err.Error())
+		color.Red("error reading cfg file: %s", err.Error())
 		os.Exit(1)
 	}
 
-	var errSig chan error
 	e := echo.New()
 	p := prometheus.NewPrometheus("echo", nil)
 	p.Use(e)
@@ -42,9 +41,9 @@ func main() {
 	}
 	defer localCache.Close()
 
-	authSvc := auth.New(localCache,config)
+	authSvc := auth.New(localCache, cfg)
 
-	skynetClient := skynet.NewClient(config)
+	skynetClient := skynet.NewClient(cfg)
 
 	reg, err := registry.NewRegistry(skynetClient, l, localCache, e.Logger)
 	if err != nil {
@@ -56,21 +55,22 @@ func main() {
 		Skipper: func(echo.Context) bool {
 			return false
 		},
-		Format:           "method=${method}, uri=${uri}, status=${status} latency=${latency}\n",
-		Output:           os.Stdout,
+		Format: "method=${method}, uri=${uri}, status=${status} latency=${latency}\n",
+		Output: os.Stdout,
 	}))
 
 	e.Use(middleware.Recover())
 
 	internal := e.Group("/internal")
 	authRouter := e.Group("/auth")
-	authRouter.Add(http.MethodPost,"/signup", authSvc.SignUp)
-	authRouter.Add(http.MethodPost,"/signin", authSvc.SignIn)
-
+	authRouter.Add(http.MethodPost, "/signup", authSvc.SignUp)
+	authRouter.Add(http.MethodPost, "/signin", authSvc.SignIn)
+	authRouter.Add(http.MethodPost, "/token", authSvc.SignIn)
 
 	internal.Add(http.MethodGet, "/metadata", localCache.Metadata)
 
 	router := e.Group("/v2/:username/:imagename")
+	router.Use(BasicAuth(authSvc.BasicAuth))
 
 	// ALL THE HEAD METHODS //
 	// HEAD /v2/<name>/blobs/<digest>
@@ -82,7 +82,6 @@ func main() {
 	// ALL THE PUT METHODS
 	// PUT /v2/<name>/blobs/uploads/<uuid>?digest=<digest>
 	// router.Add(http.MethodPut, "/blobs/uploads/:uuid", reg.MonolithicUpload)
-
 
 	router.Add(http.MethodPut, "/blobs/uploads/", reg.CompleteUpload)
 
@@ -117,30 +116,9 @@ func main() {
 
 	// router.Add(http.MethodGet, "/blobs/:digest", reg.DownloadBlob)
 
-	e.Add(http.MethodGet, "/v2/", reg.ApiVersion)
+	e.Add(http.MethodGet, "/v2/", reg.ApiVersion, BasicAuth(authSvc.BasicAuth))
 
-	e.Start(config.Address())
-    // e.StartTLS(config.Address(), config.TLSCertPath, config.TLSKeyPath)
-
-// 	go func() {
-// 		if err := e.Start(config.Address()); err != nil && err != http.ErrServerClosed {
-// 			e.Logger.Fatal("shutting down the server")
-// 		}
-// 	}()
-
-// 	// Wait for interrupt signal to gracefully shutdown the server with a timeout of 10 seconds.
-// 	// Use a buffered channel to avoid missing signals as recommended for signal.Notify
-// 	quit := make(chan os.Signal, 1)
-// 	signal.Notify(quit, os.Interrupt)
-// 	<-quit
-// 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-// 	defer cancel()
-
-// 	if err := e.Shutdown(ctx); err != nil {
-// 		e.Logger.Fatal(err)
-// 	}
-
-	color.Yellow("docker registry server stopped: %s", <-errSig)
+	log.Fatalln(e.Start(cfg.Address()))
 }
 
 func setupLogger() zerolog.Logger {
@@ -150,4 +128,58 @@ func setupLogger() zerolog.Logger {
 	l.With().Caller().Logger()
 
 	return l
+}
+
+//when we use JWT
+/*AuthMiddleware
+HTTP/1.1 401 Unauthorized
+Content-Type: application/json; charset=utf-8
+Docker-Distribution-Api-Version: registry/2.0
+Www-Authenticate: Bearer realm="https://auth.docker.io/token",service="registry.docker.io",scope="repository:samalba/my-app:pull,push"
+Date: Thu, 10 Sep 2015 19:32:31 GMT
+Content-Length: 235
+Strict-Transport-Security: max-age=31536000
+
+{"errors":[{"code":"UNAUTHORIZED","message":"","detail":}]}
+*/
+//var wwwAuthenticate = `Bearer realm="http://0.0.0.0:5000/auth/token",service="http://0.0.0.0:5000",scope="repository:%s`
+
+func BasicAuth(authfn func(string, string) (map[string]interface{}, error)) echo.MiddlewareFunc {
+	return middleware.BasicAuth(func(username string, password string, ctx echo.Context) (bool, error) {
+
+		if ctx.Request().RequestURI != "/v2/" {
+			if ctx.Request().Method == http.MethodHead || ctx.Request().Method == http.MethodGet {
+				return true, nil
+			}
+		}
+
+		color.Red("request uri %s", ctx.Request().RequestURI)
+
+		if ctx.Request().RequestURI == "/v2/" {
+			color.Blue("username %s password %s\n", username, password)
+			_, err := authfn(username, password)
+			if err != nil {
+				return false, ctx.NoContent(http.StatusUnauthorized)
+			}
+			return true, nil
+		}
+
+		usernameFromNameSpace := ctx.Param("username")
+		if usernameFromNameSpace != username {
+			var errMsg registry.RegistryErrors
+			errMsg.Errors = append(errMsg.Errors, registry.RegistryError{
+				Code:    registry.RegistryErrorCodeDenied,
+				Message: "not authorised",
+				Detail:  nil,
+			})
+			return false, ctx.JSON(http.StatusForbidden, errMsg)
+		}
+		resp, err := authfn(username, password)
+		if err != nil {
+			return false, err
+		}
+
+		ctx.Set("basic_auth", resp)
+		return true, nil
+	})
 }

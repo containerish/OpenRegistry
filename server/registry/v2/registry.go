@@ -81,7 +81,6 @@ const (
 	RegistryErrorCodeUnsupported         = "UNSUPPORTED"           // operation is not supported
 )
 
-
 type (
 	registry struct {
 		log        zerolog.Logger
@@ -137,7 +136,6 @@ type (
 		Digest    string `json:"digest"`
 	}
 )
-
 
 type Registry interface {
 	UploadProgress(ctx echo.Context) error

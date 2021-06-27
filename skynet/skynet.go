@@ -83,7 +83,7 @@ func (c *Client) AddImage(namespace string, manifests map[string][]byte, layers 
 	return link, err
 }
 
-func (c *Client) Metadata(skylink string) (uint64, bool){
+func (c *Client) Metadata(skylink string) (uint64, bool) {
 	opts := skynet.DefaultMetadataOptions
 	info, err := c.skynet.Metadata(skylink, opts)
 	if err != nil {

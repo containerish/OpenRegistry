@@ -9,6 +9,7 @@ import (
 type Authentication interface {
 	SignUp(ctx echo.Context) error
 	SignIn(ctx echo.Context) error
+	BasicAuth(username, password string) (map[string]interface{}, error)
 }
 
 type auth struct {
@@ -19,7 +20,7 @@ type auth struct {
 func New(s cache.Store, c *config.RegistryConfig) Authentication {
 	a := &auth{
 		store: s,
-		c: c,
+		c:     c,
 	}
 
 	return a

@@ -19,4 +19,3 @@ func (a *auth) verifyPassword(hashedPassword, currPassword string) bool {
 
 	return err == nil
 }
-
