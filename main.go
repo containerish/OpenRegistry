@@ -1,6 +1,10 @@
 package main
 
 import (
+	"log"
+	"net/http"
+	"os"
+
 	"github.com/fatih/color"
 	"github.com/jay-dee7/parachute/auth"
 	"github.com/jay-dee7/parachute/cache"
@@ -11,9 +15,6 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/rs/zerolog"
-	"log"
-	"net/http"
-	"os"
 )
 
 func main() {
@@ -68,6 +69,7 @@ func main() {
 	authRouter.Add(http.MethodPost, "/token", authSvc.SignIn)
 
 	internal.Add(http.MethodGet, "/metadata", localCache.Metadata)
+	internal.Add(http.MethodGet, "/digests", localCache.LayerDigests)
 
 	router := e.Group("/v2/:username/:imagename")
 	router.Use(BasicAuth(authSvc.BasicAuth))
@@ -118,7 +120,7 @@ func main() {
 
 	e.Add(http.MethodGet, "/v2/", reg.ApiVersion, BasicAuth(authSvc.BasicAuth))
 
-	log.Fatalln(e.Start(cfg.Address()))
+	log.Println(e.Start(cfg.Address()))
 }
 
 func setupLogger() zerolog.Logger {

@@ -83,7 +83,6 @@ func (r *registry) CompleteUpload(ctx echo.Context) error {
 	dig := ctx.QueryParam("digest")
 	namespace := ctx.Param("username") + "/" + ctx.Param("imagename")
 	uuid := ctx.Param("uuid")
-	// contentRange := ctx.Request().Header.Get("Content-Range")
 
 	bz, err := io.ReadAll(ctx.Request().Body)
 	if err != nil {
@@ -93,9 +92,6 @@ func (r *registry) CompleteUpload(ctx echo.Context) error {
 
 	buf := bytes.NewBuffer(r.b.uploads[uuid])
 	buf.Write(bz)
-	// io.Copy(buf, ctx.Request().Body)
-	// io.CopyN(buf, ctx.Request().Body, ctx.Request().ContentLength-1)
-
 	ourHash := digest(buf.Bytes())
 
 	if ourHash != dig {
@@ -115,13 +111,17 @@ func (r *registry) CompleteUpload(ctx echo.Context) error {
 		})
 	}
 
-	r.b.contents[ourHash] = buf.Bytes()
+	// r.b.contents[ourHash] = buf.Bytes()
 
 	blobNamespace := fmt.Sprintf("%s/blobs", namespace)
 	skylink, err := r.skynet.Upload(blobNamespace, dig, buf.Bytes(), headers...)
 	if err != nil {
 		errMsg := r.errorResponse(RegistryErrorCodeBlobUploadInvalid, err.Error(), nil)
 		return ctx.JSONBlob(http.StatusRequestedRangeNotSatisfiable, errMsg)
+	}
+	if err := r.localCache.SetDigest(ourHash, skylink); err != nil {
+		errMsg := r.errorResponse(RegistryErrorCodeBlobUnknown, err.Error(), nil)
+		return ctx.JSONBlob(http.StatusInternalServerError, errMsg)
 	}
 
 	// delete(r.b.uploads, ref)
@@ -150,50 +150,6 @@ func (r *registry) CompleteUpload(ctx echo.Context) error {
 // Docker-Content-Digest: <digest>
 func (r *registry) LayerExists(ctx echo.Context) error {
 	return r.b.HEAD(ctx)
-
-	namespace := ctx.Param("username") + "/" + ctx.Param("imagename")
-	digest := ctx.Param("digest") // ref can be either tag or digest
-
-	skylink, err := r.localCache.GetSkynetURL(namespace, digest)
-	if err != nil {
-		details := echo.Map{
-			"skynet": "skynet link not found",
-		}
-		errMsg := r.errorResponse(RegistryErrorCodeManifestBlobUnknown, err.Error(), details)
-		return ctx.JSON(http.StatusNotFound, errMsg)
-	}
-
-	size, ok := r.skynet.Metadata(skylink)
-	if !ok {
-		lm := logMsg{
-			"warn":    "metadata not found for skylink",
-			"skylink": skylink,
-		}
-		r.debugf(lm)
-		errMsg := r.errorResponse(RegistryErrorCodeManifestBlobUnknown, "Manifest does not exist", nil)
-		return ctx.JSON(http.StatusNotFound, errMsg)
-	}
-
-	bz, err := r.localCache.Get([]byte(namespace))
-	if err != nil {
-		errMsg := r.errorResponse(RegistryErrorCodeManifestInvalid, err.Error(), nil)
-		return ctx.JSONBlob(http.StatusNotFound, errMsg)
-	}
-
-	var md types.Metadata
-	if err = json.Unmarshal(bz, &md); err != nil {
-		errMsg := r.errorResponse(RegistryErrorCodeManifestInvalid, err.Error(), nil)
-		return ctx.JSONBlob(http.StatusNotFound, errMsg)
-	}
-
-	if err != nil {
-		errMsg := r.errorResponse(RegistryErrorCodeManifestInvalid, err.Error(), nil)
-		return ctx.JSONBlob(http.StatusNotFound, errMsg)
-	}
-
-	ctx.Response().Header().Set("Content-Length", fmt.Sprintf("%d", size))
-	ctx.Response().Header().Set("Docker-Content-Digest", digest)
-	return ctx.String(http.StatusOK, "OK")
 }
 
 // HEAD /v2/<name>/manifests/<reference>
@@ -270,71 +226,15 @@ func (r *registry) ManifestExists(ctx echo.Context) error {
 		return ctx.JSONBlob(http.StatusBadRequest, errMsg)
 	}
 
+	ctx.Response().Header().Set("Content-Type", "application/json")
 	ctx.Response().Header().Set("Content-Length", fmt.Sprintf("%d", size))
 	ctx.Response().Header().Set("Docker-Content-Digest", manifest.Digest)
-	return ctx.String(http.StatusOK, "OK")
+	return ctx.NoContent(http.StatusOK)
 }
 
 // PATCH /v2/<name>/blobs/uploads/<uuid>
 func (r *registry) ChunkedUpload(ctx echo.Context) error {
 	return r.b.UploadBlob(ctx)
-
-	namespace := ctx.Param("username") + "/" + ctx.Param("imagename")
-	chunkID := ctx.Param("uuid")
-
-	var headers []skynetsdk.Header
-
-	for k, v := range ctx.Request().Header {
-		headers = append(headers, skynetsdk.Header{
-			Key: k, Value: v[0],
-		})
-	}
-
-	bz, err := io.ReadAll(ctx.Request().Body)
-	if err != nil {
-		panic(err)
-	}
-	defer ctx.Request().Body.Close()
-
-	dig := digest(bz)
-	skylink, err := r.skynet.Upload(namespace, dig, bz, headers...)
-	if err != nil {
-		errMsg := r.errorResponse(RegistryErrorCodeBlobUploadInvalid, err.Error(), nil)
-		lm := logMsg{
-			"error":  err.Error(),
-			"digest": dig,
-			"uuid":   chunkID,
-		}
-		r.debugf(lm)
-		return ctx.JSONBlob(http.StatusRequestedRangeNotSatisfiable, errMsg)
-	}
-
-	val := types.Metadata{
-		Namespace: namespace,
-		Manifest: types.ImageManifest{
-			SchemaVersion: 2,
-			MediaType:     "",
-			Layers:        []*types.Layer{
-				{
-					SkynetLink: skylink,
-					Size: len(bz),
-					UUID: chunkID,
-					Digest: dig,
-				},
-			},
-		},
-	}
-
-	r.localCache.Update([]byte(namespace), val.Bytes())
-
-	// id := uuid.Generate()
-
-	locationHeader := fmt.Sprintf("/v2/%s/blobs/uploads/%s", namespace, chunkID)
-
-	ctx.Response().Header().Set("Location", locationHeader)
-	ctx.Response().Header().Set("Range", fmt.Sprintf("bytes=0-%d", len(bz)-1))
-	ctx.Response().Header().Set("Docker-Upload-UUID", chunkID)
-	return ctx.NoContent(http.StatusAccepted)
 }
 
 func (r *registry) CancelUpload(ctx echo.Context) error {
@@ -404,7 +304,6 @@ func (r *registry) PushManifest(ctx echo.Context) error {
 	defer ctx.Request().Body.Close()
 
 	dig := digest(bz)
-	color.Yellow("manifest digest: %s\n", dig)
 
 	var manifest ManifestList
 	if err = json.Unmarshal(bz, &manifest); err != nil {
@@ -465,7 +364,6 @@ func (r *registry) PushManifest(ctx echo.Context) error {
 	}
 
 	locationHeader := r.getHttpUrlFromSkylink(skylink)
-	color.Red("location header for get manifest: %s\n", locationHeader)
 	ctx.Response().Header().Set("Location", locationHeader)
 	ctx.Response().Header().Set("Docker-Content-Digest", dig)
 	ctx.Response().Header().Set("X-Docker-Content-ID", skylink)
@@ -601,8 +499,6 @@ func (r *registry) StartUpload(ctx echo.Context) error {
 
 		layer := &types.Layer{
 			MediaType:  "application/vnd.docker.image.rootfs.diff.tar.gzip",
-			RangeStart: uint32(0),
-			RangeEnd:   uint32(len(bz)-1),
 			Size:       len(bz),
 			Digest:     dig,
 			SkynetLink: skylink,

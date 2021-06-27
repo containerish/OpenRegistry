@@ -5,9 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/NebulousLabs/go-skynet/v2"
 	badger "github.com/dgraph-io/badger/v3"
-	"github.com/fatih/color"
 	"github.com/jay-dee7/parachute/types"
 	"github.com/labstack/echo/v4"
 )
@@ -19,14 +17,16 @@ type dataStore struct {
 type Store interface {
 	Get(key []byte) ([]byte, error)
 	Set(key, value []byte) error
+	GetDigest(digest string) (*types.LayerRef, error)
+	SetDigest(digest, skylink string) error
 	Update(key, value []byte) error
 	ListAll() ([]byte, error)
 	ListWithPrefix(prefix []byte) ([]byte, error)
 	Delete(key []byte) error
 	GetSkynetURL(key string, ref string) (string, error)
-	GetSkynetURLWithHeaders(key string, ref string) (string, []skynet.Header, error)
 	ResolveManifestRef(namespace, ref string) (string, error)
 	Metadata(ctx echo.Context) error
+	LayerDigests(ctx echo.Context) error
 	Close() error
 }
 
@@ -43,6 +43,15 @@ func New(storeLocation string) (Store, error) {
 	return &dataStore{db: db}, nil
 }
 
+func (ds *dataStore) LayerDigests(ctx echo.Context) error {
+	bz, err := ds.ListWithPrefix([]byte(layerDigestNamespace))
+	if err != nil {
+		return ctx.JSON(http.StatusBadRequest, echo.Map{"error": err.Error()})
+	}
+
+	return ctx.JSONBlob(http.StatusOK, bz)
+}
+
 func (ds *dataStore) Metadata(ctx echo.Context) error {
 	key := ctx.QueryParam("namespace")
 	if key == "" {
@@ -53,7 +62,14 @@ func (ds *dataStore) Metadata(ctx echo.Context) error {
 			})
 		}
 
-		return ctx.JSONBlob(http.StatusOK, bz)
+		var metadataList []types.Metadata
+		if err = json.Unmarshal(bz, &metadataList); err != nil {
+			return ctx.JSON(http.StatusInternalServerError, echo.Map{
+				"error": err.Error(),
+			})
+		}
+
+		return ctx.JSON(http.StatusOK, metadataList)
 	}
 
 	val, err := ds.Get([]byte(key))
@@ -156,53 +172,36 @@ func (ds *dataStore) ResolveManifestRef(namespace, ref string) (string, error) {
 	return "", fmt.Errorf("ref not found")
 }
 
-func (ds *dataStore) GetSkynetURLWithHeaders(key, ref string) (string, []skynet.Header, error) {
+const layerDigestNamespace = "layers/digests"
 
-	color.Yellow("key=%s ref=%s\n", key, ref)
-	var res []byte
-	err := ds.db.View(func(txn *badger.Txn) error {
-		item, err := txn.Get([]byte(key))
-		if err != nil {
-			return err
-		}
+func (ds *dataStore) SetDigest(digest, skylink string) error {
+	key := fmt.Sprintf("%s/%s", layerDigestNamespace, digest)
+	value := types.LayerRef{
+		Digest: digest,
+		Skylink: skylink,
+	}
 
-		return item.Value(func(v []byte) error {
-			res = make([]byte, len(v))
-			copy(res, v)
-			return nil
-		})
-	})
+	if err := ds.Set([]byte(key), value.Bytes()); err != nil {
+		return err
+	}
 
+	return nil
+}
+
+func (ds *dataStore) GetDigest(digest string) (*types.LayerRef, error) {
+	key := fmt.Sprintf("%s/%s", layerDigestNamespace, digest)
+	bz, err := ds.Get([]byte(key))
 	if err != nil {
-		return "", nil, err
+		return nil, err
 	}
 
-	var md types.Metadata
-	err = json.Unmarshal(res, &md)
-	if err != nil {
-		return "", nil, err
-	}
-
-	skylink, err := md.FindLinkForDigest(ref)
-	if err != nil {
-		return "", nil, err
-	}
-
-	layer := md.FindLayer(ref)
-
-	headers := []skynet.Header{
-		{
-			Key:   "Range",
-			Value: fmt.Sprintf("bytes=%d-%d", layer.RangeStart, layer.RangeEnd),
-		},
-	}
-
-	return skylink, headers, nil
+	var layerRef types.LayerRef
+	err = json.Unmarshal(bz, &layerRef)
+	return &layerRef, err
 }
 
 func (ds *dataStore) GetSkynetURL(key, ref string) (string, error) {
 
-	color.Yellow("key=%s ref=%s\n", key, ref)
 	var res []byte
 	err := ds.db.View(func(txn *badger.Txn) error {
 		item, err := txn.Get([]byte(key))
@@ -263,7 +262,7 @@ func (ds *dataStore) Get(key []byte) ([]byte, error) {
 }
 
 func (ds *dataStore) ListAll() ([]byte, error) {
-	var res []byte
+	var buf []types.Metadata
 
 	err := ds.db.View(func(txn *badger.Txn) error {
 		opts := badger.DefaultIteratorOptions
@@ -273,10 +272,14 @@ func (ds *dataStore) ListAll() ([]byte, error) {
 		for it.Rewind(); it.Valid(); it.Next() {
 			item := it.Item()
 			err := item.Value(func(v []byte) error {
-				res = make([]byte, len(v))
-				copy(res, v)
+				var md types.Metadata
+				if err := json.Unmarshal(v, &md); err != nil {
+					return err
+				}
+				buf = append(buf, md)
 				return nil
 			})
+
 			if err != nil {
 				return err
 			}
@@ -284,11 +287,13 @@ func (ds *dataStore) ListAll() ([]byte, error) {
 		return nil
 	})
 
-	return res, err
+	bz, _ := json.Marshal(buf)
+
+	return bz, err
 }
 
 func (ds *dataStore) ListWithPrefix(prefix []byte) ([]byte, error) {
-	var res []byte
+	var buf []*types.LayerRef
 
 	err := ds.db.View(func(txn *badger.Txn) error {
 		it := txn.NewIterator(badger.DefaultIteratorOptions)
@@ -296,8 +301,12 @@ func (ds *dataStore) ListWithPrefix(prefix []byte) ([]byte, error) {
 		for it.Seek(prefix); it.ValidForPrefix(prefix); it.Next() {
 			item := it.Item()
 			err := item.Value(func(v []byte) error {
-				res = make([]byte, len(v))
-				copy(res, v)
+				var layerRef types.LayerRef
+				if err := json.Unmarshal(v, &layerRef); err != nil {
+					return err
+				}
+
+				buf = append(buf, &layerRef)
 				return nil
 			})
 			if err != nil {
@@ -307,7 +316,8 @@ func (ds *dataStore) ListWithPrefix(prefix []byte) ([]byte, error) {
 		return nil
 	})
 
-	return res, err
+	bz, _ := json.Marshal(buf)
+	return bz, err
 }
 
 func (ds *dataStore) Delete(key []byte) error {

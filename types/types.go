@@ -3,8 +3,6 @@ package types
 import (
 	"encoding/json"
 	"fmt"
-
-	"github.com/fatih/color"
 )
 
 type (
@@ -26,14 +24,26 @@ type (
 		Config        []*Config `json:"config"`
 	}
 
-	Layer struct {
-		MediaType  string `json:"mediaType"`
+	Blob struct {
 		RangeStart uint32
 		RangeEnd   uint32
+		Digest     string
+		Skylink    string
+		UUID       string
+	}
+
+	Layer struct {
+		MediaType  string `json:"mediaType"`
+		Blobs      []Blob `json:"blobs"`
 		Size       int    `json:"size"`
 		Digest     string `json:"digest"`
 		SkynetLink string `json:"skynetLink"`
 		UUID       string `json:"uuid"`
+	}
+
+	LayerRef struct {
+		Digest  string
+		Skylink string
 	}
 
 	Config struct {
@@ -96,17 +106,24 @@ func (md Metadata) FindLayer(ref string) *Layer {
 func (md Metadata) FindLinkForDigest(ref string) (string, error) {
 	for _, c := range md.Manifest.Config {
 		if c.Digest == ref || c.Reference == ref {
-			color.Red("found skylink from config: %s\n", ref)
 			return c.SkynetLink, nil
 		}
 	}
 
 	for _, l := range md.Manifest.Layers {
 		if l.Digest == ref {
-			color.Red("found skylink from manifest: %s\n", ref)
 			return l.SkynetLink, nil
 		}
 	}
 
 	return "", fmt.Errorf("ref does not exists")
+}
+
+func (lr LayerRef) Bytes() []byte {
+	bz, err := json.Marshal(lr)
+	if err != nil {
+		return nil
+	}
+
+	return bz
 }

@@ -7,7 +7,6 @@ tls_cert_path: ./certs/beta-openregistry.crt
 skynet_store_path: /Users/jasdeep/.parachute
 skynet_link_resolvers: /Users/jasdeep/.parachute/links
 skynet_portal_url: https://siasky.net
-signing_secret: 3tYnaKp@^%hbQA%J&x3cX!r2#mK%EBfAbTvPMv5CU2DP7bAoQGnUfT2&dW
 skynet_config:
   endpoint_path: ""
   api_key: ""
