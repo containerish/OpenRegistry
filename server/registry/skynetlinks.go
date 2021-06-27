@@ -11,7 +11,7 @@ import (
 
 type skynetStore struct {
 	skynetLinks map[string]string
-	location string
+	location    string
 	sync.RWMutex
 }
 

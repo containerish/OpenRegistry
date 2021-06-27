@@ -152,10 +152,6 @@ func (r *registry) LayerExists(ctx echo.Context) error {
 	return r.b.HEAD(ctx)
 }
 
-func (r *registry) Length(ctx echo.Context) error {
-	return r.b.PrintContents(ctx)
-}
-
 // HEAD /v2/<name>/manifests/<reference>
 func (r *registry) ManifestExists(ctx echo.Context) error {
 	namespace := ctx.Param("username") + "/" + ctx.Param("imagename")
@@ -268,6 +264,7 @@ func (r *registry) PullManifest(ctx echo.Context) error {
 		ctx.JSON(http.StatusNotFound, errMsg)
 	}
 
+	color.Magenta("skylink: %s - ref: %s namespace: %s\n", skynetLink, ref, namespace)
 	resp, err := r.skynet.Download(skynetLink)
 	if err != nil {
 		errMsg := r.errorResponse(RegistryErrorCodeManifestInvalid, err.Error(), nil)

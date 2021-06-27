@@ -28,7 +28,7 @@ type (
 	}
 
 	Image struct {
-		Layers map[string][]byte
+		Layers    map[string][]byte
 		Manifests map[string][]byte
 	}
 )
