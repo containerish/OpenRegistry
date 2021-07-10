@@ -116,7 +116,8 @@ func main() {
 	// GET GET /v2/<name>/blobs/uploads/<uuid>
 	router.Add(http.MethodGet, "/blobs/uploads/:uuid", reg.UploadProgress)
 
-	// router.Add(http.MethodGet, "/blobs/:digest", reg.DownloadBlob)
+	router.Add(http.MethodDelete, "/blobs/:digest", reg.DeleteLayer).Name = "DeleteLayer"
+	router.Add(http.MethodDelete, "/manifests/:digest", reg.DeleteImage).Name = "DeleteImage"
 
 	e.Add(http.MethodGet, "/v2/", reg.ApiVersion, BasicAuth(authSvc.BasicAuth))
 
@@ -148,17 +149,13 @@ Strict-Transport-Security: max-age=31536000
 
 func BasicAuth(authfn func(string, string) (map[string]interface{}, error)) echo.MiddlewareFunc {
 	return middleware.BasicAuth(func(username string, password string, ctx echo.Context) (bool, error) {
-
 		if ctx.Request().RequestURI != "/v2/" {
 			if ctx.Request().Method == http.MethodHead || ctx.Request().Method == http.MethodGet {
 				return true, nil
 			}
 		}
 
-		color.Red("request uri %s", ctx.Request().RequestURI)
-
 		if ctx.Request().RequestURI == "/v2/" {
-			color.Blue("username %s password %s\n", username, password)
 			_, err := authfn(username, password)
 			if err != nil {
 				return false, ctx.NoContent(http.StatusUnauthorized)

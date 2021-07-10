@@ -153,7 +153,7 @@ func (b *blobs) UploadBlob(ctx echo.Context) error {
 
 	buf := bytes.NewBuffer(b.uploads[uuid]) // 90
 	io.Copy(buf, ctx.Request().Body)        // 10
-	defer ctx.Request().Body.Close()
+	ctx.Request().Body.Close()
 
 	b.uploads[uuid] = buf.Bytes()
 	locationHeader := fmt.Sprintf("/v2/%s/blobs/uploads/%s", namespace, uuid)
