@@ -42,7 +42,15 @@ func NewRegistry(skynetClient *skynet.Client, logger zerolog.Logger, c cache.Sto
 }
 
 func (r *registry) DeleteLayer(ctx echo.Context) error {
-	return nil
+	dig := ctx.Param("digest")
+
+	_, err := r.localCache.GetDigest(dig)
+	if err != nil {
+		errMsg := r.errorResponse(RegistryErrorCodeBlobUnknown, err.Error(), nil)
+		return ctx.JSONBlob(http.StatusNotFound, errMsg)
+	}
+
+	return ctx.NoContent(http.StatusOK)
 }
 
 // PUT /v2/<name>/blobs/uploads/<uuid>?digest=<digest>
@@ -56,7 +64,7 @@ func (r *registry) MonolithicUpload(ctx echo.Context) error {
 		errMsg := r.errorResponse(RegistryErrorCodeBlobUploadInvalid, err.Error(), nil)
 		return ctx.JSONBlob(http.StatusBadRequest, errMsg)
 	}
-	defer ctx.Request().Body.Close()
+	ctx.Request().Body.Close()
 
 	link, err := r.skynet.Upload(namespace, digest, bz)
 	if err != nil {
@@ -89,6 +97,7 @@ func (r *registry) CompleteUpload(ctx echo.Context) error {
 		errMsg := r.errorResponse(RegistryErrorCodeDigestInvalid, err.Error(), nil)
 		return ctx.JSONBlob(http.StatusBadRequest, errMsg)
 	}
+	ctx.Request().Body.Close()
 
 	buf := bytes.NewBuffer(r.b.uploads[uuid])
 	buf.Write(bz)
@@ -131,7 +140,11 @@ func (r *registry) CompleteUpload(ctx echo.Context) error {
 		Manifest: types.ImageManifest{
 			SchemaVersion: 2,
 			MediaType:     "",
-			Layers:        []*types.Layer{{MediaType: "", Size: len(bz), Digest: dig, SkynetLink: skylink, UUID: uuid}},
+			Layers: []*types.Layer{
+				{
+					MediaType: "", Size: len(bz), Digest: dig, SkynetLink: skylink, UUID: uuid,
+				},
+			},
 		},
 	}
 
@@ -301,7 +314,7 @@ func (r *registry) PushManifest(ctx echo.Context) error {
 		errMsg := r.errorResponse(RegistryErrorCodeManifestInvalid, err.Error(), nil)
 		return ctx.JSONBlob(http.StatusBadRequest, errMsg)
 	}
-	defer ctx.Request().Body.Close()
+	ctx.Request().Body.Close()
 
 	dig := digest(bz)
 
@@ -406,7 +419,26 @@ func (r *registry) PushManifest(ctx echo.Context) error {
 }
 
 func (r *registry) DeleteImage(ctx echo.Context) error {
-	return nil
+	clientDigest := ctx.Param("digest")
+	if clientDigest == "" {
+		path := strings.Split(ctx.Request().RequestURI, "/")
+		if len(path) == 6 {
+			clientDigest = path[5]
+		}
+	}
+	namespace := ctx.Param("username") + "/" + ctx.Param("imagename")
+
+	if d, err := r.localCache.ResolveManifestRef(namespace, clientDigest); err != nil {
+		details := map[string]interface{}{
+			"namespace": namespace,
+			"digest":    clientDigest,
+			"data":      d,
+		}
+		errMsg := r.errorResponse(RegistryErrorCodeManifestUnknown, err.Error(), details)
+		return ctx.JSONBlob(http.StatusNotFound, errMsg)
+	}
+
+	return ctx.NoContent(http.StatusOK)
 }
 
 // GET /v2/<name>/blobs/<digest>

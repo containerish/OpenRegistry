@@ -162,12 +162,12 @@ func (ds *dataStore) ResolveManifestRef(namespace, ref string) (string, error) {
 	}
 
 	for _, c := range md.Manifest.Config {
-	mdRef := c.Reference
-	mdDigest := c.Digest
-	if ref == mdRef || ref == mdDigest {
-		return c.SkynetLink, nil
+		mdRef := c.Reference
+		mdDigest := c.Digest
+		if ref == mdRef || ref == mdDigest {
+			return c.SkynetLink, nil
+		}
 	}
-}
 
 	return "", fmt.Errorf("ref not found")
 }
@@ -177,7 +177,7 @@ const layerDigestNamespace = "layers/digests"
 func (ds *dataStore) SetDigest(digest, skylink string) error {
 	key := fmt.Sprintf("%s/%s", layerDigestNamespace, digest)
 	value := types.LayerRef{
-		Digest: digest,
+		Digest:  digest,
 		Skylink: skylink,
 	}
 
