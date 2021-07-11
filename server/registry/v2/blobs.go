@@ -60,18 +60,6 @@ func (b *blobs) remove(repo string) {
 	}
 }
 
-func (b *blobs) PrintContents(ctx echo.Context) error {
-	l := 0
-
-	for _,v := range b.contents {
-		l = l + len(v)
-	}
-
-	return ctx.JSON(http.StatusOK, echo.Map{
-		"bufLength": l,
-	})
-}
-
 func (b *blobs) HEAD(ctx echo.Context) error {
 
 	// namespace := ctx.Param("username") + "/" + ctx.Param("imagename")
@@ -165,7 +153,7 @@ func (b *blobs) UploadBlob(ctx echo.Context) error {
 
 	buf := bytes.NewBuffer(b.uploads[uuid]) // 90
 	io.Copy(buf, ctx.Request().Body)        // 10
-	defer ctx.Request().Body.Close()
+	ctx.Request().Body.Close()
 
 	b.uploads[uuid] = buf.Bytes()
 	locationHeader := fmt.Sprintf("/v2/%s/blobs/uploads/%s", namespace, uuid)

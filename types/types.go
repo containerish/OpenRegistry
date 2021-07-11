@@ -3,8 +3,6 @@ package types
 import (
 	"encoding/json"
 	"fmt"
-
-	"github.com/fatih/color"
 )
 
 type (

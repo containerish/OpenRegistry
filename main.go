@@ -1,6 +1,10 @@
 package main
 
 import (
+	"log"
+	"net/http"
+	"os"
+
 	"github.com/fatih/color"
 	"github.com/jay-dee7/parachute/auth"
 	"github.com/jay-dee7/parachute/cache"
@@ -11,9 +15,6 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/rs/zerolog"
-	"log"
-	"net/http"
-	"os"
 )
 
 func main() {

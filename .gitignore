@@ -1,5 +1,6 @@
 ./certs
 ./parachute
+.cache
 ./parachute.yaml
 .idea/
 tests

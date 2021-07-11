@@ -256,6 +256,4 @@ type Registry interface {
 
 	// Success : 202
 	DeleteImage(ctx echo.Context) error
-
-	Length(ctx echo.Context) error
 }
