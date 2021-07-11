@@ -158,10 +158,7 @@ func BasicAuth(authfn func(string, string) (map[string]interface{}, error)) echo
 			}
 		}
 
-		color.Red("request uri %s", ctx.Request().RequestURI)
-
 		if ctx.Request().RequestURI == "/v2/" {
-			color.Blue("username %s password %s\n", username, password)
 			_, err := authfn(username, password)
 			if err != nil {
 				return false, ctx.NoContent(http.StatusUnauthorized)
@@ -171,7 +168,7 @@ func BasicAuth(authfn func(string, string) (map[string]interface{}, error)) echo
 
 		usernameFromNameSpace := ctx.Param("username")
 		if usernameFromNameSpace != username {
-			var errMsg registry.registry
+			var errMsg registry.RegistryErrors
 			errMsg.Errors = append(errMsg.Errors, registry.RegistryError{
 				Code:    registry.RegistryErrorCodeDenied,
 				Message: "not authorised",
