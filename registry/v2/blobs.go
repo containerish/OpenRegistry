@@ -62,15 +62,7 @@ func (b *blobs) remove(repo string) {
 
 func (b *blobs) HEAD(ctx echo.Context) error {
 
-	// namespace := ctx.Param("username") + "/" + ctx.Param("imagename")
 	digest := ctx.Param("digest")
-
-	// content is available if image is locally pushed
-	// if c, ok := b.contents[digest]; ok {
-	// 	ctx.Response().Header().Set("Content-Length", fmt.Sprint(len(c)))
-	// 	ctx.Response().Header().Set("Docker-Content-Digest", digest)
-	// 	return ctx.NoContent(http.StatusOK)
-	// }
 
 	layerRef, err := b.registry.localCache.GetDigest(digest)
 	if err != nil {
@@ -87,36 +79,15 @@ func (b *blobs) HEAD(ctx echo.Context) error {
 		return ctx.JSON(http.StatusNotFound, errMsg)
 	}
 
-	// bz, err := b.registry.localCache.Get([]byte(namespace))
-	// if err != nil {
-	// 	errMsg := b.errorResponse(RegistryErrorCodeManifestInvalid, err.Error(), nil)
-	// 	return ctx.JSONBlob(http.StatusNotFound, errMsg)
-	// }
-
-	// var md types.Metadata
-	// if err = json.Unmarshal(bz, &md); err != nil {
-	// 	errMsg := b.errorResponse(RegistryErrorCodeManifestInvalid, err.Error(), nil)
-	// 	return ctx.JSONBlob(http.StatusNotFound, errMsg)
-	// }
-
 	ctx.Response().Header().Set("Content-Length", fmt.Sprintf("%d", size))
 	ctx.Response().Header().Set("Docker-Content-Digest", digest)
-	// io.CopyN(ctx.Response(), bytes.NewReader(bz), int64(size))
 	return ctx.String(http.StatusOK, "OK")
 }
 
 func (b *blobs) UploadBlob(ctx echo.Context) error {
 	namespace := ctx.Param("username") + "/" + ctx.Param("imagename")
-	// uuid := ctx.Param("buggu")
 	contentRange := ctx.Request().Header.Get("Content-Range")
-	// if uuid == "" || uuid == " " {
-	// 	parts := strings.Split(ctx.Request().RequestURI, "/")
-	// 	color.Green("%v", parts)
-	// 		uuid = parts[6]
-	// }
-
 	uuid := strings.Split(ctx.Request().RequestURI, "/")[6]
-	// color.Magenta(strings.Split(ctx.Request().RequestURI, "/")[6])
 
 	if contentRange == "" {
 		if _, ok := b.uploads[uuid]; ok {
@@ -139,8 +110,8 @@ func (b *blobs) UploadBlob(ctx echo.Context) error {
 	// 0-90
 	if _, err := fmt.Sscanf(contentRange, "%d-%d", &start, &end); err != nil {
 		details := map[string]interface{}{
-			"error":       "content range is invalid",
-			"conentRange": contentRange,
+			"error":        "content range is invalid",
+			"contentRange": contentRange,
 		}
 		errMsg := b.errorResponse(RegistryErrorCodeBlobUploadUnknown, err.Error(), details)
 		return ctx.JSONBlob(http.StatusRequestedRangeNotSatisfiable, errMsg)

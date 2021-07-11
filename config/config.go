@@ -71,7 +71,7 @@ func setDefaults() {
 	defaultStorePath := user.HomeDir + "/.parachute"
 	defaultLinkResolverPath := defaultStorePath + "/links"
 
-	os.MkdirAll(defaultLinkResolverPath, os.ModePerm)
+	_ = os.MkdirAll(defaultLinkResolverPath, os.ModePerm)
 
 	viper.SetDefault("debug", true)
 	viper.SetDefault("environment", "devel")
@@ -83,12 +83,4 @@ func setDefaults() {
 	viper.SetDefault("skynet_store_path", defaultStorePath)
 	viper.SetDefault("skynet_link_resolvers", defaultLinkResolverPath)
 	viper.SetDefault("skynet_portal_url", "https://siasky.net")
-
-	skynetConfig := SkynetConfig{
-		EndpointPath:    "",
-		ApiKey:          "",
-		CustomUserAgent: "",
-	}
-
-	viper.SetDefault("skynet_config", skynetConfig)
 }

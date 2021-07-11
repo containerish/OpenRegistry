@@ -28,4 +28,4 @@ require (
 	google.golang.org/grpc v1.38.0 // indirect
 )
 
-replace github.com/NebulousLabs/go-skynet/v2 => /Users/jasdeep/oss/go-skynet
+replace github.com/NebulousLabs/go-skynet/v2 => /Users/gunjanvalecha/oss/go-skynet

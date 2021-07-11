@@ -2,14 +2,14 @@ package auth
 
 import "golang.org/x/crypto/bcrypt"
 
-var bcryptMincost = 6
+var bcryptMinCost = 6
 
 func (a *auth) hashPassword(password string) (string, error) {
 	// Convert password string to byte slice
 	var passwordBytes = []byte(password)
 
 	// Hash password with Bcrypt's min cost
-	hashedPasswordBytes, err := bcrypt.GenerateFromPassword(passwordBytes, bcryptMincost)
+	hashedPasswordBytes, err := bcrypt.GenerateFromPassword(passwordBytes, bcryptMinCost)
 
 	return string(hashedPasswordBytes), err
 }

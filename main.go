@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/jay-dee7/parachute/registry/v2"
 	"log"
 	"net/http"
 	"os"
@@ -9,7 +10,6 @@ import (
 	"github.com/jay-dee7/parachute/auth"
 	"github.com/jay-dee7/parachute/cache"
 	"github.com/jay-dee7/parachute/config"
-	"github.com/jay-dee7/parachute/server/registry/v2"
 	"github.com/jay-dee7/parachute/skynet"
 	"github.com/labstack/echo-contrib/prometheus"
 	"github.com/labstack/echo/v4"
@@ -71,7 +71,6 @@ func main() {
 	authRouter.Add(http.MethodPost, "/signin", authSvc.SignIn)
 	authRouter.Add(http.MethodPost, "/token", authSvc.SignIn)
 
-	internal.Add(http.MethodGet, "/buf", reg.Length)
 	internal.Add(http.MethodGet, "/metadata", localCache.Metadata)
 	internal.Add(http.MethodGet, "/digests", localCache.LayerDigests)
 
@@ -124,7 +123,7 @@ func main() {
 
 	e.Add(http.MethodGet, "/v2/", reg.ApiVersion, BasicAuth(authSvc.BasicAuth))
 
-	log.Println(e.Start(config.Address()))
+	log.Println(e.Start(cfg.Address()))
 }
 
 func setupLogger() zerolog.Logger {
@@ -172,7 +171,7 @@ func BasicAuth(authfn func(string, string) (map[string]interface{}, error)) echo
 
 		usernameFromNameSpace := ctx.Param("username")
 		if usernameFromNameSpace != username {
-			var errMsg registry.RegistryErrors
+			var errMsg registry.registry
 			errMsg.Errors = append(errMsg.Errors, registry.RegistryError{
 				Code:    registry.RegistryErrorCodeDenied,
 				Message: "not authorised",

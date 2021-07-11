@@ -286,10 +286,11 @@ func (ds *dataStore) ListAll() ([]byte, error) {
 		}
 		return nil
 	})
+	if err != nil {
+		return nil, err
+	}
 
-	bz, _ := json.Marshal(buf)
-
-	return bz, err
+	return json.Marshal(buf)
 }
 
 func (ds *dataStore) ListWithPrefix(prefix []byte) ([]byte, error) {
@@ -315,9 +316,11 @@ func (ds *dataStore) ListWithPrefix(prefix []byte) ([]byte, error) {
 		}
 		return nil
 	})
+	if err != nil {
+		return nil, err
+	}
 
-	bz, _ := json.Marshal(buf)
-	return bz, err
+	return json.Marshal(buf)
 }
 
 func (ds *dataStore) Delete(key []byte) error {
