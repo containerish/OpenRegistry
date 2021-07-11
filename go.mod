@@ -5,6 +5,7 @@ go 1.16
 require (
 	github.com/Microsoft/go-winio v0.5.0 // indirect
 	github.com/NebulousLabs/go-skynet/v2 v2.0.1
+	github.com/cloudflare/cloudflare-go v0.18.0 // indirect
 	github.com/containerd/containerd v1.5.2 // indirect
 	github.com/dgraph-io/badger/v3 v3.2103.0
 	github.com/docker/distribution v2.7.1+incompatible
@@ -26,6 +27,7 @@ require (
 	golang.org/x/time v0.0.0-20210608053304-ed9ce3a009e4 // indirect
 	google.golang.org/genproto v0.0.0-20210521181308-5ccab8a35a9a // indirect
 	google.golang.org/grpc v1.38.0 // indirect
+
 )
 
 replace github.com/NebulousLabs/go-skynet/v2 => /Users/gunjanvalecha/oss/go-skynet
