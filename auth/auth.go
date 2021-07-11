@@ -18,10 +18,6 @@ type auth struct {
 }
 
 func New(s cache.Store, c *config.RegistryConfig) Authentication {
-	a := &auth{
-		store: s,
-		c:     c,
-	}
-
+	a := &auth{store: s, c: c}
 	return a
 }

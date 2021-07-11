@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/jay-dee7/parachute/registry/v2"
 	"log"
 	"net/http"
 	"os"
@@ -9,7 +10,6 @@ import (
 	"github.com/jay-dee7/parachute/auth"
 	"github.com/jay-dee7/parachute/cache"
 	"github.com/jay-dee7/parachute/config"
-	"github.com/jay-dee7/parachute/server/registry/v2"
 	"github.com/jay-dee7/parachute/skynet"
 	"github.com/labstack/echo-contrib/prometheus"
 	"github.com/labstack/echo/v4"
@@ -33,6 +33,9 @@ func main() {
 	p := prometheus.NewPrometheus("echo", nil)
 	p.Use(e)
 	e.HideBanner = true
+
+	// e.Use(middleware.HTTPSNonWWWRedirect())
+	// e.Use(middleware.HTTPSRedirect())
 
 	l := setupLogger()
 	localCache, err := cache.New("/tmp/badger")
@@ -116,8 +119,7 @@ func main() {
 	// GET GET /v2/<name>/blobs/uploads/<uuid>
 	router.Add(http.MethodGet, "/blobs/uploads/:uuid", reg.UploadProgress)
 
-	router.Add(http.MethodDelete, "/blobs/:digest", reg.DeleteLayer).Name = "DeleteLayer"
-	router.Add(http.MethodDelete, "/manifests/:digest", reg.DeleteImage).Name = "DeleteImage"
+	// router.Add(http.MethodGet, "/blobs/:digest", reg.DownloadBlob)
 
 	e.Add(http.MethodGet, "/v2/", reg.ApiVersion, BasicAuth(authSvc.BasicAuth))
 
@@ -149,6 +151,7 @@ Strict-Transport-Security: max-age=31536000
 
 func BasicAuth(authfn func(string, string) (map[string]interface{}, error)) echo.MiddlewareFunc {
 	return middleware.BasicAuth(func(username string, password string, ctx echo.Context) (bool, error) {
+
 		if ctx.Request().RequestURI != "/v2/" {
 			if ctx.Request().Method == http.MethodHead || ctx.Request().Method == http.MethodGet {
 				return true, nil

@@ -41,6 +41,7 @@ func NewRegistry(skynetClient *skynet.Client, logger zerolog.Logger, c cache.Sto
 	return r, nil
 }
 
+//DeleteLayer is still under progress --guacamole will work on it a later stage
 func (r *registry) DeleteLayer(ctx echo.Context) error {
 	dig := ctx.Param("digest")
 
@@ -113,14 +114,11 @@ func (r *registry) CompleteUpload(ctx echo.Context) error {
 	}
 
 	var headers []skynetsdk.Header
-
 	for k, v := range ctx.Request().Header {
 		headers = append(headers, skynetsdk.Header{
 			Key: k, Value: v[0],
 		})
 	}
-
-	// r.b.contents[ourHash] = buf.Bytes()
 
 	blobNamespace := fmt.Sprintf("%s/blobs", namespace)
 	skylink, err := r.skynet.Upload(blobNamespace, dig, buf.Bytes(), headers...)
@@ -132,8 +130,6 @@ func (r *registry) CompleteUpload(ctx echo.Context) error {
 		errMsg := r.errorResponse(RegistryErrorCodeBlobUnknown, err.Error(), nil)
 		return ctx.JSONBlob(http.StatusInternalServerError, errMsg)
 	}
-
-	// delete(r.b.uploads, ref)
 
 	val := types.Metadata{
 		Namespace: namespace,
@@ -185,7 +181,7 @@ func (r *registry) ManifestExists(ctx echo.Context) error {
 	size, ok := r.skynet.Metadata(skylink)
 	if !ok {
 		lm := logMsg{
-			"warn":    "metadata not found for skylink",
+			"error":   "metadata not found for skylink",
 			"skylink": skylink,
 		}
 		r.debugf(lm)
@@ -213,15 +209,6 @@ func (r *registry) ManifestExists(ctx echo.Context) error {
 		return ctx.JSONBlob(http.StatusNotFound, errMsg)
 	}
 
-	if err != nil {
-		errMsg := r.errorResponse(RegistryErrorCodeManifestInvalid, err.Error(), nil)
-		lm := logMsg{
-			"error": fmt.Sprintf("%s\n", errMsg),
-		}
-		r.debugf(lm)
-		return ctx.JSONBlob(http.StatusNotFound, errMsg)
-	}
-
 	manifest, err := md.GetManifestByRef(ref)
 	if err != nil {
 		errMsg := r.errorResponse(RegistryErrorCodeManifestUnknown, err.Error(), nil)
@@ -234,7 +221,7 @@ func (r *registry) ManifestExists(ctx echo.Context) error {
 			"clientDigest": ref,
 		}
 		r.debugf(details)
-		color.Magenta("digests dont match: %s - %s - %s\n", manifest.Reference, manifest.Digest, ref)
+		color.Magenta("digests do not match: %s - %s - %s\n", manifest.Reference, manifest.Digest, ref)
 		errMsg := r.errorResponse(RegistryErrorCodeManifestInvalid, "manifest digest does not match", nil)
 		return ctx.JSONBlob(http.StatusBadRequest, errMsg)
 	}
@@ -274,7 +261,7 @@ func (r *registry) PullManifest(ctx echo.Context) error {
 	skynetLink, err := r.localCache.ResolveManifestRef(namespace, ref)
 	if err != nil {
 		errMsg := r.errorResponse(RegistryErrorCodeManifestUnknown, err.Error(), nil)
-		ctx.JSON(http.StatusNotFound, errMsg)
+		return ctx.JSON(http.StatusNotFound, errMsg)
 	}
 
 	color.Magenta("skylink: %s - ref: %s namespace: %s\n", skynetLink, ref, namespace)
@@ -283,13 +270,13 @@ func (r *registry) PullManifest(ctx echo.Context) error {
 		errMsg := r.errorResponse(RegistryErrorCodeManifestInvalid, err.Error(), nil)
 		return ctx.JSON(http.StatusNotFound, errMsg)
 	}
-	defer resp.Close()
 
 	bz, err = io.ReadAll(resp)
 	if err != nil {
 		errMsg := r.errorResponse(RegistryErrorCodeManifestInvalid, err.Error(), nil)
 		return ctx.JSON(http.StatusNotFound, errMsg)
 	}
+	_ = resp.Close()
 
 	manifest, err := md.GetManifestByRef(ref)
 	if err != nil {
@@ -324,36 +311,12 @@ func (r *registry) PushManifest(ctx echo.Context) error {
 		return ctx.JSONBlob(http.StatusBadRequest, errMsg)
 	}
 
-	// skynetLink, err := r.skynet.Upload(namespace, ref, bz)
-	// if err != nil {
-	// 	errMsg := r.errorResponse(RegistryErrorCodeBlobUnknown, err.Error(), nil)
-	// 	return ctx.JSONBlob(http.StatusBadRequest, errMsg)
-	// }
-
-	// layers, ok := r.b.get(namespace)
-	// if !ok {
-	// 	errMsg := r.errorResponse(RegistryErrorCodeManifestBlobUnknown, "manifest ref not found", nil)
-	// 	return ctx.JSONBlob(http.StatusNotFound, errMsg)
-	// }
-	// r.b.remove(namespace)
-
-	// refs := make(map[string][]byte)
-	// refs[digest] = bz
-	// refs["latest"] = bz
-	// refs[ref] = bz
-
 	mfNamespace := fmt.Sprintf("%s/manifests", namespace)
 	skylink, err := r.skynet.Upload(mfNamespace, dig, bz)
 	if err != nil {
 		errMsg := r.errorResponse(RegistryErrorCodeManifestBlobUnknown, err.Error(), nil)
 		return ctx.JSONBlob(http.StatusNotFound, errMsg)
 	}
-
-	// skylink, err := r.skynet.AddImage(namespace, refs, layers)
-	// if err != nil {
-	// 	errMsg := r.errorResponse(RegistryErrorCodeManifestBlobUnknown, err.Error(), nil)
-	// 	return ctx.JSONBlob(http.StatusNotFound, errMsg)
-	// }
 
 	manifestConfig := &types.Config{
 		MediaType:  contentType,
@@ -381,49 +344,14 @@ func (r *registry) PushManifest(ctx echo.Context) error {
 	ctx.Response().Header().Set("Docker-Content-Digest", dig)
 	ctx.Response().Header().Set("X-Docker-Content-ID", skylink)
 	return ctx.String(http.StatusCreated, "Created")
-
-	// digest := r.digest(bz)
-	// mf := ImageManifest{
-	// 	SchemaVersion: 2,
-	// 	MediaType:     contentType,
-	// 	Config:        Config{MediaType: "", Size: 0, Digest: digest},
-	// }
-
-	// bz, err := r.localCache.Get([]byte(namespace))
-	// if err != nil {
-	// 	errMsg := r.errorResponse(RegistryErrorCodeBlobUnknown, err.Error(), nil)
-	// 	ctx.JSONBlob(http.StatusBadRequest, errMsg)
-	// }
-
-	// mf.Layers = append(mf.Layers, layer)
-
-	// if mf.MediaType == string(types.OCIImageIndex) || mf.MediaType == string(types.DockerManifestList) {
-	// 	var mfList ManifestList
-	// 	if err := json.NewDecoder(ctx.Request().Body).Decode(&mfList); err != nil {
-	// 		errMsg := r.errorResponse(RegistryErrorCodeManifestUnknown, err.Error(), nil)
-	// 		return ctx.JSONBlob(http.StatusNotFound, errMsg)
-	// 	}
-
-	// 	for _, desc := range mfList.Manifests {
-	// 		val, _ := r.localCache.Get([]byte(namespace))
-	// 		var m map[string]string
-	// 		_ = json.Unmarshal(val, &m)
-	// 		if _, found := m[desc.Digest]; !found {
-	// 			errMsg := r.errorResponse(RegistryErrorCodeManifestUnknown, "sub-manifest not found: "+desc.Digest, nil)
-	// 			return ctx.JSONBlob(http.StatusNotFound, errMsg)
-	// 		}
-	// 	}
-	// }
-
-	// r.skynet.AddImage(manifests, layers)
 }
 
 func (r *registry) DeleteImage(ctx echo.Context) error {
 	clientDigest := ctx.Param("digest")
 	if clientDigest == "" {
-		path := strings.Split(ctx.Request().RequestURI, "/")
-		if len(path) == 6 {
-			clientDigest = path[5]
+		reqURI := strings.Split(ctx.Request().RequestURI, "/")
+		if len(reqURI) == 6 {
+			clientDigest = reqURI[5]
 		}
 	}
 	namespace := ctx.Param("username") + "/" + ctx.Param("imagename")
@@ -446,24 +374,24 @@ func (r *registry) PullLayer(ctx echo.Context) error {
 	namespace := ctx.Param("username") + "/" + ctx.Param("imagename")
 	clientDigest := ctx.Param("digest")
 
-	skynetlink, err := r.localCache.GetSkynetURL(namespace, clientDigest)
+	skynetLink, err := r.localCache.GetSkynetURL(namespace, clientDigest)
 	if err != nil {
 		errMsg := r.errorResponse(RegistryErrorCodeBlobUnknown, err.Error(), nil)
 		return ctx.JSONBlob(http.StatusNotFound, errMsg)
 	}
 
-	resp, err := r.skynet.Download(skynetlink)
+	resp, err := r.skynet.Download(skynetLink)
 	if err != nil {
 		errMsg := r.errorResponse(RegistryErrorCodeBlobUnknown, err.Error(), nil)
 		return ctx.JSONBlob(http.StatusNotFound, errMsg)
 	}
-	defer resp.Close()
 
 	bz, err := io.ReadAll(resp)
 	if err != nil {
 		errMsg := r.errorResponse(RegistryErrorCodeBlobUploadInvalid, err.Error(), nil)
 		return ctx.JSONBlob(http.StatusInternalServerError, errMsg)
 	}
+	_ = resp.Close()
 
 	dig := digest(bz)
 	if dig != clientDigest {
@@ -480,10 +408,12 @@ func (r *registry) PullLayer(ctx echo.Context) error {
 	return ctx.Blob(http.StatusOK, "application/octet-stream", bz)
 }
 
+//BlobMount to be implemented by guacamole at a later stage
 func (r *registry) BlobMount(ctx echo.Context) error {
 	return nil
 }
 
+//PushImage is already implemented through StartUpload and ChunkedUpload
 func (r *registry) PushImage(ctx echo.Context) error {
 	return nil
 }
