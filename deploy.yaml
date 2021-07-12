@@ -1,0 +1,37 @@
+version: "2.0"
+services:
+  registry:
+    image: jasdeepsingh/open-registry:beta
+    expose:
+      - port: 5000
+        as: 80
+        to:
+          - global: true
+
+profiles:
+  compute:
+    registry:
+      resources:
+        cpu:
+          units: 4
+        memory:
+          size: 8Gi
+        storage:
+          size: 10Gi
+  placement:
+    westcoast:
+      attributes:
+        datacenter: equinix-metal-sjc1
+      signedBy:
+        anyOf:
+          - "akash1365yvmc4s7awdyj3n2sav7xfx76adc6dnmlx63"
+      pricing:
+        registry: 
+          denom: uakt
+          amount: 30
+
+deployment:
+  registry:
+    westcoast:
+      profile: registry
+      count: 1

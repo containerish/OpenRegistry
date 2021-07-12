@@ -27,6 +27,8 @@ type Store interface {
 	ResolveManifestRef(namespace, ref string) (string, error)
 	Metadata(ctx echo.Context) error
 	LayerDigests(ctx echo.Context) error
+	RegisterForBeta(ctx echo.Context) error
+	GetAllEmail(ctx echo.Context) error
 	Close() error
 }
 

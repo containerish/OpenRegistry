@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/fatih/color"
 	"github.com/jay-dee7/parachute/auth"
@@ -54,7 +55,6 @@ func main() {
 		l.Err(err).Send()
 		return
 	}
-
 	e.Use(middleware.LoggerWithConfig(middleware.LoggerConfig{
 		Skipper: func(echo.Context) bool {
 			return false
@@ -63,13 +63,37 @@ func main() {
 		Output: os.Stdout,
 	}))
 
+	e.Use(middleware.RateLimiterWithConfig(middleware.RateLimiterConfig{
+		Skipper:    middleware.DefaultSkipper,
+		BeforeFunc: nil,
+		IdentifierExtractor: func(ctx echo.Context) (string, error) {
+			return ctx.RealIP(), nil
+		},
+		Store: middleware.NewRateLimiterMemoryStoreWithConfig(middleware.RateLimiterMemoryStoreConfig{
+			Rate:      3,
+			Burst:     0,
+			ExpiresIn: time.Hour * 10,
+		}),
+		ErrorHandler: func(ctx echo.Context, err error) error {
+			return ctx.JSON(http.StatusForbidden, echo.Map{
+				"error": "Too many requests, try after some time!",
+			})
+		},
+	}))
+
 	e.Use(middleware.Recover())
+
+	e.Use(middleware.CORS())
 
 	internal := e.Group("/internal")
 	authRouter := e.Group("/auth")
+	betaRouter := e.Group("/beta")
 	authRouter.Add(http.MethodPost, "/signup", authSvc.SignUp)
 	authRouter.Add(http.MethodPost, "/signin", authSvc.SignIn)
 	authRouter.Add(http.MethodPost, "/token", authSvc.SignIn)
+
+	betaRouter.Add(http.MethodPost, "/register", localCache.RegisterForBeta)
+	betaRouter.Add(http.MethodGet, "/register", localCache.GetAllEmail)
 
 	internal.Add(http.MethodGet, "/metadata", localCache.Metadata)
 	internal.Add(http.MethodGet, "/digests", localCache.LayerDigests)
