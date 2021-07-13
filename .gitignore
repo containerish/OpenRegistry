@@ -4,3 +4,4 @@
 ./parachute.yaml
 .idea/
 tests
+.go-skynet
