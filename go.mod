@@ -30,4 +30,4 @@ require (
 
 )
 
-replace github.com/NebulousLabs/go-skynet/v2 => /Users/gunjanvalecha/oss/go-skynet
+replace github.com/NebulousLabs/go-skynet/v2 => ./.go-skynet
