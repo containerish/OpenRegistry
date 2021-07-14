@@ -1,7 +1,12 @@
-./certs
-./parachute
+certs
+parachute
+OpenRegistry
 .cache
-./parachute.yaml
+parachute.yaml
 .idea/
 tests
 .go-skynet
+config.yaml
+config.yml
+OpenRegistry.yaml
+OpenRegistry.yml

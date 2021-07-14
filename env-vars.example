@@ -1,0 +1,6 @@
+export OPEN_REGISTRY_DEBUG=true
+export OPEN_REGISTRY_DOMAIN="beta.openregistry.dev"
+export OPEN_REGISTRY_HOST="100.87.37.43"
+export OPEN_REGISTRY_PORT="5000"
+export OPEN_REGISTRY_SKYNET_PORTAL_URL="https://siasky.net"
+export OPEN_REGISTRY_SIGNING_SECRET="3tYnaKp@^%hbQA%J&x3cX!r2#mK%EBfAbTvPMv5CU2DP7bAoQGnUfT2&dW"

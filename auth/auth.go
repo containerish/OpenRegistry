@@ -1,8 +1,8 @@
 package auth
 
 import (
-	"github.com/jay-dee7/parachute/cache"
-	"github.com/jay-dee7/parachute/config"
+	"github.com/jay-dee7/OpenRegistry/cache"
+	"github.com/jay-dee7/OpenRegistry/config"
 	"github.com/labstack/echo/v4"
 )
 

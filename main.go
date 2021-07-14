@@ -1,17 +1,18 @@
 package main
 
 import (
-	"github.com/jay-dee7/parachute/registry/v2"
 	"log"
 	"net/http"
 	"os"
 	"time"
 
+	"github.com/jay-dee7/OpenRegistry/registry/v2"
+
 	"github.com/fatih/color"
-	"github.com/jay-dee7/parachute/auth"
-	"github.com/jay-dee7/parachute/cache"
-	"github.com/jay-dee7/parachute/config"
-	"github.com/jay-dee7/parachute/skynet"
+	"github.com/jay-dee7/OpenRegistry/auth"
+	"github.com/jay-dee7/OpenRegistry/cache"
+	"github.com/jay-dee7/OpenRegistry/config"
+	"github.com/jay-dee7/OpenRegistry/skynet"
 	"github.com/labstack/echo-contrib/prometheus"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -19,12 +20,7 @@ import (
 )
 
 func main() {
-	var configPath string
-	if len(os.Args) != 2 {
-		configPath = "./"
-	}
-
-	cfg, err := config.Load(configPath)
+	cfg, err := config.LoadFromENV()
 	if err != nil {
 		color.Red("error reading cfg file: %s", err.Error())
 		os.Exit(1)
@@ -34,9 +30,6 @@ func main() {
 	p := prometheus.NewPrometheus("echo", nil)
 	p.Use(e)
 	e.HideBanner = true
-
-	// e.Use(middleware.HTTPSNonWWWRedirect())
-	// e.Use(middleware.HTTPSRedirect())
 
 	l := setupLogger()
 	localCache, err := cache.New("/tmp/badger")

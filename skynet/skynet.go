@@ -7,7 +7,7 @@ import (
 	"strconv"
 
 	"github.com/NebulousLabs/go-skynet/v2"
-	"github.com/jay-dee7/parachute/config"
+	"github.com/jay-dee7/OpenRegistry/config"
 	tar "github.com/whyrusleeping/tar-utils"
 )
 
