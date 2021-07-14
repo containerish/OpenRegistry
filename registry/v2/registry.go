@@ -13,9 +13,9 @@ import (
 	skynetsdk "github.com/NebulousLabs/go-skynet/v2"
 	"github.com/docker/distribution/uuid"
 	"github.com/fatih/color"
-	"github.com/jay-dee7/parachute/cache"
-	"github.com/jay-dee7/parachute/skynet"
-	"github.com/jay-dee7/parachute/types"
+	"github.com/jay-dee7/OpenRegistry/cache"
+	"github.com/jay-dee7/OpenRegistry/skynet"
+	"github.com/jay-dee7/OpenRegistry/types"
 	"github.com/labstack/echo/v4"
 	"github.com/rs/zerolog"
 )

@@ -2,9 +2,7 @@ package config
 
 import (
 	"fmt"
-	"log"
 	"os"
-	"os/user"
 
 	"github.com/spf13/viper"
 )
@@ -16,10 +14,6 @@ type (
 		Host                string       `mapstructure:"host"`
 		Port                uint         `mapstructure:"port"`
 		SkynetPortalURL     string       `mapstructure:"skynet_portal_url"`
-		SkynetLinkResolvers []string     `mapstructure:"skynet_link_resolvers"`
-		SkynetStorePath     string       `mapstructure:"skynet_store_path"`
-		TLSCertPath         string       `mapstructure:"tls_cert_path"`
-		TLSKeyPath          string       `mapstructure:"tls_key_path"`
 		SigningSecret       string       `mapstructure:"signing_secret"`
 		SkynetConfig        SkynetConfig `mapstructure:"skynet_config"`
 	}
@@ -35,22 +29,29 @@ func (r *RegistryConfig) Address() string {
 	return fmt.Sprintf("%s:%d", r.Host, r.Port)
 }
 
-func Load(path string) (*RegistryConfig, error) {
-	viper.AddConfigPath(path)
-	viper.SetConfigName("parachute")
-	viper.SetConfigType("yaml")
+func LoadFromENV() (*RegistryConfig, error) {
+	// TODO - Add Support for loading from config
+	// loading config from path is not possible right now,
+	// since aksah does not support pull from private container repositories
+	// viper.AddConfigPath(path)
+	// viper.SetConfigName("config")
+	// viper.SetConfigType("yaml")
 
+	viper.SetEnvPrefix("OPEN_REGISTRY")
 	viper.AutomaticEnv()
+	// err := viper.ReadInConfig()
+	// if err != nil {
+	// 	return nil, err
+	// }
 
-	err := viper.ReadInConfig()
-	if err != nil {
-		setDefaults()
-	}
-
-	var config RegistryConfig
-	err = viper.Unmarshal(&config)
-	if err != nil {
-		return nil, err
+	config := RegistryConfig{
+		Debug:           viper.GetBool("DEBUG"),
+		Environment:     viper.GetString("ENVIRONMENT"),
+		Host:            viper.GetString("HOST"),
+		Port:            viper.GetUint("PORT"),
+		SkynetPortalURL: viper.GetString("SKYNET_PORTAL_URL"),
+		SigningSecret:   viper.GetString("SIGNING_SECRET"),
+		SkynetConfig:    SkynetConfig{},
 	}
 
 	if config.SigningSecret == "" {
@@ -59,28 +60,4 @@ func Load(path string) (*RegistryConfig, error) {
 	}
 
 	return &config, nil
-}
-
-func setDefaults() {
-
-	user, err := user.Current()
-	if err != nil {
-		log.Fatalln(err.Error())
-	}
-
-	defaultStorePath := user.HomeDir + "/.parachute"
-	defaultLinkResolverPath := defaultStorePath + "/links"
-
-	_ = os.MkdirAll(defaultLinkResolverPath, os.ModePerm)
-
-	viper.SetDefault("debug", true)
-	viper.SetDefault("environment", "devel")
-	viper.SetDefault("domain", "alpha.openregistry.dev")
-	viper.SetDefault("host", "0.0.0.0")
-	viper.SetDefault("port", "5000")
-	viper.SetDefault("tls_key_path", "./certs/key.pem")
-	viper.SetDefault("tls_cert_path", "./certs/cert.pem")
-	viper.SetDefault("skynet_store_path", defaultStorePath)
-	viper.SetDefault("skynet_link_resolvers", defaultLinkResolverPath)
-	viper.SetDefault("skynet_portal_url", "https://siasky.net")
 }

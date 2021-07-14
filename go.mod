@@ -1,4 +1,4 @@
-module github.com/jay-dee7/parachute
+module github.com/jay-dee7/OpenRegistry
 
 go 1.16
 

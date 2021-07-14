@@ -6,7 +6,7 @@ import (
 	"net/http"
 
 	badger "github.com/dgraph-io/badger/v3"
-	"github.com/jay-dee7/parachute/types"
+	"github.com/jay-dee7/OpenRegistry/types"
 	"github.com/labstack/echo/v4"
 )
 
