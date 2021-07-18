@@ -48,39 +48,15 @@ func main() {
 		l.Err(err).Send()
 		return
 	}
-	e.Use(middleware.LoggerWithConfig(middleware.LoggerConfig{
-		Skipper: func(echo.Context) bool {
-			return false
-		},
-		Format: "method=${method}, uri=${uri}, status=${status} latency=${latency}\n",
-		Output: os.Stdout,
-	}))
-
-	e.Use(middleware.RateLimiterWithConfig(middleware.RateLimiterConfig{
-		Skipper:    middleware.DefaultSkipper,
-		BeforeFunc: nil,
-		IdentifierExtractor: func(ctx echo.Context) (string, error) {
-			return ctx.RealIP(), nil
-		},
-		Store: middleware.NewRateLimiterMemoryStoreWithConfig(middleware.RateLimiterMemoryStoreConfig{
-			Rate:      3,
-			Burst:     0,
-			ExpiresIn: time.Hour * 10,
-		}),
-		ErrorHandler: func(ctx echo.Context, err error) error {
-			return ctx.JSON(http.StatusForbidden, echo.Map{
-				"error": "Too many requests, try after some time!",
-			})
-		},
-	}))
-
+	e.Use(echoLogger())
 	e.Use(middleware.Recover())
-
 	e.Use(middleware.CORS())
 
 	internal := e.Group("/internal")
 	authRouter := e.Group("/auth")
 	betaRouter := e.Group("/beta")
+	betaRouter.Use(rateLimiter())
+
 	authRouter.Add(http.MethodPost, "/signup", authSvc.SignUp)
 	authRouter.Add(http.MethodPost, "/signin", authSvc.SignIn)
 	authRouter.Add(http.MethodPost, "/token", authSvc.SignIn)
@@ -139,6 +115,9 @@ func main() {
 	// router.Add(http.MethodGet, "/blobs/:digest", reg.DownloadBlob)
 
 	e.Add(http.MethodGet, "/v2/", reg.ApiVersion, BasicAuth(authSvc.BasicAuth))
+
+	router.Add(http.MethodDelete, "/blobs/:digest", reg.DeleteLayer)
+	router.Add(http.MethodDelete, "/manifests/:digest", reg.DeleteImage)
 
 	log.Println(e.Start(cfg.Address()))
 }
@@ -200,5 +179,32 @@ func BasicAuth(authfn func(string, string) (map[string]interface{}, error)) echo
 
 		ctx.Set("basic_auth", resp)
 		return true, nil
+	})
+}
+
+func echoLogger() echo.MiddlewareFunc {
+	return middleware.LoggerWithConfig(middleware.LoggerConfig{
+		Skipper: func(echo.Context) bool {
+			return false
+		},
+		Format: "method=${method}, uri=${uri}, status=${status} latency=${latency}\n",
+		Output: os.Stdout,
+	})
+}
+
+func rateLimiter() echo.MiddlewareFunc {
+	return middleware.RateLimiterWithConfig(middleware.RateLimiterConfig{
+		Skipper:    middleware.DefaultSkipper,
+		BeforeFunc: nil,
+		IdentifierExtractor: func(ctx echo.Context) (string, error) {
+			return ctx.RealIP(), nil
+		},
+		Store: middleware.NewRateLimiterMemoryStoreWithConfig(middleware.RateLimiterMemoryStoreConfig{Rate: 3, Burst: 0, ExpiresIn: time.Hour * 10}),
+		ErrorHandler: func(ctx echo.Context, err error) error {
+			return ctx.JSON(http.StatusForbidden, echo.Map{"error": "Too many requests, try after some time!"})
+		},
+		DenyHandler: func(ctx echo.Context, identifier string, err error) error {
+			return ctx.JSON(http.StatusForbidden, echo.Map{"error": "Too many requests, try after some time!"})
+		},
 	})
 }
