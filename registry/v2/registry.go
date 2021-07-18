@@ -12,7 +12,6 @@ import (
 
 	skynetsdk "github.com/NebulousLabs/go-skynet/v2"
 	"github.com/docker/distribution/uuid"
-	"github.com/fatih/color"
 	"github.com/jay-dee7/OpenRegistry/cache"
 	"github.com/jay-dee7/OpenRegistry/skynet"
 	"github.com/jay-dee7/OpenRegistry/types"
@@ -103,6 +102,7 @@ func (r *registry) CompleteUpload(ctx echo.Context) error {
 	buf := bytes.NewBuffer(r.b.uploads[uuid])
 	buf.Write(bz)
 	ourHash := digest(buf.Bytes())
+	delete(r.b.uploads, uuid)
 
 	if ourHash != dig {
 		details := map[string]interface{}{
@@ -221,7 +221,6 @@ func (r *registry) ManifestExists(ctx echo.Context) error {
 			"clientDigest": ref,
 		}
 		r.debugf(details)
-		color.Magenta("digests do not match: %s - %s - %s\n", manifest.Reference, manifest.Digest, ref)
 		errMsg := r.errorResponse(RegistryErrorCodeManifestInvalid, "manifest digest does not match", nil)
 		return ctx.JSONBlob(http.StatusBadRequest, errMsg)
 	}
@@ -264,7 +263,6 @@ func (r *registry) PullManifest(ctx echo.Context) error {
 		return ctx.JSON(http.StatusNotFound, errMsg)
 	}
 
-	color.Magenta("skylink: %s - ref: %s namespace: %s\n", skynetLink, ref, namespace)
 	resp, err := r.skynet.Download(skynetLink)
 	if err != nil {
 		errMsg := r.errorResponse(RegistryErrorCodeManifestInvalid, err.Error(), nil)
