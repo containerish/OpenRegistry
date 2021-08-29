@@ -6,7 +6,7 @@ require (
 	github.com/Microsoft/go-winio v0.5.0 // indirect
 	github.com/NebulousLabs/go-skynet/v2 v2.0.1
 	github.com/cloudflare/cloudflare-go v0.18.0 // indirect
-	github.com/containerd/containerd v1.5.2 // indirect
+	github.com/containerd/containerd v1.5.4 // indirect
 	github.com/dgraph-io/badger/v3 v3.2103.0
 	github.com/docker/distribution v2.7.1+incompatible
 	github.com/docker/docker v20.10.6+incompatible
