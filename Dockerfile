@@ -1,4 +1,5 @@
 FROM golang:alpine as build
+LABEL org.opencontainers.image.source = "https://github.com/jay-dee7/OpenRegistry"
 
 WORKDIR /root/openregistry
 
