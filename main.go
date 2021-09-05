@@ -32,7 +32,7 @@ func main() {
 	e.HideBanner = true
 
 	l := setupLogger()
-	localCache, err := cache.New("/tmp/badger")
+	localCache, err := cache.New("./kvstore")
 	if err != nil {
 		l.Err(err).Send()
 		return
@@ -187,7 +187,7 @@ func echoLogger() echo.MiddlewareFunc {
 		Skipper: func(echo.Context) bool {
 			return false
 		},
-		Format: "method=${method}, uri=${uri}, status=${status} latency=${latency}\n",
+		Format: "method=${method}, uri=${uri}, status=${status} latency=${latency}, bytes_in=${bytes_in}, bytes_out=${bytes_out}\n",
 		Output: os.Stdout,
 	})
 }
