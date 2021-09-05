@@ -168,7 +168,12 @@ func (a *auth) SignUp(ctx echo.Context) error {
 		})
 	}
 	u.Password = hpwd
-	bz, _ = json.Marshal(u)
+	bz, err = json.Marshal(u)
+	if err != nil {
+		return ctx.JSON(http.StatusInternalServerError, echo.Map{
+			"error": err.Error(),
+		})
+	}
 
 	key := fmt.Sprintf("%s/%s", UserNameSpace, u.Username)
 	if err := a.store.Set([]byte(key), bz); err != nil {

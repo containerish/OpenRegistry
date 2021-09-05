@@ -34,7 +34,7 @@ type Store interface {
 
 func New(storeLocation string) (Store, error) {
 	if storeLocation == "" {
-		storeLocation = "/tmp/badger"
+		storeLocation = "./kvstore"
 	}
 
 	db, err := badger.Open(badger.DefaultOptions(storeLocation))
