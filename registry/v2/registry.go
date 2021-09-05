@@ -364,7 +364,7 @@ func (r *registry) DeleteImage(ctx echo.Context) error {
 		return ctx.JSONBlob(http.StatusNotFound, errMsg)
 	}
 
-	return ctx.NoContent(http.StatusOK)
+	return ctx.NoContent(http.StatusAccepted)
 }
 
 // GET /v2/<name>/blobs/<digest>
