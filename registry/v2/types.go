@@ -3,8 +3,8 @@ package registry
 import (
 	"sync"
 
-	"github.com/jay-dee7/OpenRegistry/cache"
-	"github.com/jay-dee7/OpenRegistry/skynet"
+	"github.com/containerish/OpenRegistry/cache"
+	"github.com/containerish/OpenRegistry/skynet"
 	"github.com/labstack/echo/v4"
 	"github.com/rs/zerolog"
 )
