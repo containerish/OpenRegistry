@@ -1,8 +1,8 @@
 package auth
 
 import (
-	"github.com/jay-dee7/OpenRegistry/cache"
-	"github.com/jay-dee7/OpenRegistry/config"
+	"github.com/containerish/OpenRegistry/cache"
+	"github.com/containerish/OpenRegistry/config"
 	"github.com/labstack/echo/v4"
 )
 

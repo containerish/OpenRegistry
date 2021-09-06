@@ -6,13 +6,12 @@ import (
 	"os"
 	"time"
 
-	"github.com/jay-dee7/OpenRegistry/registry/v2"
-
+	"github.com/containerish/OpenRegistry/auth"
+	"github.com/containerish/OpenRegistry/cache"
+	"github.com/containerish/OpenRegistry/config"
+	"github.com/containerish/OpenRegistry/registry/v2"
+	"github.com/containerish/OpenRegistry/skynet"
 	"github.com/fatih/color"
-	"github.com/jay-dee7/OpenRegistry/auth"
-	"github.com/jay-dee7/OpenRegistry/cache"
-	"github.com/jay-dee7/OpenRegistry/config"
-	"github.com/jay-dee7/OpenRegistry/skynet"
 	"github.com/labstack/echo-contrib/prometheus"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"

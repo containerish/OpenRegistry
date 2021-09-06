@@ -33,6 +33,6 @@ docker pull openregistry.dev/janedoe/alpine:latest
 ### How to Run this project locally:
 OpenRegistry is not Go Gettable right now because of a dependency issue with Go-Skynet. To build this project locally, please use the following method:
 ```bash
-git clone https://github.com/jay-dee7/OpenRegistry.git
+git clone https://github.com/containerish/OpenRegistry.git
 make mod-fix
 go build

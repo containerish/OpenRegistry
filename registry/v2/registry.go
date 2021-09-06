@@ -11,10 +11,10 @@ import (
 	"sync"
 
 	skynetsdk "github.com/NebulousLabs/go-skynet/v2"
+	"github.com/containerish/OpenRegistry/cache"
+	"github.com/containerish/OpenRegistry/skynet"
+	"github.com/containerish/OpenRegistry/types"
 	"github.com/docker/distribution/uuid"
-	"github.com/jay-dee7/OpenRegistry/cache"
-	"github.com/jay-dee7/OpenRegistry/skynet"
-	"github.com/jay-dee7/OpenRegistry/types"
 	"github.com/labstack/echo/v4"
 	"github.com/rs/zerolog"
 )

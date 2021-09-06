@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/containerish/OpenRegistry/types"
 	badger "github.com/dgraph-io/badger/v3"
-	"github.com/jay-dee7/OpenRegistry/types"
 	"github.com/labstack/echo/v4"
 )
 
