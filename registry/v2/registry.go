@@ -50,7 +50,7 @@ func (r *registry) DeleteLayer(ctx echo.Context) error {
 		return ctx.JSONBlob(http.StatusNotFound, errMsg)
 	}
 
-	return ctx.NoContent(http.StatusOK)
+	return ctx.NoContent(http.StatusAccepted)
 }
 
 // PUT /v2/<name>/blobs/uploads/<uuid>?digest=<digest>
