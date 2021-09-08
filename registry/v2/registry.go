@@ -7,6 +7,8 @@ import (
 	"io"
 	"net/http"
 	"path"
+	"sort"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -367,7 +369,52 @@ func (r *registry) DeleteImage(ctx echo.Context) error {
 	return ctx.NoContent(http.StatusAccepted)
 }
 
+// Content discovery GET /v2/<name>/tags/list
+
+func (r *registry) ListTags(ctx echo.Context) error {
+	namespace := ctx.Param("username") + "/" + ctx.Param("imagename")
+	limit := ctx.QueryParam("n")
+
+	l, err := r.localCache.ListWithPrefix([]byte(namespace))
+	if err != nil {
+		errMsg := r.errorResponse(RegistryErrorCodeTagInvalid, err.Error(), nil)
+		return ctx.JSONBlob(http.StatusNotFound, errMsg)
+	}
+	var md types.Metadata
+	err = json.Unmarshal(l, &md)
+	if err != nil {
+		errMsg := r.errorResponse(RegistryErrorCodeTagInvalid, err.Error(), nil)
+		return ctx.JSONBlob(http.StatusNotFound, errMsg)
+	}
+	var tags []string
+	for _, v := range md.Manifest.Config {
+		tags = append(tags, v.Reference)
+	}
+	if limit != "" {
+		n, err := strconv.ParseInt(limit, 10, 32)
+		if err != nil {
+			errMsg := r.errorResponse(RegistryErrorCodeTagInvalid, err.Error(), nil)
+			return ctx.JSONBlob(http.StatusNotFound, errMsg)
+		}
+		if n > 0 {
+			tags = tags[0:n]
+		}
+		if n == 0 {
+			tags = []string{}
+		}
+	}
+	sort.Strings(tags)
+	return ctx.JSON(http.StatusOK, echo.Map{
+		"name": namespace,
+		"tags": tags,
+	})
+}
+func (r *registry) List(ctx echo.Context) error {
+	return fmt.Errorf("error")
+}
+
 // GET /v2/<name>/blobs/<digest>
+
 func (r *registry) PullLayer(ctx echo.Context) error {
 	namespace := ctx.Param("username") + "/" + ctx.Param("imagename")
 	clientDigest := ctx.Param("digest")
@@ -534,13 +581,6 @@ func (r *registry) PushLayer(ctx echo.Context) error {
 	ctx.Response().Header().Set("Docker-Upload-UUID", id.String())
 	ctx.Response().Header().Set("Range", "bytes=0-0")
 	return ctx.NoContent(http.StatusAccepted)
-}
-
-func (r *registry) ListTags(ctx echo.Context) error {
-	return nil
-}
-func (r *registry) List(ctx echo.Context) error {
-	return nil
 }
 
 // Should also look into 401 Code

@@ -115,6 +115,9 @@ func main() {
 
 	e.Add(http.MethodGet, "/v2/", reg.ApiVersion, BasicAuth(authSvc.BasicAuth))
 
+	///GET /v2/<name>/tags/list
+	router.Add(http.MethodGet, "/tags/list", reg.ListTags)
+
 	router.Add(http.MethodDelete, "/blobs/:digest", reg.DeleteLayer)
 	router.Add(http.MethodDelete, "/manifests/:digest", reg.DeleteImage)
 
