@@ -2,11 +2,11 @@ FROM golang:alpine as build
 
 WORKDIR /root/openregistry
 
+COPY Makefile .
+RUN apk add gcc make git curl ca-certificates && make mod-fix
+
 COPY . .
-
-RUN apk add gcc make git curl ca-certificates && make mod-fix && go mod download
-
-RUN CGO_ENABLED=0 go build -o openregistry -ldflags="-w -s" main.go
+RUN go mod download && CGO_ENABLED=0 go build -o openregistry -ldflags="-w -s" main.go
 
 FROM alpine:latest
 
