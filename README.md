@@ -1,5 +1,7 @@
 # OpenRegistry - An open, decentralized, and reliable Container Registry
 
+[![conformance](https://github.com/containerish/OpenRegistry/actions/workflows/go.yml/badge.svg)](https://github.com/containerish/OpenRegistry/actions/workflows/go.yml)
+
 ## Introduction
 OpenRegistry is an open source, decentralized container registry which is fully compliant with [OCI Container Distribution Specification](https://github.com/opencontainers/distribution-spec/blob/main/spec.md).
 The specification provides similar capabilities as that of the Docker Registry HTTP API V2 protocol.
