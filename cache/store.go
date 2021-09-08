@@ -296,7 +296,7 @@ func (ds *dataStore) ListAll() ([]byte, error) {
 }
 
 func (ds *dataStore) ListWithPrefix(prefix []byte) ([]byte, error) {
-	var buf []*types.LayerRef
+	var buf []byte
 
 	err := ds.db.View(func(txn *badger.Txn) error {
 		it := txn.NewIterator(badger.DefaultIteratorOptions)
@@ -304,12 +304,8 @@ func (ds *dataStore) ListWithPrefix(prefix []byte) ([]byte, error) {
 		for it.Seek(prefix); it.ValidForPrefix(prefix); it.Next() {
 			item := it.Item()
 			err := item.Value(func(v []byte) error {
-				var layerRef types.LayerRef
-				if err := json.Unmarshal(v, &layerRef); err != nil {
-					return err
-				}
-
-				buf = append(buf, &layerRef)
+				buf = make([]byte, len(v))
+				copy(buf, v)
 				return nil
 			})
 			if err != nil {
@@ -318,11 +314,7 @@ func (ds *dataStore) ListWithPrefix(prefix []byte) ([]byte, error) {
 		}
 		return nil
 	})
-	if err != nil {
-		return nil, err
-	}
-
-	return json.Marshal(buf)
+	return buf, err
 }
 
 func (ds *dataStore) Delete(key []byte) error {

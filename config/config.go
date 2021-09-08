@@ -9,13 +9,13 @@ import (
 
 type (
 	RegistryConfig struct {
-		Debug               bool         `mapstructure:"debug"`
-		Environment         string       `mapstructure:"environment"`
-		Host                string       `mapstructure:"host"`
-		Port                uint         `mapstructure:"port"`
-		SkynetPortalURL     string       `mapstructure:"skynet_portal_url"`
-		SigningSecret       string       `mapstructure:"signing_secret"`
-		SkynetConfig        SkynetConfig `mapstructure:"skynet_config"`
+		Debug           bool         `mapstructure:"debug"`
+		Environment     string       `mapstructure:"environment"`
+		Host            string       `mapstructure:"host"`
+		Port            uint         `mapstructure:"port"`
+		SkynetPortalURL string       `mapstructure:"skynet_portal_url"`
+		SigningSecret   string       `mapstructure:"signing_secret"`
+		SkynetConfig    SkynetConfig `mapstructure:"skynet_config"`
 	}
 
 	SkynetConfig struct {

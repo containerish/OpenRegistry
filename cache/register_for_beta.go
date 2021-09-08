@@ -46,9 +46,9 @@ func (ds *dataStore) RegisterForBeta(ctx echo.Context) error {
 
 	err := validateEmail(body["email"])
 	if err != nil {
-        return ctx.JSON(http.StatusBadRequest, echo.Map{
-            "error": "invalid email format, please try again",
-        })
+		return ctx.JSON(http.StatusBadRequest, echo.Map{
+			"error": "invalid email format, please try again",
+		})
 	}
 
 	key := []byte("email")

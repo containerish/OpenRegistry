@@ -153,9 +153,11 @@ type Registry interface {
 	LayerExists(ctx echo.Context) error
 
 	// GET /v2/<name>/manifests/<ref>
+
 	PullManifest(ctx echo.Context) error
 
 	// PUT /v2/<name>/manifests/<reference>
+
 	PushManifest(ctx echo.Context) error
 
 	// Push individual layers first, then upload a signed manifest
@@ -173,6 +175,7 @@ type Registry interface {
 	// Range: bytes=0-<offset>
 	// Content-Length: 0
 	// Docker-Upload-UUID: <uuid>
+
 	PushImage(ctx echo.Context) error
 
 	StartUpload(ctx echo.Context) error
