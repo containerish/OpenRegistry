@@ -3,6 +3,7 @@ package cache
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/http"
 
 	"github.com/containerish/OpenRegistry/types"
@@ -112,8 +113,13 @@ func (ds *dataStore) Update(key, value []byte) error {
 	}
 
 	if len(newMd.Manifest.Layers) != 0 {
-		oldMd.Manifest.Layers = ds.removeDuplicateLayers(oldMd.Manifest.Layers, newMd.Manifest.Layers)
+		layers, err := ds.removeDuplicateLayers(oldMd.Manifest.Layers, newMd.Manifest.Layers)
+		if err != nil {
+			return err
+		}
+		oldMd.Manifest.Layers = layers
 	}
+
 	var matched bool
 	for i, oc := range oldMd.Manifest.Config {
 		// overwrite if the ref is found
@@ -147,8 +153,14 @@ EndLoop:
 	return ds.Set(key, bz)
 }
 
-func (ds *dataStore) removeDuplicateLayers(src, dst []*types.Layer) []*types.Layer {
-	list := make([]*types.Layer, len(src)+len(dst))
+func (ds *dataStore) removeDuplicateLayers(src, dst []*types.Layer) ([]*types.Layer, error) {
+	size := uint(len(src) + len(dst))
+
+	if size > math.MaxInt16 {
+		return nil, fmt.Errorf("ERROR_TOO_MANY_LAYERS")
+	}
+
+	list := make([]*types.Layer, size)
 	list = append(list, src...)
 	list = append(list, dst...)
 
@@ -162,7 +174,7 @@ func (ds *dataStore) removeDuplicateLayers(src, dst []*types.Layer) []*types.Lay
 		}
 	}
 
-	return layers
+	return layers, nil
 }
 
 func (ds *dataStore) ResolveManifestRef(namespace, ref string) (string, error) {
