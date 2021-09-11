@@ -61,9 +61,7 @@ func (b *blobs) remove(repo string) {
 }
 
 func (b *blobs) HEAD(ctx echo.Context) error {
-
 	digest := ctx.Param("digest")
-
 	layerRef, err := b.registry.localCache.GetDigest(digest)
 	if err != nil {
 		details := echo.Map{

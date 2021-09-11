@@ -115,15 +115,8 @@ func (r *registry) CompleteUpload(ctx echo.Context) error {
 		return ctx.JSONBlob(http.StatusBadRequest, errMsg)
 	}
 
-	var headers []skynetsdk.Header
-	for k, v := range ctx.Request().Header {
-		headers = append(headers, skynetsdk.Header{
-			Key: k, Value: v[0],
-		})
-	}
-
 	blobNamespace := fmt.Sprintf("%s/blobs", namespace)
-	skylink, err := r.skynet.Upload(blobNamespace, dig, buf.Bytes(), headers...)
+	skylink, err := r.skynet.Upload(blobNamespace, dig, buf.Bytes())
 	if err != nil {
 		errMsg := r.errorResponse(RegistryErrorCodeBlobUploadInvalid, err.Error(), nil)
 		return ctx.JSONBlob(http.StatusRequestedRangeNotSatisfiable, errMsg)
@@ -347,14 +340,15 @@ func (r *registry) PushManifest(ctx echo.Context) error {
 }
 
 func (r *registry) DeleteImage(ctx echo.Context) error {
+	namespace := ctx.Param("username") + "/" + ctx.Param("imagename")
 	clientDigest := ctx.Param("digest")
+
 	if clientDigest == "" {
 		reqURI := strings.Split(ctx.Request().RequestURI, "/")
 		if len(reqURI) == 6 {
 			clientDigest = reqURI[5]
 		}
 	}
-	namespace := ctx.Param("username") + "/" + ctx.Param("imagename")
 
 	if d, err := r.localCache.ResolveManifestRef(namespace, clientDigest); err != nil {
 		details := map[string]interface{}{
@@ -419,15 +413,34 @@ func (r *registry) PullLayer(ctx echo.Context) error {
 	namespace := ctx.Param("username") + "/" + ctx.Param("imagename")
 	clientDigest := ctx.Param("digest")
 
-	skynetLink, err := r.localCache.GetSkynetURL(namespace, clientDigest)
+	layerRef, err := r.localCache.GetDigest(clientDigest)
 	if err != nil {
-		errMsg := r.errorResponse(RegistryErrorCodeBlobUnknown, err.Error(), nil)
+		skynetLink, err := r.localCache.GetSkynetURL(namespace, clientDigest)
+		if err != nil {
+			errMsg := r.errorResponse(RegistryErrorCodeBlobUnknown, err.Error(), nil)
+			return ctx.JSONBlob(http.StatusNotFound, errMsg)
+		}
+		layerRef = &types.LayerRef{
+			Digest:  clientDigest,
+			Skylink: skynetLink,
+		}
+	}
+
+	if layerRef.Skylink == "" {
+		detail := map[string]interface{}{
+			"error": "skylink is empty",
+		}
+		e := fmt.Errorf("skylink is empty").Error()
+		errMsg := r.errorResponse(RegistryErrorCodeBlobUnknown, e, detail)
 		return ctx.JSONBlob(http.StatusNotFound, errMsg)
 	}
 
-	resp, err := r.skynet.Download(skynetLink)
+	resp, err := r.skynet.Download(layerRef.Skylink)
 	if err != nil {
-		errMsg := r.errorResponse(RegistryErrorCodeBlobUnknown, err.Error(), nil)
+		detail := map[string]interface{}{
+			"error": err.Error(),
+		}
+		errMsg := r.errorResponse(RegistryErrorCodeBlobUnknown, err.Error(), detail)
 		return ctx.JSONBlob(http.StatusNotFound, errMsg)
 	}
 

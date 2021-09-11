@@ -19,6 +19,7 @@ type Store interface {
 	Set(key, value []byte) error
 	GetDigest(digest string) (*types.LayerRef, error)
 	SetDigest(digest, skylink string) error
+	DeleteDigest(digest string) error
 	Update(key, value []byte) error
 	ListAll() ([]byte, error)
 	ListWithPrefix(prefix []byte) ([]byte, error)
@@ -56,6 +57,19 @@ func (ds *dataStore) LayerDigests(ctx echo.Context) error {
 
 func (ds *dataStore) Metadata(ctx echo.Context) error {
 	key := ctx.QueryParam("namespace")
+	dig := ctx.QueryParam("digest")
+
+	if dig != "" {
+		ref, err := ds.GetDigest(dig)
+		if err != nil {
+			return ctx.JSON(http.StatusNotFound, echo.Map{
+				"error": "digest not found",
+			})
+		}
+
+		return ctx.JSON(http.StatusOK, ref)
+	}
+
 	if key == "" {
 		bz, err := ds.ListAll()
 		if err != nil {
@@ -70,7 +84,6 @@ func (ds *dataStore) Metadata(ctx echo.Context) error {
 				"error": err.Error(),
 			})
 		}
-
 		return ctx.JSON(http.StatusOK, metadataList)
 	}
 
@@ -88,31 +101,45 @@ func (ds *dataStore) Update(key, value []byte) error {
 		return ds.Set(key, value)
 	}
 
-	var resp types.Metadata
-	if err = json.Unmarshal(item, &resp); err != nil {
+	var oldMd types.Metadata
+	if err = json.Unmarshal(item, &oldMd); err != nil {
 		return err
 	}
 
-	var v types.Metadata
-	if err = json.Unmarshal(value, &v); err != nil {
+	var newMd types.Metadata
+	if err = json.Unmarshal(value, &newMd); err != nil {
 		return err
 	}
 
-	if len(v.Manifest.Layers) != 0 {
-		resp.Manifest.Layers = ds.removeDuplicateLayers(resp.Manifest.Layers, v.Manifest.Layers)
+	if len(newMd.Manifest.Layers) != 0 {
+		oldMd.Manifest.Layers = ds.removeDuplicateLayers(oldMd.Manifest.Layers, newMd.Manifest.Layers)
+	}
+	var matched bool
+	for i, oc := range oldMd.Manifest.Config {
+		// overwrite if the ref is found
+		for _, nc := range newMd.Manifest.Config {
+			if oc.Reference == nc.Reference {
+				matched = true
+				oldMd.Manifest.Config[i] = nc
+				goto EndLoop
+			}
+		}
 	}
 
-	resp.Manifest.Config = append(resp.Manifest.Config, v.Manifest.Config...)
-
-	if v.Manifest.MediaType != "" {
-		resp.Manifest.MediaType = v.Manifest.MediaType
+EndLoop:
+	if !matched {
+		oldMd.Manifest.Config = append(oldMd.Manifest.Config, newMd.Manifest.Config...)
 	}
 
-	if v.Manifest.SchemaVersion != 0 {
-		resp.Manifest.SchemaVersion = v.Manifest.SchemaVersion
+	if newMd.Manifest.MediaType != "" {
+		oldMd.Manifest.MediaType = newMd.Manifest.MediaType
 	}
 
-	bz, err := json.Marshal(resp)
+	if newMd.Manifest.SchemaVersion != 0 {
+		oldMd.Manifest.SchemaVersion = newMd.Manifest.SchemaVersion
+	}
+
+	bz, err := json.Marshal(oldMd)
 	if err != nil {
 		return err
 	}
@@ -188,6 +215,13 @@ func (ds *dataStore) SetDigest(digest, skylink string) error {
 	}
 
 	return nil
+}
+
+func (ds *dataStore) DeleteDigest(digest string) error {
+	key := fmt.Sprintf("%s/%s", layerDigestNamespace, digest)
+
+	txn := ds.db.NewTransaction(true)
+	return txn.Delete([]byte(key))
 }
 
 func (ds *dataStore) GetDigest(digest string) (*types.LayerRef, error) {
