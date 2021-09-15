@@ -35,6 +35,7 @@ jobs:
           OCI_TEST_CONTENT_DISCOVERY: 1
           OCI_TEST_CONTENT_MANAGEMENT: 1
           OCI_HIDE_SKIPPED_WORKFLOWS: 1
+          OCI_CROSSMOUNT_NAMESPACE: ${{secrets.OPENREGISTRY_USERNAME}}/distribution-cross-mount
           OCI_DEBUG: 0
           OCI_DELETE_MANIFEST_BEFORE_BLOBS: 0
       - run: mkdir -p .out/ && mv {report.html,junit.xml} .out/
