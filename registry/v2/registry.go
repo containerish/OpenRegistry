@@ -42,14 +42,58 @@ func NewRegistry(skynetClient *skynet.Client, logger zerolog.Logger, c cache.Sto
 	return r, nil
 }
 
-//DeleteLayer is still under progress --guacamole will work on it a later stage
+func (r *registry) DeleteTagOrManifest(ctx echo.Context) error {
+	namespace := ctx.Param("username") + "/" + ctx.Param("imagename")
+	ref := ctx.Param("reference")
+
+	if ref == "" {
+		reqURI := strings.Split(ctx.Request().RequestURI, "/")
+		if len(reqURI) == 6 {
+			ref = reqURI[5]
+		}
+	}
+
+	if err := r.localCache.UpdateManifestRef(namespace, ref); err != nil {
+		details := map[string]interface{}{
+			"namespace": namespace,
+			"digest":    ref,
+		}
+		errMsg := r.errorResponse(RegistryErrorCodeManifestUnknown, err.Error(), details)
+		return ctx.JSONBlob(http.StatusNotFound, errMsg)
+	}
+
+	return ctx.NoContent(http.StatusAccepted)
+}
+
 func (r *registry) DeleteLayer(ctx echo.Context) error {
+	namespace := ctx.Param("username") + "/" + ctx.Param("imagename")
 	dig := ctx.Param("digest")
 
+	var m types.Metadata
 	_, err := r.localCache.GetDigest(dig)
 	if err != nil {
-		errMsg := r.errorResponse(RegistryErrorCodeBlobUnknown, err.Error(), nil)
-		return ctx.JSONBlob(http.StatusNotFound, errMsg)
+		bz, err := r.localCache.Get([]byte(namespace))
+		if err != nil {
+			errMsg := r.errorResponse(RegistryErrorCodeBlobUnknown, err.Error(), nil)
+			return ctx.JSONBlob(http.StatusNotFound, errMsg)
+		}
+		if err = json.Unmarshal(bz, &m); err != nil {
+			errMsg := r.errorResponse(RegistryErrorCodeBlobUnknown, err.Error(), nil)
+			return ctx.JSONBlob(http.StatusInternalServerError, errMsg)
+		}
+	}
+
+	err = r.localCache.DeleteLayer(namespace, dig)
+	if err != nil {
+		return ctx.JSON(http.StatusInternalServerError, echo.Map{
+			"error": err.Error(),
+		})
+	}
+
+	if err = r.localCache.DeleteDigest(dig); err != nil {
+		return ctx.JSON(http.StatusInternalServerError, echo.Map{
+			"error": err.Error(),
+		})
 	}
 
 	return ctx.NoContent(http.StatusAccepted)
@@ -337,30 +381,6 @@ func (r *registry) PushManifest(ctx echo.Context) error {
 	ctx.Response().Header().Set("Docker-Content-Digest", dig)
 	ctx.Response().Header().Set("X-Docker-Content-ID", skylink)
 	return ctx.String(http.StatusCreated, "Created")
-}
-
-func (r *registry) DeleteImage(ctx echo.Context) error {
-	namespace := ctx.Param("username") + "/" + ctx.Param("imagename")
-	clientDigest := ctx.Param("digest")
-
-	if clientDigest == "" {
-		reqURI := strings.Split(ctx.Request().RequestURI, "/")
-		if len(reqURI) == 6 {
-			clientDigest = reqURI[5]
-		}
-	}
-
-	if d, err := r.localCache.ResolveManifestRef(namespace, clientDigest); err != nil {
-		details := map[string]interface{}{
-			"namespace": namespace,
-			"digest":    clientDigest,
-			"data":      d,
-		}
-		errMsg := r.errorResponse(RegistryErrorCodeManifestUnknown, err.Error(), details)
-		return ctx.JSONBlob(http.StatusNotFound, errMsg)
-	}
-
-	return ctx.NoContent(http.StatusAccepted)
 }
 
 // Content discovery GET /v2/<name>/tags/list

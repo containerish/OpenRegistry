@@ -31,7 +31,7 @@ func main() {
 	e.HideBanner = true
 
 	l := setupLogger()
-	localCache, err := cache.New("./kvstore")
+	localCache, err := cache.New(".kvstore")
 	if err != nil {
 		l.Err(err).Send()
 		return
@@ -118,8 +118,9 @@ func main() {
 	///GET /v2/<name>/tags/list
 	router.Add(http.MethodGet, "/tags/list", reg.ListTags)
 
+	/// mf/sha -> mf/latest
 	router.Add(http.MethodDelete, "/blobs/:digest", reg.DeleteLayer)
-	router.Add(http.MethodDelete, "/manifests/:digest", reg.DeleteImage)
+	router.Add(http.MethodDelete, "/manifests/:reference", reg.DeleteTagOrManifest)
 
 	log.Println(e.Start(cfg.Address()))
 }
