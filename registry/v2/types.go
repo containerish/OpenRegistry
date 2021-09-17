@@ -258,5 +258,5 @@ type Registry interface {
 	// here ref is digest
 
 	// Success : 202
-	DeleteImage(ctx echo.Context) error
+	DeleteTagOrManifest(ctx echo.Context) error
 }

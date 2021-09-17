@@ -21,11 +21,13 @@ type Store interface {
 	GetDigest(digest string) (*types.LayerRef, error)
 	SetDigest(digest, skylink string) error
 	DeleteDigest(digest string) error
+	DeleteLayer(namespace, digest string) error
 	Update(key, value []byte) error
 	ListAll() ([]byte, error)
 	ListWithPrefix(prefix []byte) ([]byte, error)
 	Delete(key []byte) error
 	GetSkynetURL(key string, ref string) (string, error)
+	UpdateManifestRef(namespace, ref string) error
 	ResolveManifestRef(namespace, ref string) (string, error)
 	Metadata(ctx echo.Context) error
 	LayerDigests(ctx echo.Context) error
@@ -36,7 +38,7 @@ type Store interface {
 
 func New(storeLocation string) (Store, error) {
 	if storeLocation == "" {
-		storeLocation = "./kvstore"
+		storeLocation = ".kvstore"
 	}
 
 	db, err := badger.Open(badger.DefaultOptions(storeLocation))
@@ -94,6 +96,34 @@ func (ds *dataStore) Metadata(ctx echo.Context) error {
 	}
 
 	return ctx.JSONBlob(http.StatusOK, val)
+}
+
+func (ds *dataStore) DeleteLayer(namespace, digest string) error {
+	bz, err := ds.Get([]byte(namespace))
+	if err != nil {
+		return err
+	}
+
+	var md types.Metadata
+	if err = json.Unmarshal(bz, &md); err != nil {
+		return err
+	}
+
+	var match bool
+	for i, v := range md.Manifest.Layers {
+		if v.Digest == digest {
+			l := len(md.Manifest.Layers)
+			md.Manifest.Layers[i] = md.Manifest.Layers[l-1]
+			md.Manifest.Layers = md.Manifest.Layers[:l-1]
+			match = true
+			break
+		}
+	}
+	if !match {
+		return fmt.Errorf("layer/blob not found for digest %s", digest)
+	}
+
+	return ds.Set([]byte(namespace), md.Bytes())
 }
 
 func (ds *dataStore) Update(key, value []byte) error {
@@ -177,6 +207,52 @@ func (ds *dataStore) removeDuplicateLayers(src, dst []*types.Layer) ([]*types.La
 	return layers, nil
 }
 
+func (ds *dataStore) UpdateManifestRef(namespace, ref string) error {
+	var res []byte
+	fn := func(txn *badger.Txn) error {
+		item, err := txn.Get([]byte(namespace))
+		if err != nil {
+			return err
+		}
+
+		return item.Value(func(v []byte) error {
+			res = make([]byte, len(v))
+			copy(res, v)
+			return nil
+		})
+	}
+
+	if err := ds.db.View(fn); err != nil {
+		return err
+	}
+
+	var md types.Metadata
+	err := json.Unmarshal(res, &md)
+	if err != nil {
+		return err
+	}
+	
+	var match bool
+	for i, c := range md.Manifest.Config {
+		if c == nil {
+			continue
+		}
+		mdRef := c.Reference
+		mdDigest := c.Digest
+		if ref == mdRef || ref == mdDigest {
+			l := len(md.Manifest.Config)
+			md.Manifest.Config[i] = md.Manifest.Config[l-1]
+			md.Manifest.Config = md.Manifest.Config[:l-1]
+			match = true
+			break
+		}
+	}
+	if !match {
+		return fmt.Errorf("manifest reference %s not found", ref)
+	}
+	return ds.Set([]byte(namespace), md.Bytes())
+}
+
 func (ds *dataStore) ResolveManifestRef(namespace, ref string) (string, error) {
 	var res []byte
 	fn := func(txn *badger.Txn) error {
@@ -232,8 +308,7 @@ func (ds *dataStore) SetDigest(digest, skylink string) error {
 func (ds *dataStore) DeleteDigest(digest string) error {
 	key := fmt.Sprintf("%s/%s", layerDigestNamespace, digest)
 
-	txn := ds.db.NewTransaction(true)
-	return txn.Delete([]byte(key))
+	return ds.Delete([]byte(key))
 }
 
 func (ds *dataStore) GetDigest(digest string) (*types.LayerRef, error) {
@@ -249,7 +324,6 @@ func (ds *dataStore) GetDigest(digest string) (*types.LayerRef, error) {
 }
 
 func (ds *dataStore) GetSkynetURL(key, ref string) (string, error) {
-
 	var res []byte
 	err := ds.db.View(func(txn *badger.Txn) error {
 		item, err := txn.Get([]byte(key))
