@@ -66,61 +66,63 @@ func main() {
 	internal.Add(http.MethodGet, "/metadata", localCache.Metadata)
 	internal.Add(http.MethodGet, "/digests", localCache.LayerDigests)
 
-	router := e.Group("/v2/:username/:imagename")
-	router.Use(BasicAuth(authSvc.BasicAuth))
+	v2Router := e.Group("/v2")
+	nsRouter := v2Router.Group("/:username/:imagename")
+	nsRouter.Use(BasicAuth(authSvc.BasicAuth))
 
+	v2Router.Add(http.MethodGet, "/_catalog", reg.Catalog, BasicAuth(authSvc.BasicAuth))
 	// ALL THE HEAD METHODS //
 	// HEAD /v2/<name>/blobs/<digest>
-	router.Add(http.MethodHead, "/blobs/:digest", reg.LayerExists) // (LayerExists) should be called reference/digest
+	nsRouter.Add(http.MethodHead, "/blobs/:digest", reg.LayerExists) // (LayerExists) should be called reference/digest
 
 	// HEAD /v2/<name>/manifests/<reference>
-	router.Add(http.MethodHead, "/manifests/:reference", reg.ManifestExists) //should be called reference/digest
+	nsRouter.Add(http.MethodHead, "/manifests/:reference", reg.ManifestExists) //should be called reference/digest
 
 	// ALL THE PUT METHODS
 	// PUT /v2/<name>/blobs/uploads/<uuid>?digest=<digest>
 	// router.Add(http.MethodPut, "/blobs/uploads/:uuid", reg.MonolithicUpload)
 
-	router.Add(http.MethodPut, "/blobs/uploads/", reg.CompleteUpload)
+	nsRouter.Add(http.MethodPut, "/blobs/uploads/", reg.CompleteUpload)
 
 	// PUT /v2/<name>/blobs/uploads/<uuid>?digest=<digest>
-	router.Add(http.MethodPut, "/blobs/uploads/:uuid", reg.CompleteUpload)
+	nsRouter.Add(http.MethodPut, "/blobs/uploads/:uuid", reg.CompleteUpload)
 
 	// PUT /v2/<name>/manifests/<reference>
-	router.Add(http.MethodPut, "/manifests/:reference", reg.PushManifest)
+	nsRouter.Add(http.MethodPut, "/manifests/:reference", reg.PushManifest)
 
 	// POST METHODS
 	// POST /v2/<name>/blobs/uploads/
-	router.Add(http.MethodPost, "/blobs/uploads/", reg.StartUpload)
+	nsRouter.Add(http.MethodPost, "/blobs/uploads/", reg.StartUpload)
 
 	// POST /v2/<name>/blobs/uploads/
-	router.Add(http.MethodPost, "/blobs/uploads/:uuid", reg.PushLayer)
+	nsRouter.Add(http.MethodPost, "/blobs/uploads/:uuid", reg.PushLayer)
 
 	// PATCH
 
 	// PATCH /v2/<name>/blobs/uploads/<uuid>
-	router.Add(http.MethodPatch, "/blobs/uploads/:uuid", reg.ChunkedUpload)
+	nsRouter.Add(http.MethodPatch, "/blobs/uploads/:uuid", reg.ChunkedUpload)
 	// router.Add(http.MethodPatch, "/blobs/uploads/", reg.ChunkedUpload)
 
 	// GET
 	// GET /v2/<name>/manifests/<reference>
-	router.Add(http.MethodGet, "/manifests/:reference", reg.PullManifest)
+	nsRouter.Add(http.MethodGet, "/manifests/:reference", reg.PullManifest)
 
 	// GET /v2/<name>/blobs/<digest>
-	router.Add(http.MethodGet, "/blobs/:digest", reg.PullLayer)
+	nsRouter.Add(http.MethodGet, "/blobs/:digest", reg.PullLayer)
 
 	// GET GET /v2/<name>/blobs/uploads/<uuid>
-	router.Add(http.MethodGet, "/blobs/uploads/:uuid", reg.UploadProgress)
+	nsRouter.Add(http.MethodGet, "/blobs/uploads/:uuid", reg.UploadProgress)
 
 	// router.Add(http.MethodGet, "/blobs/:digest", reg.DownloadBlob)
 
 	e.Add(http.MethodGet, "/v2/", reg.ApiVersion, BasicAuth(authSvc.BasicAuth))
 
 	///GET /v2/<name>/tags/list
-	router.Add(http.MethodGet, "/tags/list", reg.ListTags)
+	nsRouter.Add(http.MethodGet, "/tags/list", reg.ListTags)
 
 	/// mf/sha -> mf/latest
-	router.Add(http.MethodDelete, "/blobs/:digest", reg.DeleteLayer)
-	router.Add(http.MethodDelete, "/manifests/:reference", reg.DeleteTagOrManifest)
+	nsRouter.Add(http.MethodDelete, "/blobs/:digest", reg.DeleteLayer)
+	nsRouter.Add(http.MethodDelete, "/manifests/:reference", reg.DeleteTagOrManifest)
 
 	log.Println(e.Start(cfg.Address()))
 }

@@ -259,4 +259,6 @@ type Registry interface {
 
 	// Success : 202
 	DeleteTagOrManifest(ctx echo.Context) error
+	//The list of available repositories is made available through the catalog
+	Catalog(ctx echo.Context) error
 }

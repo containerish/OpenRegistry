@@ -231,7 +231,7 @@ func (ds *dataStore) UpdateManifestRef(namespace, ref string) error {
 	if err != nil {
 		return err
 	}
-	
+
 	var match bool
 	for i, c := range md.Manifest.Config {
 		if c == nil {
