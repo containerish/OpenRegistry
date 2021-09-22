@@ -42,6 +42,35 @@ func NewRegistry(skynetClient *skynet.Client, logger zerolog.Logger, c cache.Sto
 	return r, nil
 }
 
+// Catalog - The list of available repositories is made available through the catalog.
+//GET /v2/_catalog
+func (r *registry) Catalog(ctx echo.Context) error {
+	bz, err := r.localCache.ListAll()
+	if err != nil {
+		return ctx.JSON(http.StatusBadRequest, echo.Map{
+			"error": err.Error(),
+		})
+	}
+	var md []types.Metadata
+	err = json.Unmarshal(bz, &md)
+
+	var result []string
+	for _, el := range md {
+		var repo []string
+		ns := el.Namespace
+
+		for _, c := range el.Manifest.Config {
+			repo = append(repo, fmt.Sprintf("%s:%s", ns, c.Reference))
+		}
+
+		result = append(result, repo...)
+	}
+
+	return ctx.JSON(http.StatusOK, echo.Map{
+		"repositories": result,
+	})
+}
+
 func (r *registry) DeleteTagOrManifest(ctx echo.Context) error {
 	namespace := ctx.Param("username") + "/" + ctx.Param("imagename")
 	ref := ctx.Param("reference")

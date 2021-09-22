@@ -66,9 +66,11 @@ func main() {
 	internal.Add(http.MethodGet, "/metadata", localCache.Metadata)
 	internal.Add(http.MethodGet, "/digests", localCache.LayerDigests)
 
-	router := e.Group("/v2/:username/:imagename")
+	v2Router := e.Group("/v2")
+	router := v2Router.Group("/:username/:imagename")
 	router.Use(BasicAuth(authSvc.BasicAuth))
 
+	v2Router.Add(http.MethodGet, "/_catalog", reg.Catalog, BasicAuth(authSvc.BasicAuth))
 	// ALL THE HEAD METHODS //
 	// HEAD /v2/<name>/blobs/<digest>
 	router.Add(http.MethodHead, "/blobs/:digest", reg.LayerExists) // (LayerExists) should be called reference/digest
