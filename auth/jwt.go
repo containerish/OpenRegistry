@@ -2,8 +2,9 @@ package auth
 
 import (
 	"fmt"
-	"github.com/golang-jwt/jwt"
 	"time"
+
+	"github.com/golang-jwt/jwt"
 )
 
 type Claims struct {

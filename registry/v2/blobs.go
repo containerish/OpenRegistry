@@ -30,35 +30,36 @@ func (b *blobs) errorResponse(code, msg string, detail map[string]interface{}) [
 	return bz
 }
 
-func (b *blobs) get(namespace string) (map[string][]byte, bool) {
-	digests, ok := b.layers[namespace]
-	if !ok {
-		return nil, false
-	}
+//func (b *blobs) get(namespace string) (map[string][]byte, bool) {
+//	digests, ok := b.layers[namespace]
+//	if !ok {
+//		return nil, false
+//	}
+//
+//	layers := make(map[string][]byte)
+//	for _, d := range digests {
+//		blob, ok := b.contents[d]
+//		if !ok {
+//			return nil, false
+//		}
+//		layers[d] = blob
+//	}
+//
+//	return layers, true
+//}
+//
 
-	layers := make(map[string][]byte)
-	for _, d := range digests {
-		blob, ok := b.contents[d]
-		if !ok {
-			return nil, false
-		}
-		layers[d] = blob
-	}
-
-	return layers, true
-}
-
-func (b *blobs) remove(repo string) {
-	digests, ok := b.layers[repo]
-	if !ok {
-		return
-	}
-	delete(b.layers, repo)
-
-	for _, d := range digests {
-		delete(b.contents, d)
-	}
-}
+//func (b *blobs) remove(repo string) {
+//	digests, ok := b.layers[repo]
+//	if !ok {
+//		return
+//	}
+//	delete(b.layers, repo)
+//
+//	for _, d := range digests {
+//		delete(b.contents, d)
+//	}
+//}
 
 func (b *blobs) HEAD(ctx echo.Context) error {
 	digest := ctx.Param("digest")
@@ -89,7 +90,11 @@ func (b *blobs) UploadBlob(ctx echo.Context) error {
 
 	if contentRange == "" {
 		if _, ok := b.uploads[uuid]; ok {
-			errMsg := b.errorResponse(RegistryErrorCodeBlobUploadInvalid, "stream upload after first write are not allowed", nil)
+			errMsg := b.errorResponse(
+				RegistryErrorCodeBlobUploadInvalid,
+				"stream upload after first write are not allowed",
+				nil,
+			)
 			return ctx.JSONBlob(http.StatusBadRequest, errMsg)
 		}
 
@@ -121,7 +126,15 @@ func (b *blobs) UploadBlob(ctx echo.Context) error {
 	}
 
 	buf := bytes.NewBuffer(b.uploads[uuid]) // 90
-	io.Copy(buf, ctx.Request().Body)        // 10
+	_, err := io.Copy(buf, ctx.Request().Body)
+	if err != nil {
+		errMsg := b.errorResponse(
+			RegistryErrorCodeBlobUploadInvalid,
+			"error while creating new buffer from existing blobs",
+			nil,
+		)
+		return ctx.JSONBlob(http.StatusInternalServerError, errMsg)
+	} // 10
 	ctx.Request().Body.Close()
 
 	b.uploads[uuid] = buf.Bytes()

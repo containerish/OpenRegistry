@@ -66,13 +66,14 @@ func (c *Client) List(path string) ([]*SkynetMeta, error) {
 	return nil, nil
 }
 
-func (c *Client) AddImage(namespace string, manifests map[string][]byte, layers map[string][]byte, headers ...skynet.Header) (string, error) {
+// AddImage - arguments: ns = namespace, mf = manifest and l = layers
+func (c *Client) AddImage(ns string, mf, l map[string][]byte, headers ...skynet.Header) (string, error) {
 	opts := skynet.DefaultUploadOptions
-	opts.CustomDirname = namespace
+	opts.CustomDirname = ns
 
 	uploadData := make(skynet.UploadData)
 
-	imageReader, err := Image{manifests, layers}.Reader()
+	imageReader, err := Image{mf, l}.Reader()
 	if err != nil {
 		return "", err
 	}

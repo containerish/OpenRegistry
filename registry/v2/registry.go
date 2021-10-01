@@ -21,7 +21,12 @@ import (
 	"github.com/rs/zerolog"
 )
 
-func NewRegistry(skynetClient *skynet.Client, logger zerolog.Logger, c cache.Store, echoLogger echo.Logger) (Registry, error) {
+func NewRegistry(
+	skynetClient *skynet.Client,
+	logger zerolog.Logger,
+	c cache.Store,
+	echoLogger echo.Logger,
+) (Registry, error) {
 	r := &registry{
 		log:    logger,
 		debug:  true,
@@ -53,6 +58,10 @@ func (r *registry) Catalog(ctx echo.Context) error {
 	}
 	var md []types.Metadata
 	err = json.Unmarshal(bz, &md)
+	if err != nil {
+		errMsg := r.errorResponse(RegistryErrorCodeTagInvalid, err.Error(), nil)
+		return ctx.JSONBlob(http.StatusInternalServerError, errMsg)
+	}
 
 	var result []string
 	for _, el := range md {
@@ -155,7 +164,11 @@ func (r *registry) MonolithicUpload(ctx echo.Context) error {
 		},
 	}
 
-	r.localCache.Update([]byte(namespace), metadata.Bytes())
+	err = r.localCache.Update([]byte(namespace), metadata.Bytes())
+	if err != nil {
+		errMsg := r.errorResponse(RegistryErrorCodeBlobUploadInvalid, err.Error(), nil)
+		return ctx.JSONBlob(http.StatusBadRequest, errMsg)
+	}
 	locationHeader := link
 	ctx.Response().Header().Set("Location", locationHeader)
 	return ctx.NoContent(http.StatusCreated)
@@ -172,7 +185,7 @@ func (r *registry) CompleteUpload(ctx echo.Context) error {
 		errMsg := r.errorResponse(RegistryErrorCodeDigestInvalid, err.Error(), nil)
 		return ctx.JSONBlob(http.StatusBadRequest, errMsg)
 	}
-	ctx.Request().Body.Close()
+	_ = ctx.Request().Body.Close()
 
 	buf := bytes.NewBuffer(r.b.uploads[uuid])
 	buf.Write(bz)
@@ -212,7 +225,10 @@ func (r *registry) CompleteUpload(ctx echo.Context) error {
 		},
 	}
 
-	r.localCache.Update([]byte(namespace), val.Bytes())
+	if err = r.localCache.Update([]byte(namespace), val.Bytes()); err != nil {
+		errMsg := r.errorResponse(RegistryErrorCodeUnsupported, err.Error(), nil)
+		return ctx.JSONBlob(http.StatusInternalServerError, errMsg)
+	}
 
 	locationHeader := fmt.Sprintf("/v2/%s/blobs/%s", namespace, ourHash)
 	ctx.Response().Header().Set("Content-Length", "0")
@@ -506,7 +522,11 @@ func (r *registry) PullLayer(ctx echo.Context) error {
 			"clientDigest":   clientDigest,
 			"computedDigest": dig,
 		}
-		errMsg := r.errorResponse(RegistryErrorCodeBlobUploadUnknown, "client digest is different than computed digest", details)
+		errMsg := r.errorResponse(
+			RegistryErrorCodeBlobUploadUnknown,
+			"client digest is different than computed digest",
+			details,
+		)
 		return ctx.JSONBlob(http.StatusNotFound, errMsg)
 	}
 
@@ -551,7 +571,11 @@ func (r *registry) StartUpload(ctx echo.Context) error {
 				"clientDigest":   clientDigest,
 				"computedDigest": dig,
 			}
-			errMsg := r.errorResponse(RegistryErrorCodeDigestInvalid, "client digest does not meet computed digest", details)
+			errMsg := r.errorResponse(
+				RegistryErrorCodeDigestInvalid,
+				"client digest does not meet computed digest",
+				details,
+			)
 			return ctx.JSONBlob(http.StatusBadRequest, errMsg)
 		}
 
@@ -579,7 +603,10 @@ func (r *registry) StartUpload(ctx echo.Context) error {
 		val.Manifest.Layers = append(val.Manifest.Layers, layer)
 
 		link := r.getHttpUrlFromSkylink(skylink)
-		r.localCache.Update([]byte(namespace), val.Bytes())
+		if err = r.localCache.Update([]byte(namespace), val.Bytes()); err != nil {
+			errMsg := r.errorResponse(RegistryErrorCodeUnsupported, err.Error(), nil)
+			return ctx.JSONBlob(http.StatusInternalServerError, errMsg)
+		}
 		ctx.Response().Header().Set("Location", link)
 		return ctx.NoContent(http.StatusAccepted)
 	}

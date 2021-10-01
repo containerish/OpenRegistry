@@ -3,9 +3,10 @@ package auth
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/labstack/echo/v4"
 	"net/http"
 	"time"
+
+	"github.com/labstack/echo/v4"
 )
 
 func (a *auth) SignIn(ctx echo.Context) error {
