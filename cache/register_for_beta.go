@@ -22,11 +22,16 @@ func (br BetaRegister) Bytes() []byte {
 	return bz
 }
 
+const (
+	emailRegex = "^[a-zA-Z0-9.!#$%&'*+\\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]" +
+		"{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$"
+)
+
 func validateEmail(email string) error {
 	if email == "" {
 		return fmt.Errorf("email can not be empty")
 	}
-	emailReg := regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+\\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
+	emailReg := regexp.MustCompile(emailRegex)
 
 	if !emailReg.Match([]byte(email)) {
 		return fmt.Errorf("email format invalid")

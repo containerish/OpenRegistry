@@ -3,12 +3,13 @@ package auth
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/labstack/echo/v4"
 	"io"
 	"net/http"
 	"regexp"
 	"strings"
 	"unicode"
+
+	"github.com/labstack/echo/v4"
 )
 
 type User struct {
@@ -69,7 +70,8 @@ func verifyEmail(email string) error {
 	if email == "" {
 		return fmt.Errorf("email can not be empty")
 	}
-	emailReg := regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+\\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
+	emailReg := regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+\\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}" +
+		"[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
 
 	if !emailReg.Match([]byte(email)) {
 		return fmt.Errorf("email format invalid")

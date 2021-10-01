@@ -3,8 +3,9 @@ package auth
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/labstack/echo/v4"
 	"time"
+
+	"github.com/labstack/echo/v4"
 )
 
 func (a *auth) BasicAuth(username, password string) (map[string]interface{}, error) {

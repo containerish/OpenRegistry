@@ -19,7 +19,8 @@ For authorized images -> /v2/library/ubuntu/
 Rules:
 1. repo name is a collection of path components.
 
-2. each component MUST be atleast one lowercase, alpha numeric chars, optionally separated by periods(.), dashes(-) or underscores(_) and must match the following regex:
+2. each component MUST be atleast one lowercase, alpha numeric chars,
+optionally separated by periods(.), dashes(-) or underscores(_) and must match the following regex:
 [a-z0-9]+(?:[._-][a-z0-9]+)*
 
 3. if repo name has two or more path components, they must be separated by forward slashes (/)

@@ -73,10 +73,12 @@ func main() {
 	v2Router.Add(http.MethodGet, "/_catalog", reg.Catalog, BasicAuth(authSvc.BasicAuth))
 	// ALL THE HEAD METHODS //
 	// HEAD /v2/<name>/blobs/<digest>
-	nsRouter.Add(http.MethodHead, "/blobs/:digest", reg.LayerExists) // (LayerExists) should be called reference/digest
+	// (LayerExists) should be called reference/digest
+	nsRouter.Add(http.MethodHead, "/blobs/:digest", reg.LayerExists)
 
 	// HEAD /v2/<name>/manifests/<reference>
-	nsRouter.Add(http.MethodHead, "/manifests/:reference", reg.ManifestExists) //should be called reference/digest
+	// should be called reference/digest
+	nsRouter.Add(http.MethodHead, "/manifests/:reference", reg.ManifestExists)
 
 	// ALL THE PUT METHODS
 	// PUT /v2/<name>/blobs/uploads/<uuid>?digest=<digest>
@@ -141,14 +143,16 @@ func setupLogger() zerolog.Logger {
 HTTP/1.1 401 Unauthorized
 Content-Type: application/json; charset=utf-8
 Docker-Distribution-Api-Version: registry/2.0
-Www-Authenticate: Bearer realm="https://auth.docker.io/token",service="registry.docker.io",scope="repository:samalba/my-app:pull,push"
+Www-Authenticate: Bearer realm="https://auth.docker.io/token",service="registry.docker.io",
+scope="repository:samalba/my-app:pull,push"
 Date: Thu, 10 Sep 2015 19:32:31 GMT
 Content-Length: 235
 Strict-Transport-Security: max-age=31536000
 
 {"errors":[{"code":"UNAUTHORIZED","message":"","detail":}]}
 */
-//var wwwAuthenticate = `Bearer realm="http://0.0.0.0:5000/auth/token",service="http://0.0.0.0:5000",scope="repository:%s`
+//var wwwAuthenticate = `Bearer realm="http://0.0.0.0:5000/auth/token",
+//service="http://0.0.0.0:5000",scope="repository:%s`
 
 func BasicAuth(authfn func(string, string) (map[string]interface{}, error)) echo.MiddlewareFunc {
 	return middleware.BasicAuth(func(username string, password string, ctx echo.Context) (bool, error) {
@@ -188,23 +192,32 @@ func BasicAuth(authfn func(string, string) (map[string]interface{}, error)) echo
 }
 
 func echoLogger() echo.MiddlewareFunc {
+	logFmt := "method=${method}, uri=${uri}, status=${status} " +
+		"latency=${latency}, bytes_in=${bytes_in}, bytes_out=${bytes_out}\n"
+
 	return middleware.LoggerWithConfig(middleware.LoggerConfig{
 		Skipper: func(echo.Context) bool {
 			return false
 		},
-		Format: "method=${method}, uri=${uri}, status=${status} latency=${latency}, bytes_in=${bytes_in}, bytes_out=${bytes_out}\n",
+		Format: logFmt,
 		Output: os.Stdout,
 	})
 }
 
 func rateLimiter() echo.MiddlewareFunc {
+	storeConfig := middleware.RateLimiterMemoryStoreConfig{
+		Rate:      3,
+		Burst:     0,
+		ExpiresIn: time.Hour * 10,
+	}
+
 	return middleware.RateLimiterWithConfig(middleware.RateLimiterConfig{
 		Skipper:    middleware.DefaultSkipper,
 		BeforeFunc: nil,
 		IdentifierExtractor: func(ctx echo.Context) (string, error) {
 			return ctx.RealIP(), nil
 		},
-		Store: middleware.NewRateLimiterMemoryStoreWithConfig(middleware.RateLimiterMemoryStoreConfig{Rate: 3, Burst: 0, ExpiresIn: time.Hour * 10}),
+		Store: middleware.NewRateLimiterMemoryStoreWithConfig(storeConfig),
 		ErrorHandler: func(ctx echo.Context, err error) error {
 			return ctx.JSON(http.StatusForbidden, echo.Map{"error": "Too many requests, try after some time!"})
 		},
