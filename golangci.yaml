@@ -1,0 +1,25 @@
+run:
+  timeout: 30s
+
+skip-dirs:
+  - .go-skynet
+
+linters-settings:
+  cyclop:
+    max-complexity: 16
+
+lll:
+  line-length: 120
+  tab-width: 1
+
+linters:
+  enable:
+    - bodyclose
+    - cyclop
+    - gochecknoglobals
+    - goimports
+    - gosec
+    - lll
+    - nilerr
+    - noctx
+    - sqlclosecheck
