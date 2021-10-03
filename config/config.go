@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/spf13/viper"
 )
@@ -16,6 +17,7 @@ type (
 		SkynetPortalURL string       `mapstructure:"skynet_portal_url"`
 		SigningSecret   string       `mapstructure:"signing_secret"`
 		SkynetConfig    SkynetConfig `mapstructure:"skynet_config"`
+		BackendTypes    []string     `mapstructure:"backend_types"`
 	}
 
 	SkynetConfig struct {
@@ -52,6 +54,7 @@ func LoadFromENV() (*RegistryConfig, error) {
 		SkynetPortalURL: viper.GetString("SKYNET_PORTAL_URL"),
 		SigningSecret:   viper.GetString("SIGNING_SECRET"),
 		SkynetConfig:    SkynetConfig{},
+		BackendTypes:    defaultAuthBackends(),
 	}
 
 	if config.SigningSecret == "" {
@@ -60,4 +63,18 @@ func LoadFromENV() (*RegistryConfig, error) {
 	}
 
 	return &config, nil
+}
+
+func defaultAuthBackends() []string {
+	backendList := viper.GetString("AUTH_BACKENDS")
+	if backendList != "" {
+		return strings.Split(backendList, ",")
+	}
+
+	return []string{
+		"github",
+		"http_basic_auth",
+		"token",
+		"silly",
+	}
 }

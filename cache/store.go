@@ -45,7 +45,6 @@ func New(storeLocation string) (Store, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	return &dataStore{db: db}, nil
 }
 

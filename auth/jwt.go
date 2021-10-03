@@ -2,6 +2,7 @@ package auth
 
 import (
 	"fmt"
+	registry_auth "github.com/distribution/distribution/registry/auth"
 	"github.com/golang-jwt/jwt"
 	"time"
 )
@@ -9,6 +10,52 @@ import (
 type Claims struct {
 	jwt.StandardClaims
 	Access AccessList
+}
+
+func (c *Claims) accessSet() accessSet {
+	if c == nil {
+		return nil
+	}
+
+	set := make(accessSet, len(c.Access))
+	for _, action := range c.Access {
+		r := registry_auth.Resource{
+			Type:  action.Type,
+			Name:  action.Name,
+		}
+
+		rr, ok := set[r]
+		if !ok {
+			rr := newActionSet()
+			set[r] = rr
+		}
+
+		for _, a := range action.Actions {
+			rr.add(a)
+		}
+	}
+
+	return set
+}
+
+func (c *Claims) Verify(opts VerifyOptions) error {
+
+	for _,aud := range opts.AcceptedAudiences {
+		if !c.VerifyAudience(aud, true){
+			return ErrInvalidToken
+		}
+	}
+	now := time.Now()
+	tExpiresAt := time.Unix(c.ExpiresAt, 0).Add(time.Minute)
+	if tExpiresAt.After(now){
+		return ErrInvalidToken
+	}
+	tNotBefore := time.Unix(c.NotBefore, 0).Add(time.Minute)
+	if tNotBefore.Before(now) {
+		return ErrInvalidToken
+	}
+
+	return nil
 }
 
 func (a *auth) newToken(u User, tokenLife int64) (string, error) {
