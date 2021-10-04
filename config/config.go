@@ -39,10 +39,6 @@ func LoadFromENV() (*RegistryConfig, error) {
 
 	viper.SetEnvPrefix("OPEN_REGISTRY")
 	viper.AutomaticEnv()
-	// err := viper.ReadInConfig()
-	// if err != nil {
-	// 	return nil, err
-	// }
 
 	config := RegistryConfig{
 		Debug:           viper.GetBool("DEBUG"),

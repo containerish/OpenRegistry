@@ -30,37 +30,6 @@ func (b *blobs) errorResponse(code, msg string, detail map[string]interface{}) [
 	return bz
 }
 
-//func (b *blobs) get(namespace string) (map[string][]byte, bool) {
-//	digests, ok := b.layers[namespace]
-//	if !ok {
-//		return nil, false
-//	}
-//
-//	layers := make(map[string][]byte)
-//	for _, d := range digests {
-//		blob, ok := b.contents[d]
-//		if !ok {
-//			return nil, false
-//		}
-//		layers[d] = blob
-//	}
-//
-//	return layers, true
-//}
-//
-
-//func (b *blobs) remove(repo string) {
-//	digests, ok := b.layers[repo]
-//	if !ok {
-//		return
-//	}
-//	delete(b.layers, repo)
-//
-//	for _, d := range digests {
-//		delete(b.contents, d)
-//	}
-//}
-
 func (b *blobs) HEAD(ctx echo.Context) error {
 	digest := ctx.Param("digest")
 	layerRef, err := b.registry.localCache.GetDigest(digest)
