@@ -1,5 +1,5 @@
 run:
-  timeout: 30s
+  timeout: 2m
 
 skip-dirs:
   - .go-skynet
