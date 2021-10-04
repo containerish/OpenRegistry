@@ -27,25 +27,6 @@ func (r *registry) errorResponse(code, msg string, detail map[string]interface{}
 	return bz
 }
 
-//func (r *registry) getDigestFromURI(u *url.URL) (string, *RegistryError) {
-//
-//	elem := strings.Split(u.Path, "/")
-//	elem = elem[1:]
-//	if elem[len(elem)-1] == "" {
-//		elem = elem[:len(elem)-1]
-//	}
-//	// Must have a path of form /v2/{name}/blobs/{upload,sha256:}
-//	if len(elem) < 4 {
-//		return "", &RegistryError{
-//			Code:    RegistryErrorCodeNameInvalid,
-//			Message: "blobs must be attached to a repo",
-//			Detail:  map[string]interface{}{},
-//		}
-//	}
-//
-//	return elem[len(elem)-1], nil
-//}
-
 func digest(bz []byte) string {
 	hash := sha256.New()
 	_, err := hash.Write(bz)
