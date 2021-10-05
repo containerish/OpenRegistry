@@ -8,7 +8,7 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-func (a *auth) BasicAuth(username, password string) (map[string]interface{}, error) {
+func (a *auth) validateUser(username, password string) (map[string]interface{}, error) {
 	if username == "" || password == "" {
 		return nil, fmt.Errorf("Email/Password cannot be empty")
 	}
