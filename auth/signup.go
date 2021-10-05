@@ -9,6 +9,7 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/containerish/OpenRegistry/cache"
 	"github.com/labstack/echo/v4"
 )
 
@@ -21,13 +22,13 @@ type User struct {
 
 const UserNameSpace = "users"
 
-func (a *auth) ValidateUser(u User) error {
+func (u *User) Validate(store cache.Store) error {
 
 	if err := verifyEmail(u.Email); err != nil {
 		return err
 	}
 	key := fmt.Sprintf("%s/%s", UserNameSpace, u.Email)
-	_, err := a.store.Get([]byte(key))
+	_, err := store.Get([]byte(key))
 	if err == nil {
 		return fmt.Errorf("user already exists, try loggin in or password reset")
 	}
@@ -36,7 +37,7 @@ func (a *auth) ValidateUser(u User) error {
 		return fmt.Errorf("username should be atleast 3 chars")
 	}
 
-	bz, err := a.store.ListWithPrefix([]byte(UserNameSpace))
+	bz, err := store.ListWithPrefix([]byte(UserNameSpace))
 	if err != nil {
 		return fmt.Errorf("internal server error")
 	}
@@ -156,7 +157,7 @@ func (a *auth) SignUp(ctx echo.Context) error {
 		})
 	}
 
-	if err := a.ValidateUser(u); err != nil {
+	if err := u.Validate(a.store); err != nil {
 		return ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error": err.Error(),
 			"msg":   "bananas",
