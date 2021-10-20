@@ -1,11 +1,18 @@
 package auth
 
 import (
+	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/containerish/OpenRegistry/registry/v2"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+)
+
+const (
+	JWT_AUTH_KEY           = "JWT_AUTH"
+	AuthorizationHeaderKey = "Authorization"
 )
 
 //when we use JWT
@@ -26,38 +33,66 @@ Strict-Transport-Security: max-age=31536000
 
 // BasicAuth returns a middleware which in turn can be used to perform http basic auth
 func (a *auth) BasicAuth() echo.MiddlewareFunc {
-	return middleware.BasicAuth(func(username string, password string, ctx echo.Context) (bool, error) {
+	return middleware.BasicAuthWithConfig(middleware.BasicAuthConfig{
+		Skipper: func(ctx echo.Context) bool {
+			authHeader := ctx.Request().Header.Get(AuthorizationHeaderKey)
 
-		if ctx.Request().RequestURI != "/v2/" {
-			if ctx.Request().Method == http.MethodHead || ctx.Request().Method == http.MethodGet {
+			// if Authorization header contains JWT, we skip basic auth and perform a JWT validation
+			if ok := a.checkJWT(authHeader); ok {
+				ctx.Set(JWT_AUTH_KEY, true)
+				return true
+			}
+
+			if ctx.Request().RequestURI != "/v2/" {
+				if ctx.Request().Method == http.MethodHead || ctx.Request().Method == http.MethodGet {
+					return true
+				}
+			}
+
+			if ctx.Request().RequestURI == "/v2/" {
+				return false
+			}
+
+			return false
+		},
+		Validator: func(username string, password string, ctx echo.Context) (bool, error) {
+			if ctx.Request().RequestURI == "/v2/" {
+				_, err := a.validateUser(username, password)
+				if err != nil {
+					return false, ctx.NoContent(http.StatusUnauthorized)
+				}
+
 				return true, nil
 			}
-		}
 
-		if ctx.Request().RequestURI == "/v2/" {
-			_, err := a.validateUser(username, password)
-			if err != nil {
-				return false, ctx.NoContent(http.StatusUnauthorized)
+			usernameFromNameSpace := ctx.Param("username")
+
+			if usernameFromNameSpace != username {
+				var errMsg registry.RegistryErrors
+				errMsg.Errors = append(errMsg.Errors, registry.RegistryError{
+					Code:    registry.RegistryErrorCodeDenied,
+					Message: "not authorised",
+					Detail:  nil,
+				})
+				return false, ctx.JSON(http.StatusForbidden, errMsg)
 			}
+			resp, err := a.validateUser(username, password)
+			if err != nil {
+				return false, err
+			}
+
+			ctx.Set("basic_auth", resp)
 			return true, nil
-		}
-
-		usernameFromNameSpace := ctx.Param("username")
-		if usernameFromNameSpace != username {
-			var errMsg registry.RegistryErrors
-			errMsg.Errors = append(errMsg.Errors, registry.RegistryError{
-				Code:    registry.RegistryErrorCodeDenied,
-				Message: "not authorised",
-				Detail:  nil,
-			})
-			return false, ctx.JSON(http.StatusForbidden, errMsg)
-		}
-		resp, err := a.validateUser(username, password)
-		if err != nil {
-			return false, err
-		}
-
-		ctx.Set("basic_auth", resp)
-		return true, nil
+		},
+		Realm: fmt.Sprintf("%s/token", a.c.Endpoint()),
 	})
+}
+
+func (a *auth) checkJWT(authHeader string) bool {
+	parts := strings.Split(authHeader, " ")
+	if len(parts) != 2 {
+		return false
+	}
+
+	return strings.EqualFold(parts[0], "Bearer")
 }

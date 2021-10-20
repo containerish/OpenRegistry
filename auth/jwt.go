@@ -12,11 +12,27 @@ type Claims struct {
 	Access AccessList
 }
 
+func (a *auth) newPublicPullToken() (string, error) {
+	tokenLife := time.Now().Add(time.Hour * 24 * 14).Unix()
+	claims := a.createClaims("public_pull_user", "", tokenLife)
+
+	// TODO (jay-dee7)- handle this properly, check for errors and don't set defaults for actions
+	claims.Access[0].Actions = []string{"pull"}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, &claims)
+	sign, err := token.SignedString([]byte(a.c.SigningSecret))
+	if err != nil {
+		return "", err
+	}
+
+	return sign, nil
+}
+
 func (a *auth) newToken(u User, tokenLife int64) (string, error) {
 	//for now we're sending same name for sub and name.
 	//TODO when repositories need collaborators
 	claims := a.createClaims(u.Username, u.Username, tokenLife)
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, &claims)
 
 	// Generate encoded token and send it as response.
 	t, err := token.SignedString([]byte(a.c.SigningSecret))
@@ -26,35 +42,6 @@ func (a *auth) newToken(u User, tokenLife int64) (string, error) {
 	}
 
 	return t, nil
-}
-
-func (a *auth) createClaims(sub, name string, tokenLife int64) Claims {
-	claims := Claims{
-		StandardClaims: jwt.StandardClaims{
-			Audience:  "openregistry.dev",
-			ExpiresAt: tokenLife,
-			Id:        "",
-			IssuedAt:  time.Now().Unix(),
-			Issuer:    "openregistry.dev",
-			NotBefore: time.Now().Unix(),
-			Subject:   sub,
-		},
-		Access: AccessList{
-			{
-				Type:    "repository",
-				Name:    fmt.Sprintf("%s/*", name),
-				Actions: []string{"push", "pull"},
-			},
-		},
-	}
-
-	return claims
-}
-
-type AccessList []struct {
-	Type    string   `json:"type"`
-	Name    string   `json:"name"`
-	Actions []string `json:"actions"`
 }
 
 /*
@@ -79,3 +66,31 @@ claims format
     ]
 }
 */
+
+func (a *auth) createClaims(sub, name string, tokenLife int64) Claims {
+	claims := Claims{
+		StandardClaims: jwt.StandardClaims{
+			Audience:  "openregistry.dev",
+			ExpiresAt: tokenLife,
+			Id:        "",
+			IssuedAt:  time.Now().Unix(),
+			Issuer:    "openregistry.dev",
+			NotBefore: time.Now().Unix(),
+			Subject:   sub,
+		},
+		Access: AccessList{
+			{
+				Type:    "repository",
+				Name:    fmt.Sprintf("%s/*", name),
+				Actions: []string{"push", "pull"},
+			},
+		},
+	}
+	return claims
+}
+
+type AccessList []struct {
+	Type    string   `json:"type"`
+	Name    string   `json:"name"`
+	Actions []string `json:"actions"`
+}
