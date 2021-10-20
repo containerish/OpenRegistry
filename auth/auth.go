@@ -11,6 +11,7 @@ type Authentication interface {
 	SignUp(ctx echo.Context) error
 	SignIn(ctx echo.Context) error
 	BasicAuth() echo.MiddlewareFunc
+	Token(ctx echo.Context) error
 }
 
 type auth struct {

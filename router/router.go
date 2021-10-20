@@ -25,6 +25,7 @@ func Register(e *echo.Echo, reg registry.Registry, authSvc auth.Authentication, 
 
 	v2Router := e.Group(V2, authSvc.BasicAuth())
 	nsRouter := v2Router.Group(Namespace)
+	e.Add(http.MethodGet, "/token", authSvc.Token)
 
 	internal := e.Group(Internal)
 	authRouter := e.Group(Auth)
