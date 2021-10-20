@@ -11,12 +11,13 @@ import (
 
 type (
 	RegistryConfig struct {
+		Environment     string       `mapstructure:"environment"`
 		AuthConfig      AuthConfig   `mapstructure:"auth_config"`
 		SkynetConfig    SkynetConfig `mapstructure:"skynet_config"`
 		Host            string       `mapstructure:"host"`
+		DNSAddress      string       `mapstructure:"dns_address"`
 		SkynetPortalURL string       `mapstructure:"skynet_portal_url"`
 		SigningSecret   string       `mapstructure:"signing_secret"`
-		Environment     string       `mapstructure:"environment"`
 		Port            uint         `mapstructure:"port"`
 		Debug           bool         `mapstructure:"debug"`
 	}
@@ -54,6 +55,7 @@ func LoadFromENV() (*RegistryConfig, error) {
 		Port:            viper.GetUint("PORT"),
 		SkynetPortalURL: viper.GetString("SKYNET_PORTAL_URL"),
 		SigningSecret:   viper.GetString("SIGNING_SECRET"),
+		DNSAddress:      viper.GetString("DNS_ADDRESS"),
 		SkynetConfig:    SkynetConfig{},
 		AuthConfig: AuthConfig{
 			SupportedServices: make(map[string]bool),
@@ -64,12 +66,27 @@ func LoadFromENV() (*RegistryConfig, error) {
 		config.AuthConfig.SupportedServices[service] = true
 	}
 
-	color.Red("supported auth backends: %v", config.AuthConfig)
-
 	if config.SigningSecret == "" {
 		fmt.Println("signing secret absent")
 		os.Exit(1)
 	}
 
+	isProd := config.Environment == "stage" || config.Environment == "production"
+	if isProd && config.DNSAddress == "" {
+		color.Red("dns address must be set while using stage/prod environments")
+		os.Exit(1)
+	}
+
 	return &config, nil
+}
+
+func (r *RegistryConfig) Endpoint() string {
+	switch r.Environment {
+	case "dev", "devel", "development", "local":
+		return fmt.Sprintf("http://%s:%d", r.Host, r.Port)
+	case "stage", "production":
+		return fmt.Sprintf("https://%s", r.DNSAddress)
+	default:
+		return fmt.Sprintf("http://%s:%d", r.Host, r.Port)
+	}
 }

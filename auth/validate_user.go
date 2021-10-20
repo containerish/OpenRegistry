@@ -37,6 +37,6 @@ func (a *auth) validateUser(username, password string) (map[string]interface{}, 
 	return echo.Map{
 		"token":      token,
 		"expires_in": tokenLife,
-		"issued_at":  time.Now().Unix(),
+		"issued_at":  time.Now(),
 	}, nil
 }

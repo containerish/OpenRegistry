@@ -1,11 +1,11 @@
 package auth
 
 import (
+	"encoding/base64"
 	"fmt"
 	"net/http"
 	"strings"
 
-	"github.com/fatih/color"
 	"github.com/labstack/echo/v4"
 )
 
@@ -13,27 +13,65 @@ import (
 // request basically comes for
 // https://openregistry.dev/token?service=registry.docker.io&scope=repository:samalba/my-app:pull,push
 func (a *auth) Token(ctx echo.Context) error {
-	// service := ctx.QueryParam("service")
-	// if _, ok := a.c.AuthConfig.SupportedServices[service]; !ok {
-	// 	return ctx.JSON(http.StatusBadRequest, echo.Map{
-	// 		"error": fmt.Sprintf("%s service is not supported by OpenRegistry", service),
-	// 	})
-	// }
+
+	// TODO (jay-dee7) - check for all valid query params here like serive, client_id, offline_token, etc
+	// more at this link - https://docs.docker.com/registry/spec/auth/token/
+
+	if ctx.Request().Header.Get(AuthorizationHeaderKey) != "" {
+		username, password, err := a.getCredsFromHeader(ctx.Request())
+		if err != nil {
+			return ctx.NoContent(http.StatusUnauthorized)
+		}
+
+		creds, err := a.validateUser(username, password)
+		if err != nil {
+			return ctx.JSON(http.StatusUnauthorized, echo.Map{
+				"error": err.Error(),
+			})
+		}
+
+		return ctx.JSON(http.StatusOK, creds)
+	}
 
 	scope, err := a.getScopeFromQueryParams(ctx.QueryParam("scope"))
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, echo.Map{
+		return ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error": err.Error(),
 			"msg":   "invalid scope provided",
 		})
 	}
 
-	if scope.Actions[0] == "pull" {
-		return ctx.NoContent(http.StatusOK)
+	if len(scope.Actions) >= 1 && scope.Actions[0] == "pull" {
+		token, err := a.newPublicPullToken()
+		if err != nil {
+			return ctx.NoContent(http.StatusInternalServerError)
+		}
+
+		return ctx.JSON(http.StatusOK, echo.Map{
+			"token": token,
+		})
 	}
 
-	color.Red("scope from request: %v", scope)
 	return ctx.JSON(http.StatusOK, scope)
+}
+
+func (a *auth) getCredsFromHeader(r *http.Request) (string, string, error) {
+	authHeader := r.Header.Get(AuthorizationHeaderKey)
+	if authHeader == "" {
+		return "", "", fmt.Errorf("authorization header is missing")
+	}
+
+	decodedSting, err := base64.StdEncoding.DecodeString(authHeader[6:])
+	if err != nil {
+		return "", "", err
+	}
+
+	parts := strings.Split(string(decodedSting), ":")
+	if len(parts) != 2 {
+		return "", "", fmt.Errorf("invalid creds in Authorization header")
+	}
+
+	return parts[0], parts[1], nil
 }
 
 func (a *auth) getScopeFromQueryParams(param string) (*Scope, error) {

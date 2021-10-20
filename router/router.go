@@ -18,14 +18,15 @@ func Register(e *echo.Echo, reg registry.Registry, authSvc auth.Authentication, 
 	e.Use(telemetry.EchoLogger())
 	e.Use(middleware.Recover())
 	e.Use(middleware.CORS())
-
-	p := prometheus.NewPrometheus("echo", nil)
-	p.Use(e)
+	// JWT Auth Endpoint
+	e.Add(http.MethodGet, TokenAuth, authSvc.Token)
 	e.HideBanner = true
 
-	v2Router := e.Group(V2, authSvc.BasicAuth())
+	p := prometheus.NewPrometheus("OpenRegistry", nil)
+	p.Use(e)
+
+	v2Router := e.Group(V2, authSvc.BasicAuth(), authSvc.JWT())
 	nsRouter := v2Router.Group(Namespace)
-	e.Add(http.MethodGet, "/token", authSvc.Token)
 
 	internal := e.Group(Internal)
 	authRouter := e.Group(Auth)

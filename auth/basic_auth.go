@@ -1,15 +1,18 @@
 package auth
 
 import (
-	"encoding/base64"
+	"fmt"
 	"net/http"
-	"strconv"
 	"strings"
 
 	"github.com/containerish/OpenRegistry/registry/v2"
-	"github.com/fatih/color"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+)
+
+const (
+	JWT_AUTH_KEY           = "JWT_AUTH"
+	AuthorizationHeaderKey = "Authorization"
 )
 
 //when we use JWT
@@ -30,8 +33,16 @@ Strict-Transport-Security: max-age=31536000
 
 // BasicAuth returns a middleware which in turn can be used to perform http basic auth
 func (a *auth) BasicAuth() echo.MiddlewareFunc {
-	return BasicAuthWithConfig(middleware.BasicAuthConfig{
+	return middleware.BasicAuthWithConfig(middleware.BasicAuthConfig{
 		Skipper: func(ctx echo.Context) bool {
+			authHeader := ctx.Request().Header.Get(AuthorizationHeaderKey)
+
+			// if Authorization header contains JWT, we skip basic auth and perform a JWT validation
+			if ok := a.checkJWT(authHeader); ok {
+				ctx.Set(JWT_AUTH_KEY, true)
+				return true
+			}
+
 			if ctx.Request().RequestURI != "/v2/" {
 				if ctx.Request().Method == http.MethodHead || ctx.Request().Method == http.MethodGet {
 					return true
@@ -45,7 +56,6 @@ func (a *auth) BasicAuth() echo.MiddlewareFunc {
 			return false
 		},
 		Validator: func(username string, password string, ctx echo.Context) (bool, error) {
-			color.Red("sljkdflksdjklsjf")
 			if ctx.Request().RequestURI == "/v2/" {
 				_, err := a.validateUser(username, password)
 				if err != nil {
@@ -74,64 +84,15 @@ func (a *auth) BasicAuth() echo.MiddlewareFunc {
 			ctx.Set("basic_auth", resp)
 			return true, nil
 		},
-		Realm: "http://100.126.24.85:5000/token",
+		Realm: fmt.Sprintf("%s/token", a.c.Endpoint()),
 	})
 }
 
-const (
-	defaultRealm = "Restricted"
-	basic        = "Bearer"
-)
-
-func BasicAuthWithConfig(config middleware.BasicAuthConfig) echo.MiddlewareFunc {
-	// Defaults
-	if config.Validator == nil {
-		panic("echo: basic-auth middleware requires a validator function")
-	}
-	if config.Skipper == nil {
-		config.Skipper = middleware.DefaultBasicAuthConfig.Skipper
-	}
-	if config.Realm == "" {
-		config.Realm = defaultRealm
+func (a *auth) checkJWT(authHeader string) bool {
+	parts := strings.Split(authHeader, " ")
+	if len(parts) != 2 {
+		return false
 	}
 
-	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
-			if config.Skipper(c) {
-				return next(c)
-			}
-
-			auth := c.Request().Header.Get(echo.HeaderAuthorization)
-			l := len(basic)
-
-			if len(auth) > l+1 && strings.EqualFold(auth[:l], basic) {
-				b, err := base64.StdEncoding.DecodeString(auth[l+1:])
-				if err != nil {
-					return err
-				}
-				cred := string(b)
-				for i := 0; i < len(cred); i++ {
-					if cred[i] == ':' {
-						// Verify credentials
-						valid, err := config.Validator(cred[:i], cred[i+1:], c)
-						if err != nil {
-							return err
-						} else if valid {
-							return next(c)
-						}
-						break
-					}
-				}
-			}
-
-			realm := defaultRealm
-			if config.Realm != defaultRealm {
-				realm = strconv.Quote(config.Realm)
-			}
-
-			// Need to return `401` for browsers to pop-up login box.
-			c.Response().Header().Set(echo.HeaderWWWAuthenticate, basic+" realm="+realm)
-			return echo.ErrUnauthorized
-		}
-	}
+	return strings.EqualFold(parts[0], "Bearer")
 }

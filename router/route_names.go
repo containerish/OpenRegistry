@@ -45,4 +45,7 @@ const (
 
 	// Catalog is used to list the available repositories
 	Catalog = "/_catalog"
+
+	// JWT based auth endpoint
+	TokenAuth = "/token"
 )
