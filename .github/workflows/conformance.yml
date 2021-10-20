@@ -1,4 +1,4 @@
-name: conformance
+name: OCI Conformance Tests
 
 on:
   pull_request:

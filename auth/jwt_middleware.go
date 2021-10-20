@@ -1,6 +1,8 @@
 package auth
 
 import (
+	"net/http"
+
 	"github.com/golang-jwt/jwt"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -33,4 +35,33 @@ func (a *auth) JWT() echo.MiddlewareFunc {
 		SigningMethod:           jwt.SigningMethodHS256.Name,
 		Claims:                  &Claims{},
 	})
+}
+
+// ACL implies a basic Access Control List on protected resources
+func (a *auth) ACL() echo.MiddlewareFunc {
+	return func(hf echo.HandlerFunc) echo.HandlerFunc {
+		return func(ctx echo.Context) error {
+			m := ctx.Request().Method
+			if m == http.MethodGet || m == http.MethodHead {
+				return hf(ctx)
+			}
+
+			token, ok := ctx.Get("user").(*jwt.Token)
+			if !ok {
+				return ctx.NoContent(http.StatusUnauthorized)
+			}
+
+			claims, ok := token.Claims.(*Claims)
+			if !ok {
+				return ctx.NoContent(http.StatusUnauthorized)
+			}
+
+			username := ctx.Param("username")
+			if claims.Subject == username {
+				return hf(ctx)
+			}
+
+			return ctx.NoContent(http.StatusUnauthorized)
+		}
+	}
 }

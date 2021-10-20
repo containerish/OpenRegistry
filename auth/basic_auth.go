@@ -1,8 +1,11 @@
 package auth
 
 import (
+	// "fmt"
+	"encoding/base64"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/containerish/OpenRegistry/registry/v2"
@@ -33,7 +36,7 @@ Strict-Transport-Security: max-age=31536000
 
 // BasicAuth returns a middleware which in turn can be used to perform http basic auth
 func (a *auth) BasicAuth() echo.MiddlewareFunc {
-	return middleware.BasicAuthWithConfig(middleware.BasicAuthConfig{
+	return BasicAuthWithConfig(middleware.BasicAuthConfig{
 		Skipper: func(ctx echo.Context) bool {
 			authHeader := ctx.Request().Header.Get(AuthorizationHeaderKey)
 
@@ -95,4 +98,63 @@ func (a *auth) checkJWT(authHeader string) bool {
 	}
 
 	return strings.EqualFold(parts[0], "Bearer")
+}
+
+const (
+	defaultRealm = "Restricted"
+	authScheme   = "Bearer"
+)
+
+// BasicAuthConfig is a local copy of echo's middleware.BasicAuthWithConfig
+func BasicAuthWithConfig(config middleware.BasicAuthConfig) echo.MiddlewareFunc {
+	// Defaults
+	if config.Validator == nil {
+		panic("echo: basic-auth middleware requires a validator function")
+	}
+	if config.Skipper == nil {
+		config.Skipper = middleware.DefaultBasicAuthConfig.Skipper
+	}
+	if config.Realm == "" {
+		config.Realm = defaultRealm
+	}
+
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			if config.Skipper(c) {
+				return next(c)
+			}
+
+			auth := c.Request().Header.Get(echo.HeaderAuthorization)
+			l := len(authScheme)
+
+			if len(auth) > l+1 && strings.EqualFold(auth[:l], authScheme) {
+				b, err := base64.StdEncoding.DecodeString(auth[l+1:])
+				if err != nil {
+					return err
+				}
+				cred := string(b)
+				for i := 0; i < len(cred); i++ {
+					if cred[i] == ':' {
+						// Verify credentials
+						valid, err := config.Validator(cred[:i], cred[i+1:], c)
+						if err != nil {
+							return err
+						} else if valid {
+							return next(c)
+						}
+						break
+					}
+				}
+			}
+
+			realm := defaultRealm
+			if config.Realm != defaultRealm {
+				realm = strconv.Quote(config.Realm)
+			}
+
+			// Need to return `401` for browsers to pop-up login box.
+			c.Response().Header().Set(echo.HeaderWWWAuthenticate, authScheme+" realm="+realm)
+			return echo.ErrUnauthorized
+		}
+	}
 }

@@ -19,20 +19,20 @@ func Register(e *echo.Echo, reg registry.Registry, authSvc auth.Authentication, 
 	e.Use(middleware.Recover())
 	e.Use(middleware.CORS())
 	// JWT Auth Endpoint
-	e.Add(http.MethodGet, TokenAuth, authSvc.Token)
 	e.HideBanner = true
 
 	p := prometheus.NewPrometheus("OpenRegistry", nil)
 	p.Use(e)
 
 	v2Router := e.Group(V2, authSvc.BasicAuth(), authSvc.JWT())
-	nsRouter := v2Router.Group(Namespace)
+	nsRouter := v2Router.Group(Namespace, authSvc.ACL())
 
 	internal := e.Group(Internal)
 	authRouter := e.Group(Auth)
 	betaRouter := e.Group(Beta)
 
 	v2Router.Add(http.MethodGet, Root, reg.ApiVersion)
+	e.Add(http.MethodGet, TokenAuth, authSvc.Token)
 
 	RegisterNSRoutes(nsRouter, reg)
 	RegisterAuthRoutes(authRouter, authSvc)

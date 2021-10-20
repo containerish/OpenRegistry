@@ -13,6 +13,7 @@ type Authentication interface {
 	BasicAuth() echo.MiddlewareFunc
 	Token(ctx echo.Context) error
 	JWT() echo.MiddlewareFunc
+	ACL() echo.MiddlewareFunc
 }
 
 type auth struct {

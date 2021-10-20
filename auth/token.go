@@ -17,7 +17,8 @@ func (a *auth) Token(ctx echo.Context) error {
 	// TODO (jay-dee7) - check for all valid query params here like serive, client_id, offline_token, etc
 	// more at this link - https://docs.docker.com/registry/spec/auth/token/
 
-	if ctx.Request().Header.Get(AuthorizationHeaderKey) != "" {
+	authHeader := ctx.Request().Header.Get(AuthorizationHeaderKey)
+	if authHeader != "" {
 		username, password, err := a.getCredsFromHeader(ctx.Request())
 		if err != nil {
 			return ctx.NoContent(http.StatusUnauthorized)
@@ -41,7 +42,9 @@ func (a *auth) Token(ctx echo.Context) error {
 		})
 	}
 
-	if len(scope.Actions) >= 1 && scope.Actions[0] == "pull" {
+	// issue a free-public token to pull any repository
+	// TODO (jay-dee7) - this should be restricted to only public repositories in the future
+	if len(scope.Actions) == 1 && scope.Actions["pull"] {
 		token, err := a.newPublicPullToken()
 		if err != nil {
 			return ctx.NoContent(http.StatusInternalServerError)
@@ -52,7 +55,7 @@ func (a *auth) Token(ctx echo.Context) error {
 		})
 	}
 
-	return ctx.JSON(http.StatusOK, scope)
+	return ctx.NoContent(http.StatusUnauthorized)
 }
 
 func (a *auth) getCredsFromHeader(r *http.Request) (string, string, error) {
@@ -80,15 +83,20 @@ func (a *auth) getScopeFromQueryParams(param string) (*Scope, error) {
 		return nil, fmt.Errorf("invalid scope in params")
 	}
 
-	return &Scope{
-		Type:    parts[0],
-		Name:    parts[1],
-		Actions: strings.Split(parts[2], ","),
-	}, nil
+	scope := &Scope{Type: parts[0], Name: parts[1]}
+	scope.Actions = make(map[string]bool)
+
+	for _, action := range strings.Split(parts[2], ",") {
+		if action != "" {
+			scope.Actions[action] = true
+		}
+	}
+
+	return scope, nil
 }
 
 type Scope struct {
 	Type    string
 	Name    string
-	Actions []string
+	Actions map[string]bool
 }

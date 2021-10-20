@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strings"
 
 	"github.com/fatih/color"
 	"github.com/labstack/echo/v4"
@@ -55,7 +54,7 @@ func (b *blobs) HEAD(ctx echo.Context) error {
 func (b *blobs) UploadBlob(ctx echo.Context) error {
 	namespace := ctx.Param("username") + "/" + ctx.Param("imagename")
 	contentRange := ctx.Request().Header.Get("Content-Range")
-	uuid := strings.Split(ctx.Request().RequestURI, "/")[6]
+	uuid := ctx.Param("uuid")
 
 	if contentRange == "" {
 		if _, ok := b.uploads[uuid]; ok {
