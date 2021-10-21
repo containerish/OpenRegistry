@@ -185,6 +185,13 @@ func (a *auth) SignUp(ctx echo.Context) error {
 		})
 	}
 
+	key = fmt.Sprintf("%s/%s", UserNameSpace, u.Email)
+	if err := a.store.Set([]byte(key), bz); err != nil {
+		return ctx.JSON(http.StatusInternalServerError, echo.Map{
+			"error": err.Error(),
+		})
+	}
+
 	return ctx.JSON(http.StatusCreated, echo.Map{
 		"message": "user successfully created",
 	})

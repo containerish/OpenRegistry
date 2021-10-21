@@ -17,19 +17,31 @@ func (a *auth) SignIn(ctx echo.Context) error {
 			"error": err.Error(),
 		})
 	}
-	if user.Email == "" || user.Password == "" {
+	if user.Email == "" && user.Username == "" {
 		return ctx.JSON(http.StatusBadRequest, echo.Map{
-			"error": "Email/Password cannot be empty",
+			"error": "email and username cannot be empty, please provide at least one of them",
 		})
 	}
 
-	if err := verifyEmail(user.Email); err != nil {
+	if user.Password == "" {
 		return ctx.JSON(http.StatusBadRequest, echo.Map{
-			"error": err.Error(),
+			"error": "password cannot be empty",
 		})
 	}
 
-	key := fmt.Sprintf("%s/%s", UserNameSpace, user.Username)
+	var key string
+
+	if user.Email != "" {
+		if err := verifyEmail(user.Email); err != nil {
+			return ctx.JSON(http.StatusBadRequest, echo.Map{
+				"error": err.Error(),
+			})
+		}
+		key = fmt.Sprintf("%s/%s", UserNameSpace, user.Email)
+	} else {
+		key = fmt.Sprintf("%s/%s", UserNameSpace, user.Username)
+	}
+
 	bz, err := a.store.Get([]byte(key))
 	if err != nil {
 		return ctx.JSON(http.StatusBadRequest, echo.Map{
@@ -51,7 +63,7 @@ func (a *auth) SignIn(ctx echo.Context) error {
 	}
 
 	tokenLife := time.Now().Add(time.Hour * 24 * 14).Unix()
-	token, err := a.newToken(user, tokenLife)
+	token, err := a.newToken(userFromDb, tokenLife)
 	if err != nil {
 		return ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error": err.Error(),
