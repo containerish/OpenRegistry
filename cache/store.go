@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"math"
 	"net/http"
+	"strings"
 
 	"github.com/containerish/OpenRegistry/types"
-	badger "github.com/dgraph-io/badger/v3"
+	"github.com/dgraph-io/badger/v3"
 	"github.com/labstack/echo/v4"
 )
 
@@ -90,12 +91,28 @@ func (ds *dataStore) Metadata(ctx echo.Context) error {
 		return ctx.JSON(http.StatusOK, metadataList)
 	}
 
-	val, err := ds.Get([]byte(key))
+	regs := strings.Split(key, "/")
+	if len(regs) > 1 {
+		val, err := ds.Get([]byte(key))
+		if err != nil {
+			return ctx.String(http.StatusNotFound, err.Error())
+		}
+		return ctx.JSONBlob(http.StatusOK, val)
+
+	}
+
+	var reg []types.Metadata
+	bz, err := ds.QueryMetaData([]byte(key))
 	if err != nil {
 		return ctx.String(http.StatusNotFound, err.Error())
 	}
 
-	return ctx.JSONBlob(http.StatusOK, val)
+	err = json.Unmarshal(bz, &reg)
+	if err != nil {
+		return ctx.String(http.StatusInternalServerError, err.Error())
+	}
+
+	return ctx.JSON(http.StatusOK, reg)
 }
 
 func (ds *dataStore) DeleteLayer(namespace, digest string) error {
@@ -416,6 +433,7 @@ func (ds *dataStore) ListAll() ([]byte, error) {
 }
 
 func (ds *dataStore) ListWithPrefix(prefix []byte) ([]byte, error) {
+
 	var buf []byte
 
 	err := ds.db.View(func(txn *badger.Txn) error {
@@ -435,6 +453,39 @@ func (ds *dataStore) ListWithPrefix(prefix []byte) ([]byte, error) {
 		return nil
 	})
 	return buf, err
+}
+
+// QueryMetaData is similar to ListWithPrefix with only a few changes
+// making these changes in ListWithPrefix was causing the oci tests to fail
+func (ds *dataStore) QueryMetaData(prefix []byte) ([]byte, error) {
+
+	var mds []types.Metadata
+
+	err := ds.db.View(func(txn *badger.Txn) error {
+		it := txn.NewIterator(badger.DefaultIteratorOptions)
+		defer it.Close()
+		for it.Seek(prefix); it.ValidForPrefix(prefix); it.Next() {
+			var md types.Metadata
+			item := it.Item()
+			err := item.Value(func(v []byte) error {
+				err := json.Unmarshal(v, &md)
+				if err != nil {
+					return err
+				}
+				mds = append(mds, md)
+				return nil
+			})
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+	return json.Marshal(mds)
 }
 
 func (ds *dataStore) Delete(key []byte) error {

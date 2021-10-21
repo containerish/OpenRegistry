@@ -97,7 +97,6 @@ func RegisterNSRoutes(nsRouter *echo.Group, reg registry.Registry) {
 	/// mf/sha -> mf/latest
 	nsRouter.Add(http.MethodDelete, BlobsDigest, reg.DeleteLayer)
 	nsRouter.Add(http.MethodDelete, ManifestsReference, reg.DeleteTagOrManifest)
-
 }
 
 // Docker is used for Catalog api
