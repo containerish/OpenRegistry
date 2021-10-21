@@ -22,7 +22,7 @@ func (b *blobs) errorResponse(code, msg string, detail map[string]interface{}) [
 
 	bz, e := json.Marshal(err)
 	if e != nil {
-		color.Red("bloberror: %s", e.Error())
+		color.Red("blob error: %s", e.Error())
 		return []byte{}
 	}
 
@@ -37,13 +37,13 @@ func (b *blobs) HEAD(ctx echo.Context) error {
 			"skynet": "skynet link not found",
 		}
 		errMsg := b.errorResponse(RegistryErrorCodeManifestBlobUnknown, err.Error(), details)
-		return ctx.JSON(http.StatusNotFound, errMsg)
+		return ctx.JSONBlob(http.StatusNotFound, errMsg)
 	}
 
 	size, ok := b.registry.skynet.Metadata(layerRef.Skylink)
 	if !ok {
 		errMsg := b.errorResponse(RegistryErrorCodeManifestBlobUnknown, "Manifest does not exist", nil)
-		return ctx.JSON(http.StatusNotFound, errMsg)
+		return ctx.JSONBlob(http.StatusNotFound, errMsg)
 	}
 
 	ctx.Response().Header().Set("Content-Length", fmt.Sprintf("%d", size))
