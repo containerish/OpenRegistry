@@ -259,7 +259,7 @@ func (r *registry) ManifestExists(ctx echo.Context) error {
 
 		r.debugf(logMsg(details))
 		errMsg := r.errorResponse(RegistryErrorCodeManifestBlobUnknown, err.Error(), details)
-		return ctx.JSON(http.StatusNotFound, errMsg)
+		return ctx.JSONBlob(http.StatusNotFound, errMsg)
 	}
 
 	size, ok := r.skynet.Metadata(skylink)
@@ -270,7 +270,7 @@ func (r *registry) ManifestExists(ctx echo.Context) error {
 		}
 		r.debugf(lm)
 		errMsg := r.errorResponse(RegistryErrorCodeManifestBlobUnknown, "Manifest does not exist", nil)
-		return ctx.JSON(http.StatusNotFound, errMsg)
+		return ctx.JSONBlob(http.StatusNotFound, errMsg)
 	}
 
 	bz, err := r.localCache.Get([]byte(namespace))
@@ -332,31 +332,31 @@ func (r *registry) PullManifest(ctx echo.Context) error {
 	bz, err := r.localCache.Get([]byte(namespace))
 	if err != nil {
 		errMsg := r.errorResponse(RegistryErrorCodeManifestUnknown, err.Error(), nil)
-		return ctx.JSON(http.StatusNotFound, errMsg)
+		return ctx.JSONBlob(http.StatusNotFound, errMsg)
 	}
 
 	var md types.Metadata
 	if err = json.Unmarshal(bz, &md); err != nil {
 		errMsg := r.errorResponse(RegistryErrorCodeManifestUnknown, err.Error(), nil)
-		return ctx.JSON(http.StatusNotFound, errMsg)
+		return ctx.JSONBlob(http.StatusNotFound, errMsg)
 	}
 
 	skynetLink, err := r.localCache.ResolveManifestRef(namespace, ref)
 	if err != nil {
 		errMsg := r.errorResponse(RegistryErrorCodeManifestUnknown, err.Error(), nil)
-		return ctx.JSON(http.StatusNotFound, errMsg)
+		return ctx.JSONBlob(http.StatusNotFound, errMsg)
 	}
 
 	resp, err := r.skynet.Download(skynetLink)
 	if err != nil {
 		errMsg := r.errorResponse(RegistryErrorCodeManifestInvalid, err.Error(), nil)
-		return ctx.JSON(http.StatusNotFound, errMsg)
+		return ctx.JSONBlob(http.StatusNotFound, errMsg)
 	}
 
 	bz, err = io.ReadAll(resp)
 	if err != nil {
 		errMsg := r.errorResponse(RegistryErrorCodeManifestInvalid, err.Error(), nil)
-		return ctx.JSON(http.StatusNotFound, errMsg)
+		return ctx.JSONBlob(http.StatusNotFound, errMsg)
 	}
 	_ = resp.Close()
 
