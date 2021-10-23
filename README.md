@@ -1,6 +1,6 @@
 # OpenRegistry - An open, decentralized, and reliable Container Registry
 
-[![conformance](https://github.com/containerish/OpenRegistry/actions/workflows/go.yml/badge.svg)](https://github.com/containerish/OpenRegistry/actions/workflows/go.yml)
+[![conformance](https://github.com/containerish/OpenRegistry/actions/workflows/conformance.yml/badge.svg)](https://github.com/containerish/OpenRegistry/actions/workflows/go.yml)
 [![CodeQL](https://github.com/containerish/OpenRegistry/actions/workflows/codeql-analysis.yml/badge.svg?branch=master)](https://github.com/containerish/OpenRegistry/actions/workflows/codeql-analysis.yml)
 
 ## Introduction
