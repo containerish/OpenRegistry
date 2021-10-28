@@ -37,10 +37,11 @@ func New(config *config.RegistryConfig) (FluentBit, error) {
 	}
 
 	fbClient := &fluentBit{
-		client: httpClient,
-		config: config,
-		wg:     sync.WaitGroup{},
-		gate:   make(chan struct{}, 5),
+		client:        httpClient,
+		config:        config,
+		wg:            sync.WaitGroup{},
+		gate:          make(chan struct{}, 5),
+		retryMessages: make(map[string]retryLogMsg),
 	}
 
 	go fbClient.retry()
