@@ -11,13 +11,14 @@ import (
 
 type (
 	RegistryConfig struct {
-		Environment     string       `mapstructure:"environment"`
 		AuthConfig      AuthConfig   `mapstructure:"auth_config"`
+		LogConfig       LogConfig    `mapstructure:"log_config"`
 		SkynetConfig    SkynetConfig `mapstructure:"skynet_config"`
-		Host            string       `mapstructure:"host"`
+		Environment     string       `mapstructure:"environment"`
 		DNSAddress      string       `mapstructure:"dns_address"`
 		SkynetPortalURL string       `mapstructure:"skynet_portal_url"`
 		SigningSecret   string       `mapstructure:"signing_secret"`
+		Host            string       `mapstructure:"host"`
 		Port            uint         `mapstructure:"port"`
 		Debug           bool         `mapstructure:"debug"`
 	}
@@ -30,6 +31,14 @@ type (
 		EndpointPath    string `mapstructure:"endpoint_path"`
 		ApiKey          string `mapstructure:"api_key"`
 		CustomUserAgent string `mapstructure:"custom_user_agent"`
+	}
+
+	LogConfig struct {
+		Service    string `mapstructure:"service"`
+		Endpoint   string `mapstructure:"endpoint"`
+		AuthMethod string `mapstructure:"auth_method"`
+		Username   string `mapstructure:"username"`
+		Password   string `mapstructure:"password"`
 	}
 )
 
@@ -60,6 +69,13 @@ func LoadFromENV() (*RegistryConfig, error) {
 		AuthConfig: AuthConfig{
 			SupportedServices: make(map[string]bool),
 		},
+		LogConfig: LogConfig{
+			Service:    viper.GetString("LOG_SERVICE_NAME"),
+			Endpoint:   viper.GetString("LOG_SERVICE_HOST"),
+			AuthMethod: viper.GetString("LOG_SERVICE_AUTH_KIND"),
+			Username:   viper.GetString("LOG_SERVICE_USER"),
+			Password:   viper.GetString("LOG_SERVICE_PASSWORD"),
+		},
 	}
 
 	for _, service := range strings.Split(viper.GetString("SUPPORTED_SERVICES"), ",") {
@@ -82,11 +98,18 @@ func LoadFromENV() (*RegistryConfig, error) {
 
 func (r *RegistryConfig) Endpoint() string {
 	switch r.Environment {
-	case "dev", "devel", "development", "local":
+	case Dev, Local:
 		return fmt.Sprintf("http://%s:%d", r.Host, r.Port)
-	case "stage", "production":
+	case Prod, Stage:
 		return fmt.Sprintf("https://%s", r.DNSAddress)
 	default:
 		return fmt.Sprintf("http://%s:%d", r.Host, r.Port)
 	}
 }
+
+const (
+	Prod  = "production"
+	Stage = "stage"
+	Dev   = "development"
+	Local = "local"
+)

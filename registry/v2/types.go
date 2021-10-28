@@ -5,6 +5,7 @@ import (
 
 	"github.com/containerish/OpenRegistry/cache"
 	"github.com/containerish/OpenRegistry/skynet"
+	fluentbit "github.com/containerish/OpenRegistry/telemetry/fluent-bit"
 	"github.com/labstack/echo/v4"
 	"github.com/rs/zerolog"
 )
@@ -91,14 +92,16 @@ type (
 		localCache cache.Store
 		echoLogger echo.Logger
 		mu         *sync.RWMutex
+		fluentbit  fluentbit.FluentBit
 	}
 
 	blobs struct {
-		mutex    sync.Mutex
-		contents map[string][]byte
-		uploads  map[string][]byte
-		layers   map[string][]string
-		registry *registry
+		mutex     sync.Mutex
+		contents  map[string][]byte
+		uploads   map[string][]byte
+		layers    map[string][]string
+		fluentbit fluentbit.FluentBit
+		registry  *registry
 	}
 
 	logMsg map[string]interface{}
