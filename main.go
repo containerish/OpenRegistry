@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log"
 	"os"
 
 	"github.com/containerish/OpenRegistry/auth"
@@ -11,6 +10,7 @@ import (
 	"github.com/containerish/OpenRegistry/router"
 	"github.com/containerish/OpenRegistry/skynet"
 	"github.com/containerish/OpenRegistry/telemetry"
+	fluentbit "github.com/containerish/OpenRegistry/telemetry/fluent-bit"
 	"github.com/fatih/color"
 	"github.com/labstack/echo/v4"
 )
@@ -34,13 +34,19 @@ func main() {
 	authSvc := auth.New(localCache, cfg)
 	skynetClient := skynet.NewClient(cfg)
 
-	l := telemetry.SetupLogger()
-	reg, err := registry.NewRegistry(skynetClient, l, localCache, e.Logger)
+	log := telemetry.SetupLogger()
+	fluentBitCollector, err := fluentbit.New(cfg)
+	if err != nil {
+		color.Red("error initializing fluentbit collector: %s\n", err)
+		os.Exit(1)
+	}
+
+	reg, err := registry.NewRegistry(skynetClient, log, localCache, e.Logger, fluentBitCollector)
 	if err != nil {
 		e.Logger.Errorf("error creating new container registry: %s", err)
 		return
 	}
 
 	router.Register(e, reg, authSvc, localCache)
-	log.Println(e.Start(cfg.Address()))
+	log.Fatal().Msgf("error starting server: %s\n", e.Start(cfg.Address()))
 }

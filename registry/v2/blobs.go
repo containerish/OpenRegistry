@@ -37,12 +37,14 @@ func (b *blobs) HEAD(ctx echo.Context) error {
 			"skynet": "skynet link not found",
 		}
 		errMsg := b.errorResponse(RegistryErrorCodeManifestBlobUnknown, err.Error(), details)
+		b.fluentbit.Send(errMsg)
 		return ctx.JSONBlob(http.StatusNotFound, errMsg)
 	}
 
 	size, ok := b.registry.skynet.Metadata(layerRef.Skylink)
 	if !ok {
 		errMsg := b.errorResponse(RegistryErrorCodeManifestBlobUnknown, "Manifest does not exist", nil)
+		b.fluentbit.Send(errMsg)
 		return ctx.JSONBlob(http.StatusNotFound, errMsg)
 	}
 
@@ -63,6 +65,7 @@ func (b *blobs) UploadBlob(ctx echo.Context) error {
 				"stream upload after first write are not allowed",
 				nil,
 			)
+			b.fluentbit.Send(errMsg)
 			return ctx.JSONBlob(http.StatusBadRequest, errMsg)
 		}
 
@@ -85,11 +88,13 @@ func (b *blobs) UploadBlob(ctx echo.Context) error {
 			"contentRange": contentRange,
 		}
 		errMsg := b.errorResponse(RegistryErrorCodeBlobUploadUnknown, err.Error(), details)
+		b.fluentbit.Send(errMsg)
 		return ctx.JSONBlob(http.StatusRequestedRangeNotSatisfiable, errMsg)
 	}
 
 	if start != len(b.uploads[uuid]) {
 		errMsg := b.errorResponse(RegistryErrorCodeBlobUploadUnknown, "content range mismatch", nil)
+		b.fluentbit.Send(errMsg)
 		return ctx.JSONBlob(http.StatusRequestedRangeNotSatisfiable, errMsg)
 	}
 
@@ -101,6 +106,7 @@ func (b *blobs) UploadBlob(ctx echo.Context) error {
 			"error while creating new buffer from existing blobs",
 			nil,
 		)
+		b.fluentbit.Send(errMsg)
 		return ctx.JSONBlob(http.StatusInternalServerError, errMsg)
 	} // 10
 	ctx.Request().Body.Close()

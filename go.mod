@@ -14,6 +14,7 @@ require (
 	github.com/spf13/viper v1.8.1
 	github.com/whyrusleeping/tar-utils v0.0.0-20201201191210-20a61371de5b
 	golang.org/x/crypto v0.0.0-20210817164053-32db794688a5
+    github.com/google/uuid v1.3.0
 )
 
 require (
