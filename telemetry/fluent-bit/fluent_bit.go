@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"net/http"
-	"sync"
 	"time"
 
 	"github.com/containerish/OpenRegistry/config"
@@ -17,10 +16,8 @@ type (
 	}
 
 	fluentBit struct {
-		wg            sync.WaitGroup
 		client        *http.Client
 		retryMessages map[string]retryLogMsg
-		gate          chan struct{}
 		config        *config.RegistryConfig
 	}
 
@@ -39,8 +36,6 @@ func New(config *config.RegistryConfig) (FluentBit, error) {
 	fbClient := &fluentBit{
 		client:        httpClient,
 		config:        config,
-		wg:            sync.WaitGroup{},
-		gate:          make(chan struct{}, 5),
 		retryMessages: make(map[string]retryLogMsg),
 	}
 
@@ -101,19 +96,12 @@ func (fb *fluentBit) retry() {
 	// lets not do more than 5 req/second just to not flood our free instance of grafana cloud
 	for range ticker.C {
 		for id, logMsg := range fb.retryMessages {
-			fb.gate <- struct{}{}
-			fb.wg.Add(1)
-			go fb.retrier(logMsg.content, id)
+			fb.retrier(logMsg.content, id)
 		}
 	}
 }
 
 func (fb *fluentBit) retrier(logBytes []byte, id string) {
-	defer func() {
-		fb.wg.Done()
-		<-fb.gate
-	}()
-
 	// TODO - (@jay-dee7) what to do then? maybe have a different way to ship these logs? like via promtail?
 	if msg, ok := fb.retryMessages[id]; ok && msg.count > 3 {
 		delete(fb.retryMessages, id)
