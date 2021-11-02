@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"regexp"
 
+	"github.com/dgraph-io/badger/v3"
 	"github.com/labstack/echo/v4"
 )
 
@@ -59,17 +60,19 @@ func (ds *dataStore) RegisterForBeta(ctx echo.Context) error {
 	key := []byte("email")
 	var value BetaRegister
 	list, err := ds.Get([]byte("email"))
-
-	if err != nil {
+	if err != nil || err == badger.ErrKeyNotFound {
 		value.Emails = []string{body["email"]}
 		if err := ds.Set(key, value.Bytes()); err != nil {
 			return ctx.JSON(http.StatusInternalServerError, echo.Map{
 				"error": err.Error(),
 			})
 		}
+		return ctx.JSON(http.StatusOK, echo.Map{
+			"message": "Success",
+		})
 	}
 
-	if err := json.Unmarshal(list, &value); err != nil {
+	if err = json.Unmarshal(list, &value); err != nil {
 		return ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error": err.Error(),
 		})
@@ -97,10 +100,11 @@ func (ds *dataStore) RegisterForBeta(ctx echo.Context) error {
 
 func (ds *dataStore) GetAllEmail(ctx echo.Context) error {
 	bz, err := ds.Get([]byte("email"))
-	if err != nil {
+	if err != nil && err != badger.ErrKeyNotFound {
 		return ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error": "couldn't get them all",
 		})
 	}
+
 	return ctx.JSONBlob(http.StatusOK, bz)
 }

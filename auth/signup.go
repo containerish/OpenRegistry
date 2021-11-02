@@ -160,7 +160,6 @@ func (a *auth) SignUp(ctx echo.Context) error {
 	if err := u.Validate(a.store); err != nil {
 		return ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error": err.Error(),
-			"msg":   "bananas",
 		})
 	}
 
