@@ -7,6 +7,7 @@ import (
 	"github.com/containerish/OpenRegistry/cache"
 	"github.com/containerish/OpenRegistry/registry/v2"
 	"github.com/containerish/OpenRegistry/telemetry"
+	"github.com/google/uuid"
 	"github.com/labstack/echo-contrib/prometheus"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -18,7 +19,15 @@ func Register(e *echo.Echo, reg registry.Registry, authSvc auth.Authentication, 
 	e.Use(telemetry.EchoLogger())
 	e.Use(middleware.Recover())
 	e.Use(middleware.CORS())
-	// JWT Auth Endpoint
+
+	// RequestID here is a uuid, which is assigned to the "id" parameter in the logs and to 'X-Request-Id' in response headers
+	e.Use(middleware.RequestIDWithConfig(middleware.RequestIDConfig{
+		Generator: func() string {
+			requestId := uuid.New()
+			return requestId.String()
+		},
+	}))
+
 	e.HideBanner = true
 
 	p := prometheus.NewPrometheus("OpenRegistry", nil)
@@ -32,6 +41,8 @@ func Register(e *echo.Echo, reg registry.Registry, authSvc auth.Authentication, 
 	betaRouter := e.Group(Beta)
 
 	v2Router.Add(http.MethodGet, Root, reg.ApiVersion)
+
+	// JWT Auth Endpoint
 	e.Add(http.MethodGet, TokenAuth, authSvc.Token)
 
 	RegisterNSRoutes(nsRouter, reg)
