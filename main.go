@@ -47,6 +47,6 @@ func main() {
 		return
 	}
 
-	router.Register(e, reg, authSvc, localCache)
+	router.Register(cfg, e, reg, authSvc, localCache)
 	log.Fatal().Msgf("error starting server: %s\n", e.Start(cfg.Address()))
 }

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"regexp"
 
+	"github.com/containerish/OpenRegistry/types"
 	"github.com/dgraph-io/badger/v3"
 	"github.com/labstack/echo/v4"
 )
@@ -101,6 +102,7 @@ func (ds *dataStore) RegisterForBeta(ctx echo.Context) error {
 func (ds *dataStore) GetAllEmail(ctx echo.Context) error {
 	bz, err := ds.Get([]byte("email"))
 	if err != nil && err != badger.ErrKeyNotFound {
+		ctx.Set(types.HttpEndpointErrorKey, err.Error())
 		return ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error": "couldn't get them all",
 		})

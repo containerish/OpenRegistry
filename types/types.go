@@ -18,27 +18,27 @@ type (
 	}
 
 	ImageManifest struct {
-		SchemaVersion int       `json:"schemaVersion"`
 		MediaType     string    `json:"mediaType"`
 		Layers        []*Layer  `json:"layers"`
 		Config        []*Config `json:"config"`
+		SchemaVersion int       `json:"schemaVersion"`
 	}
 
 	Blob struct {
-		RangeStart uint32
-		RangeEnd   uint32
 		Digest     string
 		Skylink    string
 		UUID       string
+		RangeStart uint32
+		RangeEnd   uint32
 	}
 
 	Layer struct {
 		MediaType  string `json:"mediaType"`
-		Blobs      []Blob `json:"blobs"`
-		Size       int    `json:"size"`
 		Digest     string `json:"digest"`
 		SkynetLink string `json:"skynetLink"`
 		UUID       string `json:"uuid"`
+		Blobs      []Blob `json:"blobs"`
+		Size       int    `json:"size"`
 	}
 
 	LayerRef struct {
@@ -48,10 +48,10 @@ type (
 
 	Config struct {
 		MediaType  string `json:"mediaType"`
-		Size       int    `json:"size"`
 		Digest     string `json:"digest"`
 		SkynetLink string `json:"skynetLink"`
 		Reference  string `json:"reference"`
+		Size       int    `json:"size"`
 	}
 )
 

@@ -60,11 +60,7 @@ func (r *registry) Catalog(ctx echo.Context) error {
 			"error": err.Error(),
 		}
 
-		bz, err = json.Marshal(logMsg)
-		if err == nil {
-			r.fluentbit.Send(bz)
-		}
-
+		ctx.Set(types.HttpEndpointErrorKey, logMsg)
 		return ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error": err.Error(),
 		})
@@ -74,7 +70,7 @@ func (r *registry) Catalog(ctx echo.Context) error {
 	err = json.Unmarshal(bz, &md)
 	if err != nil {
 		errMsg := r.errorResponse(RegistryErrorCodeTagInvalid, err.Error(), nil)
-		r.fluentbit.Send(errMsg)
+		ctx.Set(types.HttpEndpointErrorKey, errMsg)
 		return ctx.JSONBlob(http.StatusInternalServerError, errMsg)
 	}
 
@@ -112,7 +108,7 @@ func (r *registry) DeleteTagOrManifest(ctx echo.Context) error {
 			"digest":    ref,
 		}
 		errMsg := r.errorResponse(RegistryErrorCodeManifestUnknown, err.Error(), details)
-		r.fluentbit.Send(errMsg)
+		ctx.Set(types.HttpEndpointErrorKey, errMsg)
 		return ctx.JSONBlob(http.StatusNotFound, errMsg)
 	}
 
@@ -129,12 +125,12 @@ func (r *registry) DeleteLayer(ctx echo.Context) error {
 		bz, err := r.localCache.Get([]byte(namespace))
 		if err != nil {
 			errMsg := r.errorResponse(RegistryErrorCodeBlobUnknown, err.Error(), nil)
-			r.fluentbit.Send(errMsg)
+			ctx.Set(types.HttpEndpointErrorKey, errMsg)
 			return ctx.JSONBlob(http.StatusNotFound, errMsg)
 		}
 		if err = json.Unmarshal(bz, &m); err != nil {
 			errMsg := r.errorResponse(RegistryErrorCodeBlobUnknown, err.Error(), nil)
-			r.fluentbit.Send(errMsg)
+			ctx.Set(types.HttpEndpointErrorKey, errMsg)
 			return ctx.JSONBlob(http.StatusInternalServerError, errMsg)
 		}
 	}
@@ -148,7 +144,7 @@ func (r *registry) DeleteLayer(ctx echo.Context) error {
 
 		bz, err := json.Marshal(logMsg)
 		if err == nil {
-			r.fluentbit.Send(bz)
+			ctx.Set(types.HttpEndpointErrorKey, logMsg)
 		}
 
 		return ctx.JSONBlob(http.StatusInternalServerError, bz)
@@ -160,9 +156,10 @@ func (r *registry) DeleteLayer(ctx echo.Context) error {
 			"caller": "DeleteLayer",
 		}
 
+		ctx.Set(types.HttpEndpointErrorKey, logMsg)
 		bz, err := json.Marshal(logMsg)
-		if err == nil {
-			r.fluentbit.Send(bz)
+		if err != nil {
+			r.log.Err(err).Send()
 		}
 
 		return ctx.JSONBlob(http.StatusInternalServerError, bz)
@@ -180,7 +177,7 @@ func (r *registry) MonolithicUpload(ctx echo.Context) error {
 	bz, err := io.ReadAll(ctx.Request().Body)
 	if err != nil {
 		errMsg := r.errorResponse(RegistryErrorCodeBlobUploadInvalid, err.Error(), nil)
-		r.fluentbit.Send(errMsg)
+		ctx.Set(types.HttpEndpointErrorKey, errMsg)
 		return ctx.JSONBlob(http.StatusBadRequest, errMsg)
 	}
 	ctx.Request().Body.Close()
@@ -192,7 +189,7 @@ func (r *registry) MonolithicUpload(ctx echo.Context) error {
 			"caller": "MonolithicUpload",
 		}
 		errMsg := r.errorResponse(RegistryErrorCodeBlobUploadInvalid, err.Error(), detail)
-		r.fluentbit.Send(errMsg)
+		ctx.Set(types.HttpEndpointErrorKey, errMsg)
 		return ctx.JSONBlob(http.StatusInternalServerError, bz)
 	}
 
@@ -208,7 +205,7 @@ func (r *registry) MonolithicUpload(ctx echo.Context) error {
 	err = r.localCache.Update([]byte(namespace), metadata.Bytes())
 	if err != nil {
 		errMsg := r.errorResponse(RegistryErrorCodeBlobUploadInvalid, err.Error(), nil)
-		r.fluentbit.Send(errMsg)
+		ctx.Set(types.HttpEndpointErrorKey, errMsg)
 		return ctx.JSONBlob(http.StatusBadRequest, errMsg)
 	}
 
@@ -226,7 +223,7 @@ func (r *registry) CompleteUpload(ctx echo.Context) error {
 	bz, err := io.ReadAll(ctx.Request().Body)
 	if err != nil {
 		errMsg := r.errorResponse(RegistryErrorCodeDigestInvalid, err.Error(), nil)
-		r.fluentbit.Send(errMsg)
+		ctx.Set(types.HttpEndpointErrorKey, errMsg)
 		return ctx.JSONBlob(http.StatusBadRequest, errMsg)
 	}
 	_ = ctx.Request().Body.Close()
@@ -241,7 +238,7 @@ func (r *registry) CompleteUpload(ctx echo.Context) error {
 			"headerDigest": dig, "serverSideDigest": ourHash, "bodyDigest": digest(bz),
 		}
 		errMsg := r.errorResponse(RegistryErrorCodeDigestInvalid, "digest mismatch", details)
-		r.fluentbit.Send(errMsg)
+		ctx.Set(types.HttpEndpointErrorKey, errMsg)
 		return ctx.JSONBlob(http.StatusBadRequest, errMsg)
 	}
 
@@ -249,12 +246,12 @@ func (r *registry) CompleteUpload(ctx echo.Context) error {
 	skylink, err := r.skynet.Upload(blobNamespace, dig, buf.Bytes())
 	if err != nil {
 		errMsg := r.errorResponse(RegistryErrorCodeBlobUploadInvalid, err.Error(), nil)
-		r.fluentbit.Send(errMsg)
+		ctx.Set(types.HttpEndpointErrorKey, errMsg)
 		return ctx.JSONBlob(http.StatusRequestedRangeNotSatisfiable, errMsg)
 	}
 	if err := r.localCache.SetDigest(ourHash, skylink); err != nil {
 		errMsg := r.errorResponse(RegistryErrorCodeBlobUnknown, err.Error(), nil)
-		r.fluentbit.Send(errMsg)
+		ctx.Set(types.HttpEndpointErrorKey, errMsg)
 		return ctx.JSONBlob(http.StatusInternalServerError, errMsg)
 	}
 
@@ -273,7 +270,7 @@ func (r *registry) CompleteUpload(ctx echo.Context) error {
 
 	if err = r.localCache.Update([]byte(namespace), val.Bytes()); err != nil {
 		errMsg := r.errorResponse(RegistryErrorCodeUnsupported, err.Error(), nil)
-		r.fluentbit.Send(errMsg)
+		ctx.Set(types.HttpEndpointErrorKey, errMsg)
 		return ctx.JSONBlob(http.StatusInternalServerError, errMsg)
 	}
 
@@ -305,7 +302,7 @@ func (r *registry) ManifestExists(ctx echo.Context) error {
 		}
 
 		errMsg := r.errorResponse(RegistryErrorCodeManifestBlobUnknown, err.Error(), details)
-		r.fluentbit.Send(errMsg)
+		ctx.Set(types.HttpEndpointErrorKey, errMsg)
 		return ctx.JSONBlob(http.StatusNotFound, errMsg)
 	}
 
@@ -317,14 +314,14 @@ func (r *registry) ManifestExists(ctx echo.Context) error {
 		}
 		r.debugf(lm)
 		errMsg := r.errorResponse(RegistryErrorCodeManifestBlobUnknown, "Manifest does not exist", nil)
-		r.fluentbit.Send(errMsg)
+		ctx.Set(types.HttpEndpointErrorKey, errMsg)
 		return ctx.JSONBlob(http.StatusNotFound, errMsg)
 	}
 
 	bz, err := r.localCache.Get([]byte(namespace))
 	if err != nil {
 		errMsg := r.errorResponse(RegistryErrorCodeManifestInvalid, err.Error(), nil)
-		r.fluentbit.Send(errMsg)
+		ctx.Set(types.HttpEndpointErrorKey, errMsg)
 		return ctx.JSONBlob(http.StatusNotFound, errMsg)
 	}
 
@@ -335,14 +332,14 @@ func (r *registry) ManifestExists(ctx echo.Context) error {
 			"errorUnmarshal": fmt.Sprintf("%s\n", errMsg),
 		}
 		r.debugf(lm)
-		r.fluentbit.Send(errMsg)
+		ctx.Set(types.HttpEndpointErrorKey, errMsg)
 		return ctx.JSONBlob(http.StatusNotFound, errMsg)
 	}
 
 	manifest, err := md.GetManifestByRef(ref)
 	if err != nil {
 		errMsg := r.errorResponse(RegistryErrorCodeManifestUnknown, err.Error(), nil)
-		r.fluentbit.Send(errMsg)
+		ctx.Set(types.HttpEndpointErrorKey, errMsg)
 		return ctx.JSONBlob(http.StatusNotFound, errMsg)
 	}
 
@@ -353,7 +350,7 @@ func (r *registry) ManifestExists(ctx echo.Context) error {
 		}
 		r.debugf(details)
 		errMsg := r.errorResponse(RegistryErrorCodeManifestInvalid, "manifest digest does not match", nil)
-		r.fluentbit.Send(errMsg)
+		ctx.Set(types.HttpEndpointErrorKey, errMsg)
 		return ctx.JSONBlob(http.StatusBadRequest, errMsg)
 	}
 
@@ -380,35 +377,35 @@ func (r *registry) PullManifest(ctx echo.Context) error {
 	bz, err := r.localCache.Get([]byte(namespace))
 	if err != nil {
 		errMsg := r.errorResponse(RegistryErrorCodeManifestUnknown, err.Error(), nil)
-		r.fluentbit.Send(errMsg)
+		ctx.Set(types.HttpEndpointErrorKey, errMsg)
 		return ctx.JSONBlob(http.StatusNotFound, errMsg)
 	}
 
 	var md types.Metadata
 	if err = json.Unmarshal(bz, &md); err != nil {
 		errMsg := r.errorResponse(RegistryErrorCodeManifestUnknown, err.Error(), nil)
-		r.fluentbit.Send(errMsg)
+		ctx.Set(types.HttpEndpointErrorKey, errMsg)
 		return ctx.JSONBlob(http.StatusNotFound, errMsg)
 	}
 
 	skynetLink, err := r.localCache.ResolveManifestRef(namespace, ref)
 	if err != nil {
 		errMsg := r.errorResponse(RegistryErrorCodeManifestUnknown, err.Error(), nil)
-		r.fluentbit.Send(errMsg)
+		ctx.Set(types.HttpEndpointErrorKey, errMsg)
 		return ctx.JSONBlob(http.StatusNotFound, errMsg)
 	}
 
 	resp, err := r.skynet.Download(skynetLink)
 	if err != nil {
 		errMsg := r.errorResponse(RegistryErrorCodeManifestInvalid, err.Error(), nil)
-		r.fluentbit.Send(errMsg)
+		ctx.Set(types.HttpEndpointErrorKey, errMsg)
 		return ctx.JSONBlob(http.StatusNotFound, errMsg)
 	}
 
 	bz, err = io.ReadAll(resp)
 	if err != nil {
 		errMsg := r.errorResponse(RegistryErrorCodeManifestInvalid, err.Error(), nil)
-		r.fluentbit.Send(errMsg)
+		ctx.Set(types.HttpEndpointErrorKey, errMsg)
 		return ctx.JSONBlob(http.StatusNotFound, errMsg)
 	}
 	_ = resp.Close()
@@ -416,7 +413,7 @@ func (r *registry) PullManifest(ctx echo.Context) error {
 	manifest, err := md.GetManifestByRef(ref)
 	if err != nil {
 		errMsg := r.errorResponse(RegistryErrorCodeManifestUnknown, err.Error(), nil)
-		r.fluentbit.Send(errMsg)
+		ctx.Set(types.HttpEndpointErrorKey, errMsg)
 		return ctx.JSONBlob(http.StatusNotFound, errMsg)
 	}
 
@@ -435,7 +432,7 @@ func (r *registry) PushManifest(ctx echo.Context) error {
 	bz, err := io.ReadAll(ctx.Request().Body)
 	if err != nil {
 		errMsg := r.errorResponse(RegistryErrorCodeManifestInvalid, err.Error(), nil)
-		r.fluentbit.Send(errMsg)
+		ctx.Set(types.HttpEndpointErrorKey, errMsg)
 		return ctx.JSONBlob(http.StatusBadRequest, errMsg)
 	}
 	ctx.Request().Body.Close()
@@ -445,7 +442,7 @@ func (r *registry) PushManifest(ctx echo.Context) error {
 	var manifest ManifestList
 	if err = json.Unmarshal(bz, &manifest); err != nil {
 		errMsg := r.errorResponse(RegistryErrorCodeBlobUnknown, err.Error(), nil)
-		r.fluentbit.Send(errMsg)
+		ctx.Set(types.HttpEndpointErrorKey, errMsg)
 		return ctx.JSONBlob(http.StatusBadRequest, errMsg)
 	}
 
@@ -453,7 +450,7 @@ func (r *registry) PushManifest(ctx echo.Context) error {
 	skylink, err := r.skynet.Upload(mfNamespace, dig, bz)
 	if err != nil {
 		errMsg := r.errorResponse(RegistryErrorCodeManifestBlobUnknown, err.Error(), nil)
-		r.fluentbit.Send(errMsg)
+		ctx.Set(types.HttpEndpointErrorKey, errMsg)
 		return ctx.JSONBlob(http.StatusNotFound, errMsg)
 	}
 
@@ -475,7 +472,7 @@ func (r *registry) PushManifest(ctx echo.Context) error {
 
 	if err = r.localCache.Update([]byte(namespace), metadata.Bytes()); err != nil {
 		errMsg := r.errorResponse(RegistryErrorCodeManifestInvalid, err.Error(), nil)
-		r.fluentbit.Send(errMsg)
+		ctx.Set(types.HttpEndpointErrorKey, errMsg)
 		return ctx.JSONBlob(http.StatusBadRequest, errMsg)
 	}
 
@@ -495,14 +492,14 @@ func (r *registry) ListTags(ctx echo.Context) error {
 	l, err := r.localCache.ListWithPrefix([]byte(namespace))
 	if err != nil {
 		errMsg := r.errorResponse(RegistryErrorCodeTagInvalid, err.Error(), nil)
-		r.fluentbit.Send(errMsg)
+		ctx.Set(types.HttpEndpointErrorKey, errMsg)
 		return ctx.JSONBlob(http.StatusNotFound, errMsg)
 	}
 	var md types.Metadata
 	err = json.Unmarshal(l, &md)
 	if err != nil {
 		errMsg := r.errorResponse(RegistryErrorCodeTagInvalid, err.Error(), nil)
-		r.fluentbit.Send(errMsg)
+		ctx.Set(types.HttpEndpointErrorKey, errMsg)
 		return ctx.JSONBlob(http.StatusNotFound, errMsg)
 	}
 	var tags []string
@@ -513,7 +510,7 @@ func (r *registry) ListTags(ctx echo.Context) error {
 		n, err := strconv.ParseInt(limit, 10, 32)
 		if err != nil {
 			errMsg := r.errorResponse(RegistryErrorCodeTagInvalid, err.Error(), nil)
-			r.fluentbit.Send(errMsg)
+			ctx.Set(types.HttpEndpointErrorKey, errMsg)
 			return ctx.JSONBlob(http.StatusNotFound, errMsg)
 		}
 		if n > 0 {
@@ -545,7 +542,7 @@ func (r *registry) PullLayer(ctx echo.Context) error {
 		skynetLink, err := r.localCache.GetSkynetURL(namespace, clientDigest)
 		if err != nil {
 			errMsg := r.errorResponse(RegistryErrorCodeBlobUnknown, err.Error(), nil)
-			r.fluentbit.Send(errMsg)
+			ctx.Set(types.HttpEndpointErrorKey, errMsg)
 			return ctx.JSONBlob(http.StatusNotFound, errMsg)
 		}
 		layerRef = &types.LayerRef{
@@ -560,7 +557,7 @@ func (r *registry) PullLayer(ctx echo.Context) error {
 		}
 		e := fmt.Errorf("skylink is empty").Error()
 		errMsg := r.errorResponse(RegistryErrorCodeBlobUnknown, e, detail)
-		r.fluentbit.Send(errMsg)
+		ctx.Set(types.HttpEndpointErrorKey, errMsg)
 		return ctx.JSONBlob(http.StatusNotFound, errMsg)
 	}
 
@@ -570,14 +567,14 @@ func (r *registry) PullLayer(ctx echo.Context) error {
 			"error": err.Error(),
 		}
 		errMsg := r.errorResponse(RegistryErrorCodeBlobUnknown, err.Error(), detail)
-		r.fluentbit.Send(errMsg)
+		ctx.Set(types.HttpEndpointErrorKey, errMsg)
 		return ctx.JSONBlob(http.StatusNotFound, errMsg)
 	}
 
 	bz, err := io.ReadAll(resp)
 	if err != nil {
 		errMsg := r.errorResponse(RegistryErrorCodeBlobUploadInvalid, err.Error(), nil)
-		r.fluentbit.Send(errMsg)
+		ctx.Set(types.HttpEndpointErrorKey, errMsg)
 		return ctx.JSONBlob(http.StatusInternalServerError, errMsg)
 	}
 	_ = resp.Close()
@@ -593,7 +590,7 @@ func (r *registry) PullLayer(ctx echo.Context) error {
 			"client digest is different than computed digest",
 			details,
 		)
-		r.fluentbit.Send(errMsg)
+		ctx.Set(types.HttpEndpointErrorKey, errMsg)
 		return ctx.JSONBlob(http.StatusNotFound, errMsg)
 	}
 
@@ -636,7 +633,7 @@ func (r *registry) StartUpload(ctx echo.Context) error {
 				"error while reading request body",
 				details,
 			)
-			r.fluentbit.Send(errMsg)
+			ctx.Set(types.HttpEndpointErrorKey, errMsg)
 			return ctx.JSONBlob(http.StatusNotFound, errMsg)
 
 		}
@@ -653,7 +650,7 @@ func (r *registry) StartUpload(ctx echo.Context) error {
 				"client digest does not meet computed digest",
 				details,
 			)
-			r.fluentbit.Send(errMsg)
+			ctx.Set(types.HttpEndpointErrorKey, errMsg)
 			return ctx.JSONBlob(http.StatusBadRequest, errMsg)
 		}
 
@@ -665,7 +662,7 @@ func (r *registry) StartUpload(ctx echo.Context) error {
 				"digest": dig,
 			}
 			r.debugf(lm)
-			r.fluentbit.Send(errMsg)
+			ctx.Set(types.HttpEndpointErrorKey, errMsg)
 			return ctx.JSONBlob(http.StatusRequestedRangeNotSatisfiable, errMsg)
 		}
 
@@ -684,7 +681,7 @@ func (r *registry) StartUpload(ctx echo.Context) error {
 		link := r.getHttpUrlFromSkylink(skylink)
 		if err = r.localCache.Update([]byte(namespace), val.Bytes()); err != nil {
 			errMsg := r.errorResponse(RegistryErrorCodeUnsupported, err.Error(), nil)
-			r.fluentbit.Send(errMsg)
+			ctx.Set(types.HttpEndpointErrorKey, errMsg)
 			return ctx.JSONBlob(http.StatusInternalServerError, errMsg)
 		}
 		ctx.Response().Header().Set("Location", link)
@@ -741,7 +738,7 @@ func (r *registry) PushLayer(ctx echo.Context) error {
 	// Must have a path of form /v2/{name}/blobs/{upload,sha256:}
 	if len(elem) < 4 {
 		errMsg := r.errorResponse(RegistryErrorCodeNameInvalid, "blobs must be attached to a repo", nil)
-		r.fluentbit.Send(errMsg)
+		ctx.Set(types.HttpEndpointErrorKey, errMsg)
 		return ctx.JSONBlob(http.StatusNotFound, errMsg)
 	}
 
