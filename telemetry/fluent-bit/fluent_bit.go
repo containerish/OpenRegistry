@@ -111,6 +111,7 @@ func (fb *fluentBit) retrier(logBytes []byte, id string) {
 	body := bytes.NewBuffer(logBytes)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
+
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, fb.config.LogConfig.Endpoint, body)
 	if err != nil {
 		fb.queueForRetry(logBytes)
