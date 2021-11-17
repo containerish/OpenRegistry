@@ -2,6 +2,8 @@
 
 [![conformance](https://github.com/containerish/OpenRegistry/actions/workflows/conformance.yml/badge.svg)](https://github.com/containerish/OpenRegistry/actions/workflows/go.yml)
 [![CodeQL](https://github.com/containerish/OpenRegistry/actions/workflows/codeql-analysis.yml/badge.svg?branch=master)](https://github.com/containerish/OpenRegistry/actions/workflows/codeql-analysis.yml)
+<br>
+<a href="http://freshworks.com/website-monitoring?utm_source=status_badge&utm_medium=status_badge" target="_blank"><img src="https://statuspage.freshping.io/badge/91e4eb06-289b-4b4c-8beb-a0e5804959f4?0.56759354585684"/> </a>
 
 ## Introduction
 OpenRegistry is an open source, decentralized container registry which is fully compliant with [OCI Container Distribution Specification](https://github.com/opencontainers/distribution-spec/blob/main/spec.md).
