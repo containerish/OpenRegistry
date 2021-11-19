@@ -10,6 +10,7 @@ import (
 	"github.com/containerish/OpenRegistry/registry/v2"
 	"github.com/containerish/OpenRegistry/telemetry"
 	fluentbit "github.com/containerish/OpenRegistry/telemetry/fluent-bit"
+	"github.com/google/uuid"
 	"github.com/labstack/echo-contrib/prometheus"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -28,7 +29,14 @@ func Register(cfg *config.RegistryConfig, e *echo.Echo, reg registry.Registry, a
 	e.Use(telemetry.ZerologMiddleware(telemetry.SetupLogger(), fbClient))
 	e.Use(middleware.Recover())
 	e.Use(middleware.CORS())
-	// JWT Auth Endpoint
+
+	e.Use(middleware.RequestIDWithConfig(middleware.RequestIDConfig{
+		Generator: func() string {
+			requestId := uuid.New()
+			return requestId.String()
+		},
+	}))
+
 	e.HideBanner = true
 
 	p := prometheus.NewPrometheus("OpenRegistry", nil)
