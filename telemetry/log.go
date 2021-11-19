@@ -36,7 +36,7 @@ func ZerologMiddleware(baseLogger zerolog.Logger, fluentbitClient fluentbit.Flue
 			},
 		}
 
-		logFmt := `{"time":"${time_rfc3339}","request_id":"${request_id}","remote_ip":"${remote_ip}",` +
+		logFmt := `{"time":"${time_rfc3339}","x_request_id":"${request_id}","remote_ip":"${remote_ip}",` +
 			`"host":"${host}","method":"${method}","uri":"${uri}","user_agent":"${user_agent}",` +
 			`"status":${status},"error":"${error}","latency":${latency},"latency_human":"${latency_human}"` +
 			`,"bytes_in":${bytes_in},"bytes_out":${bytes_out}}` + "\n"
