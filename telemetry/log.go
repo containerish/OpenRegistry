@@ -108,8 +108,8 @@ func ZerologMiddleware(baseLogger zerolog.Logger, fluentbitClient fluentbit.Flue
 						return buf.Write(b)
 					}
 
-					if ctxErr, ok := ctx.Get(types.HttpEndpointErrorKey).(string); ok {
-						return buf.WriteString(ctxErr)
+					if ctxErr, ok := ctx.Get(types.HttpEndpointErrorKey).([]byte); ok {
+						return buf.Write(ctxErr)
 					}
 				case "latency":
 					l := stop.Sub(start)
@@ -143,9 +143,8 @@ func ZerologMiddleware(baseLogger zerolog.Logger, fluentbitClient fluentbit.Flue
 				return
 			}
 
-			event := baseLogger.WithLevel(level).RawJSON("msg", buf.Bytes())
-			event.Send()
-			fluentbitClient.Send(buf.Bytes())
+			baseLogger.WithLevel(level).RawJSON("msg", buf.Bytes()).Send()
+			fluentbitClient.Send(bytes.TrimSpace(buf.Bytes()))
 			return
 		}
 	}
