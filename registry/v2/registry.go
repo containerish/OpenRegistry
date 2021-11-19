@@ -633,6 +633,7 @@ func (r *registry) StartUpload(ctx echo.Context) error {
 				"error while reading request body",
 				details,
 			)
+
 			ctx.Set(types.HttpEndpointErrorKey, errMsg)
 			return ctx.JSONBlob(http.StatusNotFound, errMsg)
 
