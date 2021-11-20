@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"strings"
 
@@ -102,8 +103,15 @@ func (r *RegistryConfig) Endpoint() string {
 		return fmt.Sprintf("http://%s:%d", r.Host, r.Port)
 	case Prod, Stage:
 		return fmt.Sprintf("https://%s", r.DNSAddress)
+	case CI:
+		ciSysAddr := os.Getenv("CI_SYS_ADDR")
+		if ciSysAddr == "" {
+			log.Fatalln("missing required environment variable: CI_SYS_ADDR")
+		}
+
+		return fmt.Sprintf("http://%s", ciSysAddr)
 	default:
-		return fmt.Sprintf("http://%s:%d", r.Host, r.Port)
+		return fmt.Sprintf("https://%s:%d", r.Host, r.Port)
 	}
 }
 
@@ -112,4 +120,5 @@ const (
 	Stage = "stage"
 	Dev   = "development"
 	Local = "local"
+	CI    = "ci"
 )
