@@ -20,6 +20,8 @@ jobs:
           echo "OCI_ROOT_URL=http://$IP:5000" >> $GITHUB_ENV
           DISTRIBUTION_REF="local-distribution:v$(date +%Y%m%d%H%M%S)"
           docker build -f ./Dockerfile -t "${DISTRIBUTION_REF}" .
+          sed -in "s/OPEN_REGISTRY_ENVIRONMENT=local/OPEN_REGISTRY_ENVIRONMENT=ci/g" env-vars.example
+          echo CI_SYS_ADDR=$IP:5000 >> env-vars.example
           docker run --rm -p 5000:5000 --env-file ./env-vars.example -e REGISTRY_STORAGE_DELETE_ENABLED=true -d "${DISTRIBUTION_REF}"
           sleep 5
           curl -XPOST -d ${{ secrets.OPENREGISTRY_SIGNUP_PAYLOAD }} "http://${IP}:5000/auth/signup"
