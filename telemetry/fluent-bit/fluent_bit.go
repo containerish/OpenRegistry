@@ -46,7 +46,11 @@ func New(config *config.RegistryConfig) (FluentBit, error) {
 
 func (fb *fluentBit) Send(logBytes []byte) {
 	// don't send logs to grafana from local instances of OpenRegistry
-	if fb.config.Environment == config.Dev || fb.config.Environment == config.Local {
+	dev := fb.config.Environment == config.Dev
+	local := fb.config.Environment == config.Local
+	ci := fb.config.Environment == config.CI
+
+	if dev || local || ci {
 		return
 	}
 

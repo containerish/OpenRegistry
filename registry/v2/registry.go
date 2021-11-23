@@ -550,10 +550,11 @@ func (r *registry) PullLayer(ctx echo.Context) error {
 		}
 	}
 
-	_, ok := r.skynet.Metadata(layerRef.Skylink)
+	size, ok := r.skynet.Metadata(layerRef.Skylink)
 	if ok {
 		url := fmt.Sprintf("https://siasky.net/%s",
 			strings.Replace(layerRef.Skylink, "sia://", "", 1))
+		ctx.Response().Header().Set("Content-Length", fmt.Sprintf("%d", size))
 		http.Redirect(ctx.Response(), ctx.Request(), url, http.StatusTemporaryRedirect)
 		return nil
 	}
