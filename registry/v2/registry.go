@@ -12,7 +12,6 @@ import (
 	"strings"
 	"sync"
 
-	skynetsdk "github.com/NebulousLabs/go-skynet/v2"
 	"github.com/containerish/OpenRegistry/cache"
 	"github.com/containerish/OpenRegistry/skynet"
 	fluentbit "github.com/containerish/OpenRegistry/telemetry/fluent-bit"
@@ -551,52 +550,21 @@ func (r *registry) PullLayer(ctx echo.Context) error {
 		}
 	}
 
-	if layerRef.Skylink == "" {
-		detail := map[string]interface{}{
-			"error": "skylink is empty",
-		}
-		e := fmt.Errorf("skylink is empty").Error()
-		errMsg := r.errorResponse(RegistryErrorCodeBlobUnknown, e, detail)
-		ctx.Set(types.HttpEndpointErrorKey, errMsg)
-		return ctx.JSONBlob(http.StatusNotFound, errMsg)
+	_, ok := r.skynet.Metadata(layerRef.Skylink)
+	if ok {
+		url := fmt.Sprintf("https://siasky.net/%s",
+			strings.Replace(layerRef.Skylink, "sia://", "", 1))
+		http.Redirect(ctx.Response(), ctx.Request(), url, http.StatusTemporaryRedirect)
+		return nil
 	}
 
-	resp, err := r.skynet.Download(layerRef.Skylink)
-	if err != nil {
-		detail := map[string]interface{}{
-			"error": err.Error(),
-		}
-		errMsg := r.errorResponse(RegistryErrorCodeBlobUnknown, err.Error(), detail)
-		ctx.Set(types.HttpEndpointErrorKey, errMsg)
-		return ctx.JSONBlob(http.StatusNotFound, errMsg)
+	detail := map[string]interface{}{
+		"error": "skylink is empty",
 	}
-
-	bz, err := io.ReadAll(resp)
-	if err != nil {
-		errMsg := r.errorResponse(RegistryErrorCodeBlobUploadInvalid, err.Error(), nil)
-		ctx.Set(types.HttpEndpointErrorKey, errMsg)
-		return ctx.JSONBlob(http.StatusInternalServerError, errMsg)
-	}
-	_ = resp.Close()
-
-	dig := digest(bz)
-	if dig != clientDigest {
-		details := map[string]interface{}{
-			"clientDigest":   clientDigest,
-			"computedDigest": dig,
-		}
-		errMsg := r.errorResponse(
-			RegistryErrorCodeBlobUploadUnknown,
-			"client digest is different than computed digest",
-			details,
-		)
-		ctx.Set(types.HttpEndpointErrorKey, errMsg)
-		return ctx.JSONBlob(http.StatusNotFound, errMsg)
-	}
-
-	ctx.Response().Header().Set("Content-Length", fmt.Sprintf("%d", len(bz)))
-	ctx.Response().Header().Set("Docker-Content-Digest", dig)
-	return ctx.Blob(http.StatusOK, "application/octet-stream", bz)
+	e := fmt.Errorf("skylink is empty").Error()
+	errMsg := r.errorResponse(RegistryErrorCodeBlobUnknown, e, detail)
+	ctx.Set(types.HttpEndpointErrorKey, errMsg)
+	return ctx.JSONBlob(http.StatusNotFound, errMsg)
 }
 
 //BlobMount to be implemented by guacamole at a later stage
@@ -614,14 +582,6 @@ func (r *registry) StartUpload(ctx echo.Context) error {
 	clientDigest := ctx.QueryParam("digest")
 
 	if clientDigest != "" {
-		var headers []skynetsdk.Header
-
-		for k, v := range ctx.Request().Header {
-			headers = append(headers, skynetsdk.Header{
-				Key: k, Value: v[0],
-			})
-		}
-
 		bz, err := io.ReadAll(ctx.Request().Body)
 		if err != nil {
 			details := map[string]interface{}{
@@ -655,7 +615,7 @@ func (r *registry) StartUpload(ctx echo.Context) error {
 			return ctx.JSONBlob(http.StatusBadRequest, errMsg)
 		}
 
-		skylink, err := r.skynet.Upload(namespace, dig, bz, headers...)
+		skylink, err := r.skynet.Upload(namespace, dig, bz)
 		if err != nil {
 			errMsg := r.errorResponse(RegistryErrorCodeBlobUploadInvalid, err.Error(), nil)
 			lm := logMsg{
@@ -686,7 +646,7 @@ func (r *registry) StartUpload(ctx echo.Context) error {
 			return ctx.JSONBlob(http.StatusInternalServerError, errMsg)
 		}
 		ctx.Response().Header().Set("Location", link)
-		return ctx.NoContent(http.StatusAccepted)
+		return ctx.NoContent(http.StatusCreated)
 	}
 
 	id := uuid.Generate()

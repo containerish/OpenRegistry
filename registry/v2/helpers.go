@@ -51,5 +51,5 @@ func (r *registry) debugf(lm logMsg) {
 
 func (r *registry) getHttpUrlFromSkylink(s string) string {
 	link := strings.TrimPrefix(s, "sia://")
-	return fmt.Sprintf("https://skyportal.xyz/%s", link)
+	return fmt.Sprintf("https://siasky.net/%s", link)
 }
