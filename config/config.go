@@ -42,10 +42,32 @@ type (
 		Username   string `mapstructure:"username"`
 		Password   string `mapstructure:"password"`
 	}
+
+	StoreConfig struct {
+		User     string `mapstructure:"user"`
+		Password string `mapstructure:"password"`
+		Database string `mapstructure:"database"`
+		Host     string `mapstructure:"host"`
+		Port     int    `mapstructure:"port"`
+	}
 )
 
 func (r *RegistryConfig) Address() string {
 	return fmt.Sprintf("%s:%d", r.Host, r.Port)
+}
+
+func NewStoreConfig() (*StoreConfig, error) {
+	return &StoreConfig{
+		User:     "postgres",
+		Password: "Qwerty@123",
+		Database: "postgres",
+		Host:     "0.0.0.0",
+		Port:     5432,
+	}, nil
+}
+
+func (sc *StoreConfig) Endpoint() string {
+	return fmt.Sprintf("postgresql://%s:%s@%s:%d/%s", sc.User, sc.Password, sc.Host, sc.Port, sc.Database)
 }
 
 func LoadFromENV() (*RegistryConfig, error) {
