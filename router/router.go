@@ -1,6 +1,8 @@
 package router
 
 import (
+	"github.com/containerish/OpenRegistry/store/postgres"
+	"log"
 	"net/http"
 
 	"github.com/containerish/OpenRegistry/auth"
@@ -15,7 +17,10 @@ import (
 
 // Register is the entry point that registers all the endpoints
 // nolint
-func Register(cfg *config.RegistryConfig, e *echo.Echo, reg registry.Registry, authSvc auth.Authentication, localCache cache.Store) {
+func Register(
+	cfg *config.RegistryConfig, e *echo.Echo, reg registry.Registry, authSvc auth.Authentication,
+	localCache cache.Store, pStore postgres.PersistentStore,
+	) {
 	e.Use(middleware.Recover())
 	e.Use(middleware.CORS())
 

@@ -50,6 +50,159 @@ func New(storeLocation string) (Store, error) {
 	return &dataStore{db: db}, nil
 }
 
+func (ds *dataStore) Get(key []byte) ([]byte, error) {
+	var res []byte
+
+	err := ds.db.View(func(txn *badger.Txn) error {
+		item, err := txn.Get(key)
+		if err != nil {
+			return err
+		}
+		err = item.Value(func(v []byte) error {
+			res = make([]byte, len(v))
+			copy(res, v)
+			return nil
+		})
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return res, nil
+}
+
+func (ds *dataStore) GetDigest(digest string) (*types.LayerRef, error) {
+	key := fmt.Sprintf("%s/%s", layerDigestNamespace, digest)
+	bz, err := ds.Get([]byte(key))
+	if err != nil {
+		return nil, err
+	}
+
+	var layerRef types.LayerRef
+	err = json.Unmarshal(bz, &layerRef)
+	return &layerRef, err
+}
+
+func (ds *dataStore) GetSkynetURL(key, ref string) (string, error) {
+	var res []byte
+	err := ds.db.View(func(txn *badger.Txn) error {
+		item, err := txn.Get([]byte(key))
+		if err != nil {
+			return err
+		}
+
+		return item.Value(func(v []byte) error {
+			res = make([]byte, len(v))
+			copy(res, v)
+			return nil
+		})
+	})
+
+	if err != nil {
+		return "", err
+	}
+
+	var md types.Metadata
+	err = json.Unmarshal(res, &md)
+	if err != nil {
+		return "", err
+	}
+
+	return md.FindLinkForDigest(ref)
+}
+
+func (ds *dataStore) ListAll() ([]byte, error) {
+	var buf []types.Metadata
+
+	err := ds.db.View(func(txn *badger.Txn) error {
+		opts := badger.DefaultIteratorOptions
+		opts.PrefetchSize = 10
+		it := txn.NewIterator(opts)
+		defer it.Close()
+		for it.Rewind(); it.Valid(); it.Next() {
+			item := it.Item()
+			err := item.Value(func(v []byte) error {
+				var md types.Metadata
+				if err := json.Unmarshal(v, &md); err != nil {
+					return err
+				}
+				buf = append(buf, md)
+				return nil
+			})
+
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return json.Marshal(buf)
+}
+
+func (ds *dataStore) ListWithPrefix(prefix []byte) ([]byte, error) {
+
+	var buf []byte
+
+	err := ds.db.View(func(txn *badger.Txn) error {
+		it := txn.NewIterator(badger.DefaultIteratorOptions)
+		defer it.Close()
+		for it.Seek(prefix); it.ValidForPrefix(prefix); it.Next() {
+			item := it.Item()
+			err := item.Value(func(v []byte) error {
+				buf = make([]byte, len(v))
+				copy(buf, v)
+				return nil
+			})
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	return buf, err
+}
+
+func (ds *dataStore) ResolveManifestRef(namespace, ref string) (string, error) {
+	var res []byte
+	fn := func(txn *badger.Txn) error {
+		item, err := txn.Get([]byte(namespace))
+		if err != nil {
+			return err
+		}
+
+		return item.Value(func(v []byte) error {
+			res = make([]byte, len(v))
+			copy(res, v)
+			return nil
+		})
+	}
+
+	if err := ds.db.View(fn); err != nil {
+		return "", err
+	}
+
+	var md types.Metadata
+	err := json.Unmarshal(res, &md)
+	if err != nil {
+		return "", err
+	}
+
+	for _, c := range md.Manifest.Config {
+		mdRef := c.Reference
+		mdDigest := c.Digest
+		if ref == mdRef || ref == mdDigest {
+			return c.SkynetLink, nil
+		}
+	}
+
+	return "", fmt.Errorf("ref not found")
+}
+
 func (ds *dataStore) LayerDigests(ctx echo.Context) error {
 	bz, err := ds.ListWithPrefix([]byte(layerDigestNamespace))
 	if err != nil {
@@ -57,6 +210,39 @@ func (ds *dataStore) LayerDigests(ctx echo.Context) error {
 	}
 
 	return ctx.JSONBlob(http.StatusOK, bz)
+}
+
+// QueryMetaData is similar to ListWithPrefix with only a few changes
+// making these changes in ListWithPrefix was causing the oci tests to fail
+func (ds *dataStore) QueryMetaData(prefix []byte) ([]byte, error) {
+
+	var mds []types.Metadata
+
+	err := ds.db.View(func(txn *badger.Txn) error {
+		it := txn.NewIterator(badger.DefaultIteratorOptions)
+		defer it.Close()
+		for it.Seek(prefix); it.ValidForPrefix(prefix); it.Next() {
+			var md types.Metadata
+			item := it.Item()
+			err := item.Value(func(v []byte) error {
+				err := json.Unmarshal(v, &md)
+				if err != nil {
+					return err
+				}
+				mds = append(mds, md)
+				return nil
+			})
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+	return json.Marshal(mds)
 }
 
 func (ds *dataStore) Metadata(ctx echo.Context) error {
@@ -115,32 +301,30 @@ func (ds *dataStore) Metadata(ctx echo.Context) error {
 	return ctx.JSON(http.StatusOK, reg)
 }
 
-func (ds *dataStore) DeleteLayer(namespace, digest string) error {
-	bz, err := ds.Get([]byte(namespace))
-	if err != nil {
+const layerDigestNamespace = "layers/digests"
+
+func (ds *dataStore) Set(key, value []byte) error {
+	txn := ds.db.NewTransaction(true)
+
+	if err := txn.Set(key, value); err != nil {
 		return err
 	}
 
-	var md types.Metadata
-	if err = json.Unmarshal(bz, &md); err != nil {
+	return txn.Commit()
+}
+
+func (ds *dataStore) SetDigest(digest, skylink string) error {
+	key := fmt.Sprintf("%s/%s", layerDigestNamespace, digest)
+	value := types.LayerRef{
+		Digest:  digest,
+		Skylink: skylink,
+	}
+
+	if err := ds.Set([]byte(key), value.Bytes()); err != nil {
 		return err
 	}
 
-	var match bool
-	for i, v := range md.Manifest.Layers {
-		if v.Digest == digest {
-			l := len(md.Manifest.Layers)
-			md.Manifest.Layers[i] = md.Manifest.Layers[l-1]
-			md.Manifest.Layers = md.Manifest.Layers[:l-1]
-			match = true
-			break
-		}
-	}
-	if !match {
-		return fmt.Errorf("layer/blob not found for digest %s", digest)
-	}
-
-	return ds.Set([]byte(namespace), md.Bytes())
+	return nil
 }
 
 func (ds *dataStore) Update(key, value []byte) error {
@@ -200,30 +384,6 @@ EndLoop:
 	return ds.Set(key, bz)
 }
 
-func (ds *dataStore) removeDuplicateLayers(src, dst []*types.Layer) ([]*types.Layer, error) {
-	size := uint(len(src) + len(dst))
-
-	if size > math.MaxInt16 {
-		return nil, fmt.Errorf("ERROR_TOO_MANY_LAYERS")
-	}
-
-	list := make([]*types.Layer, size)
-	list = append(list, src...)
-	list = append(list, dst...)
-
-	seenMap := make(map[string]bool)
-	var layers []*types.Layer
-
-	for _, l := range list {
-		if l != nil && !seenMap[l.Digest] {
-			seenMap[l.Digest] = true
-			layers = append(layers, l)
-		}
-	}
-
-	return layers, nil
-}
-
 func (ds *dataStore) UpdateManifestRef(namespace, ref string) error {
 	var res []byte
 	fn := func(txn *badger.Txn) error {
@@ -270,222 +430,62 @@ func (ds *dataStore) UpdateManifestRef(namespace, ref string) error {
 	return ds.Set([]byte(namespace), md.Bytes())
 }
 
-func (ds *dataStore) ResolveManifestRef(namespace, ref string) (string, error) {
-	var res []byte
-	fn := func(txn *badger.Txn) error {
-		item, err := txn.Get([]byte(namespace))
-		if err != nil {
-			return err
-		}
+func (ds *dataStore) removeDuplicateLayers(src, dst []*types.Layer) ([]*types.Layer, error) {
+	size := uint(len(src) + len(dst))
 
-		return item.Value(func(v []byte) error {
-			res = make([]byte, len(v))
-			copy(res, v)
-			return nil
-		})
+	if size > math.MaxInt16 {
+		return nil, fmt.Errorf("ERROR_TOO_MANY_LAYERS")
 	}
 
-	if err := ds.db.View(fn); err != nil {
-		return "", err
-	}
+	list := make([]*types.Layer, size)
+	list = append(list, src...)
+	list = append(list, dst...)
 
-	var md types.Metadata
-	err := json.Unmarshal(res, &md)
-	if err != nil {
-		return "", err
-	}
+	seenMap := make(map[string]bool)
+	var layers []*types.Layer
 
-	for _, c := range md.Manifest.Config {
-		mdRef := c.Reference
-		mdDigest := c.Digest
-		if ref == mdRef || ref == mdDigest {
-			return c.SkynetLink, nil
+	for _, l := range list {
+		if l != nil && !seenMap[l.Digest] {
+			seenMap[l.Digest] = true
+			layers = append(layers, l)
 		}
 	}
 
-	return "", fmt.Errorf("ref not found")
+	return layers, nil
 }
 
-const layerDigestNamespace = "layers/digests"
-
-func (ds *dataStore) SetDigest(digest, skylink string) error {
-	key := fmt.Sprintf("%s/%s", layerDigestNamespace, digest)
-	value := types.LayerRef{
-		Digest:  digest,
-		Skylink: skylink,
-	}
-
-	if err := ds.Set([]byte(key), value.Bytes()); err != nil {
+func (ds *dataStore) DeleteLayer(namespace, digest string) error {
+	bz, err := ds.Get([]byte(namespace))
+	if err != nil {
 		return err
 	}
 
-	return nil
+	var md types.Metadata
+	if err = json.Unmarshal(bz, &md); err != nil {
+		return err
+	}
+
+	var match bool
+	for i, v := range md.Manifest.Layers {
+		if v.Digest == digest {
+			l := len(md.Manifest.Layers)
+			md.Manifest.Layers[i] = md.Manifest.Layers[l-1]
+			md.Manifest.Layers = md.Manifest.Layers[:l-1]
+			match = true
+			break
+		}
+	}
+	if !match {
+		return fmt.Errorf("layer/blob not found for digest %s", digest)
+	}
+
+	return ds.Set([]byte(namespace), md.Bytes())
 }
 
 func (ds *dataStore) DeleteDigest(digest string) error {
 	key := fmt.Sprintf("%s/%s", layerDigestNamespace, digest)
 
 	return ds.Delete([]byte(key))
-}
-
-func (ds *dataStore) GetDigest(digest string) (*types.LayerRef, error) {
-	key := fmt.Sprintf("%s/%s", layerDigestNamespace, digest)
-	bz, err := ds.Get([]byte(key))
-	if err != nil {
-		return nil, err
-	}
-
-	var layerRef types.LayerRef
-	err = json.Unmarshal(bz, &layerRef)
-	return &layerRef, err
-}
-
-func (ds *dataStore) GetSkynetURL(key, ref string) (string, error) {
-	var res []byte
-	err := ds.db.View(func(txn *badger.Txn) error {
-		item, err := txn.Get([]byte(key))
-		if err != nil {
-			return err
-		}
-
-		return item.Value(func(v []byte) error {
-			res = make([]byte, len(v))
-			copy(res, v)
-			return nil
-		})
-	})
-
-	if err != nil {
-		return "", err
-	}
-
-	var md types.Metadata
-	err = json.Unmarshal(res, &md)
-	if err != nil {
-		return "", err
-	}
-
-	return md.FindLinkForDigest(ref)
-}
-
-func (ds *dataStore) Set(key, value []byte) error {
-	txn := ds.db.NewTransaction(true)
-
-	if err := txn.Set(key, value); err != nil {
-		return err
-	}
-
-	return txn.Commit()
-}
-
-func (ds *dataStore) Get(key []byte) ([]byte, error) {
-	var res []byte
-
-	err := ds.db.View(func(txn *badger.Txn) error {
-		item, err := txn.Get(key)
-		if err != nil {
-			return err
-		}
-		err = item.Value(func(v []byte) error {
-			res = make([]byte, len(v))
-			copy(res, v)
-			return nil
-		})
-		return err
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return res, nil
-}
-
-func (ds *dataStore) ListAll() ([]byte, error) {
-	var buf []types.Metadata
-
-	err := ds.db.View(func(txn *badger.Txn) error {
-		opts := badger.DefaultIteratorOptions
-		opts.PrefetchSize = 10
-		it := txn.NewIterator(opts)
-		defer it.Close()
-		for it.Rewind(); it.Valid(); it.Next() {
-			item := it.Item()
-			err := item.Value(func(v []byte) error {
-				var md types.Metadata
-				if err := json.Unmarshal(v, &md); err != nil {
-					return err
-				}
-				buf = append(buf, md)
-				return nil
-			})
-
-			if err != nil {
-				return err
-			}
-		}
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return json.Marshal(buf)
-}
-
-func (ds *dataStore) ListWithPrefix(prefix []byte) ([]byte, error) {
-
-	var buf []byte
-
-	err := ds.db.View(func(txn *badger.Txn) error {
-		it := txn.NewIterator(badger.DefaultIteratorOptions)
-		defer it.Close()
-		for it.Seek(prefix); it.ValidForPrefix(prefix); it.Next() {
-			item := it.Item()
-			err := item.Value(func(v []byte) error {
-				buf = make([]byte, len(v))
-				copy(buf, v)
-				return nil
-			})
-			if err != nil {
-				return err
-			}
-		}
-		return nil
-	})
-	return buf, err
-}
-
-// QueryMetaData is similar to ListWithPrefix with only a few changes
-// making these changes in ListWithPrefix was causing the oci tests to fail
-func (ds *dataStore) QueryMetaData(prefix []byte) ([]byte, error) {
-
-	var mds []types.Metadata
-
-	err := ds.db.View(func(txn *badger.Txn) error {
-		it := txn.NewIterator(badger.DefaultIteratorOptions)
-		defer it.Close()
-		for it.Seek(prefix); it.ValidForPrefix(prefix); it.Next() {
-			var md types.Metadata
-			item := it.Item()
-			err := item.Value(func(v []byte) error {
-				err := json.Unmarshal(v, &md)
-				if err != nil {
-					return err
-				}
-				mds = append(mds, md)
-				return nil
-			})
-			if err != nil {
-				return err
-			}
-		}
-		return nil
-	})
-
-	if err != nil {
-		return nil, err
-	}
-	return json.Marshal(mds)
 }
 
 func (ds *dataStore) Delete(key []byte) error {

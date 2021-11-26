@@ -36,9 +36,9 @@ type PersistentStore interface {
 type UserStore interface {
 	AddUser(ctx context.Context, u *types.User) error
 	GetUser(ctx context.Context, identifier string) (*types.User, error)
-	UpdateUser(identifier string, u *types.User) error
-	DeleteUser(identifier string) error
-	IsActive(identifier string) bool
+	UpdateUser(ctx context.Context, identifier string, u *types.User) error
+	DeleteUser(ctx context.Context, identifier string) error
+	IsActive(ctx context.Context, identifier string) bool
 }
 
 type pg struct {
@@ -59,29 +59,23 @@ func New(cfg *config.StoreConfig) (PersistentStore, error) {
 	return &pg{conn: conn}, nil
 }
 
-func (p *pg) Get(key []byte) ([]byte, error) {
-	return nil, nil
-}
+func (p *pg) RegisterForBeta(ctx echo.Context) error       { return nil }
+func (p *pg) Get(key []byte) ([]byte, error)               { return nil, nil }
+func (p *pg) Set(key, value []byte) error                  { return nil }
+func (p *pg) Update(key, value []byte) error               { return nil }
+func (p *pg) Delete(key []byte) error                      { return nil }
+func (p *pg) ListAll() ([]byte, error)                     { return nil, nil }
+func (p *pg) ListWithPrefix(prefix []byte) ([]byte, error) { return nil, nil }
+func (p *pg) Metadata(ctx echo.Context) error              { return nil }
+func (p *pg) GetAllEmail(ctx echo.Context) error           { return nil }
 
-func (p *pg) Set(key, value []byte) error {
-	return nil
-}
-func (p *pg) GetDigest(digest string) (*types.LayerRef, error) {
-	return nil, nil
-}
-
-func (p *pg) SetDigest(digest, skylink string) error                   { return nil }
-func (p *pg) DeleteDigest(digest string) error                         { return nil }
-func (p *pg) DeleteLayer(namespace, digest string) error               { return nil }
-func (p *pg) Update(key, value []byte) error                           { return nil }
-func (p *pg) ListAll() ([]byte, error)                                 { return nil, nil }
-func (p *pg) ListWithPrefix(prefix []byte) ([]byte, error)             { return nil, nil }
-func (p *pg) Delete(key []byte) error                                  { return nil }
 func (p *pg) GetSkynetURL(key string, ref string) (string, error)      { return "", nil }
+func (p *pg) DeleteLayer(namespace, digest string) error               { return nil }
+func (p *pg) LayerDigests(ctx echo.Context) error                      { return nil }
 func (p *pg) UpdateManifestRef(namespace, ref string) error            { return nil }
 func (p *pg) ResolveManifestRef(namespace, ref string) (string, error) { return "", nil }
-func (p *pg) Metadata(ctx echo.Context) error                          { return nil }
-func (p *pg) LayerDigests(ctx echo.Context) error                      { return nil }
-func (p *pg) RegisterForBeta(ctx echo.Context) error                   { return nil }
-func (p *pg) GetAllEmail(ctx echo.Context) error                       { return nil }
-func (p *pg) Close() error                                             { return nil }
+
+func (p *pg) GetDigest(digest string) (*types.LayerRef, error) { return nil, nil }
+func (p *pg) SetDigest(digest, skylink string) error           { return nil }
+func (p *pg) DeleteDigest(digest string) error                 { return nil }
+func (p *pg) Close() error                                     { return nil }
