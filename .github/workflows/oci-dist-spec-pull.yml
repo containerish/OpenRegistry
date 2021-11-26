@@ -4,7 +4,7 @@ on:
   pull_request:
 
 jobs:
-  run-conformance-test:
+  pull:
     runs-on: ubuntu-latest
     steps:
       - name: set up docker
@@ -33,9 +33,6 @@ jobs:
           OCI_PASSWORD: ${{ secrets.OPENREGISTRY_PASSWORD }}
           OCI_NAMESPACE: ${{ secrets.OPENREGISTRY_USERNAME }}/distribution-test
           OCI_TEST_PULL: 1
-          OCI_TEST_PUSH: 1
-          OCI_TEST_CONTENT_DISCOVERY: 1
-          OCI_TEST_CONTENT_MANAGEMENT: 1
           OCI_HIDE_SKIPPED_WORKFLOWS: 1
           OCI_CROSSMOUNT_NAMESPACE: ${{secrets.OPENREGISTRY_USERNAME}}/distribution-cross-mount
           OCI_DEBUG: 0
