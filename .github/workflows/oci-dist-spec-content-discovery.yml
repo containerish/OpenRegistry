@@ -1,0 +1,47 @@
+name: OCI Conformance Tests
+
+on:
+  pull_request:
+
+jobs:
+  content-discovery:
+    runs-on: ubuntu-latest
+    steps:
+      - name: set up docker
+        uses: docker-practice/actions-setup-docker@0.0.1
+        with:
+          docker_version: 18.09
+          docker_channel: stable
+      - uses: actions/checkout@v2
+      - name: start distribution server
+        run: |
+          IP=`hostname -I | awk '{print $1}'`
+          echo "IP=$IP" >> $GITHUB_ENV
+          echo "OCI_ROOT_URL=http://$IP:5000" >> $GITHUB_ENV
+          DISTRIBUTION_REF="local-distribution:v$(date +%Y%m%d%H%M%S)"
+          docker build -f ./Dockerfile -t "${DISTRIBUTION_REF}" .
+          sed -in "s/OPEN_REGISTRY_ENVIRONMENT=local/OPEN_REGISTRY_ENVIRONMENT=ci/g" env-vars.example
+          echo CI_SYS_ADDR=$IP:5000 >> env-vars.example
+          docker run --rm -p 5000:5000 --env-file ./env-vars.example -e REGISTRY_STORAGE_DELETE_ENABLED=true -d "${DISTRIBUTION_REF}"
+          sleep 5
+          curl -XPOST -d ${{ secrets.OPENREGISTRY_SIGNUP_PAYLOAD }} "http://${IP}:5000/auth/signup"
+      - name: Run OCI Distribution Spec conformance tests
+        uses: opencontainers/distribution-spec@v1.0.1
+        env:
+          OCI_ROOT_URL: ${{ env.OCI_ROOT_URL }}
+          OCI_USERNAME: ${{ secrets.OPENREGISTRY_USERNAME }}
+          OCI_PASSWORD: ${{ secrets.OPENREGISTRY_PASSWORD }}
+          OCI_NAMESPACE: ${{ secrets.OPENREGISTRY_USERNAME }}/distribution-test
+          OCI_TEST_CONTENT_DISCOVERY: 1
+          OCI_HIDE_SKIPPED_WORKFLOWS: 1
+          OCI_CROSSMOUNT_NAMESPACE: ${{secrets.OPENREGISTRY_USERNAME}}/distribution-cross-mount
+          OCI_DEBUG: 0
+          OCI_DELETE_MANIFEST_BEFORE_BLOBS: 0
+      - run: mkdir -p .out/ && mv {report.html,junit.xml} .out/
+        if: always()
+      - name: Upload test results zip as build artifact
+        uses: actions/upload-artifact@v1
+        with:
+          name: oci-test-results-${{ github.sha }}
+          path: .out/
+        if: always()
