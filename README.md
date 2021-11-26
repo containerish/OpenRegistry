@@ -1,9 +1,17 @@
 # OpenRegistry - An open, decentralized, and reliable Container Registry
 
-[![conformance](https://github.com/containerish/OpenRegistry/actions/workflows/conformance.yml/badge.svg)](https://github.com/containerish/OpenRegistry/actions/workflows/go.yml)
-[![CodeQL](https://github.com/containerish/OpenRegistry/actions/workflows/codeql-analysis.yml/badge.svg?branch=master)](https://github.com/containerish/OpenRegistry/actions/workflows/codeql-analysis.yml)
-<br>
-<a href="http://freshworks.com/website-monitoring?utm_source=status_badge&utm_medium=status_badge" target="_blank"><img src="https://statuspage.freshping.io/badge/91e4eb06-289b-4b4c-8beb-a0e5804959f4?0.56759354585684"/> </a>
+## Checks and Badges
+
+| Type | Status |
+|------|--------|
+| OCI - Push | [![OCI Push](https://github.com/containerish/openregistry/actions/workflows/oci-dist-spec-push.yml/badge.svg)](https://github.com/containerish/openregistry/actions/workflows/oci-dist-spec-push.yml)|
+| OCI - Pull | [![OCI Pull](https://github.com/containerish/openregistry/actions/workflows/oci-dist-spec-pull.yml/badge.svg)](https://github.com/containerish/openregistry/actions/workflows/oci-dist-spec-pull.yml)|
+| OCI - Content Management | [![OCI Content Management](https://github.com/containerish/openregistry/actions/workflows/oci-dist-spec-content-management.yml/badge.svg)](https://github.com/containerish/openregistry/actions/workflows/oci-dist-spec-content-management.yml)|
+| OCI - Content Discovery | [![OCI Content Discovery](https://github.com/containerish/openregistry/actions/workflows/oci-dist-spec-content-discovery.yml/badge.svg)](https://github.com/containerish/openregistry/actions/workflows/oci-dist-spec-content-discovery.yml)|
+| CodeQL | [![CodeQL](https://github.com/containerish/OpenRegistry/actions/workflows/codeql-analysis.yml/badge.svg?branch=master)](https://github.com/containerish/OpenRegistry/actions/workflows/codeql-analysis.yml)|
+| Freshping | <a href="http://freshworks.com/website-monitoring?utm_source=status_badge&utm_medium=status_badge" target="_blank"><img src="https://statuspage.freshping.io/badge/91e4eb06-289b-4b4c-8beb-a0e5804959f4?0.56759354585684"/> </a>|
+| Linter | [![OCI Push](https://github.com/containerish/openregistry/actions/workflows/golangci-lint.yml/badge.svg)](https://github.com/containerish/openregistry/actions/workflows/golangci-lint.yml)|
+</div>
 
 ## Introduction
 OpenRegistry is an open source, decentralized container registry which is fully compliant with [OCI Container Distribution Specification](https://github.com/opencontainers/distribution-spec/blob/main/spec.md).
