@@ -1,4 +1,4 @@
-name: OCI Conformance Tests
+name: OCI Spec - Content Discovery
 
 on:
   pull_request:
