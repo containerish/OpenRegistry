@@ -19,11 +19,14 @@ type dataStore struct {
 type Store interface {
 	Get(key []byte) ([]byte, error)
 	Set(key, value []byte) error
+
 	GetDigest(digest string) (*types.LayerRef, error)
 	SetDigest(digest, skylink string) error
 	DeleteDigest(digest string) error
+
 	DeleteLayer(namespace, digest string) error
 	Update(key, value []byte) error
+
 	ListAll() ([]byte, error)
 	ListWithPrefix(prefix []byte) ([]byte, error)
 	Delete(key []byte) error

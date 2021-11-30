@@ -18,8 +18,12 @@ import (
 // Register is the entry point that registers all the endpoints
 // nolint
 func Register(
-	cfg *config.RegistryConfig, e *echo.Echo, reg registry.Registry, authSvc auth.Authentication,
-	localCache cache.Store, pStore postgres.PersistentStore,
+	cfg *config.RegistryConfig,
+	e *echo.Echo,
+	reg registry.Registry,
+	authSvc auth.Authentication,
+	localCache cache.Store,
+	pStore postgres.PersistentStore,
 	) {
 	e.Use(middleware.Recover())
 	e.Use(middleware.CORS())
