@@ -1,4 +1,4 @@
-name: OCI Conformance Tests
+name: OCI Spec - Push
 
 on:
   pull_request:
