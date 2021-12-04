@@ -2,6 +2,7 @@ package registry
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/fatih/color"
@@ -16,6 +17,7 @@ import (
 
 	"github.com/containerish/OpenRegistry/cache"
 	"github.com/containerish/OpenRegistry/skynet"
+	"github.com/containerish/OpenRegistry/store/postgres"
 	"github.com/containerish/OpenRegistry/telemetry"
 	"github.com/containerish/OpenRegistry/types"
 	"github.com/docker/distribution/uuid"
@@ -26,6 +28,7 @@ func NewRegistry(
 	skynetClient *skynet.Client,
 	c cache.Store,
 	logger telemetry.Logger,
+	pgStore postgres.PersistentStore,
 ) (Registry, error) {
 	r := &registry{
 		debug:  true,
@@ -39,6 +42,8 @@ func NewRegistry(
 		localCache: c,
 		logger:     logger,
 		mu:         &sync.RWMutex{},
+		store:      pgStore,
+		txnMap:     map[string]TxnStore{},
 	}
 
 	r.b.registry = r
@@ -278,7 +283,7 @@ func (r *registry) CompleteUpload(ctx echo.Context) error {
 		ctx.Set(types.HttpEndpointErrorKey, errMsg)
 		return ctx.JSONBlob(http.StatusInternalServerError, errMsg)
 	}
-	txnOp , ok := r.txnMap[uuid]
+	txnOp, ok := r.txnMap[uuid]
 	layer := &types.LayerV2{
 		MediaType:   "",
 		Digest:      dig,
@@ -288,7 +293,7 @@ func (r *registry) CompleteUpload(ctx echo.Context) error {
 		Size:        len(bz),
 	}
 	if !ok {
-		errMsg := r.errorResponse(RegistryErrorCodeUnknown, "transaction does not exist for uuid -"+ uuid, nil)
+		errMsg := r.errorResponse(RegistryErrorCodeUnknown, "transaction does not exist for uuid -"+uuid, nil)
 		ctx.Set(types.HttpEndpointErrorKey, errMsg)
 		return ctx.JSONBlob(http.StatusBadRequest, errMsg)
 	}
@@ -298,14 +303,12 @@ func (r *registry) CompleteUpload(ctx echo.Context) error {
 		return ctx.JSONBlob(http.StatusBadRequest, errMsg)
 	}
 
-
-
-	val := &types.ImageManifestV2{
-		Uuid:          uuid,
-		Namespace:     namespace,
-		MediaType:     "",
-		SchemaVersion: 2,
-	}
+	// val := &types.ImageManifestV2{
+	// 	Uuid:          uuid,
+	// 	Namespace:     namespace,
+	// 	MediaType:     "",
+	// 	SchemaVersion: 2,
+	// }
 
 	//if err = r.localCache.Update([]byte(namespace), val.Bytes()); err != nil {
 	//	errMsg := r.errorResponse(RegistryErrorCodeUnsupported, err.Error(), nil)
@@ -313,17 +316,18 @@ func (r *registry) CompleteUpload(ctx echo.Context) error {
 	//	return ctx.JSONBlob(http.StatusInternalServerError, errMsg)
 	//}
 
-	if err := r.store.SetManifest(ctx.Request().Context(), txnOp.txn, val);err != nil {
-	errMsg := r.errorResponse(RegistryErrorCodeUnknown, err.Error(), nil)
-		ctx.Set(types.HttpEndpointErrorKey, errMsg)
-		return ctx.JSONBlob(http.StatusBadRequest, errMsg)
-	}
+	// if err := r.store.SetManifest(ctx.Request().Context(), txnOp.txn, val); err != nil {
+	// 	errMsg := r.errorResponse(RegistryErrorCodeUnknown, err.Error(), nil)
+	// 	ctx.Set(types.HttpEndpointErrorKey, errMsg)
+	// 	return ctx.JSONBlob(http.StatusBadRequest, errMsg)
+	// }
 
-	if err := r.store.Commit(ctx.Request().Context(),txnOp.txn); err != nil {
+	if err := r.store.Commit(ctx.Request().Context(), txnOp.txn); err != nil {
 		errMsg := r.errorResponse(RegistryErrorCodeUnknown, err.Error(), nil)
 		ctx.Set(types.HttpEndpointErrorKey, errMsg)
 		return ctx.JSONBlob(http.StatusBadRequest, errMsg)
 	}
+	delete(r.txnMap, uuid)
 
 	locationHeader := fmt.Sprintf("/v2/%s/blobs/%s", namespace, ourHash)
 	ctx.Response().Header().Set("Content-Length", "0")
@@ -523,7 +527,7 @@ func (r *registry) PushManifest(ctx echo.Context) error {
 		return ctx.JSONBlob(http.StatusBadRequest, errMsg)
 	}
 
-	color.Red("manifest list: %v\n", manifest)
+	color.Red("manifest list: %s\n", bz)
 
 	mfNamespace := fmt.Sprintf("%s/manifests", namespace)
 	skylink, err := r.skynet.Upload(mfNamespace, dig, bz, true)
@@ -569,6 +573,25 @@ func (r *registry) PushManifest(ctx echo.Context) error {
 		return ctx.JSONBlob(http.StatusBadRequest, errMsg)
 	}
 
+	val := &types.ImageManifestV2{
+		Uuid:          uuid.Generate().String(),
+		Namespace:     namespace,
+		MediaType:     "",
+		SchemaVersion: 2,
+	}
+
+	//if err = r.localCache.Update([]byte(namespace), val.Bytes()); err != nil {
+	//	errMsg := r.errorResponse(RegistryErrorCodeUnsupported, err.Error(), nil)
+	//	ctx.Set(types.HttpEndpointErrorKey, errMsg)
+	//	return ctx.JSONBlob(http.StatusInternalServerError, errMsg)
+	//}
+	txnOp, _ := r.store.NewTxn(context.Background())
+
+	if err := r.store.SetManifest(ctx.Request().Context(), txnOp, val); err != nil {
+		errMsg := r.errorResponse(RegistryErrorCodeUnknown, err.Error(), nil)
+		ctx.Set(types.HttpEndpointErrorKey, errMsg)
+		return ctx.JSONBlob(http.StatusBadRequest, errMsg)
+	}
 	locationHeader := r.getHttpUrlFromSkylink(skylink)
 	ctx.Response().Header().Set("Location", locationHeader)
 	ctx.Response().Header().Set("Docker-Content-Digest", dig)
@@ -776,7 +799,7 @@ func (r *registry) StartUpload(ctx echo.Context) error {
 	if err != nil {
 		errMsg := r.errorResponse(
 			RegistryErrorCodeUnknown,
-			"error creating new database transaction",
+			err.Error(),
 			nil,
 		)
 		ctx.Set(types.HttpEndpointErrorKey, errMsg)

@@ -8,6 +8,7 @@ import (
 	"github.com/containerish/OpenRegistry/types"
 	"github.com/fatih/color"
 	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/labstack/echo/v4"
 )
 
@@ -55,20 +56,24 @@ type RegistryStore interface {
 }
 
 type pg struct {
-	conn *pgx.Conn
+	conn *pgxpool.Pool
 }
 
 func New(cfg *config.StoreConfig) (PersistentStore, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	defer cancel()
 
-	conn, err := pgx.Connect(ctx, cfg.Endpoint())
+	pgxCofig, err := pgxpool.ParseConfig(cfg.Endpoint())
+	if err != nil {
+		return nil, err
+	}
+
+	conn, err := pgxpool.ConnectConfig(ctx, pgxCofig)
 	if err != nil {
 		return nil, err
 	}
 
 	color.Green("connection to database successful")
-
 	return &pg{conn: conn}, nil
 }
 

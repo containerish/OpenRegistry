@@ -39,7 +39,6 @@ func main() {
 		return
 	}
 
-	log := telemetry.SetupLogger()
 	fluentBitCollector, err := fluentbit.New(cfg)
 	if err != nil {
 		color.Red("error initializing fluentbit collector: %s\n", err)
@@ -50,12 +49,12 @@ func main() {
 	authSvc := auth.New(localCache, cfg, pgStore, logger)
 	skynetClient := skynet.NewClient(cfg)
 
-	reg, err := registry.NewRegistry(skynetClient, localCache, logger)
+	reg, err := registry.NewRegistry(skynetClient, localCache, logger, pgStore)
 	if err != nil {
 		e.Logger.Errorf("error creating new container registry: %s", err)
 		return
 	}
 
-	router.Register(cfg, e, reg, authSvc, localCache)
+	router.Register(cfg, e, reg, authSvc, localCache, pgStore)
 	logger.Errorf("error initialising OpenRegistry Server: %s", e.Start(cfg.Address()))
 }
