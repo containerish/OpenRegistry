@@ -11,17 +11,24 @@ type (
 		Manifest  ImageManifest
 	}
 
-	Manifest struct {
-		SkynetLink string
-		Reference  string
-		Digest     string
-	}
+	//Manifest struct {
+	//	SkynetLink string
+	//	Reference  string
+	//	Digest     string
+	//}
 
 	ImageManifest struct {
 		MediaType     string    `json:"mediaType"`
 		Layers        []*Layer  `json:"layers"`
 		Config        []*Config `json:"config"`
 		SchemaVersion int       `json:"schemaVersion"`
+	}
+
+	ImageManifestV2 struct {
+		Uuid          string `json:"uuid"`
+		Namespace     string `json:"namespace"`
+		MediaType     string `json:"mediaType"`
+		SchemaVersion int    `json:"schemaVersion"`
 	}
 
 	Blob struct {
@@ -41,6 +48,15 @@ type (
 		Size       int    `json:"size"`
 	}
 
+	LayerV2 struct {
+		MediaType   string   `json:"mediaType"`
+		Digest      string   `json:"digest"`
+		SkynetLink  string   `json:"skynetLink"`
+		UUID        string   `json:"uuid"`
+		BlobDigests []string `json:"blobs"`
+		Size        int      `json:"size"`
+	}
+
 	LayerRef struct {
 		Digest  string
 		Skylink string
@@ -52,6 +68,17 @@ type (
 		SkynetLink string `json:"skynetLink"`
 		Reference  string `json:"reference"`
 		Size       int    `json:"size"`
+	}
+
+	ConfigV2 struct {
+		UUID      string   `json:"uuid"`
+		Namespace string   `json:"namespace"`
+		Reference string   `json:"reference"`
+		Digest    string   `json:"digest"`
+		Skylink   string   `json:"sky_link"`
+		MediaType string   `json:"media_type"`
+		Layers    []string `json:"layers"`
+		Size      int      `json:"size"`
 	}
 )
 

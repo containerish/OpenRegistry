@@ -2,7 +2,6 @@ package auth
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"time"
 
@@ -47,23 +46,16 @@ func (a *auth) SignIn(ctx echo.Context) error {
 				"error": err.Error(),
 			})
 		}
-		key = fmt.Sprintf("%s/%s", UserNameSpace, user.Email)
+		key = user.Email
 	} else {
-		key = fmt.Sprintf("%s/%s", UserNameSpace, user.Username)
+		key = user.Username
 	}
 
-	bz, err := a.store.Get([]byte(key))
+	//bz, err := a.store.Get([]byte(key))
+	userFromDb, err := a.pgStore.GetUser(ctx.Request().Context(), key)
 	if err != nil {
 		ctx.Set(types.HttpEndpointErrorKey, err.Error())
 		return ctx.JSON(http.StatusBadRequest, echo.Map{
-			"error": err.Error(),
-		})
-	}
-
-	var userFromDb User
-	if err := json.Unmarshal(bz, &userFromDb); err != nil {
-		ctx.Set(types.HttpEndpointErrorKey, err.Error())
-		return ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error": err.Error(),
 		})
 	}
@@ -75,7 +67,12 @@ func (a *auth) SignIn(ctx echo.Context) error {
 	}
 
 	tokenLife := time.Now().Add(time.Hour * 24 * 14).Unix()
-	token, err := a.newToken(userFromDb, tokenLife)
+	uu := User{
+		Email:    userFromDb.Email,
+		Username: userFromDb.Username,
+	}
+
+	token, err := a.newToken(uu, tokenLife)
 	if err != nil {
 		ctx.Set(types.HttpEndpointErrorKey, err.Error())
 		return ctx.JSON(http.StatusInternalServerError, echo.Map{

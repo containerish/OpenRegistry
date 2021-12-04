@@ -60,7 +60,12 @@ func (b *blobs) HEAD(ctx echo.Context) error {
 	ctx.Response().Header().Set("Docker-Content-Digest", digest)
 	return ctx.String(http.StatusOK, "OK")
 }
-
+/*
+UploadBlob
+for postgres
+insert into blob table one blob at a time
+these will be part of the txn in StartUpload
+ */
 func (b *blobs) UploadBlob(ctx echo.Context) error {
 	ctx.Set(types.HandlerStartTime, time.Now())
 	defer func() {
@@ -88,6 +93,15 @@ func (b *blobs) UploadBlob(ctx echo.Context) error {
 
 		b.uploads[uuid] = bz
 
+		if err := b.blobTransaction(ctx, bz, uuid); err!= nil {
+			errMsg := b.errorResponse(
+				RegistryErrorCodeBlobUploadInvalid,
+				err.Error(),
+				nil,
+			)
+			ctx.Set(types.HttpEndpointErrorKey, errMsg)
+			return ctx.JSONBlob(http.StatusBadRequest, errMsg)
+		}
 		locationHeader := fmt.Sprintf("/v2/%s/blobs/uploads/%s", namespace, uuid)
 		ctx.Response().Header().Set("Location", locationHeader)
 		ctx.Response().Header().Set("Range", fmt.Sprintf("0-%d", len(bz)-1))
@@ -126,8 +140,37 @@ func (b *blobs) UploadBlob(ctx echo.Context) error {
 	ctx.Request().Body.Close()
 
 	b.uploads[uuid] = buf.Bytes()
+	if err := b.blobTransaction(ctx, buf.Bytes(), uuid); err!= nil {
+		errMsg := b.errorResponse(
+			RegistryErrorCodeBlobUploadInvalid,
+			err.Error(),
+			nil,
+		)
+		ctx.Set(types.HttpEndpointErrorKey, errMsg)
+		return ctx.JSONBlob(http.StatusBadRequest, errMsg)
+	}
 	locationHeader := fmt.Sprintf("/v2/%s/blobs/uploads/%s", namespace, uuid)
 	ctx.Response().Header().Set("Location", locationHeader)
 	ctx.Response().Header().Set("Range", fmt.Sprintf("0-%d", buf.Len()-1))
 	return ctx.NoContent(http.StatusAccepted)
+}
+
+func (b *blobs) blobTransaction(ctx echo.Context, bz []byte, uuid string) error {
+	blob := &types.Blob{
+		Digest:     digest(bz),
+		Skylink:    "",
+		UUID:       uuid,
+		RangeStart: 0,
+		RangeEnd:   uint32(len(bz)-1),
+	}
+
+	txnOp, ok := b.registry.txnMap[uuid]
+	if !ok {
+		return fmt.Errorf("txn has not been initialised for uuid - " + uuid)
+	}
+
+	 if err :=  b.registry.store.SetBlob(ctx.Request().Context(), txnOp.txn, blob); err != nil {
+		 return b.registry.store.Abort(ctx.Request().Context(),txnOp.txn)
+	 }
+	 return nil
 }

@@ -13,6 +13,7 @@ import (
 
 type PersistentStore interface {
 	UserStore
+	RegistryStore
 	Get(key []byte) ([]byte, error)
 	Set(key, value []byte) error
 	GetDigest(digest string) (*types.LayerRef, error)
@@ -39,6 +40,18 @@ type UserStore interface {
 	UpdateUser(ctx context.Context, identifier string, u *types.User) error
 	DeleteUser(ctx context.Context, identifier string) error
 	IsActive(ctx context.Context, identifier string) bool
+}
+
+type RegistryStore interface {
+	NewTxn(ctx context.Context) (pgx.Tx, error)
+	Abort(ctx context.Context, txn pgx.Tx) error
+	Commit(ctx context.Context, txn pgx.Tx) error
+	GetLayer(ctx context.Context, txn pgx.Tx, digest string) (*types.Layer, error)
+	SetLayer(ctx context.Context, txn pgx.Tx, l *types.LayerV2) error
+	GetManifest(ctx context.Context, txn pgx.Tx, ref string) (*types.ImageManifestV2, error)
+	SetManifest(ctx context.Context, txn pgx.Tx, im *types.ImageManifestV2) error
+	SetBlob(ctx context.Context, txn pgx.Tx, b *types.Blob) error
+	GetBlob(ctx context.Context, txn pgx.Tx, digest string) (*types.Blob, error)
 }
 
 type pg struct {

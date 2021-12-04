@@ -60,7 +60,7 @@ func NewStoreConfig() (*StoreConfig, error) {
 	return &StoreConfig{
 		User:     "postgres",
 		Password: "Qwerty@123",
-		Database: "postgres",
+		Database: "open_registry",
 		Host:     "0.0.0.0",
 		Port:     5432,
 	}, nil

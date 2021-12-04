@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/fatih/color"
 	"io"
 	"net/http"
 	"path"
@@ -225,7 +226,14 @@ func (r *registry) MonolithicUpload(ctx echo.Context) error {
 	return ctx.NoContent(http.StatusCreated)
 }
 
-// PUT /v2/<name>/blobs/uploads/<uuid>?digest=<digest>
+// CompleteUpload
+//PUT /v2/<name>/blobs/uploads/<uuid>?digest=<digest>
+/*
+for postgres:
+this is where we insert into the layer after all the blobs have been accumulated
+and inserted in the blob table
+thus committing the txn
+*/
 func (r *registry) CompleteUpload(ctx echo.Context) error {
 	ctx.Set(types.HandlerStartTime, time.Now())
 	defer func() {
@@ -243,7 +251,7 @@ func (r *registry) CompleteUpload(ctx echo.Context) error {
 		return ctx.JSONBlob(http.StatusBadRequest, errMsg)
 	}
 	_ = ctx.Request().Body.Close()
-
+	// insert if bz is not nil
 	buf := bytes.NewBuffer(r.b.uploads[uuid])
 	buf.Write(bz)
 	ourHash := digest(buf.Bytes())
@@ -270,24 +278,51 @@ func (r *registry) CompleteUpload(ctx echo.Context) error {
 		ctx.Set(types.HttpEndpointErrorKey, errMsg)
 		return ctx.JSONBlob(http.StatusInternalServerError, errMsg)
 	}
-
-	val := types.Metadata{
-		Namespace: namespace,
-		Manifest: types.ImageManifest{
-			SchemaVersion: 2,
-			MediaType:     "",
-			Layers: []*types.Layer{
-				{
-					MediaType: "", Size: len(bz), Digest: dig, SkynetLink: skylink, UUID: uuid,
-				},
-			},
-		},
+	txnOp , ok := r.txnMap[uuid]
+	layer := &types.LayerV2{
+		MediaType:   "",
+		Digest:      dig,
+		SkynetLink:  skylink,
+		UUID:        uuid,
+		BlobDigests: txnOp.blobDigests,
+		Size:        len(bz),
+	}
+	if !ok {
+		errMsg := r.errorResponse(RegistryErrorCodeUnknown, "transaction does not exist for uuid -"+ uuid, nil)
+		ctx.Set(types.HttpEndpointErrorKey, errMsg)
+		return ctx.JSONBlob(http.StatusBadRequest, errMsg)
+	}
+	if err := r.store.SetLayer(ctx.Request().Context(), txnOp.txn, layer); err != nil {
+		errMsg := r.errorResponse(RegistryErrorCodeUnknown, err.Error(), nil)
+		ctx.Set(types.HttpEndpointErrorKey, errMsg)
+		return ctx.JSONBlob(http.StatusBadRequest, errMsg)
 	}
 
-	if err = r.localCache.Update([]byte(namespace), val.Bytes()); err != nil {
-		errMsg := r.errorResponse(RegistryErrorCodeUnsupported, err.Error(), nil)
+
+
+	val := &types.ImageManifestV2{
+		Uuid:          uuid,
+		Namespace:     namespace,
+		MediaType:     "",
+		SchemaVersion: 2,
+	}
+
+	//if err = r.localCache.Update([]byte(namespace), val.Bytes()); err != nil {
+	//	errMsg := r.errorResponse(RegistryErrorCodeUnsupported, err.Error(), nil)
+	//	ctx.Set(types.HttpEndpointErrorKey, errMsg)
+	//	return ctx.JSONBlob(http.StatusInternalServerError, errMsg)
+	//}
+
+	if err := r.store.SetManifest(ctx.Request().Context(), txnOp.txn, val);err != nil {
+	errMsg := r.errorResponse(RegistryErrorCodeUnknown, err.Error(), nil)
 		ctx.Set(types.HttpEndpointErrorKey, errMsg)
-		return ctx.JSONBlob(http.StatusInternalServerError, errMsg)
+		return ctx.JSONBlob(http.StatusBadRequest, errMsg)
+	}
+
+	if err := r.store.Commit(ctx.Request().Context(),txnOp.txn); err != nil {
+		errMsg := r.errorResponse(RegistryErrorCodeUnknown, err.Error(), nil)
+		ctx.Set(types.HttpEndpointErrorKey, errMsg)
+		return ctx.JSONBlob(http.StatusBadRequest, errMsg)
 	}
 
 	locationHeader := fmt.Sprintf("/v2/%s/blobs/%s", namespace, ourHash)
@@ -388,6 +423,7 @@ func (r *registry) ManifestExists(ctx echo.Context) error {
 	return ctx.NoContent(http.StatusOK)
 }
 
+// ChunkedUpload
 // PATCH /v2/<name>/blobs/uploads/<uuid>
 func (r *registry) ChunkedUpload(ctx echo.Context) error {
 	return r.b.UploadBlob(ctx)
@@ -487,6 +523,8 @@ func (r *registry) PushManifest(ctx echo.Context) error {
 		return ctx.JSONBlob(http.StatusBadRequest, errMsg)
 	}
 
+	color.Red("manifest list: %v\n", manifest)
+
 	mfNamespace := fmt.Sprintf("%s/manifests", namespace)
 	skylink, err := r.skynet.Upload(mfNamespace, dig, bz, true)
 	if err != nil {
@@ -495,6 +533,18 @@ func (r *registry) PushManifest(ctx echo.Context) error {
 
 		return ctx.JSONBlob(http.StatusNotFound, errMsg)
 	}
+
+	//id := uuid.Generate()
+	//mfc := &types.ConfigV2{
+	//	UUID:      id.String(),
+	//	Namespace: namespace,
+	//	Reference: ref,
+	//	Digest:    dig,
+	//	Skylink:   skylink,
+	//	MediaType: contentType,
+	//	Layers:    nil,
+	//	Size:      0,
+	//}
 
 	manifestConfig := &types.Config{
 		MediaType:  contentType,
@@ -638,6 +688,11 @@ func (r *registry) PushImage(ctx echo.Context) error {
 	return nil
 }
 
+/*StartUpload
+for postgres:
+start a tnx
+registry.tnxMap[uuid] = {txn,blobs[],timeout}
+*/
 func (r *registry) StartUpload(ctx echo.Context) error {
 	ctx.Set(types.HandlerStartTime, time.Now())
 	defer func() {
@@ -717,7 +772,21 @@ func (r *registry) StartUpload(ctx echo.Context) error {
 
 	id := uuid.Generate()
 	locationHeader := fmt.Sprintf("/v2/%s/blobs/uploads/%s", namespace, id.String())
-
+	txn, err := r.store.NewTxn(ctx.Request().Context())
+	if err != nil {
+		errMsg := r.errorResponse(
+			RegistryErrorCodeUnknown,
+			"error creating new database transaction",
+			nil,
+		)
+		ctx.Set(types.HttpEndpointErrorKey, errMsg)
+		return ctx.JSONBlob(http.StatusInternalServerError, errMsg)
+	}
+	r.txnMap[id.String()] = TxnStore{
+		txn:         txn,
+		blobDigests: []string{},
+		timeout:     time.Minute * 30,
+	}
 	ctx.Response().Header().Set("Location", locationHeader)
 	ctx.Response().Header().Set("Content-Length", "0")
 	ctx.Response().Header().Set("Docker-Upload-UUID", id.String())
