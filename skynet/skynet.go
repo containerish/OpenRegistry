@@ -6,7 +6,7 @@ import (
 	"log"
 	"strconv"
 
-	"github.com/NebulousLabs/go-skynet/v2"
+	"github.com/SkynetLabs/go-skynet/v2"
 	"github.com/containerish/OpenRegistry/config"
 	tar "github.com/whyrusleeping/tar-utils"
 )

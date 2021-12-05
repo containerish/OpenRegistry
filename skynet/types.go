@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"io"
 
-	skynet "github.com/NebulousLabs/go-skynet/v2"
+	skynet "github.com/SkynetLabs/go-skynet/v2"
 )
 
 type (

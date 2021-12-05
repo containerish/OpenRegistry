@@ -3,18 +3,19 @@ module github.com/containerish/OpenRegistry
 go 1.17
 
 require (
-	github.com/NebulousLabs/go-skynet/v2 v2.0.2
+	github.com/SkynetLabs/go-skynet/v2 v2.0.2
 	github.com/dgraph-io/badger/v3 v3.2103.1
 	github.com/docker/distribution v2.7.1+incompatible
 	github.com/fatih/color v1.12.0
 	github.com/golang-jwt/jwt v3.2.2+incompatible
+	github.com/google/uuid v1.3.0
 	github.com/labstack/echo-contrib v0.11.0
 	github.com/labstack/echo/v4 v4.5.0
 	github.com/rs/zerolog v1.24.0
 	github.com/spf13/viper v1.8.1
+	github.com/valyala/fasttemplate v1.2.1
 	github.com/whyrusleeping/tar-utils v0.0.0-20201201191210-20a61371de5b
 	golang.org/x/crypto v0.0.0-20210817164053-32db794688a5
-    github.com/google/uuid v1.3.0
 )
 
 require (
@@ -50,7 +51,6 @@ require (
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/subosito/gotenv v1.2.0 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
-	github.com/valyala/fasttemplate v1.2.1 // indirect
 	gitlab.com/NebulousLabs/errors v0.0.0-20171229012116-7ead97ef90b8 // indirect
 	go.opencensus.io v0.23.0 // indirect
 	golang.org/x/net v0.0.0-20210405180319-a5a99cb37ef4 // indirect
@@ -62,4 +62,4 @@ require (
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
 
-replace github.com/NebulousLabs/go-skynet/v2 => ./.go-skynet
+replace github.com/SkynetLabs/go-skynet/v2 => github.com/containerish/go-skynet/v2 v2.0.2-0.20211205085848-1bbf98d18f7c
