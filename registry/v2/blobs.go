@@ -38,10 +38,11 @@ func (b *blobs) HEAD(ctx echo.Context) error {
 	}()
 
 	digest := ctx.Param("digest")
-	layerRef, err := b.registry.localCache.GetDigest(digest)
+
+	layerRef, err := b.registry.store.GetLayer(ctx.Request().Context(), digest)
 	if err != nil {
 		details := echo.Map{
-			"skynet": "skynet link not found",
+			"skynet": "layer not found",
 		}
 		errMsg := b.errorResponse(RegistryErrorCodeManifestBlobUnknown, err.Error(), details)
 
@@ -49,9 +50,12 @@ func (b *blobs) HEAD(ctx echo.Context) error {
 		return ctx.JSONBlob(http.StatusNotFound, errMsg)
 	}
 
-	size, ok := b.registry.skynet.Metadata(layerRef.Skylink)
+	size, ok := b.registry.skynet.Metadata(layerRef.SkynetLink)
 	if !ok {
-		errMsg := b.errorResponse(RegistryErrorCodeManifestBlobUnknown, "Manifest does not exist", nil)
+		details := echo.Map{
+			"skynet": "skynet link not found",
+		}
+		errMsg := b.errorResponse(RegistryErrorCodeManifestBlobUnknown, "Manifest does not exist", details)
 		ctx.Set(types.HttpEndpointErrorKey, errMsg)
 		return ctx.JSONBlob(http.StatusNotFound, errMsg)
 	}
@@ -172,6 +176,7 @@ func (b *blobs) blobTransaction(ctx echo.Context, bz []byte, uuid string) error 
 	}
 
 	if err := b.registry.store.SetBlob(ctx.Request().Context(), txnOp.txn, blob); err != nil {
+		color.Red("aborting txn: %s\n", err.Error())
 		return b.registry.store.Abort(ctx.Request().Context(), txnOp.txn)
 	}
 

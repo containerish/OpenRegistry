@@ -2,7 +2,7 @@ package postgres
 
 import (
 	"context"
-	"fmt"
+	"strings"
 	"time"
 
 	"github.com/containerish/OpenRegistry/store/postgres/queries"
@@ -10,18 +10,18 @@ import (
 	"github.com/jackc/pgx/v4"
 )
 
-func (p *pg) GetLayer(ctx context.Context, txn pgx.Tx, digest string) (*types.Layer, error) {
+func (p *pg) GetLayer(ctx context.Context, digest string) (*types.LayerV2, error) {
 	childCtx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 
-	row := txn.QueryRow(childCtx, queries.GetLayer, digest)
-	var layer types.Layer
+	row := p.conn.QueryRow(childCtx, queries.GetLayer, digest)
+	var layer types.LayerV2
 	if err := row.Scan(
-		&layer.MediaType,
-		&layer.Digest,
-		&layer.SkynetLink,
 		&layer.UUID,
-		&layer.Blobs,
+		&layer.Digest,
+		&layer.BlobDigests,
+		&layer.MediaType,
+		&layer.SkynetLink,
 		&layer.Size,
 	); err != nil {
 		return nil, err
@@ -39,11 +39,11 @@ func (p *pg) SetLayer(ctx context.Context, txn pgx.Tx, l *types.LayerV2) error {
 	return err
 }
 
-func (p *pg) GetManifest(ctx context.Context, txn pgx.Tx, ref string) (*types.ImageManifestV2, error) {
+func (p *pg) GetManifest(ctx context.Context, namespace string) (*types.ImageManifestV2, error) {
 	childCtx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 
-	row := txn.QueryRow(childCtx, queries.GetManifest, ref)
+	row := p.conn.QueryRow(childCtx, queries.GetManifest, namespace)
 	var im *types.ImageManifestV2
 	if err := row.Scan(
 		&im.Uuid,
@@ -55,6 +55,31 @@ func (p *pg) GetManifest(ctx context.Context, txn pgx.Tx, ref string) (*types.Im
 	}
 	return im, nil
 }
+func (p *pg) GetManifestByReference(ctx context.Context, namespace string, ref string) (*types.ConfigV2, error) {
+	childCtx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+
+	query := queries.GetManifestByRef
+	if strings.HasPrefix(ref, "sha256") {
+		query = queries.GetManifestByDig
+	}
+
+	row := p.conn.QueryRow(childCtx, query, namespace, ref)
+	var im types.ConfigV2
+	if err := row.Scan(
+		&im.UUID,
+		&im.Namespace,
+		&im.Reference,
+		&im.Digest,
+		&im.Skylink,
+		&im.MediaType,
+		&im.Layers,
+		&im.Size,
+	); err != nil {
+		return nil, err
+	}
+	return &im, nil
+}
 
 func (p *pg) SetManifest(ctx context.Context, txn pgx.Tx, im *types.ImageManifestV2) error {
 	childCtx, cancel := context.WithTimeout(context.Background(), time.Minute)
@@ -62,6 +87,36 @@ func (p *pg) SetManifest(ctx context.Context, txn pgx.Tx, im *types.ImageManifes
 
 	_, err := txn.Exec(childCtx, queries.SetImageManifest, im.Uuid, im.Namespace, im.MediaType, im.SchemaVersion)
 	return err
+}
+
+func (p *pg) GetBlob(ctx context.Context, digest string) ([]*types.Blob, error) {
+
+	childCtx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+
+	rows, err := p.conn.Query(childCtx, queries.GetBlob, digest)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	blobList := make([]*types.Blob, 0)
+	for i := 0; rows.Next(); i++ {
+		var blob types.Blob
+		if err := rows.Scan(
+			&blob.UUID,
+			&blob.Digest,
+			&blob.Skylink,
+			&blob.RangeStart,
+			&blob.RangeEnd,
+		); err != nil {
+			return nil, err
+		}
+
+		blobList = append(blobList, &blob)
+	}
+
+	return blobList, nil
 }
 
 func (p *pg) SetBlob(ctx context.Context, txn pgx.Tx, b *types.Blob) error {
@@ -73,45 +128,146 @@ func (p *pg) SetBlob(ctx context.Context, txn pgx.Tx, b *types.Blob) error {
 
 }
 
-func (p *pg) GetBlob(ctx context.Context, txn pgx.Tx, digest string) (*types.Blob, error) {
+func (p *pg) GetConfig(ctx context.Context, namespace string) ([]*types.ConfigV2, error) {
 	childCtx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 
-	row := txn.QueryRow(childCtx, queries.GetBlob, digest)
-	if row == nil {
-		return nil, fmt.Errorf("error blob not found")
+	rows, err := p.conn.Query(childCtx, queries.GetConfig, namespace)
+	if err != nil {
+		return nil, err
 	}
-	var blob types.Blob
-	if err := row.Scan(
-		&blob.UUID,
-		&blob.Digest,
-		&blob.Skylink,
-		&blob.RangeStart,
-		&blob.RangeEnd,
-	); err != nil {
+	defer rows.Close()
+	cfgList := make([]*types.ConfigV2, 0)
+
+	for i := 0; rows.Next(); i++ {
+		var cfg types.ConfigV2
+		if err := rows.Scan(
+			&cfg.UUID,
+			&cfg.Namespace,
+			&cfg.Reference,
+			&cfg.Digest,
+			&cfg.Skylink,
+			&cfg.MediaType,
+			&cfg.Layers,
+			&cfg.Size,
+		); err != nil {
+			return nil, err
+		}
+
+		cfgList = append(cfgList, &cfg)
+	}
+
+	return cfgList, nil
+}
+func (p *pg) GetImageTags(ctx context.Context, namespace string) ([]string, error) {
+	childCtx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+
+	rows, err := p.conn.Query(childCtx, queries.GetImageTags, namespace)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var tags []string
+
+	for i := 0; rows.Next(); i++ {
+		var tag string
+		if err := rows.Scan(&tag); err != nil {
+			return nil, err
+		}
+
+		tags = append(tags, tag)
+	}
+
+	return tags, nil
+}
+
+func (p *pg) SetConfig(ctx context.Context, txn pgx.Tx, cfg types.ConfigV2) error {
+	childCtx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+
+	if _, err := txn.Exec(childCtx, queries.SetConfig, cfg.UUID, cfg.Namespace, cfg.Reference, cfg.Digest, cfg.Skylink, cfg.MediaType, cfg.Layers, cfg.Size); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (p *pg) GetCatalog(ctx context.Context) ([]*types.ConfigV2, error) {
+	childCtx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+
+	rows, err := p.conn.Query(childCtx, queries.GetCatalog)
+	if err != nil {
 		return nil, err
 	}
 
-	return &blob, nil
+	cfgList := make([]*types.ConfigV2, 0)
+	for i := 0; rows.Next(); i++ {
+		var cfg types.ConfigV2
+		if err := rows.Scan(
+			&cfg.Namespace,
+			&cfg.Reference,
+			&cfg.Digest,
+		); err != nil {
+			return nil, err
+		}
+
+		cfgList = append(cfgList, &cfg)
+	}
+
+	return cfgList, nil
+}
+
+func (p *pg) DeleteLayerV2(ctx context.Context, txn pgx.Tx, digest string) error {
+	childCtx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+
+	if _, err := txn.Exec(childCtx, queries.DeleteLayer, digest); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (p *pg) DeleteBlobV2(ctx context.Context, txn pgx.Tx, digest string) error {
+	childCtx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+
+	if _, err := txn.Exec(childCtx, queries.DeleteBlob, digest); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (p *pg) DeleteManifestOrTag(ctx context.Context, txn pgx.Tx, reference string) error {
+	childCtx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+	query := queries.DeleteManifestByRef
+	if strings.HasPrefix(reference, "sha256") {
+		query = queries.DeleteManifestByDig
+	}
+	if _, err := txn.Exec(childCtx, query, reference); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (p *pg) NewTxn(ctx context.Context) (pgx.Tx, error) {
-	childCtx, cancel := context.WithTimeout(context.Background(), time.Minute)
-	defer cancel()
+	childCtx, _ := context.WithTimeout(context.Background(), time.Minute*30)
+	//defer cancel()
 
 	return p.conn.Begin(childCtx)
 }
 
 func (p *pg) Abort(ctx context.Context, txn pgx.Tx) error {
-	childCtx, cancel := context.WithTimeout(context.Background(), time.Minute)
-	defer cancel()
+	childCtx, _ := context.WithTimeout(context.Background(), time.Minute*30)
+	//defer cancel()
 
 	return txn.Rollback(childCtx)
 }
 
 func (p *pg) Commit(ctx context.Context, txn pgx.Tx) error {
-	childCtx, cancel := context.WithTimeout(context.Background(), time.Second*30)
-	defer cancel()
+	childCtx, _ := context.WithTimeout(context.Background(), time.Minute*30)
+	//defer cancel()
 
 	return txn.Commit(childCtx)
 }

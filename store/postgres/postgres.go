@@ -47,12 +47,20 @@ type RegistryStore interface {
 	NewTxn(ctx context.Context) (pgx.Tx, error)
 	Abort(ctx context.Context, txn pgx.Tx) error
 	Commit(ctx context.Context, txn pgx.Tx) error
-	GetLayer(ctx context.Context, txn pgx.Tx, digest string) (*types.Layer, error)
 	SetLayer(ctx context.Context, txn pgx.Tx, l *types.LayerV2) error
-	GetManifest(ctx context.Context, txn pgx.Tx, ref string) (*types.ImageManifestV2, error)
 	SetManifest(ctx context.Context, txn pgx.Tx, im *types.ImageManifestV2) error
 	SetBlob(ctx context.Context, txn pgx.Tx, b *types.Blob) error
-	GetBlob(ctx context.Context, txn pgx.Tx, digest string) (*types.Blob, error)
+	SetConfig(ctx context.Context, txn pgx.Tx, cfg types.ConfigV2) error
+	GetManifest(ctx context.Context, ref string) (*types.ImageManifestV2, error)
+	GetManifestByReference(ctx context.Context, namespace string, ref string) (*types.ConfigV2, error)
+	GetLayer(ctx context.Context, digest string) (*types.LayerV2, error)
+	GetBlob(ctx context.Context, digest string) ([]*types.Blob, error)
+	GetConfig(ctx context.Context, namespace string) ([]*types.ConfigV2, error)
+	GetImageTags(ctx context.Context, namespace string) ([]string, error)
+	GetCatalog(ctx context.Context) ([]*types.ConfigV2, error)
+	DeleteLayerV2(ctx context.Context, txn pgx.Tx, digest string) error
+	DeleteBlobV2(ctx context.Context, txn pgx.Tx, digest string) error
+	DeleteManifestOrTag(ctx context.Context, txn pgx.Tx, reference string) error
 }
 
 type pg struct {
