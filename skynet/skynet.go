@@ -33,17 +33,16 @@ func NewClient(c *config.RegistryConfig) *Client {
 		isRemote:   false,
 		host:       c.Host,
 		gatewayURL: c.SkynetPortalURL,
+		config:     c,
 	}
 }
 
 func (c *Client) Upload(namespace, digest string, content []byte, pin bool) (string, error) {
 	opts := skynet.DefaultUploadOptions
 	opts.APIKey = c.skynet.Options.APIKey
-
 	opts.CustomDirname = namespace
 
 	data := make(skynet.UploadData)
-
 	buf := bytes.NewBuffer(content)
 
 	data[digest] = buf
@@ -53,7 +52,8 @@ func (c *Client) Upload(namespace, digest string, content []byte, pin bool) (str
 		return "", err
 	}
 
-	if pin {
+	// enable pinning only in Prod Environment
+	if pin && c.config.Environment == config.Prod {
 		return c.skynet.PinSkylink(skylink)
 	}
 
