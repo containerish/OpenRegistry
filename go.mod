@@ -62,4 +62,4 @@ require (
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
 
-replace github.com/SkynetLabs/go-skynet/v2 => github.com/containerish/go-skynet/v2 v2.0.2-0.20211205085848-1bbf98d18f7c
+replace github.com/SkynetLabs/go-skynet/v2 => github.com/containerish/go-skynet/v2 v2.0.2-0.20211206044851-95b8ecc10d44

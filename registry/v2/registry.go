@@ -181,7 +181,7 @@ func (r *registry) MonolithicUpload(ctx echo.Context) error {
 	}
 	ctx.Request().Body.Close()
 
-	link, err := r.skynet.Upload(namespace, digest, bz)
+	link, err := r.skynet.Upload(namespace, digest, bz, true)
 	if err != nil {
 		detail := echo.Map{
 			"error":  err.Error(),
@@ -242,7 +242,7 @@ func (r *registry) CompleteUpload(ctx echo.Context) error {
 	}
 
 	blobNamespace := fmt.Sprintf("%s/blobs", namespace)
-	skylink, err := r.skynet.Upload(blobNamespace, dig, buf.Bytes())
+	skylink, err := r.skynet.Upload(blobNamespace, dig, buf.Bytes(), true)
 	if err != nil {
 		errMsg := r.errorResponse(RegistryErrorCodeBlobUploadInvalid, err.Error(), nil)
 		ctx.Set(types.HttpEndpointErrorKey, errMsg)
@@ -446,7 +446,7 @@ func (r *registry) PushManifest(ctx echo.Context) error {
 	}
 
 	mfNamespace := fmt.Sprintf("%s/manifests", namespace)
-	skylink, err := r.skynet.Upload(mfNamespace, dig, bz)
+	skylink, err := r.skynet.Upload(mfNamespace, dig, bz, true)
 	if err != nil {
 		errMsg := r.errorResponse(RegistryErrorCodeManifestBlobUnknown, err.Error(), nil)
 		ctx.Set(types.HttpEndpointErrorKey, errMsg)
@@ -616,7 +616,7 @@ func (r *registry) StartUpload(ctx echo.Context) error {
 			return ctx.JSONBlob(http.StatusBadRequest, errMsg)
 		}
 
-		skylink, err := r.skynet.Upload(namespace, dig, bz)
+		skylink, err := r.skynet.Upload(namespace, dig, bz, true)
 		if err != nil {
 			errMsg := r.errorResponse(RegistryErrorCodeBlobUploadInvalid, err.Error(), nil)
 			lm := logMsg{

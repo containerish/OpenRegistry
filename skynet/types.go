@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
+	"net/http"
 
 	skynet "github.com/SkynetLabs/go-skynet/v2"
 )
@@ -11,9 +12,10 @@ import (
 type (
 	Client struct {
 		skynet     *skynet.SkynetClient
-		isRemote   bool
+		httpClient *http.Client
 		host       string
 		gatewayURL string
+		isRemote   bool
 	}
 	Config struct {
 		Host       string

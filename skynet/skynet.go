@@ -2,9 +2,13 @@ package skynet
 
 import (
 	"bytes"
+	"context"
+	"fmt"
 	"io"
-	"log"
+	"net/http"
 	"strconv"
+	"strings"
+	"time"
 
 	"github.com/SkynetLabs/go-skynet/v2"
 	"github.com/containerish/OpenRegistry/config"
@@ -15,21 +19,26 @@ func NewClient(c *config.RegistryConfig) *Client {
 
 	opts := skynet.Options{
 		CustomUserAgent: c.SkynetConfig.CustomUserAgent,
+		APIKey:          c.SkynetConfig.ApiKey,
+		CustomCookie:    c.SkynetConfig.ApiKey,
 	}
 
 	skynetClient := skynet.NewCustom(c.SkynetPortalURL, opts)
-	//skynetClient := skynet.New()
+	httpClient := http.DefaultClient
+	httpClient.Timeout = time.Second * 60
 
 	return &Client{
 		skynet:     &skynetClient,
+		httpClient: httpClient,
 		isRemote:   false,
 		host:       c.Host,
 		gatewayURL: c.SkynetPortalURL,
 	}
 }
 
-func (c *Client) Upload(namespace, digest string, content []byte, headers ...skynet.Header) (string, error) {
+func (c *Client) Upload(namespace, digest string, content []byte, pin bool) (string, error) {
 	opts := skynet.DefaultUploadOptions
+	opts.APIKey = c.skynet.Options.APIKey
 
 	opts.CustomDirname = namespace
 
@@ -39,19 +48,28 @@ func (c *Client) Upload(namespace, digest string, content []byte, headers ...sky
 
 	data[digest] = buf
 
-	return c.skynet.Upload(data, opts, headers...)
+	skylink, err := c.skynet.Upload(data, opts)
+	if err != nil {
+		return "", err
+	}
+
+	if pin {
+		return c.skynet.PinSkylink(skylink)
+	}
+
+	return skylink, nil
 }
 
-func (c *Client) Download(path string, headers ...skynet.Header) (io.ReadCloser, error) {
+func (c *Client) Download(path string) (io.ReadCloser, error) {
 	opts := skynet.DefaultDownloadOptions
 
-	return c.skynet.Download(path, opts, headers...)
+	return c.skynet.Download(path, opts)
 }
 
-func (c *Client) DownloadDir(skynetLink, dir string, headers ...skynet.Header) error {
+func (c *Client) DownloadDir(skynetLink, dir string) error {
 	opts := skynet.DefaultDownloadOptions
 
-	tarball, err := c.skynet.Download(skynetLink, opts, headers...)
+	tarball, err := c.skynet.Download(skynetLink, opts)
 	if err != nil {
 		return err
 	}
@@ -67,7 +85,7 @@ func (c *Client) List(path string) ([]*SkynetMeta, error) {
 }
 
 // AddImage - arguments: ns = namespace, mf = manifest and l = layers
-func (c *Client) AddImage(ns string, mf, l map[string][]byte, headers ...skynet.Header) (string, error) {
+func (c *Client) AddImage(ns string, mf, l map[string][]byte) (string, error) {
 	opts := skynet.DefaultUploadOptions
 	opts.CustomDirname = ns
 
@@ -80,19 +98,26 @@ func (c *Client) AddImage(ns string, mf, l map[string][]byte, headers ...skynet.
 
 	uploadData["image"] = imageReader
 
-	link, err := c.skynet.Upload(uploadData, opts, headers...)
+	link, err := c.skynet.Upload(uploadData, opts)
 	return link, err
 }
 
 func (c *Client) Metadata(skylink string) (uint64, bool) {
-	opts := skynet.DefaultMetadataOptions
-	info, err := c.skynet.Metadata(skylink, opts)
+	skl := strings.TrimPrefix(skylink, "sia://")
+	url := fmt.Sprintf("%s/%s", c.skynet.PortalURL, skl)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodHead, url, nil)
 	if err != nil {
-		log.Printf("error getting metadat: %s", err)
 		return 0, false
 	}
 
-	ct := info.Get("content-length")
+	// req.SetBasicAuth("", c.skynet.Options.APIKey)
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return 0, false
+	}
+	defer resp.Body.Close()
+
+	ct := resp.Header.Get("Content-Length")
 	if ct == "" {
 		return 0, false
 	}
