@@ -32,6 +32,7 @@ type (
 		EndpointPath    string `mapstructure:"endpoint_path"`
 		ApiKey          string `mapstructure:"api_key"`
 		CustomUserAgent string `mapstructure:"custom_user_agent"`
+		CustomCookie    string `mapstructure:"custom_cookie"`
 	}
 
 	LogConfig struct {
@@ -66,7 +67,11 @@ func LoadFromENV() (*RegistryConfig, error) {
 		SkynetPortalURL: viper.GetString("SKYNET_PORTAL_URL"),
 		SigningSecret:   viper.GetString("SIGNING_SECRET"),
 		DNSAddress:      viper.GetString("DNS_ADDRESS"),
-		SkynetConfig:    SkynetConfig{},
+		SkynetConfig: SkynetConfig{
+			ApiKey:          viper.GetString("SKYNET_API_KEY"),
+			CustomUserAgent: fmt.Sprintf("OpenRegistry-%s", viper.GetString("VERSION")),
+			CustomCookie:    viper.GetString("SKYNET_CUSTOM_COOKIE"),
+		},
 		AuthConfig: AuthConfig{
 			SupportedServices: make(map[string]bool),
 		},
