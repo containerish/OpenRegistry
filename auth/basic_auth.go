@@ -4,13 +4,12 @@ import (
 	// "fmt"
 	"encoding/base64"
 	"fmt"
-	"net/http"
-	"strconv"
-	"strings"
-
 	"github.com/containerish/OpenRegistry/registry/v2"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	"net/http"
+	"strconv"
+	"strings"
 )
 
 const (
