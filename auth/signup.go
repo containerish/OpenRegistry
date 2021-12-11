@@ -44,7 +44,6 @@ func (u *User) Validate(store cache.Store) error {
 
 	if bz != nil {
 		var userList []User
-		fmt.Printf("%s\n", bz)
 		if err := json.Unmarshal(bz, &userList); err != nil {
 
 			if strings.Contains(err.Error(), "object into Go value of type []auth.User") {

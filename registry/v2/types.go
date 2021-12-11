@@ -1,13 +1,13 @@
 package registry
 
 import (
+	"github.com/containerish/OpenRegistry/telemetry"
 	"sync"
 
 	"github.com/containerish/OpenRegistry/cache"
 	"github.com/containerish/OpenRegistry/skynet"
 	fluentbit "github.com/containerish/OpenRegistry/telemetry/fluent-bit"
 	"github.com/labstack/echo/v4"
-	"github.com/rs/zerolog"
 )
 
 /*
@@ -85,14 +85,12 @@ const (
 
 type (
 	registry struct {
-		log        zerolog.Logger
+		logger     telemetry.Logger
 		debug      bool
 		skynet     *skynet.Client
 		b          blobs
 		localCache cache.Store
-		echoLogger echo.Logger
 		mu         *sync.RWMutex
-		fluentbit  fluentbit.FluentBit
 	}
 
 	blobs struct {
