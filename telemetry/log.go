@@ -4,13 +4,14 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/labstack/gommon/log"
 	"io"
 	"os"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/labstack/gommon/log"
 
 	fluentbit "github.com/containerish/OpenRegistry/telemetry/fluent-bit"
 	"github.com/containerish/OpenRegistry/types"
@@ -158,11 +159,11 @@ func ZerologMiddleware(baseLogger zerolog.Logger, fluentbitClient fluentbit.Flue
 }
 
 type logger struct {
-	zlog     zerolog.Logger
-	fbit     fluentbit.FluentBit
-	output   io.Writer
-	pool     *sync.Pool
-	template *fasttemplate.Template
+	fluentBit fluentbit.FluentBit
+	output    io.Writer
+	pool      *sync.Pool
+	template  *fasttemplate.Template
+	zlog      zerolog.Logger
 }
 
 func ZLogger(baseLogger zerolog.Logger, fluentbitClient fluentbit.FluentBit) Logger {
@@ -177,14 +178,15 @@ func ZLogger(baseLogger zerolog.Logger, fluentbitClient fluentbit.FluentBit) Log
 		`,"bytes_in":${bytes_in},"bytes_out":${bytes_out}}` + "\n"
 
 	return &logger{
-		zlog:     baseLogger,
-		fbit:     fluentbitClient,
-		output:   os.Stdout,
-		pool:     pool,
-		template: fasttemplate.New(logFmt, "${", "}"),
+		zlog:      baseLogger,
+		fluentBit: fluentbitClient,
+		output:    os.Stdout,
+		pool:      pool,
+		template:  fasttemplate.New(logFmt, "${", "}"),
 	}
 }
 
+//nolint:cyclop // insane amount of complexity because of templating
 func (l logger) Log(ctx echo.Context) *zerolog.Event {
 
 	start, ok := ctx.Get("start").(time.Time)
@@ -243,17 +245,9 @@ func (l logger) Log(ctx echo.Context) *zerolog.Event {
 			case status >= 300:
 				level = zerolog.ErrorLevel
 			}
-			fmt.Println(res.Status)
 
 			return buf.WriteString(strconv.FormatInt(int64(status), 10))
 		case "error":
-			//if err != nil {
-			//	// Error may contain invalid JSON e.g. `"`
-			//	b, _ := json.Marshal(err.Error())
-			//	b = b[1 : len(b)-1]
-			//	return buf.Write(b)
-			//}
-
 			if ctxErr, ok := ctx.Get(types.HttpEndpointErrorKey).([]byte); ok {
 				return buf.Write(ctxErr)
 			}
@@ -290,7 +284,7 @@ func (l logger) Log(ctx echo.Context) *zerolog.Event {
 	}
 
 	bz := bytes.TrimSpace(buf.Bytes())
-	l.fbit.Send(bz)
+	l.fluentBit.Send(bz)
 	return l.zlog.WithLevel(level).RawJSON("msg", bz)
 }
 
@@ -308,9 +302,7 @@ func (l logger) Prefix() string {
 }
 
 // SetPrefix is not being used since zerologger is the only logger being used
-func (l logger) SetPrefix(p string) {
-	return
-}
+func (l logger) SetPrefix(p string) {}
 
 func (l logger) Level() log.Lvl {
 	level := l.zlog.GetLevel()
@@ -323,7 +315,6 @@ func (l logger) SetLevel(v log.Lvl) {
 }
 
 func (l logger) SetHeader(h string) {
-	return
 }
 
 func (l logger) Print(i ...interface{}) {

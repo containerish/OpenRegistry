@@ -31,9 +31,6 @@ func main() {
 	}
 	defer localCache.Close()
 
-	authSvc := auth.New(localCache, cfg)
-	skynetClient := skynet.NewClient(cfg)
-
 	fluentBitCollector, err := fluentbit.New(cfg)
 	if err != nil {
 		color.Red("error initializing fluentbit collector: %s\n", err)
@@ -41,6 +38,9 @@ func main() {
 	}
 
 	logger := telemetry.ZLogger(telemetry.SetupLogger(), fluentBitCollector)
+	authSvc := auth.New(localCache, cfg, logger)
+	skynetClient := skynet.NewClient(cfg)
+
 	reg, err := registry.NewRegistry(skynetClient, localCache, logger)
 	if err != nil {
 		e.Logger.Errorf("error creating new container registry: %s", err)

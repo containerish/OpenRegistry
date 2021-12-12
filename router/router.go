@@ -17,13 +17,6 @@ import (
 // nolint
 func Register(cfg *config.RegistryConfig, e *echo.Echo, reg registry.Registry, authSvc auth.Authentication, localCache cache.Store) {
 
-	//fbClient, err := fluentbit.New(cfg)
-	//if err != nil {
-	//	log.Fatalf("error in fluentbit init: %s\n", err.Error())
-	//}
-
-	// e.Use(telemetry.EchoLogger())
-	//e.Use(telemetry.ZerologMiddleware(telemetry.SetupLogger(), fbClient))
 	e.Use(middleware.Recover())
 	e.Use(middleware.CORS())
 

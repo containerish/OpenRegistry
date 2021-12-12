@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
+	"github.com/containerish/OpenRegistry/types"
 	"github.com/labstack/echo/v4"
 )
 
@@ -13,19 +15,24 @@ import (
 // request basically comes for
 // https://openregistry.dev/token?service=registry.docker.io&scope=repository:samalba/my-app:pull,push
 func (a *auth) Token(ctx echo.Context) error {
-
 	// TODO (jay-dee7) - check for all valid query params here like serive, client_id, offline_token, etc
 	// more at this link - https://docs.docker.com/registry/spec/auth/token/
+	ctx.Set(types.HandlerStartTime, time.Now())
+	defer func() {
+		a.logger.Log(ctx).Send()
+	}()
 
 	authHeader := ctx.Request().Header.Get(AuthorizationHeaderKey)
 	if authHeader != "" {
 		username, password, err := a.getCredsFromHeader(ctx.Request())
 		if err != nil {
+			ctx.Set(types.HttpEndpointErrorKey, err.Error())
 			return ctx.NoContent(http.StatusUnauthorized)
 		}
 
 		creds, err := a.validateUser(username, password)
 		if err != nil {
+			ctx.Set(types.HttpEndpointErrorKey, err.Error())
 			return ctx.JSON(http.StatusUnauthorized, echo.Map{
 				"error": err.Error(),
 			})
@@ -36,10 +43,12 @@ func (a *auth) Token(ctx echo.Context) error {
 
 	scope, err := a.getScopeFromQueryParams(ctx.QueryParam("scope"))
 	if err != nil {
-		return ctx.JSON(http.StatusBadRequest, echo.Map{
+		errMsg := echo.Map{
 			"error": err.Error(),
 			"msg":   "invalid scope provided",
-		})
+		}
+		ctx.Set(types.HttpEndpointErrorKey, errMsg)
+		return ctx.JSON(http.StatusBadRequest, errMsg)
 	}
 
 	// issue a free-public token to pull any repository
@@ -47,6 +56,7 @@ func (a *auth) Token(ctx echo.Context) error {
 	if len(scope.Actions) == 1 && scope.Actions["pull"] {
 		token, err := a.newPublicPullToken()
 		if err != nil {
+			ctx.Set(types.HttpEndpointErrorKey, err.Error())
 			return ctx.NoContent(http.StatusInternalServerError)
 		}
 

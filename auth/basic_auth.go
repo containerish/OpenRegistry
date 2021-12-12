@@ -4,12 +4,15 @@ import (
 	// "fmt"
 	"encoding/base64"
 	"fmt"
-	"github.com/containerish/OpenRegistry/registry/v2"
-	"github.com/labstack/echo/v4"
-	"github.com/labstack/echo/v4/middleware"
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
+
+	"github.com/containerish/OpenRegistry/registry/v2"
+	"github.com/containerish/OpenRegistry/types"
+	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
 )
 
 const (
@@ -58,17 +61,26 @@ func (a *auth) BasicAuth() echo.MiddlewareFunc {
 			return false
 		},
 		Validator: func(username string, password string, ctx echo.Context) (bool, error) {
+			ctx.Set(types.HandlerStartTime, time.Now())
+			printInMiddleware := true
+			defer func() {
+				if printInMiddleware {
+					a.logger.Log(ctx).Send()
+				}
+			}()
+
 			if ctx.Request().RequestURI == "/v2/" {
 				_, err := a.validateUser(username, password)
 				if err != nil {
+					ctx.Set(types.HttpEndpointErrorKey, err.Error())
 					return false, ctx.NoContent(http.StatusUnauthorized)
 				}
 
+				printInMiddleware = false
 				return true, nil
 			}
 
 			usernameFromNameSpace := ctx.Param("username")
-
 			if usernameFromNameSpace != username {
 				var errMsg registry.RegistryErrors
 				errMsg.Errors = append(errMsg.Errors, registry.RegistryError{
@@ -76,13 +88,16 @@ func (a *auth) BasicAuth() echo.MiddlewareFunc {
 					Message: "not authorised",
 					Detail:  nil,
 				})
+				ctx.Set(types.HttpEndpointErrorKey, errMsg)
 				return false, ctx.JSON(http.StatusForbidden, errMsg)
 			}
 			resp, err := a.validateUser(username, password)
 			if err != nil {
+				ctx.Set(types.HttpEndpointErrorKey, err.Error())
 				return false, err
 			}
 
+			printInMiddleware = false
 			ctx.Set("basic_auth", resp)
 			return true, nil
 		},
