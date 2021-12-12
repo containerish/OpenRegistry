@@ -13,7 +13,7 @@ var (
 	values ($1, $2, $3, $4, $5) on conflict (digest) do nothing;`
 
 	SetConfig = `insert into config (uuid, namespace, reference, digest, sky_link, media_type, layers, size) 
-	values ($1, $2, $3, $4, $5, $6,$7, $8) on conflict (digest) do set digest=$4;`
+	values ($1, $2, $3, $4, $5, $6,$7, $8) on conflict (digest) do nothing;`
 )
 
 // select queries

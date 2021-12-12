@@ -128,7 +128,7 @@ func (r *registry) Catalog(ctx echo.Context) error {
 
 	catalogList, err := r.store.GetCatalog(ctx.Request().Context())
 	if err != nil {
-		ctx.Set(types.HttpEndpointErrorKey,err.Error())
+		ctx.Set(types.HttpEndpointErrorKey, err.Error())
 		return ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error": err.Error(),
 		})
@@ -305,7 +305,7 @@ func (r *registry) MonolithicUpload(ctx echo.Context) error {
 	}
 	ctx.Request().Body.Close()
 
-	link, err := r.skynet.Upload(namespace, digest, bz)
+	link, err := r.skynet.Upload(namespace, digest, bz, true)
 	if err != nil {
 		detail := echo.Map{
 			"error":  err.Error(),
@@ -523,7 +523,7 @@ func (r *registry) CompleteUpload(ctx echo.Context) error {
 	}
 
 	blobNamespace := fmt.Sprintf("%s/blobs", namespace)
-	skylink, err := r.skynet.Upload(blobNamespace, dig, buf.Bytes())
+	skylink, err := r.skynet.Upload(blobNamespace, dig, buf.Bytes(), true)
 	if err != nil {
 		errMsg := r.errorResponse(RegistryErrorCodeBlobUploadInvalid, err.Error(), nil)
 		ctx.Set(types.HttpEndpointErrorKey, errMsg)
@@ -556,25 +556,6 @@ func (r *registry) CompleteUpload(ctx echo.Context) error {
 		ctx.Set(types.HttpEndpointErrorKey, errMsg)
 		return ctx.JSONBlob(http.StatusBadRequest, errMsg)
 	}
-
-	// val := &types.ImageManifestV2{
-	// 	Uuid:          uuid,
-	// 	Namespace:     namespace,
-	// 	MediaType:     "",
-	// 	SchemaVersion: 2,
-	// }
-
-	//if err = r.localCache.Update([]byte(namespace), val.Bytes()); err != nil {
-	//	errMsg := r.errorResponse(RegistryErrorCodeUnsupported, err.Error(), nil)
-	//	ctx.Set(types.HttpEndpointErrorKey, errMsg)
-	//	return ctx.JSONBlob(http.StatusInternalServerError, errMsg)
-	//}
-
-	// if err := r.store.SetManifest(ctx.Request().Context(), txnOp.txn, val); err != nil {
-	// 	errMsg := r.errorResponse(RegistryErrorCodeUnknown, err.Error(), nil)
-	// 	ctx.Set(types.HttpEndpointErrorKey, errMsg)
-	// 	return ctx.JSONBlob(http.StatusBadRequest, errMsg)
-	// }
 
 	if err := r.store.Commit(ctx.Request().Context(), txnOp.txn); err != nil {
 		errMsg := r.errorResponse(RegistryErrorCodeUnknown, err.Error(), echo.Map{
@@ -625,7 +606,7 @@ func (r *registry) PushManifest(ctx echo.Context) error {
 	}
 
 	mfNamespace := fmt.Sprintf("%s/manifests", namespace)
-	skylink, err := r.skynet.Upload(mfNamespace, dig, bz)
+	skylink, err := r.skynet.Upload(mfNamespace, dig, bz, true)
 	if err != nil {
 		errMsg := r.errorResponse(RegistryErrorCodeManifestBlobUnknown, err.Error(), nil)
 		ctx.Set(types.HttpEndpointErrorKey, errMsg)
@@ -644,28 +625,6 @@ func (r *registry) PushManifest(ctx echo.Context) error {
 		Size:      0,
 	}
 
-	//manifestConfig := &types.Config{
-	//	MediaType:  contentType,
-	//	Size:       len(bz),
-	//	Digest:     dig,
-	//	SkynetLink: skylink,
-	//	Reference:  ref,
-	//}
-
-	//metadata := types.Metadata{
-	//	Namespace: namespace,
-	//	Manifest: types.ImageManifest{
-	//		SchemaVersion: 2,
-	//		Config:        []*types.Config{manifestConfig},
-	//	},
-	//}
-
-	//if err = r.localCache.Update([]byte(namespace), metadata.Bytes()); err != nil {
-	//	errMsg := r.errorResponse(RegistryErrorCodeManifestInvalid, err.Error(), nil)
-	//	ctx.Set(types.HttpEndpointErrorKey, errMsg)
-	//	return ctx.JSONBlob(http.StatusBadRequest, errMsg)
-	//}
-
 	val := &types.ImageManifestV2{
 		Uuid:          uuid.Generate().String(),
 		Namespace:     namespace,
@@ -673,11 +632,6 @@ func (r *registry) PushManifest(ctx echo.Context) error {
 		SchemaVersion: 2,
 	}
 
-	//if err = r.localCache.Update([]byte(namespace), val.Bytes()); err != nil {
-	//	errMsg := r.errorResponse(RegistryErrorCodeUnsupported, err.Error(), nil)
-	//	ctx.Set(types.HttpEndpointErrorKey, errMsg)
-	//	return ctx.JSONBlob(http.StatusInternalServerError, errMsg)
-	//}
 	txnOp, _ := r.store.NewTxn(context.Background())
 
 	if err := r.store.SetManifest(ctx.Request().Context(), txnOp, val); err != nil {

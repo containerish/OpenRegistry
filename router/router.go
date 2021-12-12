@@ -2,7 +2,6 @@ package router
 
 import (
 	"github.com/containerish/OpenRegistry/store/postgres"
-	"log"
 	"net/http"
 
 	"github.com/containerish/OpenRegistry/auth"
@@ -24,7 +23,7 @@ func Register(
 	authSvc auth.Authentication,
 	localCache cache.Store,
 	pStore postgres.PersistentStore,
-	) {
+) {
 	e.Use(middleware.Recover())
 	e.Use(middleware.CORS())
 
