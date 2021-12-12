@@ -1,12 +1,12 @@
 package registry
 
 import (
-	"github.com/containerish/OpenRegistry/telemetry"
 	"sync"
+
+	"github.com/containerish/OpenRegistry/telemetry"
 
 	"github.com/containerish/OpenRegistry/cache"
 	"github.com/containerish/OpenRegistry/skynet"
-	fluentbit "github.com/containerish/OpenRegistry/telemetry/fluent-bit"
 	"github.com/labstack/echo/v4"
 )
 
@@ -52,9 +52,9 @@ type RegistryErrors struct {
 }
 
 type RegistryError struct {
+	Detail  map[string]interface{} `json:"detail,omitempty"`
 	Code    string                 `json:"code"`
 	Message string                 `json:"message"`
-	Detail  map[string]interface{} `json:"detail,omitempty"`
 }
 
 // OCI - Distribution Spec compliant Headers
@@ -85,21 +85,20 @@ const (
 
 type (
 	registry struct {
-		logger     telemetry.Logger
-		debug      bool
-		skynet     *skynet.Client
 		b          blobs
+		logger     telemetry.Logger
 		localCache cache.Store
+		skynet     *skynet.Client
 		mu         *sync.RWMutex
+		debug      bool
 	}
 
 	blobs struct {
-		mutex     sync.Mutex
-		contents  map[string][]byte
-		uploads   map[string][]byte
-		layers    map[string][]string
-		fluentbit fluentbit.FluentBit
-		registry  *registry
+		mutex    sync.Mutex
+		contents map[string][]byte
+		uploads  map[string][]byte
+		layers   map[string][]string
+		registry *registry
 	}
 
 	logMsg map[string]interface{}

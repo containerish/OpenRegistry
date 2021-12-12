@@ -1,7 +1,6 @@
 package auth
 
 import (
-	// "fmt"
 	"encoding/base64"
 	"fmt"
 	"net/http"

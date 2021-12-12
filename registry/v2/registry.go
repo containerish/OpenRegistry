@@ -13,10 +13,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/containerish/OpenRegistry/telemetry"
-
 	"github.com/containerish/OpenRegistry/cache"
 	"github.com/containerish/OpenRegistry/skynet"
+	"github.com/containerish/OpenRegistry/telemetry"
 	"github.com/containerish/OpenRegistry/types"
 	"github.com/docker/distribution/uuid"
 	"github.com/labstack/echo/v4"
@@ -134,10 +133,8 @@ func (r *registry) DeleteLayer(ctx echo.Context) error {
 		bz, err := r.localCache.Get([]byte(namespace))
 		if err != nil {
 			errMsg := r.errorResponse(RegistryErrorCodeBlobUnknown, err.Error(), nil)
-			err = ctx.JSONBlob(http.StatusNotFound, errMsg)
-
 			ctx.Set(types.HttpEndpointErrorKey, errMsg)
-			return err
+			return ctx.JSONBlob(http.StatusNotFound, errMsg)
 		}
 		if err = json.Unmarshal(bz, &m); err != nil {
 			errMsg := r.errorResponse(RegistryErrorCodeBlobUnknown, err.Error(), nil)

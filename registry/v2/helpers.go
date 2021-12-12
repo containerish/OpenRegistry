@@ -35,18 +35,6 @@ func digest(bz []byte) string {
 	return "sha256:" + hex.EncodeToString(hash.Sum(nil))
 }
 
-//func (r *registry) debugf(lm logMsg) {
-//
-//	if r.debug {
-//		r.echoLogger.Debug(lm)
-//	}
-//
-//	if r.debug {
-//		e := r.log.Debug()
-//		e.Fields(lm).Send()
-//	}
-//}
-
 func (r *registry) getHttpUrlFromSkylink(s string) string {
 	link := strings.TrimPrefix(s, "sia://")
 	return fmt.Sprintf("https://siasky.net/%s", link)

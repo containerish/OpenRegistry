@@ -11,11 +11,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/labstack/gommon/log"
-
 	fluentbit "github.com/containerish/OpenRegistry/telemetry/fluent-bit"
 	"github.com/containerish/OpenRegistry/types"
 	"github.com/labstack/echo/v4"
+	"github.com/labstack/gommon/log"
 	"github.com/rs/zerolog"
 	"github.com/valyala/fasttemplate"
 )
@@ -318,11 +317,11 @@ func (l logger) SetHeader(h string) {
 }
 
 func (l logger) Print(i ...interface{}) {
-	l.zlog.WithLevel(l.zlog.GetLevel()).Msgf("%v", i)
+	l.zlog.WithLevel(l.zlog.GetLevel()).Msgf("%v", i...)
 }
 
 func (l logger) Printf(format string, args ...interface{}) {
-	l.zlog.WithLevel(l.zlog.GetLevel()).Msgf(format, args)
+	l.zlog.WithLevel(l.zlog.GetLevel()).Msgf(format, args...)
 }
 
 func (l logger) Printj(j log.JSON) {
@@ -330,11 +329,11 @@ func (l logger) Printj(j log.JSON) {
 }
 
 func (l logger) Debug(i ...interface{}) {
-	l.zlog.Debug().Msgf("%v", i)
+	l.zlog.Debug().Msgf("%v", i...)
 }
 
 func (l logger) Debugf(format string, args ...interface{}) {
-	l.zlog.Debug().Msgf(format, args)
+	l.zlog.Debug().Msgf(format, args...)
 }
 
 func (l logger) Debugj(j log.JSON) {
@@ -342,11 +341,11 @@ func (l logger) Debugj(j log.JSON) {
 }
 
 func (l logger) Info(i ...interface{}) {
-	l.zlog.Info().Msgf("%v", i)
+	l.zlog.Info().Msgf("%v", i...)
 }
 
 func (l logger) Infof(format string, args ...interface{}) {
-	l.zlog.Info().Msgf(format, args)
+	l.zlog.Info().Msgf(format, args...)
 }
 
 func (l logger) Infoj(j log.JSON) {
@@ -354,11 +353,11 @@ func (l logger) Infoj(j log.JSON) {
 }
 
 func (l logger) Warn(i ...interface{}) {
-	l.zlog.Warn().Msgf("%v", i)
+	l.zlog.Warn().Msgf("%v", i...)
 }
 
 func (l logger) Warnf(format string, args ...interface{}) {
-	l.zlog.Warn().Msgf(format, args)
+	l.zlog.Warn().Msgf(format, args...)
 }
 
 func (l logger) Warnj(j log.JSON) {
@@ -366,11 +365,11 @@ func (l logger) Warnj(j log.JSON) {
 }
 
 func (l logger) Error(i ...interface{}) {
-	l.zlog.Error().Msgf("%v", i)
+	l.zlog.Error().Msgf("%v", i...)
 }
 
 func (l logger) Errorf(format string, args ...interface{}) {
-	l.zlog.Error().Msgf(format, args)
+	l.zlog.Error().Msgf(format, args...)
 }
 
 func (l logger) Errorj(j log.JSON) {
@@ -378,7 +377,7 @@ func (l logger) Errorj(j log.JSON) {
 }
 
 func (l logger) Fatal(i ...interface{}) {
-	l.zlog.Fatal().Msgf("%v", i)
+	l.zlog.Fatal().Msgf("%v", i...)
 }
 
 func (l logger) Fatalj(j log.JSON) {
@@ -386,11 +385,11 @@ func (l logger) Fatalj(j log.JSON) {
 }
 
 func (l logger) Fatalf(format string, args ...interface{}) {
-	l.zlog.Fatal().Msgf(format, args)
+	l.zlog.Fatal().Msgf(format, args...)
 }
 
 func (l logger) Panic(i ...interface{}) {
-	l.zlog.Panic().Msgf("%v", i)
+	l.zlog.Panic().Msgf("%v", i...)
 }
 
 func (l logger) Panicj(j log.JSON) {
@@ -398,5 +397,5 @@ func (l logger) Panicj(j log.JSON) {
 }
 
 func (l logger) Panicf(format string, args ...interface{}) {
-	l.zlog.Panic().Msgf(format, args)
+	l.zlog.Panic().Msgf(format, args...)
 }
