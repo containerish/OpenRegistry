@@ -1,15 +1,12 @@
 package router
 
 import (
-	"log"
 	"net/http"
 
 	"github.com/containerish/OpenRegistry/auth"
 	"github.com/containerish/OpenRegistry/cache"
 	"github.com/containerish/OpenRegistry/config"
 	"github.com/containerish/OpenRegistry/registry/v2"
-	"github.com/containerish/OpenRegistry/telemetry"
-	fluentbit "github.com/containerish/OpenRegistry/telemetry/fluent-bit"
 	"github.com/google/uuid"
 	"github.com/labstack/echo-contrib/prometheus"
 	"github.com/labstack/echo/v4"
@@ -19,14 +16,6 @@ import (
 // Register is the entry point that registers all the endpoints
 // nolint
 func Register(cfg *config.RegistryConfig, e *echo.Echo, reg registry.Registry, authSvc auth.Authentication, localCache cache.Store) {
-
-	fbClient, err := fluentbit.New(cfg)
-	if err != nil {
-		log.Fatalf("error in fluentbit init: %s\n", err.Error())
-	}
-
-	// e.Use(telemetry.EchoLogger())
-	e.Use(telemetry.ZerologMiddleware(telemetry.SetupLogger(), fbClient))
 	e.Use(middleware.Recover())
 	e.Use(middleware.CORS())
 

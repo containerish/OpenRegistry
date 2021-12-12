@@ -19,9 +19,7 @@ func (r *registry) errorResponse(code, msg string, detail map[string]interface{}
 
 	bz, e := json.Marshal(err)
 	if e != nil {
-		lm := make(logMsg)
-		lm["error"] = e.Error()
-		r.debugf(lm)
+		r.logger.Error(e.Error())
 	}
 
 	return bz
@@ -35,18 +33,6 @@ func digest(bz []byte) string {
 	}
 
 	return "sha256:" + hex.EncodeToString(hash.Sum(nil))
-}
-
-func (r *registry) debugf(lm logMsg) {
-
-	if r.debug {
-		r.echoLogger.Debug(lm)
-	}
-
-	if r.debug {
-		e := r.log.Debug()
-		e.Fields(lm).Send()
-	}
 }
 
 func (r *registry) getHttpUrlFromSkylink(s string) string {

@@ -31,22 +31,22 @@ func main() {
 	}
 	defer localCache.Close()
 
-	authSvc := auth.New(localCache, cfg)
-	skynetClient := skynet.NewClient(cfg)
-
-	log := telemetry.SetupLogger()
 	fluentBitCollector, err := fluentbit.New(cfg)
 	if err != nil {
 		color.Red("error initializing fluentbit collector: %s\n", err)
 		os.Exit(1)
 	}
 
-	reg, err := registry.NewRegistry(skynetClient, log, localCache, e.Logger, fluentBitCollector)
+	logger := telemetry.ZLogger(telemetry.SetupLogger(), fluentBitCollector)
+	authSvc := auth.New(localCache, cfg, logger)
+	skynetClient := skynet.NewClient(cfg)
+
+	reg, err := registry.NewRegistry(skynetClient, localCache, logger)
 	if err != nil {
 		e.Logger.Errorf("error creating new container registry: %s", err)
 		return
 	}
 
 	router.Register(cfg, e, reg, authSvc, localCache)
-	log.Fatal().Msgf("error starting server: %s\n", e.Start(cfg.Address()))
+	logger.Errorf("error initialising OpenRegistry Server: %s", e.Start(cfg.Address()))
 }

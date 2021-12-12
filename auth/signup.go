@@ -7,9 +7,11 @@ import (
 	"net/http"
 	"regexp"
 	"strings"
+	"time"
 	"unicode"
 
 	"github.com/containerish/OpenRegistry/cache"
+	"github.com/containerish/OpenRegistry/types"
 	"github.com/labstack/echo/v4"
 )
 
@@ -44,7 +46,6 @@ func (u *User) Validate(store cache.Store) error {
 
 	if bz != nil {
 		var userList []User
-		fmt.Printf("%s\n", bz)
 		if err := json.Unmarshal(bz, &userList); err != nil {
 
 			if strings.Contains(err.Error(), "object into Go value of type []auth.User") {
@@ -139,10 +140,15 @@ func verifyPassword(password string) error {
 }
 
 func (a *auth) SignUp(ctx echo.Context) error {
+	ctx.Set(types.HandlerStartTime, time.Now())
+	defer func() {
+		a.logger.Log(ctx).Send()
+	}()
 
 	var u User
 	bz, err := io.ReadAll(ctx.Request().Body)
 	if err != nil {
+		ctx.Set(types.HttpEndpointErrorKey, err.Error())
 		return ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error": err.Error(),
 			"msg":   "invalid request body",
@@ -151,13 +157,14 @@ func (a *auth) SignUp(ctx echo.Context) error {
 	ctx.Request().Body.Close()
 
 	if err := json.Unmarshal(bz, &u); err != nil {
+		ctx.Set(types.HttpEndpointErrorKey, err.Error())
 		return ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error": err.Error(),
-			"msg":   "couldn't marshal user",
 		})
 	}
 
 	if err := u.Validate(a.store); err != nil {
+		ctx.Set(types.HttpEndpointErrorKey, err.Error())
 		return ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error": err.Error(),
 		})
@@ -165,6 +172,7 @@ func (a *auth) SignUp(ctx echo.Context) error {
 
 	hpwd, err := a.hashPassword(u.Password)
 	if err != nil {
+		ctx.Set(types.HttpEndpointErrorKey, err.Error())
 		return ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error": err.Error(),
 		})
@@ -172,6 +180,7 @@ func (a *auth) SignUp(ctx echo.Context) error {
 	u.Password = hpwd
 	bz, err = json.Marshal(u)
 	if err != nil {
+		ctx.Set(types.HttpEndpointErrorKey, err.Error())
 		return ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error": err.Error(),
 		})
@@ -179,6 +188,7 @@ func (a *auth) SignUp(ctx echo.Context) error {
 
 	key := fmt.Sprintf("%s/%s", UserNameSpace, u.Username)
 	if err := a.store.Set([]byte(key), bz); err != nil {
+		ctx.Set(types.HttpEndpointErrorKey, err.Error())
 		return ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error": err.Error(),
 		})
@@ -186,6 +196,7 @@ func (a *auth) SignUp(ctx echo.Context) error {
 
 	key = fmt.Sprintf("%s/%s", UserNameSpace, u.Email)
 	if err := a.store.Set([]byte(key), bz); err != nil {
+		ctx.Set(types.HttpEndpointErrorKey, err.Error())
 		return ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error": err.Error(),
 		})

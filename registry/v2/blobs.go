@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 
 	"github.com/containerish/OpenRegistry/types"
 	"github.com/fatih/color"
@@ -31,6 +32,11 @@ func (b *blobs) errorResponse(code, msg string, detail map[string]interface{}) [
 }
 
 func (b *blobs) HEAD(ctx echo.Context) error {
+	ctx.Set(types.HandlerStartTime, time.Now())
+	defer func() {
+		b.registry.logger.Log(ctx).Send()
+	}()
+
 	digest := ctx.Param("digest")
 	layerRef, err := b.registry.localCache.GetDigest(digest)
 	if err != nil {
@@ -56,6 +62,11 @@ func (b *blobs) HEAD(ctx echo.Context) error {
 }
 
 func (b *blobs) UploadBlob(ctx echo.Context) error {
+	ctx.Set(types.HandlerStartTime, time.Now())
+	defer func() {
+		b.registry.logger.Log(ctx).Send()
+	}()
+
 	namespace := ctx.Param("username") + "/" + ctx.Param("imagename")
 	contentRange := ctx.Request().Header.Get("Content-Range")
 	uuid := ctx.Param("uuid")
@@ -68,6 +79,7 @@ func (b *blobs) UploadBlob(ctx echo.Context) error {
 				nil,
 			)
 			ctx.Set(types.HttpEndpointErrorKey, errMsg)
+
 			return ctx.JSONBlob(http.StatusBadRequest, errMsg)
 		}
 
