@@ -233,9 +233,7 @@ func (r *registry) PullLayer(ctx echo.Context) error {
 	clientDigest := ctx.Param("digest")
 
 	layer, err := r.store.GetLayer(ctx.Request().Context(), clientDigest)
-	//layerRef, err := r.localCache.GetDigest(clientDigest)
 	if err != nil {
-		//color.Red("error pull layer")
 		errMsg := r.errorResponse(RegistryErrorCodeBlobUnknown, err.Error(), nil)
 		ctx.Set(types.HttpEndpointErrorKey, errMsg)
 		return ctx.JSONBlob(http.StatusNotFound, errMsg)
@@ -255,7 +253,8 @@ func (r *registry) PullLayer(ctx echo.Context) error {
 	resp, err := r.skynet.Download(layer.SkynetLink)
 	if err != nil {
 		detail := map[string]interface{}{
-			"error": err.Error(),
+			"error":   err.Error(),
+			"skylink": layer.SkynetLink,
 		}
 		errMsg := r.errorResponse(RegistryErrorCodeBlobUnknown, err.Error(), detail)
 		ctx.Set(types.HttpEndpointErrorKey, errMsg)
@@ -372,9 +371,7 @@ func (r *registry) StartUpload(ctx echo.Context) error {
 			)
 
 			ctx.Set(types.HttpEndpointErrorKey, errMsg)
-
 			return ctx.JSONBlob(http.StatusNotFound, errMsg)
-
 		}
 		ctx.Request().Body.Close() // why defer? body is already read :)
 		dig := digest(bz)
@@ -402,27 +399,36 @@ func (r *registry) StartUpload(ctx echo.Context) error {
 			return ctx.JSONBlob(http.StatusRequestedRangeNotSatisfiable, errMsg)
 		}
 
-		layer := &types.Layer{
-			MediaType:  "application/vnd.docker.image.rootfs.diff.tar.gzip",
-			Size:       len(bz),
-			Digest:     dig,
-			SkynetLink: skylink,
-			UUID:       "",
+		layerV2 := &types.LayerV2{
+			MediaType:   ctx.Request().Header.Get("content-type"),
+			Digest:      dig,
+			SkynetLink:  skylink,
+			UUID:        uuid.Generate().String(),
+			BlobDigests: nil,
+			Size:        len(bz),
 		}
 
-		var val types.Metadata
-		val.Namespace = namespace
-		val.Manifest.Layers = append(val.Manifest.Layers, layer)
-
-		link := r.getHttpUrlFromSkylink(skylink)
-		if err = r.localCache.Update([]byte(namespace), val.Bytes()); err != nil {
-			errMsg := r.errorResponse(RegistryErrorCodeUnsupported, err.Error(), nil)
+		txnOp, err := r.store.NewTxn(ctx.Request().Context())
+		if err != nil {
+			errMsg := r.errorResponse(RegistryErrorCodeUnknown, err.Error(), nil)
 			ctx.Set(types.HttpEndpointErrorKey, errMsg)
 
 			return ctx.JSONBlob(http.StatusInternalServerError, errMsg)
 		}
-		ctx.Response().Header().Set("Location", link)
 
+		if err := r.store.SetLayer(ctx.Request().Context(), txnOp, layerV2); err != nil {
+			errMsg := r.errorResponse(RegistryErrorCodeBlobUploadInvalid, err.Error(), nil)
+			ctx.Set(types.HttpEndpointErrorKey, errMsg)
+			return ctx.JSONBlob(http.StatusBadRequest, errMsg)
+		}
+		if err := r.store.Commit(ctx.Request().Context(), txnOp); err != nil {
+			errMsg := r.errorResponse(RegistryErrorCodeBlobUploadInvalid, err.Error(), nil)
+			ctx.Set(types.HttpEndpointErrorKey, errMsg)
+			return ctx.JSONBlob(http.StatusBadRequest, errMsg)
+		}
+
+		link := r.getHttpUrlFromSkylink(skylink)
+		ctx.Response().Header().Set("Location", link)
 		return ctx.NoContent(http.StatusCreated)
 	}
 
@@ -529,11 +535,7 @@ func (r *registry) CompleteUpload(ctx echo.Context) error {
 		ctx.Set(types.HttpEndpointErrorKey, errMsg)
 		return ctx.JSONBlob(http.StatusRequestedRangeNotSatisfiable, errMsg)
 	}
-	//if err := r.localCache.SetDigest(ourHash, skylink); err != nil {
-	//	errMsg := r.errorResponse(RegistryErrorCodeBlobUnknown, err.Error(), nil)
-	//	ctx.Set(types.HttpEndpointErrorKey, errMsg)
-	//	return ctx.JSONBlob(http.StatusInternalServerError, errMsg)
-	//}
+
 	txnOp, ok := r.txnMap[id]
 	layer := &types.LayerV2{
 		MediaType:   "",
@@ -613,6 +615,11 @@ func (r *registry) PushManifest(ctx echo.Context) error {
 		return ctx.JSONBlob(http.StatusNotFound, errMsg)
 	}
 
+	var layerIDs []string
+	for _, layer := range manifest.Layers {
+		layerIDs = append(layerIDs, layer.Digest)
+	}
+
 	id := uuid.Generate()
 	mfc := types.ConfigV2{
 		UUID:      id.String(),
@@ -621,7 +628,7 @@ func (r *registry) PushManifest(ctx echo.Context) error {
 		Digest:    dig,
 		Skylink:   skylink,
 		MediaType: contentType,
-		Layers:    nil,
+		Layers:    layerIDs,
 		Size:      0,
 	}
 
@@ -731,17 +738,10 @@ func (r *registry) DeleteLayer(ctx echo.Context) error {
 	layer, err := r.store.GetLayer(ctx.Request().Context(), dig)
 	//_, err := r.localCache.GetDigest(dig)
 	if err != nil {
-		//bz, err := r.localCache.Get([]byte(namespace))
-		//if err != nil {
+
 		errMsg := r.errorResponse(RegistryErrorCodeBlobUnknown, err.Error(), nil)
 		ctx.Set(types.HttpEndpointErrorKey, errMsg)
 		return ctx.JSONBlob(http.StatusNotFound, errMsg)
-		//}
-		//if err = json.Unmarshal(bz, &m); err != nil {
-		//	errMsg := r.errorResponse(RegistryErrorCodeBlobUnknown, err.Error(), nil)
-		//	ctx.Set(types.HttpEndpointErrorKey, errMsg)
-		//	return ctx.JSONBlob(http.StatusInternalServerError, errMsg)
-		//}
 	}
 	blobs := layer.BlobDigests
 
