@@ -186,7 +186,17 @@ func (p *pg) SetConfig(ctx context.Context, txn pgx.Tx, cfg types.ConfigV2) erro
 	childCtx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 
-	if _, err := txn.Exec(childCtx, queries.SetConfig, cfg.UUID, cfg.Namespace, cfg.Reference, cfg.Digest, cfg.Skylink, cfg.MediaType, cfg.Layers, cfg.Size); err != nil {
+	if _, err := txn.Exec(childCtx,
+		queries.SetConfig,
+		cfg.UUID,
+		cfg.Namespace,
+		cfg.Reference,
+		cfg.Digest,
+		cfg.Skylink,
+		cfg.MediaType,
+		cfg.Layers,
+		cfg.Size,
+	); err != nil {
 		return err
 	}
 	return nil

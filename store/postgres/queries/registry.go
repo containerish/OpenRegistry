@@ -3,8 +3,8 @@ package queries
 // insert queries
 var (
 	SetDigest        = `insert into `
-	SetImageManifest = `insert into image_manifest (uuid, namespace, media_type, schema_version) values ($1, $2, $3, $4)
-	on conflict (namespace) do update set schema_version=3`
+	SetImageManifest = `insert into image_manifest (uuid, namespace, media_type, schema_version) 
+	values ($1, $2, $3, $4) on conflict (namespace) do update set schema_version=3`
 	SetLayer = `insert into layer (media_type, digest, sky_link, uuid, blob_ids, size)
 	values ($1, $2, $3, $4, $5, $6) on conflict (digest) do nothing;`
 
@@ -13,7 +13,8 @@ var (
 	values ($1, $2, $3, $4, $5) on conflict (digest) do nothing;`
 
 	SetConfig = `insert into config (uuid, namespace, reference, digest, sky_link, media_type, layers, size) 
-	values ($1, $2, $3, $4, $5, $6,$7, $8) on conflict (namespace,reference) do update set digest=$4, sky_link=$5, layers=$7;`
+	values ($1, $2, $3, $4, $5, $6,$7, $8) on conflict (namespace,reference) 
+	do update set digest=$4, sky_link=$5,layers=$7;`
 )
 
 // select queries

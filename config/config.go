@@ -67,7 +67,8 @@ func NewStoreConfig() (*StoreConfig, error) {
 }
 
 func (sc *StoreConfig) Endpoint() string {
-	return fmt.Sprintf("postgresql://%s:%s@%s:%d/%s?pool_max_conns=1000", sc.User, sc.Password, sc.Host, sc.Port, sc.Database)
+	return fmt.Sprintf("postgresql://%s:%s@%s:%d/%s?pool_max_conns=1000",
+		sc.User, sc.Password, sc.Host, sc.Port, sc.Database)
 }
 
 func LoadFromENV() (*RegistryConfig, error) {

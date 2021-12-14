@@ -7,10 +7,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/containerish/OpenRegistry/telemetry"
-
 	"github.com/containerish/OpenRegistry/cache"
 	"github.com/containerish/OpenRegistry/skynet"
+	"github.com/containerish/OpenRegistry/telemetry"
 	"github.com/labstack/echo/v4"
 )
 
@@ -113,8 +112,6 @@ type (
 		layers   map[string][]string
 		registry *registry
 	}
-
-	logMsg map[string]interface{}
 
 	ManifestList struct {
 		SchemaVersion int    `json:"schemaVersion"`
