@@ -12,6 +12,7 @@ import (
 
 type (
 	RegistryConfig struct {
+		StoreConfig     *StoreConfig `mapstructure:"store_config"`
 		AuthConfig      AuthConfig   `mapstructure:"auth_config"`
 		LogConfig       LogConfig    `mapstructure:"log_config"`
 		SkynetConfig    SkynetConfig `mapstructure:"skynet_config"`
@@ -57,17 +58,22 @@ func (r *RegistryConfig) Address() string {
 }
 
 func NewStoreConfig() (*StoreConfig, error) {
-	return &StoreConfig{
-		User:     "postgres",
-		Password: "Qwerty@123",
-		Database: "open_registry",
-		Host:     "0.0.0.0",
-		Port:     5432,
-	}, nil
+	viper.SetEnvPrefix("OPEN_REGISTRY")
+	viper.AutomaticEnv()
+
+	storeConfig := &StoreConfig{
+		User:     viper.GetString("DB_USER"),
+		Password: viper.GetString("DB_PASSWORD"),
+		Database: viper.GetString("DB_NAME"),
+		Host:     viper.GetString("DB_HOST"),
+		Port:     viper.GetInt("DB_PORT"),
+	}
+
+	return storeConfig, nil
 }
 
 func (sc *StoreConfig) Endpoint() string {
-	return fmt.Sprintf("postgresql://%s:%s@%s:%d/%s?pool_max_conns=1000",
+	return fmt.Sprintf("postgres://%s:%s@%s:%d/%s?pool_max_conns=1000&sslmode=disable",
 		sc.User, sc.Password, sc.Host, sc.Port, sc.Database)
 }
 
@@ -104,6 +110,13 @@ func LoadFromENV() (*RegistryConfig, error) {
 			AuthMethod: viper.GetString("LOG_SERVICE_AUTH_KIND"),
 			Username:   viper.GetString("LOG_SERVICE_USER"),
 			Password:   viper.GetString("LOG_SERVICE_PASSWORD"),
+		},
+		StoreConfig: &StoreConfig{
+			User:     viper.GetString("DB_USER"),
+			Host:     viper.GetString("DB_HOST"),
+			Port:     viper.GetInt("DB_PORT"),
+			Password: viper.GetString("DB_PASSWORD"),
+			Database: viper.GetString("DB_NAME"),
 		},
 	}
 

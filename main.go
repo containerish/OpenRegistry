@@ -32,8 +32,7 @@ func main() {
 	}
 	defer localCache.Close()
 
-	pgConfig, _ := config.NewStoreConfig()
-	pgStore, err := postgres.New(pgConfig)
+	pgStore, err := postgres.New(cfg.StoreConfig)
 	if err != nil {
 		color.Red("error here: %s", err.Error())
 		return
