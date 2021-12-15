@@ -262,22 +262,22 @@ func (p *pg) DeleteManifestOrTag(ctx context.Context, txn pgx.Tx, reference stri
 }
 
 func (p *pg) NewTxn(ctx context.Context) (pgx.Tx, error) {
-	childCtx, _ := context.WithTimeout(context.Background(), time.Minute*30)
-	//defer cancel()
+	childCtx, cancel := context.WithTimeout(context.Background(), time.Minute*30)
+	defer cancel()
 
 	return p.conn.Begin(childCtx)
 }
 
 func (p *pg) Abort(ctx context.Context, txn pgx.Tx) error {
-	childCtx, _ := context.WithTimeout(context.Background(), time.Minute*30)
-	//defer cancel()
+	childCtx, cancel := context.WithTimeout(context.Background(), time.Minute*30)
+	defer cancel()
 
 	return txn.Rollback(childCtx)
 }
 
 func (p *pg) Commit(ctx context.Context, txn pgx.Tx) error {
-	childCtx, _ := context.WithTimeout(context.Background(), time.Minute*30)
-	//defer cancel()
+	childCtx, cancel := context.WithTimeout(context.Background(), time.Minute*30)
+	defer cancel()
 
 	return txn.Commit(childCtx)
 }

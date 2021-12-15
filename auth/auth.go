@@ -20,13 +20,18 @@ type Authentication interface {
 
 type auth struct {
 	pgStore postgres.PersistentStore
-	store  cache.Store
-	c      *config.RegistryConfig
-	logger telemetry.Logger
+	store   cache.Store
+	c       *config.RegistryConfig
+	logger  telemetry.Logger
 }
 
 // New is the constructor function returns an Authentication implementation
-func New(s cache.Store, c *config.RegistryConfig, pgStore postgres.PersistentStore, logger telemetry.Logger) Authentication {
+func New(
+	s cache.Store,
+	c *config.RegistryConfig,
+	pgStore postgres.PersistentStore,
+	logger telemetry.Logger,
+) Authentication {
 	a := &auth{store: s, c: c, pgStore: pgStore, logger: logger}
 	return a
 }

@@ -762,7 +762,7 @@ func (r *registry) DeleteLayer(ctx echo.Context) error {
 		return ctx.JSONBlob(http.StatusInternalServerError, bz)
 	}
 
-	for i, _ := range blobs {
+	for i := range blobs {
 		//if err = r.localCache.DeleteDigest(dig); err != nil {
 		if err = r.store.DeleteBlobV2(ctx.Request().Context(), txnOp, blobs[i]); err != nil {
 			logMsg := echo.Map{

@@ -1,8 +1,9 @@
+//nolint
 package queries
 
 // insert queries
 var (
-	SetDigest        = `insert into `
+	//
 	SetImageManifest = `insert into image_manifest (uuid, namespace, media_type, schema_version) 
 	values ($1, $2, $3, $4) on conflict (namespace) do update set schema_version=3`
 	SetLayer = `insert into layer (media_type, digest, sky_link, uuid, blob_ids, size)

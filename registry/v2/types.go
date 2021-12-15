@@ -1,16 +1,16 @@
 package registry
 
 import (
-	"github.com/containerish/OpenRegistry/store/postgres"
-	"github.com/jackc/pgx/v4"
-	"github.com/rs/zerolog"
 	"sync"
 	"time"
 
 	"github.com/containerish/OpenRegistry/cache"
 	"github.com/containerish/OpenRegistry/skynet"
+	"github.com/containerish/OpenRegistry/store/postgres"
 	"github.com/containerish/OpenRegistry/telemetry"
+	"github.com/jackc/pgx/v4"
 	"github.com/labstack/echo/v4"
+	"github.com/rs/zerolog"
 )
 
 /*
