@@ -3,6 +3,7 @@ package auth
 import (
 	"github.com/containerish/OpenRegistry/cache"
 	"github.com/containerish/OpenRegistry/config"
+	"github.com/containerish/OpenRegistry/store/postgres"
 	"github.com/containerish/OpenRegistry/telemetry"
 	"github.com/labstack/echo/v4"
 )
@@ -18,13 +19,19 @@ type Authentication interface {
 }
 
 type auth struct {
-	store  cache.Store
-	c      *config.RegistryConfig
-	logger telemetry.Logger
+	pgStore postgres.PersistentStore
+	store   cache.Store
+	c       *config.RegistryConfig
+	logger  telemetry.Logger
 }
 
 // New is the constructor function returns an Authentication implementation
-func New(s cache.Store, c *config.RegistryConfig, logger telemetry.Logger) Authentication {
-	a := &auth{store: s, c: c, logger: logger}
+func New(
+	s cache.Store,
+	c *config.RegistryConfig,
+	pgStore postgres.PersistentStore,
+	logger telemetry.Logger,
+) Authentication {
+	a := &auth{store: s, c: c, pgStore: pgStore, logger: logger}
 	return a
 }

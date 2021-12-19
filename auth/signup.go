@@ -178,24 +178,15 @@ func (a *auth) SignUp(ctx echo.Context) error {
 		})
 	}
 	u.Password = hpwd
-	bz, err = json.Marshal(u)
+
+	newUser := &types.User{
+		Email:    u.Email,
+		Username: u.Username,
+		Password: u.Password,
+	}
+
+	err = a.pgStore.AddUser(ctx.Request().Context(), newUser)
 	if err != nil {
-		ctx.Set(types.HttpEndpointErrorKey, err.Error())
-		return ctx.JSON(http.StatusInternalServerError, echo.Map{
-			"error": err.Error(),
-		})
-	}
-
-	key := fmt.Sprintf("%s/%s", UserNameSpace, u.Username)
-	if err := a.store.Set([]byte(key), bz); err != nil {
-		ctx.Set(types.HttpEndpointErrorKey, err.Error())
-		return ctx.JSON(http.StatusInternalServerError, echo.Map{
-			"error": err.Error(),
-		})
-	}
-
-	key = fmt.Sprintf("%s/%s", UserNameSpace, u.Email)
-	if err := a.store.Set([]byte(key), bz); err != nil {
 		ctx.Set(types.HttpEndpointErrorKey, err.Error())
 		return ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error": err.Error(),

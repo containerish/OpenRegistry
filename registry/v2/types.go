@@ -2,12 +2,15 @@ package registry
 
 import (
 	"sync"
-
-	"github.com/containerish/OpenRegistry/telemetry"
+	"time"
 
 	"github.com/containerish/OpenRegistry/cache"
 	"github.com/containerish/OpenRegistry/skynet"
+	"github.com/containerish/OpenRegistry/store/postgres"
+	"github.com/containerish/OpenRegistry/telemetry"
+	"github.com/jackc/pgx/v4"
 	"github.com/labstack/echo/v4"
+	"github.com/rs/zerolog"
 )
 
 /*
@@ -52,9 +55,9 @@ type RegistryErrors struct {
 }
 
 type RegistryError struct {
-	Detail  map[string]interface{} `json:"detail,omitempty"`
 	Code    string                 `json:"code"`
 	Message string                 `json:"message"`
+	Detail  map[string]interface{} `json:"detail,omitempty"`
 }
 
 // OCI - Distribution Spec compliant Headers
@@ -85,12 +88,21 @@ const (
 
 type (
 	registry struct {
+		log        zerolog.Logger
 		b          blobs
 		logger     telemetry.Logger
 		localCache cache.Store
 		skynet     *skynet.Client
 		mu         *sync.RWMutex
 		debug      bool
+		txnMap     map[string]TxnStore
+		store      postgres.PersistentStore
+	}
+
+	TxnStore struct {
+		txn         pgx.Tx
+		blobDigests []string
+		timeout     time.Duration
 	}
 
 	blobs struct {
@@ -100,8 +112,6 @@ type (
 		layers   map[string][]string
 		registry *registry
 	}
-
-	logMsg map[string]interface{}
 
 	ManifestList struct {
 		SchemaVersion int    `json:"schemaVersion"`

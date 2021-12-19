@@ -7,6 +7,7 @@ import (
 	"github.com/containerish/OpenRegistry/cache"
 	"github.com/containerish/OpenRegistry/config"
 	"github.com/containerish/OpenRegistry/registry/v2"
+	"github.com/containerish/OpenRegistry/store/postgres"
 	"github.com/google/uuid"
 	"github.com/labstack/echo-contrib/prometheus"
 	"github.com/labstack/echo/v4"
@@ -15,7 +16,14 @@ import (
 
 // Register is the entry point that registers all the endpoints
 // nolint
-func Register(cfg *config.RegistryConfig, e *echo.Echo, reg registry.Registry, authSvc auth.Authentication, localCache cache.Store) {
+func Register(
+	cfg *config.RegistryConfig,
+	e *echo.Echo,
+	reg registry.Registry,
+	authSvc auth.Authentication,
+	localCache cache.Store,
+	pStore postgres.PersistentStore,
+) {
 	e.Use(middleware.Recover())
 	e.Use(middleware.CORS())
 

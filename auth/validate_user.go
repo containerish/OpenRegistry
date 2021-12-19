@@ -1,7 +1,7 @@
 package auth
 
 import (
-	"encoding/json"
+	"context"
 	"fmt"
 	"time"
 
@@ -13,14 +13,8 @@ func (a *auth) validateUser(username, password string) (map[string]interface{}, 
 		return nil, fmt.Errorf("Email/Password cannot be empty")
 	}
 
-	key := fmt.Sprintf("%s/%s", UserNameSpace, username)
-	bz, err := a.store.Get([]byte(key))
+	userFromDb, err := a.pgStore.GetUser(context.Background(), username)
 	if err != nil {
-		return nil, err
-	}
-
-	var userFromDb User
-	if err := json.Unmarshal(bz, &userFromDb); err != nil {
 		return nil, err
 	}
 

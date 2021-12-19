@@ -1,4 +1,4 @@
-name: OCI Spec - Pull
+name: OCI Distribution Spec
 
 on:
   pull_request:
@@ -6,13 +6,36 @@ on:
 jobs:
   pull:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres
+        env:
+          PGUSER: postgres
+          POSTGRES_DB: open_registry
+          POSTGRES_PASSWORD: Qwerty@123
+          POSTGRES_USER: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
     steps:
-      - name: set up docker
-        uses: docker-practice/actions-setup-docker@0.0.1
-        with:
-          docker_version: 18.09
-          docker_channel: stable
       - uses: actions/checkout@v2
+      - name: Install Migrate CLI
+        run: |
+          curl -L https://github.com/golang-migrate/migrate/releases/download/v4.15.1/migrate.linux-amd64.tar.gz | tar xvz
+          sudo mv migrate /usr/bin/migrate
+      - name: Setup PostgreSQL Database
+        run: |
+          IP=`hostname -I | awk '{print $1}'`
+          POSTGRESQL_URL=postgres://$PGUSER:$PGPASSWORD@$IP:5432/$PGDATABASE?sslmode=disable
+          migrate -database ${POSTGRESQL_URL} -path db/migrations up
+        env:
+           PGDATABASE: open_registry
+           PGPASSWORD: Qwerty@123
+           PGUSER: postgres
       - name: start distribution server
         run: |
           IP=`hostname -I | awk '{print $1}'`
@@ -21,8 +44,10 @@ jobs:
           DISTRIBUTION_REF="local-distribution:v$(date +%Y%m%d%H%M%S)"
           docker build -f ./Dockerfile -t "${DISTRIBUTION_REF}" .
           sed -in "s/OPEN_REGISTRY_ENVIRONMENT=local/OPEN_REGISTRY_ENVIRONMENT=ci/g" env-vars.example
+          sed -in "s/OPEN_REGISTRY_DB_HOST=0.0.0.0/OPEN_REGISTRY_DB_HOST=${IP}/g" env-vars.example
           echo CI_SYS_ADDR=$IP:5000 >> env-vars.example
-          docker run --rm -p 5000:5000 --env-file ./env-vars.example -e REGISTRY_STORAGE_DELETE_ENABLED=true -d "${DISTRIBUTION_REF}"
+          echo REGISTRY_STORAGE_DELETE_ENABLED=true 
+          docker run --rm -p 5000:5000 --env-file ./env-vars.example -d "${DISTRIBUTION_REF}"
           sleep 5
           curl -XPOST -d ${{ secrets.OPENREGISTRY_SIGNUP_PAYLOAD }} "http://${IP}:5000/auth/signup"
       - name: Run OCI Distribution Spec conformance tests
