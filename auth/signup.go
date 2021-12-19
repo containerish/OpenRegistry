@@ -186,28 +186,12 @@ func (a *auth) SignUp(ctx echo.Context) error {
 	}
 
 	err = a.pgStore.AddUser(ctx.Request().Context(), newUser)
-
-	// bz, err = json.Marshal(u)
 	if err != nil {
 		ctx.Set(types.HttpEndpointErrorKey, err.Error())
 		return ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error": err.Error(),
 		})
 	}
-
-	// key := fmt.Sprintf("%s/%s", UserNameSpace, u.Username)
-	// if err := a.store.Set([]byte(key), bz); err != nil {
-	// 	return ctx.JSON(http.StatusInternalServerError, echo.Map{
-	// 		"error": err.Error(),
-	// 	})
-	// }
-
-	// key = fmt.Sprintf("%s/%s", UserNameSpace, u.Email)
-	// if err := a.store.Set([]byte(key), bz); err != nil {
-	// 	return ctx.JSON(http.StatusInternalServerError, echo.Map{
-	// 		"error": err.Error(),
-	// 	})
-	// }
 
 	return ctx.JSON(http.StatusCreated, echo.Map{
 		"message": "user successfully created",

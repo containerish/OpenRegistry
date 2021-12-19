@@ -11,12 +11,6 @@ type (
 		Manifest  ImageManifest
 	}
 
-	//Manifest struct {
-	//	SkynetLink string
-	//	Reference  string
-	//	Digest     string
-	//}
-
 	ImageManifest struct {
 		MediaType     string    `json:"mediaType"`
 		Layers        []*Layer  `json:"layers"`
