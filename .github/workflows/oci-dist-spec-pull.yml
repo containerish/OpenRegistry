@@ -38,14 +38,15 @@ jobs:
            PGUSER: postgres
       - name: start distribution server
         run: |
+          wget https://github.com/mikefarah/yq/releases/download/v4.16.2/yq_linux_amd64 -O /usr/bin/yq && chmod +x /usr/bin/yq
           IP=`hostname -I | awk '{print $1}'`
           echo "IP=$IP" >> $GITHUB_ENV
           echo "OCI_ROOT_URL=http://$IP:5000" >> $GITHUB_ENV
           DISTRIBUTION_REF="local-distribution:v$(date +%Y%m%d%H%M%S)"
-          docker build -f ./Dockerfile -t "${DISTRIBUTION_REF}" .
-          yq e -i '.environment = ci' config.yaml
-          IP=$IP yq e -i '.registry.host = env(IP)' config.yaml
+          yq e -i '.environment = "ci"' config.yaml
           IP=$IP yq e -i '.database.host = env(IP)' config.yaml
+          SKYNET_API_KEY=${{ secrets.SKYNET_API_KEY }} yq e -i '.skynet.api_key = env(SKYNET_API_KEY)' config.yaml
+          docker build -f ./Dockerfile -t "${DISTRIBUTION_REF}" .
           docker run --rm -p 5000:5000 --env="CI_SYS_ADDR=$IP:5000" -d "${DISTRIBUTION_REF}"
           sleep 5
           curl -XPOST -d ${{ secrets.OPENREGISTRY_SIGNUP_PAYLOAD }} "http://${IP}:5000/auth/signup"

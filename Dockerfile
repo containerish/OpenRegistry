@@ -4,7 +4,7 @@ LABEL org.opencontainers.image.source = "https://github.com/containerish/OpenReg
 WORKDIR /root/openregistry
 
 COPY Makefile .
-RUN apk add gcc make git curl ca-certificates && make mod-fix
+RUN apk add gcc make git curl ca-certificates
 
 COPY . .
 RUN go mod download && CGO_ENABLED=0 go build -o openregistry -ldflags="-w -s" main.go
@@ -12,6 +12,6 @@ RUN go mod download && CGO_ENABLED=0 go build -o openregistry -ldflags="-w -s" m
 FROM alpine:latest
 
 COPY --from=build /root/openregistry/openregistry .
-#COPY ./config.yaml .
+COPY config.yaml .
 EXPOSE 5000
 CMD ["./openregistry"]
