@@ -1,0 +1,31 @@
+environment: local
+debug: true
+registry:
+  dns_address: beta.openregistry.dev
+  version: master
+  jwt_signing_secret: super-secret
+  host: "0.0.0.0"
+  port: 5000
+  tls:
+    key: openregistry.key
+    cert: openregistry.cert
+  services:
+    - github
+    - token
+    - skynet_homescreen
+skynet:
+  portal_url: https://siasky.net
+  api_key: skynet-key
+database:
+  kind: postgres
+  host: 0.0.0.0
+  port: 5432
+  username: postgres
+  password: Qwerty@123
+  name: open_registry
+log_service:
+  name: grafana-loki
+  endpoint: http://0.0.0.0:9880/app.log
+  auth_method: basic_auth
+  username: grafana-username
+  password: grafana-password

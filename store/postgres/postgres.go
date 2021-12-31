@@ -67,7 +67,7 @@ type pg struct {
 	conn *pgxpool.Pool
 }
 
-func New(cfg *config.StoreConfig) (PersistentStore, error) {
+func New(cfg *config.Store) (PersistentStore, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	defer cancel()
 

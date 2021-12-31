@@ -20,7 +20,7 @@ func (a *auth) newPublicPullToken() (string, error) {
 	claims.Access[0].Actions = []string{"pull"}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, &claims)
-	sign, err := token.SignedString([]byte(a.c.SigningSecret))
+	sign, err := token.SignedString([]byte(a.c.Registry.SigningSecret))
 	if err != nil {
 		return "", err
 	}
@@ -35,7 +35,7 @@ func (a *auth) newToken(u User, tokenLife int64) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, &claims)
 
 	// Generate encoded token and send it as response.
-	t, err := token.SignedString([]byte(a.c.SigningSecret))
+	t, err := token.SignedString([]byte(a.c.Registry.SigningSecret))
 	if err != nil {
 		return "", err
 

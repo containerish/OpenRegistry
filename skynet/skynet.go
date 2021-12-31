@@ -15,15 +15,15 @@ import (
 	tar "github.com/whyrusleeping/tar-utils"
 )
 
-func NewClient(c *config.RegistryConfig) *Client {
+func NewClient(oc *config.OpenRegistryConfig) *Client {
 
 	opts := skynet.Options{
-		CustomUserAgent: c.SkynetConfig.CustomUserAgent,
-		APIKey:          c.SkynetConfig.ApiKey,
-		CustomCookie:    c.SkynetConfig.ApiKey,
+		CustomUserAgent: oc.SkynetConfig.CustomUserAgent,
+		APIKey:          oc.SkynetConfig.ApiKey,
+		CustomCookie:    oc.SkynetConfig.ApiKey,
 	}
 
-	skynetClient := skynet.NewCustom(c.SkynetPortalURL, opts)
+	skynetClient := skynet.NewCustom(oc.SkynetConfig.SkynetPortalURL, opts)
 	httpClient := http.DefaultClient
 	httpClient.Timeout = time.Second * 60
 
@@ -31,9 +31,9 @@ func NewClient(c *config.RegistryConfig) *Client {
 		skynet:     &skynetClient,
 		httpClient: httpClient,
 		isRemote:   false,
-		host:       c.Host,
-		gatewayURL: c.SkynetPortalURL,
-		config:     c,
+		host:       oc.Registry.Host,
+		gatewayURL: oc.SkynetConfig.SkynetPortalURL,
+		config:     oc,
 	}
 }
 

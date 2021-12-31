@@ -38,7 +38,7 @@ func (a *auth) JWT() echo.MiddlewareFunc {
 		},
 		KeyFunc:        middleware.DefaultJWTConfig.KeyFunc,
 		ParseTokenFunc: middleware.DefaultJWTConfig.ParseTokenFunc,
-		SigningKey:     []byte(a.c.SigningSecret),
+		SigningKey:     []byte(a.c.Registry.SigningSecret),
 		SigningKeys:    map[string]interface{}{},
 		SigningMethod:  jwt.SigningMethodHS256.Name,
 		Claims:         &Claims{},
