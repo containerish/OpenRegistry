@@ -18,7 +18,7 @@ type (
 	fluentBit struct {
 		client        *http.Client
 		retryMessages map[string]retryLogMsg
-		config        *config.RegistryConfig
+		config        *config.OpenRegistryConfig
 	}
 
 	retryLogMsg struct {
@@ -28,7 +28,7 @@ type (
 	}
 )
 
-func New(config *config.RegistryConfig) (FluentBit, error) {
+func New(config *config.OpenRegistryConfig) (FluentBit, error) {
 	httpClient := &http.Client{
 		Timeout: time.Duration(time.Second * 30),
 	}

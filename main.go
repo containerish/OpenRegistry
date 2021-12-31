@@ -17,7 +17,7 @@ import (
 )
 
 func main() {
-	cfg, err := config.LoadFromENV()
+	cfg, err := config.ReadYamlConfig()
 	if err != nil {
 		color.Red("error reading cfg file: %s", err.Error())
 		os.Exit(1)
@@ -55,5 +55,5 @@ func main() {
 	}
 
 	router.Register(cfg, e, reg, authSvc, localCache, pgStore)
-	logger.Errorf("error initialising OpenRegistry Server: %s", e.Start(cfg.Address()))
+	logger.Errorf("error initialising OpenRegistry Server: %s", e.Start(cfg.Registry.Address()))
 }

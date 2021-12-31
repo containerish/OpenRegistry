@@ -6,7 +6,5 @@ parachute.yaml
 .idea/
 tests
 .go-skynet
-config.yaml
-config.yml
 OpenRegistry.yaml
 OpenRegistry.yml

@@ -21,14 +21,14 @@ type Authentication interface {
 type auth struct {
 	pgStore postgres.PersistentStore
 	store   cache.Store
-	c       *config.RegistryConfig
+	c       *config.OpenRegistryConfig
 	logger  telemetry.Logger
 }
 
 // New is the constructor function returns an Authentication implementation
 func New(
 	s cache.Store,
-	c *config.RegistryConfig,
+	c *config.OpenRegistryConfig,
 	pgStore postgres.PersistentStore,
 	logger telemetry.Logger,
 ) Authentication {

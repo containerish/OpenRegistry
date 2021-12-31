@@ -17,7 +17,7 @@ import (
 // Register is the entry point that registers all the endpoints
 // nolint
 func Register(
-	cfg *config.RegistryConfig,
+	cfg *config.OpenRegistryConfig,
 	e *echo.Echo,
 	reg registry.Registry,
 	authSvc auth.Authentication,

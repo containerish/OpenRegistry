@@ -17,7 +17,7 @@ type (
 		host       string
 		gatewayURL string
 		isRemote   bool
-		config     *config.RegistryConfig
+		config     *config.OpenRegistryConfig
 	}
 	Config struct {
 		Host       string
