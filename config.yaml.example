@@ -1,10 +1,12 @@
 environment: local
 debug: true
+web_app_url: "http://localhost:3000"
+web_app_redirect_url: "/"
 registry:
-  dns_address: beta.openregistry.dev
+  dns_address: localhost
   version: master
   jwt_signing_secret: super-secret
-  host: "0.0.0.0"
+  host: 0.0.0.0
   port: 5000
   tls:
     key: openregistry.key
@@ -13,6 +15,10 @@ registry:
     - github
     - token
     - skynet_homescreen
+oauth:
+  github:
+    client_id:
+    client_secret:
 skynet:
   portal_url: https://siasky.net
   api_key: skynet-key

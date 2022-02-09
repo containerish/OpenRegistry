@@ -43,6 +43,7 @@ jobs:
           echo "IP=$IP" >> $GITHUB_ENV
           echo "OCI_ROOT_URL=http://$IP:5000" >> $GITHUB_ENV
           DISTRIBUTION_REF="local-distribution:v$(date +%Y%m%d%H%M%S)"
+          cp config.yaml.example config.yaml
           yq e -i '.environment = "ci"' config.yaml
           IP=$IP yq e -i '.database.host = env(IP)' config.yaml
           SKYNET_API_KEY=${{ secrets.SKYNET_API_KEY }} yq e -i '.skynet.api_key = env(SKYNET_API_KEY)' config.yaml

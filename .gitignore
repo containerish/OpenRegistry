@@ -8,3 +8,6 @@ tests
 .go-skynet
 OpenRegistry.yaml
 OpenRegistry.yml
+config.yaml
+config.yml
+.cache_ggshield
