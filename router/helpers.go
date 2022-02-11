@@ -5,6 +5,7 @@ import (
 
 	"github.com/containerish/OpenRegistry/auth"
 	"github.com/containerish/OpenRegistry/cache"
+	"github.com/containerish/OpenRegistry/store/postgres"
 	"github.com/labstack/echo/v4"
 )
 
@@ -27,8 +28,8 @@ func RegisterBetaRoutes(betaRouter *echo.Group, localCache cache.Store) {
 }
 
 // InternalRoutes contains the routes to be kept  limited and not be exposed to user
-func InternalRoutes(internal *echo.Group, localCache cache.Store) {
+func InternalRoutes(internal *echo.Group, persistentStore postgres.PersistentStore) {
 
-	internal.Add(http.MethodGet, "/metadata", localCache.Metadata)
-	internal.Add(http.MethodGet, "/digests", localCache.LayerDigests)
+	internal.Add(http.MethodGet, "/metadata", persistentStore.Metadata)
+	internal.Add(http.MethodGet, "/digests", persistentStore.LayerDigests)
 }

@@ -65,7 +65,7 @@ func ZLogger(fluentbitClient fluentbit.FluentBit, env string) Logger {
 	return &logger{
 		zlog:      baseLogger,
 		fluentBit: fluentbitClient,
-		output:    os.Stdout,
+		output:    zerolog.ConsoleWriter{Out: os.Stdout},
 		pool:      pool,
 		template:  fasttemplate.New(logFmt, "${", "}"),
 		env:       env,
@@ -136,9 +136,9 @@ func (l logger) Log(ctx echo.Context, errMsg error) {
 			case status >= 500:
 				level = zerolog.ErrorLevel
 			case status >= 400:
-				level = zerolog.WarnLevel
-			case status >= 300:
 				level = zerolog.ErrorLevel
+			case status >= 300:
+				level = zerolog.WarnLevel
 			}
 
 			return buf.WriteString(strconv.FormatInt(int64(status), 10))
@@ -178,12 +178,3 @@ func (l logger) Log(ctx echo.Context, errMsg error) {
 	l.fluentBit.Send(bz)
 	l.zlog.WithLevel(level).RawJSON("msg", bz).Send()
 }
-
-//func (l *logger) sanitizeErrors(errors ...error) {
-//	var e error
-//	for _, err := range errors {
-//		if err != nil {
-//			e = fmt.Errorf("%w", err)
-//		}
-//	}
-//}

@@ -10,13 +10,16 @@ import (
 
 type (
 	OpenRegistryConfig struct {
-		Registry     *Registry `mapstructure:"registry"`
-		StoreConfig  *Store    `mapstructure:"database"`
-		AuthConfig   *Auth     `mapstructure:"auth"`
-		LogConfig    *Log      `mapstructure:"log_service"`
-		SkynetConfig *Skynet   `mapstructure:"skynet"`
-		Environment  string    `mapstructure:"environment"`
-		Debug        bool      `mapstructure:"debug"`
+		Registry          *Registry `mapstructure:"registry"`
+		StoreConfig       *Store    `mapstructure:"database"`
+		AuthConfig        *Auth     `mapstructure:"auth"`
+		LogConfig         *Log      `mapstructure:"log_service"`
+		SkynetConfig      *Skynet   `mapstructure:"skynet"`
+		OAuth             *OAuth    `mapstructure:"oauth"`
+		Environment       string    `mapstructure:"environment"`
+		WebAppEndpoint    string    `mapstructure:"web_app_url"`
+		WebAppRedirectURL string    `mapstructure:"web_app_redirect_url"`
+		Debug             bool      `mapstructure:"debug"`
 	}
 
 	Registry struct {
@@ -54,6 +57,16 @@ type (
 		Password string `mapstructure:"password"`
 		Database string `mapstructure:"name"`
 		Port     int    `mapstructure:"port"`
+	}
+
+	GithubOAuth struct {
+		Provider     string `mapstructure:"provider"`
+		ClientID     string `mapstructure:"client_id"`
+		ClientSecret string `mapstructure:"client_secret"`
+	}
+
+	OAuth struct {
+		Github GithubOAuth `mapstructure:"github"`
 	}
 )
 

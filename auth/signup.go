@@ -181,7 +181,31 @@ func (a *auth) SignUp(ctx echo.Context) error {
 		})
 	}
 
-	a.logger.Log(ctx, nil)
+	accessToken, refreshToken, err := a.newWebLoginToken(*newUser)
+	if err != nil {
+		return ctx.JSON(http.StatusBadRequest, echo.Map{
+			"error": err.Error(),
+			"code":  "CREATE_NEW_TOKEN",
+		})
+	}
+
+	accessCookie := &http.Cookie{
+		Name:    "access",
+		Value:   accessToken,
+		Expires: time.Now().Add(time.Hour),
+		Path:    "/",
+	}
+
+	refreshCookie := &http.Cookie{
+		Name:    "refresh",
+		Value:   refreshToken,
+		Expires: time.Now().Add(time.Hour * 750),
+		Path:    "/",
+	}
+
+	http.SetCookie(ctx.Response(), accessCookie)
+	http.SetCookie(ctx.Response(), refreshCookie)
+	a.logger.Log(ctx, err)
 	return ctx.JSON(http.StatusCreated, echo.Map{
 		"message": "user successfully created",
 	})

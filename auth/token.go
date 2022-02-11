@@ -27,6 +27,19 @@ func (a *auth) Token(ctx echo.Context) error {
 			return ctx.NoContent(http.StatusUnauthorized)
 		}
 
+		if strings.HasPrefix(password, "gho_") {
+			if _, err = a.validateUserWithGithubOauthToken(ctx.Request().Context(), password); err != nil {
+				return ctx.JSON(http.StatusUnauthorized, echo.Map{
+					"error": err.Error(),
+				})
+			}
+
+			token, _ := a.newPublicPullToken()
+			return ctx.JSON(http.StatusOK, echo.Map{
+				"token": token,
+			})
+		}
+
 		creds, err := a.validateUser(username, password)
 		if err != nil {
 			a.logger.Log(ctx, err)

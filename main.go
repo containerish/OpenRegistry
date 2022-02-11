@@ -22,7 +22,6 @@ func main() {
 		color.Red("error reading cfg file: %s", err.Error())
 		os.Exit(1)
 	}
-
 	e := echo.New()
 
 	localCache, err := cache.New(".kvstore")
@@ -54,6 +53,7 @@ func main() {
 		return
 	}
 
+	color.Green("Service Endpoint: %s\n", cfg.Endpoint())
 	router.Register(cfg, e, reg, authSvc, localCache, pgStore)
 	color.Red("error initialising OpenRegistry Server: %s", e.Start(cfg.Registry.Address()))
 }

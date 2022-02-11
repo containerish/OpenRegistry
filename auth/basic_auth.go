@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"encoding/base64"
 	"fmt"
 	"net/http"
@@ -170,4 +171,29 @@ func BasicAuthWithConfig(config middleware.BasicAuthConfig) echo.MiddlewareFunc 
 			return echo.ErrUnauthorized
 		}
 	}
+}
+
+// makes an http request to get user info from token, if it's valid, it's all good :)
+func (a *auth) validateUserWithGithubOauthToken(ctx context.Context, token string) (bool, error) {
+	req, err := a.ghClient.NewRequest(http.MethodGet, "/user", nil)
+	if err != nil {
+		return false, fmt.Errorf("GH_AUTH_REQUEST_ERROR: %w", err)
+	}
+	req.Header.Set(AuthorizationHeaderKey, "token "+token)
+
+	var oauthUser types.User
+	resp, err := a.ghClient.Do(ctx, req, &oauthUser)
+	if err != nil {
+		return false, fmt.Errorf("GH_AUTH_ERROR: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return false, fmt.Errorf("UNAUTHORIZED")
+	}
+
+	if _, err = a.pgStore.GetUser(ctx, oauthUser.Email); err != nil {
+		return false, fmt.Errorf("PG_GET_USER_ERR: %w", err)
+	}
+
+	return true, nil
 }

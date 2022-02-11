@@ -12,36 +12,24 @@ import (
 
 func (a *auth) SignIn(ctx echo.Context) error {
 	ctx.Set(types.HandlerStartTime, time.Now())
+	var user types.User
 
-	var user User
 	if err := json.NewDecoder(ctx.Request().Body).Decode(&user); err != nil {
 		return ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error": err.Error(),
 		})
 	}
-	if user.Email == "" && user.Username == "" {
-		errMsg := fmt.Errorf("email and username cannot be empty, please provide at least one of them")
-		a.logger.Log(ctx, errMsg)
-		return ctx.JSON(http.StatusBadRequest, errMsg)
+
+	if err := user.Validate(); err != nil {
+		a.logger.Log(ctx, err)
+		return ctx.JSON(http.StatusBadRequest, echo.Map{
+			"error": err.Error(),
+			"code":  "INVALID_CREDENTIALS",
+		})
 	}
 
-	if user.Password == "" {
-		errMsg := fmt.Errorf("password cannot be empty")
-		a.logger.Log(ctx, errMsg)
-		return ctx.JSON(http.StatusBadRequest, errMsg)
-	}
-
-	var key string
-
-	if user.Email != "" {
-		if err := verifyEmail(user.Email); err != nil {
-			a.logger.Log(ctx, err)
-			return ctx.JSON(http.StatusBadRequest, echo.Map{
-				"error": err.Error(),
-			})
-		}
-		key = user.Email
-	} else {
+	key := user.Email
+	if user.Username != "" {
 		key = user.Username
 	}
 
@@ -60,13 +48,7 @@ func (a *auth) SignIn(ctx echo.Context) error {
 		return ctx.JSON(http.StatusUnauthorized, errMsg)
 	}
 
-	tokenLife := time.Now().Add(time.Hour * 24 * 14).Unix()
-	uu := User{
-		Email:    userFromDb.Email,
-		Username: userFromDb.Username,
-	}
-
-	token, err := a.newToken(uu, tokenLife)
+	access, refresh, err := a.newWebLoginToken(*userFromDb)
 	if err != nil {
 		a.logger.Log(ctx, err)
 		return ctx.JSON(http.StatusInternalServerError, echo.Map{
@@ -74,11 +56,26 @@ func (a *auth) SignIn(ctx echo.Context) error {
 		})
 	}
 
-	a.logger.Log(ctx, nil)
+	accessCookie := &http.Cookie{
+		Name:    "access",
+		Value:   access,
+		Expires: time.Now().Add(time.Hour),
+		Path:    "/",
+	}
+
+	refreshCookie := &http.Cookie{
+		Name:    "refresh",
+		Value:   refresh,
+		Expires: time.Now().Add(time.Hour * 750),
+		Path:    "/",
+	}
+	http.SetCookie(ctx.Response(), accessCookie)
+	http.SetCookie(ctx.Response(), refreshCookie)
+	a.logger.Log(ctx, err)
+
 	return ctx.JSON(http.StatusOK, echo.Map{
 		"token":      token,
 		"expires_in": tokenLife,
 		"issued_at":  time.Now().Unix(),
 	})
-
 }
