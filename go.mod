@@ -5,8 +5,9 @@ go 1.17
 require (
 	github.com/SkynetLabs/go-skynet/v2 v2.0.2
 	github.com/dgraph-io/badger/v3 v3.2103.1
-	github.com/docker/distribution v2.7.1+incompatible
+	github.com/docker/distribution v2.8.0+incompatible
 	github.com/fatih/color v1.12.0
+	github.com/go-playground/validator/v10 v10.9.0
 	github.com/golang-jwt/jwt v3.2.2+incompatible
 	github.com/google/uuid v1.3.0
 	github.com/labstack/echo-contrib v0.11.0
@@ -21,7 +22,6 @@ require (
 require (
 	github.com/go-playground/locales v0.14.0 // indirect
 	github.com/go-playground/universal-translator v0.18.0 // indirect
-	github.com/go-playground/validator/v10 v10.9.0 // indirect
 	github.com/jackc/chunkreader/v2 v2.0.1 // indirect
 	github.com/jackc/pgconn v1.10.0 // indirect
 	github.com/jackc/pgio v1.0.0 // indirect
@@ -49,7 +49,7 @@ require (
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/jackc/pgx/v4 v4.13.0
 	github.com/klauspost/compress v1.12.3 // indirect
-	github.com/labstack/gommon v0.3.0 // indirect
+	github.com/labstack/gommon v0.3.0
 	github.com/magiconair/properties v1.8.5 // indirect
 	github.com/mattn/go-colorable v0.1.8 // indirect
 	github.com/mattn/go-isatty v0.0.12 // indirect
