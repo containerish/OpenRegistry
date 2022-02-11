@@ -81,7 +81,6 @@ func (r *registry) ManifestExists(ctx echo.Context) error {
 
 		errMsg := r.errorResponse(RegistryErrorCodeManifestBlobUnknown, err.Error(), details)
 		ctx.Set(types.HttpEndpointErrorKey, errMsg)
-
 		return ctx.JSONBlob(http.StatusNotFound, errMsg)
 	}
 
@@ -126,7 +125,40 @@ func (r *registry) Catalog(ctx echo.Context) error {
 		r.logger.Log(ctx).Send()
 	}()
 
-	catalogList, err := r.store.GetCatalog(ctx.Request().Context())
+	queryParamPageSize := ctx.QueryParam("n")
+	queryParamOffset := ctx.QueryParam("last")
+	var pageSize int64
+	var offset int64
+	if queryParamPageSize != "" {
+		ps, err := strconv.ParseInt(ctx.QueryParam("n"), 10, 64)
+		if err != nil {
+			ctx.Set(types.HttpEndpointErrorKey, err.Error())
+			return ctx.JSON(http.StatusBadRequest, echo.Map{
+				"error": err.Error(),
+			})
+		}
+		pageSize = ps
+	}
+
+	if queryParamOffset != "" {
+		o, err := strconv.ParseInt(ctx.QueryParam("last"), 10, 64)
+		if err != nil {
+			ctx.Set(types.HttpEndpointErrorKey, err.Error())
+			return ctx.JSON(http.StatusBadRequest, echo.Map{
+				"error": err.Error(),
+			})
+		}
+		offset = o
+	}
+
+	catalogList, err := r.store.GetCatalog(ctx.Request().Context(), pageSize, offset)
+	if err != nil {
+		ctx.Set(types.HttpEndpointErrorKey, err.Error())
+		return ctx.JSON(http.StatusInternalServerError, echo.Map{
+			"error": err.Error(),
+		})
+	}
+	total, err := r.store.GetCatalogCount(ctx.Request().Context())
 	if err != nil {
 		ctx.Set(types.HttpEndpointErrorKey, err.Error())
 		return ctx.JSON(http.StatusInternalServerError, echo.Map{
@@ -135,6 +167,7 @@ func (r *registry) Catalog(ctx echo.Context) error {
 	}
 	return ctx.JSON(http.StatusOK, echo.Map{
 		"repositories": catalogList,
+		"total":        total,
 	})
 
 }
