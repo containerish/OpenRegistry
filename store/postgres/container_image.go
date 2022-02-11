@@ -2,12 +2,15 @@ package postgres
 
 import (
 	"context"
+	"fmt"
+	"net/http"
 	"strings"
 	"time"
 
 	"github.com/containerish/OpenRegistry/store/postgres/queries"
 	"github.com/containerish/OpenRegistry/types"
 	"github.com/jackc/pgx/v4"
+	"github.com/labstack/echo/v4"
 )
 
 func (p *pg) GetLayer(ctx context.Context, digest string) (*types.LayerV2, error) {
@@ -44,7 +47,7 @@ func (p *pg) GetManifest(ctx context.Context, namespace string) (*types.ImageMan
 	defer cancel()
 
 	row := p.conn.QueryRow(childCtx, queries.GetManifest, namespace)
-	var im *types.ImageManifestV2
+	var im types.ImageManifestV2
 	if err := row.Scan(
 		&im.Uuid,
 		&im.Namespace,
@@ -53,7 +56,7 @@ func (p *pg) GetManifest(ctx context.Context, namespace string) (*types.ImageMan
 	); err != nil {
 		return nil, err
 	}
-	return im, nil
+	return &im, nil
 }
 func (p *pg) GetManifestByReference(ctx context.Context, namespace string, ref string) (*types.ConfigV2, error) {
 	childCtx, cancel := context.WithTimeout(context.Background(), time.Minute)
@@ -202,15 +205,34 @@ func (p *pg) SetConfig(ctx context.Context, txn pgx.Tx, cfg types.ConfigV2) erro
 	return nil
 }
 
-func (p *pg) GetCatalog(ctx context.Context) ([]*types.ConfigV2, error) {
+func (p *pg) GetCatalogCount(ctx context.Context) (int64, error) {
+	childCtx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+	var count int64
+	row := p.conn.QueryRow(childCtx, queries.GetCatalogCount)
+
+	if err := row.Scan(&count); err != nil {
+		return 0, fmt.Errorf("ERR_SCAN_CATALOG_COUNT: %w", err)
+	}
+	return count, nil
+}
+
+func (p *pg) GetCatalog(ctx context.Context, pageSize int64, offset int64) ([]*types.ConfigV2, error) {
 	childCtx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 
-	rows, err := p.conn.Query(childCtx, queries.GetCatalog)
+	var rows pgx.Rows
+	var err error
+	if pageSize != 0 {
+		rows, err = p.conn.Query(childCtx, queries.GetCatalogWithPagination, pageSize, offset)
+	} else {
+		rows, err = p.conn.Query(childCtx, queries.GetCatalog)
+	}
 	if err != nil {
 		return nil, err
 	}
 
+	defer rows.Close()
 	cfgList := make([]*types.ConfigV2, 0)
 	for i := 0; rows.Next(); i++ {
 		var cfg types.ConfigV2
@@ -280,4 +302,24 @@ func (p *pg) Commit(ctx context.Context, txn pgx.Tx) error {
 	defer cancel()
 
 	return txn.Commit(childCtx)
+}
+
+func (p *pg) Metadata(ctx echo.Context) error {
+	rows, err := p.conn.Query(ctx.Request().Context(), "select uuid, namespace from image_manifest")
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	var imageManifestList []*types.ImageManifestV2
+	for rows.Next() {
+		var im types.ImageManifestV2
+		if err := rows.Scan(&im.Uuid, &im.Namespace); err != nil {
+			return err
+		}
+
+		imageManifestList = append(imageManifestList, &im)
+	}
+
+	return ctx.JSON(http.StatusOK, imageManifestList)
 }

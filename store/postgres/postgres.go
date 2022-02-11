@@ -35,6 +35,10 @@ type PersistentStore interface {
 	Close() error
 }
 
+type AuthStore interface {
+	StoreToken() error
+}
+
 type UserStore interface {
 	AddUser(ctx context.Context, u *types.User) error
 	GetUser(ctx context.Context, identifier string) (*types.User, error)
@@ -57,7 +61,8 @@ type RegistryStore interface {
 	GetBlob(ctx context.Context, digest string) ([]*types.Blob, error)
 	GetConfig(ctx context.Context, namespace string) ([]*types.ConfigV2, error)
 	GetImageTags(ctx context.Context, namespace string) ([]string, error)
-	GetCatalog(ctx context.Context) ([]*types.ConfigV2, error)
+	GetCatalog(ctx context.Context, pageSize int64, offset int64) ([]*types.ConfigV2, error)
+	GetCatalogCount(ctx context.Context) (int64, error)
 	DeleteLayerV2(ctx context.Context, txn pgx.Tx, digest string) error
 	DeleteBlobV2(ctx context.Context, txn pgx.Tx, digest string) error
 	DeleteManifestOrTag(ctx context.Context, txn pgx.Tx, reference string) error
@@ -92,7 +97,6 @@ func (p *pg) Update(key, value []byte) error               { return nil }
 func (p *pg) Delete(key []byte) error                      { return nil }
 func (p *pg) ListAll() ([]byte, error)                     { return nil, nil }
 func (p *pg) ListWithPrefix(prefix []byte) ([]byte, error) { return nil, nil }
-func (p *pg) Metadata(ctx echo.Context) error              { return nil }
 func (p *pg) GetAllEmail(ctx echo.Context) error           { return nil }
 
 func (p *pg) GetSkynetURL(key string, ref string) (string, error)      { return "", nil }
