@@ -18,7 +18,7 @@ import (
 	"github.com/containerish/OpenRegistry/store/postgres"
 	"github.com/containerish/OpenRegistry/telemetry"
 	"github.com/containerish/OpenRegistry/types"
-	"github.com/docker/distribution/uuid"
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 )
 
@@ -436,7 +436,7 @@ func (r *registry) StartUpload(ctx echo.Context) error {
 			MediaType:   ctx.Request().Header.Get("content-type"),
 			Digest:      dig,
 			SkynetLink:  skylink,
-			UUID:        uuid.Generate().String(),
+			UUID:        uuid.NewString(),
 			BlobDigests: nil,
 			Size:        len(bz),
 		}
@@ -465,7 +465,7 @@ func (r *registry) StartUpload(ctx echo.Context) error {
 		return ctx.NoContent(http.StatusCreated)
 	}
 
-	id := uuid.Generate()
+	id := uuid.New()
 	locationHeader := fmt.Sprintf("/v2/%s/blobs/uploads/%s", namespace, id.String())
 	txn, err := r.store.NewTxn(ctx.Request().Context())
 	if err != nil {
@@ -653,7 +653,7 @@ func (r *registry) PushManifest(ctx echo.Context) error {
 		layerIDs = append(layerIDs, layer.Digest)
 	}
 
-	id := uuid.Generate()
+	id := uuid.New()
 	mfc := types.ConfigV2{
 		UUID:      id.String(),
 		Namespace: namespace,
@@ -666,7 +666,7 @@ func (r *registry) PushManifest(ctx echo.Context) error {
 	}
 
 	val := &types.ImageManifestV2{
-		Uuid:          uuid.Generate().String(),
+		Uuid:          uuid.NewString(),
 		Namespace:     namespace,
 		MediaType:     "",
 		SchemaVersion: 2,
@@ -720,7 +720,7 @@ func (r *registry) PushLayer(ctx echo.Context) error {
 		return ctx.JSONBlob(http.StatusNotFound, errMsg)
 	}
 
-	id := uuid.Generate()
+	id := uuid.New()
 	p := path.Join(elem[1 : len(elem)-2]...)
 	locationHeader := fmt.Sprintf("/v2/%s/blobs/uploads/%s", p, id.String())
 	ctx.Response().Header().Set("Location", locationHeader)

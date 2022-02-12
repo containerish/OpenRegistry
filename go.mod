@@ -5,7 +5,6 @@ go 1.17
 require (
 	github.com/SkynetLabs/go-skynet/v2 v2.0.2
 	github.com/dgraph-io/badger/v3 v3.2103.1
-	github.com/docker/distribution v2.8.0+incompatible
 	github.com/fatih/color v1.12.0
 	github.com/go-playground/validator/v10 v10.9.0
 	github.com/golang-jwt/jwt v3.2.2+incompatible
@@ -31,9 +30,6 @@ require (
 	github.com/jackc/pgtype v1.8.1 // indirect
 	github.com/jackc/puddle v1.1.3 // indirect
 	github.com/leodido/go-urn v1.2.1 // indirect
-)
-
-require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash v1.1.0 // indirect
 	github.com/cespare/xxhash/v2 v2.1.1 // indirect
