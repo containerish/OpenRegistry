@@ -2,10 +2,10 @@ package auth
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"time"
 
+	"github.com/containerish/OpenRegistry/config"
 	"github.com/containerish/OpenRegistry/types"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
@@ -81,18 +81,35 @@ func (a *auth) GithubLoginCallbackHandler(ctx echo.Context) error {
 		})
 	}
 
+	secure := true
+	sameSite := http.SameSiteStrictMode
+	if a.c.Environment == config.Local {
+		secure = false
+		sameSite = http.SameSiteLaxMode
+	}
+
 	accessCookie := &http.Cookie{
-		Name:    "access",
-		Value:   accessToken,
-		Expires: time.Now().Add(time.Hour),
-		Path:    "/",
+		Name:     "access",
+		Value:    accessToken,
+		Path:     "/",
+		Domain:   a.c.WebAppEndpoint,
+		Expires:  time.Now().Add(time.Hour),
+		MaxAge:   AccessCookieMaxAge,
+		Secure:   secure,
+		SameSite: sameSite,
+		HttpOnly: true,
 	}
 
 	refreshCookie := &http.Cookie{
-		Name:    "refresh",
-		Value:   refreshToken,
-		Expires: time.Now().Add(time.Hour * 750),
-		Path:    "/",
+		Name:     "refresh",
+		Value:    refreshToken,
+		Path:     "/",
+		Domain:   a.c.WebAppEndpoint,
+		Expires:  time.Now().Add(time.Hour * 750),
+		MaxAge:   RefreshCookieMaxAge,
+		Secure:   secure,
+		SameSite: sameSite,
+		HttpOnly: true,
 	}
 
 	oauthUser.Password = refreshToken
@@ -106,6 +123,11 @@ func (a *auth) GithubLoginCallbackHandler(ctx echo.Context) error {
 
 	ctx.SetCookie(accessCookie)
 	ctx.SetCookie(refreshCookie)
-	redirectURL := fmt.Sprintf("%s%s", a.c.WebAppEndpoint, path)
+	redirectURL := a.c.WebAppEndpoint + path
 	return ctx.Redirect(http.StatusTemporaryRedirect, redirectURL)
 }
+
+const (
+	AccessCookieMaxAge  = int(time.Second * 3600)
+	RefreshCookieMaxAge = int(AccessCookieMaxAge * 3600)
+)

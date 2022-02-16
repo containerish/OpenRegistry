@@ -96,7 +96,7 @@ func (sc *Store) Endpoint() string {
 
 func (oc *OpenRegistryConfig) Endpoint() string {
 	switch oc.Environment {
-	case Dev, Local:
+	case Local:
 		return fmt.Sprintf("http://%s:%d", oc.Registry.Host, oc.Registry.Port)
 	case Prod, Stage:
 		return fmt.Sprintf("https://%s", oc.Registry.DNSAddress)
@@ -115,7 +115,6 @@ func (oc *OpenRegistryConfig) Endpoint() string {
 const (
 	Prod  = "production"
 	Stage = "stage"
-	Dev   = "development"
 	Local = "local"
 	CI    = "ci"
 )
