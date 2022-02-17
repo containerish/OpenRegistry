@@ -117,7 +117,7 @@ func (r *registry) ManifestExists(ctx echo.Context) error {
 }
 
 // Catalog - The list of available repositories is made available through the catalog.
-// GET /v2/_catalog
+// GET /v2/_catalog?n=10&last=10&ns=johndoe
 // OK
 func (r *registry) Catalog(ctx echo.Context) error {
 	ctx.Set(types.HandlerStartTime, time.Now())
@@ -127,6 +127,7 @@ func (r *registry) Catalog(ctx echo.Context) error {
 
 	queryParamPageSize := ctx.QueryParam("n")
 	queryParamOffset := ctx.QueryParam("last")
+	namespace := ctx.QueryParam("ns")
 	var pageSize int64
 	var offset int64
 	if queryParamPageSize != "" {
@@ -151,7 +152,7 @@ func (r *registry) Catalog(ctx echo.Context) error {
 		offset = o
 	}
 
-	catalogList, err := r.store.GetCatalog(ctx.Request().Context(), pageSize, offset)
+	catalogList, err := r.store.GetCatalog(ctx.Request().Context(), namespace, pageSize, offset)
 	if err != nil {
 		ctx.Set(types.HttpEndpointErrorKey, err.Error())
 		return ctx.JSON(http.StatusInternalServerError, echo.Map{

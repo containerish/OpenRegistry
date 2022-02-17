@@ -69,10 +69,10 @@ type (
 		Namespace string   `json:"namespace"`
 		Reference string   `json:"reference"`
 		Digest    string   `json:"digest"`
-		Skylink   string   `json:"sky_link"`
-		MediaType string   `json:"media_type"`
-		Layers    []string `json:"layers"`
-		Size      int      `json:"size"`
+		Skylink   string   `json:"sky_link,omitempty"`
+		MediaType string   `json:"media_type,omitempty"`
+		Layers    []string `json:"layers,omitempty"`
+		Size      int      `json:"size,omitempty"`
 	}
 )
 

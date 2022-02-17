@@ -61,7 +61,7 @@ type RegistryStore interface {
 	GetBlob(ctx context.Context, digest string) ([]*types.Blob, error)
 	GetConfig(ctx context.Context, namespace string) ([]*types.ConfigV2, error)
 	GetImageTags(ctx context.Context, namespace string) ([]string, error)
-	GetCatalog(ctx context.Context, pageSize int64, offset int64) ([]*types.ConfigV2, error)
+	GetCatalog(ctx context.Context, namespace string, pageSize int64, offset int64) ([]*types.ConfigV2, error)
 	GetCatalogCount(ctx context.Context) (int64, error)
 	DeleteLayerV2(ctx context.Context, txn pgx.Tx, digest string) error
 	DeleteBlobV2(ctx context.Context, txn pgx.Tx, digest string) error

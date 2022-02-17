@@ -20,18 +20,19 @@ var (
 
 // select queries
 var (
-	GetDigest                = `select digest from layers where digest=$1;`
-	ReadMetadata             = `select * from metadata where namespace=$1;`
-	GetLayer                 = `select * from layer where digest=$1;`
-	GetManifest              = `select * from image_manifest where namespace=$1;`
-	GetBlob                  = `select * from blob where digest=$1;`
-	GetConfig                = `select * from config where namespace=$1;`
-	GetImageTags             = `select reference from config where namespace=$1;`
-	GetManifestByRef         = `select * from config where namespace=$1 and reference=$2;`
-	GetManifestByDig         = `select * from config where namespace=$1 and digest=$2;`
-	GetCatalogCount          = `select count(*) from config;`
-	GetCatalog               = `select namespace,reference,digest from config;`
-	GetCatalogWithPagination = `select namespace,reference,digest from config limit $1 offset $2;`
+	GetDigest                    = `select digest from layers where digest=$1;`
+	ReadMetadata                 = `select * from metadata where namespace=$1;`
+	GetLayer                     = `select * from layer where digest=$1;`
+	GetManifest                  = `select * from image_manifest where namespace=$1;`
+	GetBlob                      = `select * from blob where digest=$1;`
+	GetConfig                    = `select * from config where namespace=$1;`
+	GetImageTags                 = `select reference from config where namespace=$1;`
+	GetManifestByRef             = `select * from config where namespace=$1 and reference=$2;`
+	GetManifestByDig             = `select * from config where namespace=$1 and digest=$2;`
+	GetCatalogCount              = `select count(*) from config;`
+	GetCatalog                   = `select uuid,namespace,reference,digest from config;`
+	GetCatalogWithPagination     = `select uuid,namespace,reference,digest from config limit $1 offset $2;`
+	GetUserCatalogWithPagination = `select uuid,namespace,reference,digest from config where namespace like $1 limit $2 offset $3;`
 )
 
 // delete queries
@@ -41,3 +42,23 @@ var (
 	DeleteManifestByRef = `delete from config where reference=$1;`
 	DeleteManifestByDig = `delete from config where digest=$1;`
 )
+
+//type Query interface {
+//	Where()string
+//	Select(q string)string
+//}
+//
+//type query string
+//
+//func (q query) Select(qu string) string {
+//	//TODO implement me
+//	panic("implement me")
+//}
+//
+//func (q query) Where(clause ...string) string {
+//	return fmt.Sprintf("%s %s",q, clause)
+//}
+//
+//func NewQuery() Query {
+//	return q
+//}
