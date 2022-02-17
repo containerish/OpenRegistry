@@ -217,36 +217,49 @@ func (p *pg) GetCatalogCount(ctx context.Context) (int64, error) {
 	return count, nil
 }
 
-func (p *pg) GetCatalog(ctx context.Context, pageSize int64, offset int64) ([]*types.ConfigV2, error) {
+func (p *pg) GetCatalog(ctx context.Context, ns string, pageSize, offset int64) ([]*types.ConfigV2, error) {
 	childCtx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 
 	var rows pgx.Rows
 	var err error
+
 	if pageSize != 0 {
 		rows, err = p.conn.Query(childCtx, queries.GetCatalogWithPagination, pageSize, offset)
+		if err != nil {
+			err = fmt.Errorf("ERR_CATALOG_WITH_PAGINATION: %w", err)
+		}
 	} else {
 		rows, err = p.conn.Query(childCtx, queries.GetCatalog)
+		if err != nil {
+			err = fmt.Errorf("ERR_CATALOG: %w", err)
+		}
+	}
+	if ns != "" {
+		rows, err = p.conn.Query(childCtx, queries.GetUserCatalogWithPagination, ns+"/%", pageSize, offset)
+		if err != nil {
+			err = fmt.Errorf("ERR_USER_CATALOG: %w", err)
+		}
 	}
 	if err != nil {
 		return nil, err
 	}
 
 	defer rows.Close()
+
 	cfgList := make([]*types.ConfigV2, 0)
 	for i := 0; rows.Next(); i++ {
 		var cfg types.ConfigV2
 		if err := rows.Scan(
+			&cfg.UUID,
 			&cfg.Namespace,
 			&cfg.Reference,
 			&cfg.Digest,
 		); err != nil {
 			return nil, err
 		}
-
 		cfgList = append(cfgList, &cfg)
 	}
-
 	return cfgList, nil
 }
 
