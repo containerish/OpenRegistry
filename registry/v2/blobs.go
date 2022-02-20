@@ -50,17 +50,18 @@ func (b *blobs) HEAD(ctx echo.Context) error {
 		return ctx.JSONBlob(http.StatusNotFound, errMsg)
 	}
 
-	size, ok := b.registry.skynet.Metadata(layerRef.SkynetLink)
-	if !ok {
+	metadata, err := b.registry.skynet.Metadata(layerRef.SkynetLink)
+	if err != nil {
 		details := echo.Map{
 			"skynet": "skynet link not found",
+			"error":  err.Error(),
 		}
 		errMsg := b.errorResponse(RegistryErrorCodeManifestBlobUnknown, "Manifest does not exist", details)
 		ctx.Set(types.HttpEndpointErrorKey, errMsg)
 		return ctx.JSONBlob(http.StatusNotFound, errMsg)
 	}
 
-	ctx.Response().Header().Set("Content-Length", fmt.Sprintf("%d", size))
+	ctx.Response().Header().Set("Content-Length", fmt.Sprintf("%d", metadata.ContentLength))
 	ctx.Response().Header().Set("Docker-Content-Digest", digest)
 	return ctx.String(http.StatusOK, "OK")
 }
