@@ -2,12 +2,9 @@ package skynet
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 	"io"
 	"net/http"
-	"strconv"
-	"strings"
 	"time"
 
 	"github.com/SkynetLabs/go-skynet/v2"
@@ -102,30 +99,11 @@ func (c *Client) AddImage(ns string, mf, l map[string][]byte) (string, error) {
 	return link, err
 }
 
-func (c *Client) Metadata(skylink string) (uint64, bool) {
-	skl := strings.TrimPrefix(skylink, "sia://")
-	url := fmt.Sprintf("%s/%s", c.skynet.PortalURL, skl)
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodHead, url, nil)
+func (c *Client) Metadata(skylink string) (*skynet.Metadata, error) {
+	metadata, err := c.skynet.Metadata(skylink, skynet.DefaultMetadataOptions)
 	if err != nil {
-		return 0, false
+		return nil, fmt.Errorf("SKYNET_METADATA_ERR: %w", err)
 	}
 
-	// req.SetBasicAuth("", c.skynet.Options.APIKey)
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return 0, false
-	}
-	defer resp.Body.Close()
-
-	ct := resp.Header.Get("Content-Length")
-	if ct == "" {
-		return 0, false
-	}
-
-	contentLength, err := strconv.ParseUint(ct, 10, 64)
-	if err != nil {
-		return 0, false
-	}
-
-	return contentLength, true
+	return metadata, nil
 }

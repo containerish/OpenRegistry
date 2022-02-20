@@ -84,10 +84,10 @@ func (r *registry) ManifestExists(ctx echo.Context) error {
 		return ctx.JSONBlob(http.StatusNotFound, errMsg)
 	}
 
-	size, ok := r.skynet.Metadata(manifest.Skylink)
-	if !ok {
+	metadata, err := r.skynet.Metadata(manifest.Skylink)
+	if err != nil {
 		detail := map[string]interface{}{
-			"error":   "metadata not found for skylink",
+			"error":   err.Error(),
 			"skylink": manifest.Skylink,
 		}
 
@@ -110,7 +110,7 @@ func (r *registry) ManifestExists(ctx echo.Context) error {
 	}
 
 	ctx.Response().Header().Set("Content-Type", "application/json")
-	ctx.Response().Header().Set("Content-Length", fmt.Sprintf("%d", size))
+	ctx.Response().Header().Set("Content-Length", fmt.Sprintf("%d", metadata.ContentLength))
 	ctx.Response().Header().Set("Docker-Content-Digest", manifest.Digest)
 
 	return ctx.NoContent(http.StatusOK)
@@ -510,8 +510,8 @@ func (r *registry) UploadProgress(ctx echo.Context) error {
 		return ctx.NoContent(http.StatusNoContent)
 	}
 
-	size, ok := r.skynet.Metadata(skylink)
-	if !ok {
+	metadata, err := r.skynet.Metadata(skylink)
+	if err != nil {
 		locationHeader := fmt.Sprintf("/v2/%s/blobs/uploads/%s", namespace, uuid)
 		ctx.Response().Header().Set("Location", locationHeader)
 		ctx.Response().Header().Set("Range", "bytes=0-0")
@@ -522,7 +522,7 @@ func (r *registry) UploadProgress(ctx echo.Context) error {
 
 	locationHeader := fmt.Sprintf("/v2/%s/blobs/uploads/%s", namespace, uuid)
 	ctx.Response().Header().Set("Location", locationHeader)
-	ctx.Response().Header().Set("Range", fmt.Sprintf("bytes=0-%d", size))
+	ctx.Response().Header().Set("Range", fmt.Sprintf("bytes=0-%d", metadata.ContentLength))
 	ctx.Response().Header().Set("Docker-Upload-UUID", uuid)
 
 	return ctx.NoContent(http.StatusNoContent)
