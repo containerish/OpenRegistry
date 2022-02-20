@@ -57,6 +57,11 @@ type (
 		ID                int  `json:"id"`
 		Hireable          bool `json:"hireable"`
 	}
+	Session struct {
+		Id           string `json:"id"`
+		RefreshToken string `json:"refresh_token"`
+		Owner        string `json:"-"`
+	}
 )
 
 func (u *User) Validate() error {

@@ -46,6 +46,10 @@ type UserStore interface {
 	UpdateUser(ctx context.Context, identifier string, u *types.User) error
 	DeleteUser(ctx context.Context, identifier string) error
 	IsActive(ctx context.Context, identifier string) bool
+	AddSession(ctx context.Context, sessionId, refreshToken, owner string) error
+	GetSession(ctx context.Context, sessionId string) (*types.Session, error)
+	DeleteSession(ctx context.Context, sessionId, userId string) error
+	DeleteAllSessions(ctx context.Context, userId string) error
 }
 
 type RegistryStore interface {
