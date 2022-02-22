@@ -3,6 +3,10 @@ name: OCI Distribution Spec
 on:
   pull_request:
 
+concurrency:
+  group: push-${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
 jobs:
   push:
     runs-on: ubuntu-latest
