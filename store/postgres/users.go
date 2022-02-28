@@ -87,6 +87,27 @@ func (p *pg) GetUser(ctx context.Context, identifier string) (*types.User, error
 
 	return &user, nil
 }
+func (p *pg) GetUserWithSession(ctx context.Context, sessionId string) (*types.User, error) {
+	childCtx, cancel := context.WithTimeout(ctx, time.Millisecond*100)
+	defer cancel()
+
+	row := p.conn.QueryRow(childCtx, queries.GetUserWithSession, sessionId)
+
+	var user types.User
+	err := row.Scan(
+		&user.Id,
+		&user.IsActive,
+		&user.Username,
+		&user.Email,
+		&user.CreatedAt,
+		&user.UpdatedAt,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("user not found")
+	}
+
+	return &user, nil
+}
 
 // UpdateUser
 //update user set username = $1, email = $2, password = $3, updated_at = $4 where username = $5

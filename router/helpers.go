@@ -16,7 +16,15 @@ func RegisterAuthRoutes(authRouter *echo.Group, authSvc auth.Authentication) {
 
 	authRouter.Add(http.MethodPost, "/signup", authSvc.SignUp)
 	authRouter.Add(http.MethodPost, "/signin", authSvc.SignIn)
+	authRouter.Add(http.MethodDelete, "/signout", authSvc.SignOut)
 	authRouter.Add(http.MethodPost, "/token", authSvc.SignIn)
+	authRouter.Add(http.MethodGet, "/sessions/me", authSvc.ReadUserWithSession)
+	authRouter.Add(http.MethodDelete, "/sessions", authSvc.ExpireSessions, func(hf echo.HandlerFunc) echo.HandlerFunc {
+		return func(ctx echo.Context) error {
+			ctx.Set("JWT_AUTH", true)
+			return hf(ctx)
+		}
+	}, authSvc.JWT())
 
 }
 

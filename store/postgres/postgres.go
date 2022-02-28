@@ -15,6 +15,7 @@ import (
 type PersistentStore interface {
 	UserStore
 	RegistryStore
+	SessionStore
 	Get(key []byte) ([]byte, error)
 	Set(key, value []byte) error
 	GetDigest(digest string) (*types.LayerRef, error)
@@ -47,7 +48,7 @@ type UserStore interface {
 	DeleteUser(ctx context.Context, identifier string) error
 	IsActive(ctx context.Context, identifier string) bool
 	AddSession(ctx context.Context, sessionId, refreshToken, owner string) error
-	GetSession(ctx context.Context, sessionId string) (*types.Session, error)
+	GetUserWithSession(ctx context.Context, sessionId string) (*types.User, error)
 	DeleteSession(ctx context.Context, sessionId, userId string) error
 	DeleteAllSessions(ctx context.Context, userId string) error
 }
@@ -72,6 +73,13 @@ type RegistryStore interface {
 	DeleteLayerV2(ctx context.Context, txn pgx.Tx, digest string) error
 	DeleteBlobV2(ctx context.Context, txn pgx.Tx, digest string) error
 	DeleteManifestOrTag(ctx context.Context, txn pgx.Tx, reference string) error
+}
+
+type SessionStore interface {
+	AddSession(ctx context.Context, id, refreshToken, username string) error
+	GetSession(ctx context.Context, sessionId string) (*types.Session, error)
+	DeleteSession(ctx context.Context, sessionId, userId string) error
+	DeleteAllSessions(ctx context.Context, userId string) error
 }
 
 type pg struct {

@@ -164,7 +164,7 @@ func (a *auth) createRefreshClaims(u types.User) RefreshClaims {
 		StandardClaims: jwt.StandardClaims{
 			Audience:  a.c.Endpoint(),
 			ExpiresAt: time.Now().Add(time.Hour * 750).Unix(), // Refresh tokens can live longer
-			Id:        uuid.NewString(),
+			Id:        u.Id,
 			IssuedAt:  time.Now().Unix(),
 			Issuer:    a.c.Endpoint(),
 			NotBefore: time.Now().Unix(),
@@ -181,7 +181,7 @@ func (a *auth) createWebLoginClaims(u types.User) PlatformClaims {
 		StandardClaims: jwt.StandardClaims{
 			Audience:  a.c.Endpoint(),
 			ExpiresAt: time.Now().Add(time.Hour).Unix(),
-			Id:        uuid.NewString(),
+			Id:        u.Id,
 			IssuedAt:  time.Now().Unix(),
 			Issuer:    a.c.Endpoint(),
 			NotBefore: time.Now().Unix(),

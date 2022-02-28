@@ -2,11 +2,12 @@ package auth
 
 import (
 	"context"
+	"fmt"
+	"github.com/containerish/OpenRegistry/config"
+	"net"
 	"net/http"
-	"strings"
 	"time"
 
-	"github.com/containerish/OpenRegistry/config"
 	"github.com/containerish/OpenRegistry/types"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
@@ -78,39 +79,7 @@ func (a *auth) GithubLoginCallbackHandler(ctx echo.Context) error {
 		})
 	}
 
-	secure := true
-	sameSite := http.SameSiteStrictMode
-	domain := strings.TrimPrefix(a.c.WebAppEndpoint, "https://")
-	if a.c.Environment == config.Local {
-		secure = false
-		sameSite = http.SameSiteLaxMode
-		domain = "localhost"
-	}
-
-	accessCookie := &http.Cookie{
-		Name:     "access",
-		Value:    accessToken,
-		Path:     "/",
-		Domain:   domain,
-		Expires:  time.Now().Add(time.Hour),
-		MaxAge:   AccessCookieMaxAge,
-		Secure:   secure,
-		SameSite: sameSite,
-		HttpOnly: true,
-	}
-
-	refreshCookie := &http.Cookie{
-		Name:     "refresh",
-		Value:    refreshToken,
-		Path:     "/",
-		Domain:   domain,
-		Expires:  time.Now().Add(time.Hour * 750),
-		MaxAge:   RefreshCookieMaxAge,
-		Secure:   secure,
-		SameSite: sameSite,
-		HttpOnly: true,
-	}
-
+	oauthUser.Password = refreshToken
 	if err := a.pgStore.AddOAuthUser(ctx.Request().Context(), &oauthUser); err != nil {
 		ctx.Set(types.HttpEndpointErrorKey, err.Error())
 		return ctx.JSON(http.StatusInternalServerError, echo.Map{
@@ -119,8 +88,22 @@ func (a *auth) GithubLoginCallbackHandler(ctx echo.Context) error {
 		})
 	}
 
+	sessionId := uuid.NewString()
+	if err = a.pgStore.AddSession(ctx.Request().Context(), sessionId, refreshToken, oauthUser.Username); err != nil {
+		return ctx.JSON(http.StatusBadRequest, echo.Map{
+			"error":   err.Error(),
+			"message": "ERR_CREATING_SESSION",
+		})
+	}
+	val := fmt.Sprintf("%s:%s", sessionId, oauthUser.Id)
+
+	sessionCookie := a.createCookie("session_id", val, false, time.Now().Add(time.Hour*750))
+	accessCookie := a.createCookie("access", accessToken, true, time.Now().Add(time.Hour))
+	refreshCookie := a.createCookie("refresh", refreshToken, true, time.Now().Add(time.Hour*750))
+
 	ctx.SetCookie(accessCookie)
 	ctx.SetCookie(refreshCookie)
+	ctx.SetCookie(sessionCookie)
 	a.logger.Log(ctx, nil)
 	return ctx.Redirect(http.StatusTemporaryRedirect, a.c.WebAppRedirectURL)
 }
@@ -129,3 +112,33 @@ const (
 	AccessCookieMaxAge  = int(time.Second * 3600)
 	RefreshCookieMaxAge = int(AccessCookieMaxAge * 3600)
 )
+
+func (a *auth) createCookie(name string, value string, httpOnly bool, expiresAt time.Time) *http.Cookie {
+
+	secure := true
+	sameSite := http.SameSiteStrictMode
+	if a.c.Environment == config.Local {
+		secure = false
+		sameSite = http.SameSiteLaxMode
+	}
+
+	webappEndpoint := a.c.WebAppEndpoint
+	if a.c.Environment == config.Local {
+		host, _, err := net.SplitHostPort(webappEndpoint)
+		if err != nil {
+			webappEndpoint = host
+		}
+	}
+	cookie := &http.Cookie{
+		Name:     name,
+		Value:    value,
+		Path:     "/",
+		Domain:   webappEndpoint,
+		Expires:  expiresAt,
+		MaxAge:   AccessCookieMaxAge,
+		Secure:   secure,
+		SameSite: sameSite,
+		HttpOnly: httpOnly,
+	}
+	return cookie
+}

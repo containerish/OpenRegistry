@@ -29,12 +29,16 @@ func (a *auth) JWT() echo.MiddlewareFunc {
 		},
 		BeforeFunc:     middleware.DefaultJWTConfig.BeforeFunc,
 		SuccessHandler: middleware.DefaultJWTConfig.SuccessHandler,
-		ErrorHandler:   middleware.DefaultJWTConfig.ErrorHandler,
+		ErrorHandler:   nil,
 		ErrorHandlerWithContext: func(err error, ctx echo.Context) error {
 			// ErrorHandlerWithContext only logs the failing requtest
 			ctx.Set(types.HandlerStartTime, time.Now())
-			a.logger.Log(ctx, err)
-			return ctx.NoContent(http.StatusUnauthorized)
+			ctx.Set(types.HttpEndpointErrorKey, err.Error())
+			a.logger.Log(ctx, nil)
+			return ctx.JSON(http.StatusUnauthorized, echo.Map{
+				"error":   err.Error(),
+				"message": "missing authentication information",
+			})
 		},
 		KeyFunc:        middleware.DefaultJWTConfig.KeyFunc,
 		ParseTokenFunc: middleware.DefaultJWTConfig.ParseTokenFunc,

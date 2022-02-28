@@ -23,6 +23,9 @@ type Authentication interface {
 	ACL() echo.MiddlewareFunc
 	LoginWithGithub(ctx echo.Context) error
 	GithubLoginCallbackHandler(ctx echo.Context) error
+	ExpireSessions(ctx echo.Context) error
+	SignOut(ctx echo.Context) error
+	ReadUserWithSession(ctx echo.Context) error
 }
 
 // New is the constructor function returns an Authentication implementation

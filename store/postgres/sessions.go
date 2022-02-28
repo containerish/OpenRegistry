@@ -9,11 +9,11 @@ import (
 	"time"
 )
 
-func (p *pg) AddSession(ctx context.Context, id, refreshToken, owner string) error {
+func (p *pg) AddSession(ctx context.Context, id, refreshToken, username string) error {
 	childCtx, cancel := context.WithTimeout(ctx, time.Second*10)
 	defer cancel()
 
-	_, err := p.conn.Exec(childCtx, queries.AddSession, id, refreshToken, owner)
+	_, err := p.conn.Exec(childCtx, queries.AddSession, id, refreshToken, username)
 	if err != nil {
 		return fmt.Errorf("ERR_CREATE_SESSION: %w", err)
 	}
