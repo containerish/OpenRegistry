@@ -13,6 +13,8 @@
 | Linter | [![OCI Push](https://github.com/containerish/openregistry/actions/workflows/golangci-lint.yml/badge.svg)](https://github.com/containerish/openregistry/actions/workflows/golangci-lint.yml)|
 | Certifications | <a href="https://conformance.opencontainers.org/#openregistry" alt="OpenRegistry on OpenContainers" target="_blank"><img src="https://raw.githubusercontent.com/opencontainers/artwork/main/certified/oci_certified_color.svg" width=80 /><a/> |
 
+> Disclaimer: Please refrain from using master branch to run OpenRegistry in Production. The branch is highly experimental and not stable for Production use. Please only use the [released versions](https://github.com/containerish/OpenRegistry/releases) 
+
 ## Introduction
 OpenRegistry is an open source, decentralized container registry which is fully compliant with [OCI Container Distribution Specification](https://github.com/opencontainers/distribution-spec/blob/main/spec.md).
 The specification provides similar capabilities as that of the Docker Registry HTTP API V2 protocol.
@@ -49,3 +51,6 @@ OpenRegistry is not Go Gettable right now because of a dependency issue with Go-
 git clone https://github.com/containerish/OpenRegistry.git
 make mod-fix
 go build
+```
+
+
