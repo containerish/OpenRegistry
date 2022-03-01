@@ -4,3 +4,6 @@ mod-fix:
 tools:
 	pip3 install ggshield pre-commit
 	pre-commit install
+
+certs:
+	bash scripts/localcerts.sh

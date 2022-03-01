@@ -55,5 +55,6 @@ func main() {
 	}
 
 	router.Register(cfg, e, reg, authSvc, localCache, pgStore)
-	logger.Errorf("error initialising OpenRegistry Server: %s", e.Start(cfg.Registry.Address()))
+	logger.Errorf("error initialising OpenRegistry Server: %s",
+		e.StartTLS(cfg.Registry.Address(), ".certs/openregistry.local.crt", ".certs/openregistry.local.key"))
 }
