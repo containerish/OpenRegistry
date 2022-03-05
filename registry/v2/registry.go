@@ -832,6 +832,11 @@ func (r *registry) ApiVersion(ctx echo.Context) error {
 
 func (r *registry) GetImageNamespace(ctx echo.Context) error {
 	searchQuery := ctx.QueryParam("search_query")
+	if searchQuery == "" {
+		return ctx.JSON(http.StatusBadRequest, echo.Map{
+			"error": "search query must not be empty",
+		})
+	}
 	result, err := r.store.GetImageNamespace(ctx.Request().Context(), searchQuery)
 	if err != nil {
 		return ctx.JSON(http.StatusInternalServerError, echo.Map{

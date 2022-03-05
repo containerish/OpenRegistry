@@ -10,3 +10,4 @@ CREATE TABLE "config" (
      PRIMARY KEY(namespace, reference)
 );
 
+CREATE INDEX on config (substr(namespace,1,20) text_pattern_ops);

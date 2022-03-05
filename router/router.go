@@ -53,7 +53,7 @@ func Register(
 	RegisterAuthRoutes(authRouter, authSvc)
 	RegisterBetaRoutes(betaRouter, localCache)
 	InternalRoutes(internal, localCache)
-	Docker(v2Router, reg)
+	Extensions(v2Router, reg)
 }
 
 // RegisterNSRoutes is one of the helper functions to Register
@@ -109,11 +109,11 @@ func RegisterNSRoutes(nsRouter *echo.Group, reg registry.Registry) {
 	nsRouter.Add(http.MethodDelete, ManifestsReference, reg.DeleteTagOrManifest)
 }
 
-// Docker is used for Catalog api
-func Docker(group *echo.Group, reg registry.Registry) {
+// Extensions for teh OCI dist spec
+func Extensions(group *echo.Group, reg registry.Registry) {
 
 	// GET /v2/_catalog
 	group.Add(http.MethodGet, Catalog, reg.Catalog)
-	group.Add(http.MethodGet, "/search", reg.GetImageNamespace)
+	group.Add(http.MethodGet, Search, reg.GetImageNamespace)
 
 }

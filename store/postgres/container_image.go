@@ -342,7 +342,7 @@ func (p *pg) GetImageNamespace(ctx context.Context, search string) ([]string, er
 	defer cancel()
 	rows, err := p.conn.Query(childCtx, queries.GetImageNamespace, "%"+search+"%")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("ERR_QUERY_GET_IMAGE_NAMESPACE: %w", err)
 	}
 	defer rows.Close()
 
@@ -350,7 +350,7 @@ func (p *pg) GetImageNamespace(ctx context.Context, search string) ([]string, er
 	for rows.Next() {
 		var ns string
 		if err := rows.Scan(&ns); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("ERR_IMAGE_NAMESPACE_SCAN: %w", err)
 		}
 		result = append(result, ns)
 	}
