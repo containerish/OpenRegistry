@@ -48,4 +48,5 @@ const (
 
 	// JWT based auth endpoint
 	TokenAuth = "/token"
+	Search    = "/catalog/search"
 )

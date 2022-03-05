@@ -33,6 +33,7 @@ var (
 	GetCatalog                   = `select uuid,namespace,reference,digest from config;`
 	GetCatalogWithPagination     = `select uuid,namespace,reference,digest from config limit $1 offset $2;`
 	GetUserCatalogWithPagination = `select uuid,namespace,reference,digest from config where namespace like $1 limit $2 offset $3;`
+	GetImageNamespace            = `select namespace from config where substr(namespace, 1, 50) like $1;`
 )
 
 // delete queries

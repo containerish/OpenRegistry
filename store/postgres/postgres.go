@@ -63,6 +63,7 @@ type RegistryStore interface {
 	GetImageTags(ctx context.Context, namespace string) ([]string, error)
 	GetCatalog(ctx context.Context, namespace string, pageSize int64, offset int64) ([]*types.ConfigV2, error)
 	GetCatalogCount(ctx context.Context) (int64, error)
+	GetImageNamespace(ctx context.Context, search string) ([]string, error)
 	DeleteLayerV2(ctx context.Context, txn pgx.Tx, digest string) error
 	DeleteBlobV2(ctx context.Context, txn pgx.Tx, digest string) error
 	DeleteManifestOrTag(ctx context.Context, txn pgx.Tx, reference string) error

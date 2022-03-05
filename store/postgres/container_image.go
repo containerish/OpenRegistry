@@ -336,3 +336,23 @@ func (p *pg) Metadata(ctx echo.Context) error {
 
 	return ctx.JSON(http.StatusOK, imageManifestList)
 }
+
+func (p *pg) GetImageNamespace(ctx context.Context, search string) ([]string, error) {
+	childCtx, cancel := context.WithTimeout(context.Background(), time.Minute*30)
+	defer cancel()
+	rows, err := p.conn.Query(childCtx, queries.GetImageNamespace, "%"+search+"%")
+	if err != nil {
+		return nil, fmt.Errorf("ERR_QUERY_GET_IMAGE_NAMESPACE: %w", err)
+	}
+	defer rows.Close()
+
+	var result []string
+	for rows.Next() {
+		var ns string
+		if err := rows.Scan(&ns); err != nil {
+			return nil, fmt.Errorf("ERR_IMAGE_NAMESPACE_SCAN: %w", err)
+		}
+		result = append(result, ns)
+	}
+	return result, nil
+}
