@@ -114,4 +114,6 @@ func Docker(group *echo.Group, reg registry.Registry) {
 
 	// GET /v2/_catalog
 	group.Add(http.MethodGet, Catalog, reg.Catalog)
+	group.Add(http.MethodGet, "/search", reg.GetImageNamespace)
+
 }

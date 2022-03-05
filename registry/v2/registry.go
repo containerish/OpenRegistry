@@ -829,3 +829,15 @@ func (r *registry) ApiVersion(ctx echo.Context) error {
 
 	return ctx.String(http.StatusOK, "OK\n")
 }
+
+func (r *registry) GetImageNamespace(ctx echo.Context) error {
+	searchQuery := ctx.QueryParam("search_query")
+	result, err := r.store.GetImageNamespace(ctx.Request().Context(), searchQuery)
+	if err != nil {
+		return ctx.JSON(http.StatusInternalServerError, echo.Map{
+			"error":   err.Error(),
+			"message": "error getting image namespace",
+		})
+	}
+	return ctx.JSON(http.StatusOK, result)
+}
