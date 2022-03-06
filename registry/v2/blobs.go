@@ -94,12 +94,18 @@ func (b *blobs) UploadBlob(ctx echo.Context) error {
 			return ctx.JSONBlob(http.StatusBadRequest, errMsg)
 		}
 
-		bz, _ := io.ReadAll(ctx.Request().Body)
-		defer ctx.Request().Body.Close()
+		buf := &bytes.Buffer{}
+		if _, err := io.Copy(buf, ctx.Request().Body); err != nil {
+			return ctx.JSON(http.StatusBadRequest, echo.Map{
+				"error":   err.Error(),
+				"message": "error copying request body in upload blob",
+			})
+		}
 
-		b.uploads[uuid] = bz
+		_ = ctx.Request().Body.Close()
+		b.uploads[uuid] = buf.Bytes()
 
-		if err := b.blobTransaction(ctx, bz, uuid); err != nil {
+		if err := b.blobTransaction(ctx, buf.Bytes(), uuid); err != nil {
 			errMsg := b.errorResponse(
 				RegistryErrorCodeBlobUploadInvalid,
 				err.Error(),
@@ -111,7 +117,7 @@ func (b *blobs) UploadBlob(ctx echo.Context) error {
 
 		locationHeader := fmt.Sprintf("/v2/%s/blobs/uploads/%s", namespace, uuid)
 		ctx.Response().Header().Set("Location", locationHeader)
-		ctx.Response().Header().Set("Range", fmt.Sprintf("0-%d", len(bz)-1))
+		ctx.Response().Header().Set("Range", fmt.Sprintf("0-%d", len(buf.Bytes())-1))
 		return ctx.NoContent(http.StatusAccepted)
 	}
 

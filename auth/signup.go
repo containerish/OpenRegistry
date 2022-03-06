@@ -3,7 +3,6 @@ package auth
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"regexp"
 	"strings"
@@ -146,22 +145,15 @@ func (a *auth) SignUp(ctx echo.Context) error {
 	}()
 
 	var u User
-	bz, err := io.ReadAll(ctx.Request().Body)
-	if err != nil {
-		ctx.Set(types.HttpEndpointErrorKey, err.Error())
-		return ctx.JSON(http.StatusBadRequest, echo.Map{
-			"error": err.Error(),
-			"msg":   "invalid request body",
-		})
-	}
-	ctx.Request().Body.Close()
 
-	if err := json.Unmarshal(bz, &u); err != nil {
+	if err := json.NewDecoder(ctx.Request().Body).Decode(&u); err != nil {
 		ctx.Set(types.HttpEndpointErrorKey, err.Error())
 		return ctx.JSON(http.StatusBadRequest, echo.Map{
-			"error": err.Error(),
+			"error":   err.Error(),
+			"message": "error decoding request body in sign-up",
 		})
 	}
+	_ = ctx.Request().Body.Close()
 
 	if err := u.Validate(a.store); err != nil {
 		ctx.Set(types.HttpEndpointErrorKey, err.Error())
