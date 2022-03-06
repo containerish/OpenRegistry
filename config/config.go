@@ -32,7 +32,7 @@ type (
 	}
 
 	Skynet struct {
-		SkynetPortalURL string `mapstructure:"skynet_portal_url"`
+		SkynetPortalURL string `mapstructure:"portal_url"`
 		EndpointPath    string `mapstructure:"endpoint_path"`
 		ApiKey          string `mapstructure:"api_key"`
 		CustomUserAgent string `mapstructure:"custom_user_agent"`

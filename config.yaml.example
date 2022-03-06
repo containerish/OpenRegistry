@@ -20,7 +20,7 @@ oauth:
     client_id:
     client_secret:
 skynet:
-  portal_url: https://siasky.net
+  portal_url: https://siasky.dev
   api_key: skynet-key
 database:
   kind: postgres
