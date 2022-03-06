@@ -238,7 +238,7 @@ func (r *registry) PullManifest(ctx echo.Context) error {
 		return ctx.JSONBlob(http.StatusNotFound, errMsg)
 	}
 
-	bz, err := io.ReadAll(ctx.Request().Body)
+	bz, err := io.ReadAll(resp)
 	if err != nil {
 		errMsg := r.errorResponse(RegistryErrorCodeManifestInvalid, err.Error(), nil)
 		ctx.Set(types.HttpEndpointErrorKey, errMsg)
