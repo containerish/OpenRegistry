@@ -3,10 +3,11 @@ package auth
 import (
 	"context"
 	"fmt"
-	"github.com/containerish/OpenRegistry/config"
 	"net"
 	"net/http"
 	"time"
+
+	"github.com/containerish/OpenRegistry/config"
 
 	"github.com/containerish/OpenRegistry/types"
 	"github.com/google/uuid"
@@ -80,7 +81,7 @@ func (a *auth) GithubLoginCallbackHandler(ctx echo.Context) error {
 	}
 
 	oauthUser.Password = refreshToken
-	if err := a.pgStore.AddOAuthUser(ctx.Request().Context(), &oauthUser); err != nil {
+	if err = a.pgStore.AddOAuthUser(ctx.Request().Context(), &oauthUser); err != nil {
 		ctx.Set(types.HttpEndpointErrorKey, err.Error())
 		return ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error": err.Error(),
@@ -135,7 +136,6 @@ func (a *auth) createCookie(name string, value string, httpOnly bool, expiresAt 
 		Path:     "/",
 		Domain:   webappEndpoint,
 		Expires:  expiresAt,
-		MaxAge:   AccessCookieMaxAge,
 		Secure:   secure,
 		SameSite: sameSite,
 		HttpOnly: httpOnly,

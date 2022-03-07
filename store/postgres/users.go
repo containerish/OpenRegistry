@@ -97,6 +97,7 @@ func (p *pg) GetUserWithSession(ctx context.Context, sessionId string) (*types.U
 	err := row.Scan(
 		&user.Id,
 		&user.IsActive,
+		&user.Name,
 		&user.Username,
 		&user.Email,
 		&user.CreatedAt,
