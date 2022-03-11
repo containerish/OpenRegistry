@@ -13,7 +13,7 @@ type (
 		CreatedAt         time.Time `json:"created_at,omitempty" validate:"-"`
 		UpdatedAt         time.Time `json:"updated_at,omitempty" validate:"-"`
 		Id                string    `json:"uuid,omitempty" validate:"-"`
-		Password          string    `json:"password,omitempty" validate:"required,gte=8"`
+		Password          string    `json:"password,omitempty"`
 		Username          string    `json:"username,omitempty" validate:"-"`
 		Email             string    `json:"email,omitempty" validate:"email"`
 		URL               string    `json:"url,omitempty"`
@@ -65,6 +65,10 @@ type (
 )
 
 func (u *User) Validate() error {
+	if u == nil {
+		return fmt.Errorf("user is nil")
+	}
+
 	v := validator.New()
 
 	return v.Struct(u)

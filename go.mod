@@ -14,12 +14,16 @@ require (
 	github.com/labstack/echo-contrib v0.11.0
 	github.com/labstack/echo/v4 v4.5.0
 	github.com/rs/zerolog v1.24.0
+	github.com/sendgrid/sendgrid-go v3.11.0+incompatible
 	github.com/spf13/viper v1.8.1
 	github.com/valyala/fasttemplate v1.2.1
 	github.com/whyrusleeping/tar-utils v0.0.0-20201201191210-20a61371de5b
-	golang.org/x/crypto v0.0.0-20210817164053-32db794688a5
 )
 
+require (
+	github.com/sendgrid/rest v2.6.8+incompatible // indirect
+	golang.org/x/crypto v0.0.0-20220307211146-efcb8507fb70 // indirect
+)
 
 require (
 	github.com/beorn7/perks v1.0.1 // indirect
@@ -70,7 +74,7 @@ require (
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	gitlab.com/NebulousLabs/errors v0.0.0-20171229012116-7ead97ef90b8 // indirect
 	go.opencensus.io v0.23.0 // indirect
-	golang.org/x/net v0.0.0-20210405180319-a5a99cb37ef4 // indirect
+	golang.org/x/net v0.0.0-20211112202133-69e39bad7dc2 // indirect
 	golang.org/x/oauth2 v0.0.0-20211104180415-d3ed0bb246c8
 	golang.org/x/sys v0.0.0-20210806184541-e5e7981a1069 // indirect
 	golang.org/x/text v0.3.6 // indirect

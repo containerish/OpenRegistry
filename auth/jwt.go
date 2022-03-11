@@ -126,7 +126,7 @@ func (a *auth) createServiceClaims(u types.User) ServiceClaims {
 		StandardClaims: jwt.StandardClaims{
 			Audience:  a.c.Endpoint(),
 			ExpiresAt: time.Now().Add(time.Hour * 750).Unix(),
-			Id:        uuid.NewString(),
+			Id:        u.Id,
 			IssuedAt:  time.Now().Unix(),
 			Issuer:    a.c.Endpoint(),
 			NotBefore: time.Now().Unix(),
