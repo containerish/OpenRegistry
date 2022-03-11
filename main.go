@@ -53,6 +53,6 @@ func main() {
 	}
 
 	color.Green("Service Endpoint: %s\n", cfg.Endpoint())
-	router.Register(cfg, e, reg, authSvc, pgStore, ext)
+	router.Register(cfg, e, reg, authSvc, ext)
 	color.Red("error initialising OpenRegistry Server: %s", e.Start(cfg.Registry.Address()))
 }

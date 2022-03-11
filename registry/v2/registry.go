@@ -10,7 +10,6 @@ import (
 	"path"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/containerish/OpenRegistry/skynet"
@@ -30,13 +29,11 @@ func NewRegistry(
 		debug:  true,
 		skynet: skynetClient,
 		b: blobs{
-			mutex:    sync.Mutex{},
 			contents: map[string][]byte{},
 			uploads:  map[string][]byte{},
 			layers:   map[string][]string{},
 		},
 		logger: logger,
-		mu:     &sync.RWMutex{},
 		store:  pgStore,
 		txnMap: map[string]TxnStore{},
 	}
@@ -820,7 +817,9 @@ func (r *registry) DeleteLayer(ctx echo.Context) error {
 			r.logger.Log(ctx, fmt.Errorf("%s", logMsg))
 			bz, err := json.Marshal(logMsg)
 			if err != nil {
-				r.log.Err(err).Send()
+				errMsg := r.errorResponse(RegistryErrorCodeUnknown, err.Error(), nil)
+				r.logger.Log(ctx, err)
+				return ctx.JSONBlob(http.StatusBadRequest, errMsg)
 			}
 			return ctx.JSONBlob(http.StatusInternalServerError, bz)
 		}

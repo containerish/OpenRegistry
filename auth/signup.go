@@ -9,6 +9,7 @@ import (
 	"time"
 	"unicode"
 
+	"github.com/containerish/OpenRegistry/config"
 	"github.com/containerish/OpenRegistry/types"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
@@ -58,6 +59,10 @@ func (a *auth) SignUp(ctx echo.Context) error {
 		Id:       uuid.NewString(),
 	}
 
+	if a.c.Environment == config.CI {
+		newUser.IsActive = true
+	}
+
 	err = a.pgStore.AddUser(ctx.Request().Context(), newUser)
 	if err != nil {
 		a.logger.Log(ctx, err)
@@ -66,7 +71,15 @@ func (a *auth) SignUp(ctx echo.Context) error {
 		})
 	}
 
-	accessToken, err := a.newWebLoginToken(newUser.Id, newUser.Username, "access")
+	// in case of CI setup, no need to send verification emails
+	if a.c.Environment == config.CI {
+		a.logger.Log(ctx, err)
+		return ctx.JSON(http.StatusCreated, echo.Map{
+			"message": "user successfully created",
+		})
+	}
+
+	token, err := a.newWebLoginToken(newUser.Id, newUser.Username, "access")
 	if err != nil {
 		a.logger.Log(ctx, err)
 		return ctx.JSON(http.StatusInternalServerError, echo.Map{
@@ -74,32 +87,22 @@ func (a *auth) SignUp(ctx echo.Context) error {
 			"code":  "CREATE_NEW_ACCESS_TOKEN",
 		})
 	}
-	refreshToken, err := a.newWebLoginToken(newUser.Id, newUser.Username, "refresh")
+
+	err = a.pgStore.AddVerifyEmail(ctx.Request().Context(), token, newUser.Id)
 	if err != nil {
-		a.logger.Log(ctx, err)
+		ctx.Set(types.HttpEndpointErrorKey, err.Error())
+		return ctx.JSON(http.StatusInternalServerError, echo.Map{
+			"error":   err.Error(),
+			"message": "ERR_ADDING_VERIFY_EMAIL",
+		})
+	}
+
+	if err = a.emailClient.SendEmail(newUser, token); err != nil {
+		ctx.Set(types.HttpEndpointErrorKey, err.Error())
 		return ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error": err.Error(),
-			"code":  "CREATE_NEW_REFRESH_TOKEN",
 		})
 	}
-
-	id := uuid.NewString()
-	if err = a.pgStore.AddSession(ctx.Request().Context(), id, refreshToken, newUser.Username); err != nil {
-		a.logger.Log(ctx, err)
-		return ctx.JSON(http.StatusBadRequest, echo.Map{
-			"error":   err.Error(),
-			"message": "ERR_CREATING_SESSION",
-		})
-	}
-
-	sessionId := fmt.Sprintf("%s:%s", id, newUser.Id)
-	sessionCookie := a.createCookie("session_id", sessionId, false, time.Now().Add(time.Hour*750))
-	accessCookie := a.createCookie("access", accessToken, true, time.Now().Add(time.Hour))
-	refreshCookie := a.createCookie("refresh", refreshToken, true, time.Now().Add(time.Hour*750))
-
-	ctx.SetCookie(accessCookie)
-	ctx.SetCookie(refreshCookie)
-	ctx.SetCookie(sessionCookie)
 
 	a.logger.Log(ctx, err)
 	return ctx.JSON(http.StatusCreated, echo.Map{

@@ -43,6 +43,12 @@ func (a *auth) SignIn(ctx echo.Context) error {
 		})
 	}
 
+	if !userFromDb.IsActive {
+		return ctx.JSON(http.StatusUnauthorized, echo.Map{
+			"error": "account is inactive, please check your email and verify your account",
+		})
+	}
+
 	if !a.verifyPassword(userFromDb.Password, user.Password) {
 		errMsg := fmt.Errorf("invalid password")
 		a.logger.Log(ctx, errMsg)

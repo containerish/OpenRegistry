@@ -59,5 +59,5 @@ const (
 	// API to get detailed catalog information
 	CatalogDetail = C + "/detail"
 
-	RepositoryDetail = Ext + "/repository"
+	RepositoryDetail = C + "/repository"
 )

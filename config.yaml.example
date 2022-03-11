@@ -35,3 +35,9 @@ log_service:
   auth_method: basic_auth
   username: grafana-username
   password: grafana-password
+email:
+  enabled: true
+  api_key: <sendgrid-api-key>
+  send_as: admin@openregistry.dev
+  verify_template_id: <verify_template_id>
+  forgot_password_template_id: <forgot_password_template_id>

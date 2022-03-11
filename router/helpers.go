@@ -13,6 +13,7 @@ import (
 func RegisterAuthRoutes(authRouter *echo.Group, authSvc auth.Authentication) {
 
 	authRouter.Add(http.MethodPost, "/signup", authSvc.SignUp)
+	authRouter.Add(http.MethodGet, "/signup/verify", authSvc.VerifyEmail)
 	authRouter.Add(http.MethodPost, "/signin", authSvc.SignIn)
 	authRouter.Add(http.MethodPost, "/token", authSvc.SignIn)
 	authRouter.Add(http.MethodDelete, "/signout", authSvc.SignOut)

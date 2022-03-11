@@ -25,12 +25,15 @@ type UserStore interface {
 	GetUser(ctx context.Context, identifier string, wihtPassword bool) (*types.User, error)
 	GetUserById(ctx context.Context, userId string) (*types.User, error)
 	GetUserWithSession(ctx context.Context, sessionId string) (*types.User, error)
-	UpdateUser(ctx context.Context, identifier string, u *types.User) error
-	DeleteUser(ctx context.Context, identifier string) error
-	IsActive(ctx context.Context, identifier string) bool
 	AddSession(ctx context.Context, sessionId, refreshToken, owner string) error
 	DeleteSession(ctx context.Context, sessionId, userId string) error
 	DeleteAllSessions(ctx context.Context, userId string) error
+	UpdateUser(ctx context.Context, identifier string, u *types.User) error
+	DeleteUser(ctx context.Context, identifier string) error
+	IsActive(ctx context.Context, identifier string) bool
+	AddVerifyEmail(ctx context.Context, userId, token string) error
+	GetVerifyEmail(ctx context.Context, userId string) (string, error)
+	DeleteVerifyEmail(ctx context.Context, userId string) error
 }
 
 type RegistryStore interface {
