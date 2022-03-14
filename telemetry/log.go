@@ -11,6 +11,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/containerish/OpenRegistry/config"
+
 	fluentbit "github.com/containerish/OpenRegistry/telemetry/fluent-bit"
 	"github.com/containerish/OpenRegistry/types"
 	"github.com/labstack/echo/v4"
@@ -21,15 +23,24 @@ import (
 
 type Logger interface {
 	echo.Logger
-	Log(ctx echo.Context) *zerolog.Event
+	Log(ctx echo.Context)
 }
 
-func SetupLogger() zerolog.Logger {
+func SetupLogger(env string) zerolog.Logger {
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
-	zerolog.SetGlobalLevel(zerolog.DebugLevel)
-
 	l := zerolog.New(os.Stdout)
 	l = l.With().Caller().Logger()
+	if env != config.Prod {
+		zerolog.SetGlobalLevel(zerolog.TraceLevel)
+		consoleWriter := zerolog.ConsoleWriter{
+			Out:        os.Stdout,
+			NoColor:    false,
+			TimeFormat: time.RFC3339,
+		}
+		l.Output(consoleWriter)
+		return l
+	}
+	zerolog.SetGlobalLevel(zerolog.DebugLevel)
 	return l
 }
 
@@ -163,9 +174,10 @@ type logger struct {
 	pool      *sync.Pool
 	template  *fasttemplate.Template
 	zlog      zerolog.Logger
+	env       string
 }
 
-func ZLogger(baseLogger zerolog.Logger, fluentbitClient fluentbit.FluentBit) Logger {
+func ZLogger(fluentbitClient fluentbit.FluentBit, env string) Logger {
 	pool := &sync.Pool{
 		New: func() interface{} {
 			return bytes.NewBuffer(make([]byte, 256))
@@ -176,17 +188,25 @@ func ZLogger(baseLogger zerolog.Logger, fluentbitClient fluentbit.FluentBit) Log
 		`"status":${status},"error":"${error}","latency":${latency},"latency_human":"${latency_human}"` +
 		`,"bytes_in":${bytes_in},"bytes_out":${bytes_out}}` + "\n"
 
+	baseLogger := SetupLogger(env)
+
 	return &logger{
 		zlog:      baseLogger,
 		fluentBit: fluentbitClient,
 		output:    os.Stdout,
 		pool:      pool,
 		template:  fasttemplate.New(logFmt, "${", "}"),
+		env:       env,
 	}
 }
 
 //nolint:cyclop // insane amount of complexity because of templating
-func (l logger) Log(ctx echo.Context) *zerolog.Event {
+func (l logger) Log(ctx echo.Context) {
+
+	if l.env != config.Prod {
+		l.consoleWriter(ctx)
+		return
+	}
 
 	start, ok := ctx.Get("start").(time.Time)
 	if !ok {
@@ -284,7 +304,7 @@ func (l logger) Log(ctx echo.Context) *zerolog.Event {
 
 	bz := bytes.TrimSpace(buf.Bytes())
 	l.fluentBit.Send(bz)
-	return l.zlog.WithLevel(level).RawJSON("msg", bz)
+	l.zlog.WithLevel(level).RawJSON("msg", bz).Send()
 }
 
 func (l logger) Output() io.Writer {

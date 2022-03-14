@@ -18,21 +18,20 @@ func (a *auth) Token(ctx echo.Context) error {
 	// TODO (jay-dee7) - check for all valid query params here like serive, client_id, offline_token, etc
 	// more at this link - https://docs.docker.com/registry/spec/auth/token/
 	ctx.Set(types.HandlerStartTime, time.Now())
-	defer func() {
-		a.logger.Log(ctx).Send()
-	}()
 
 	authHeader := ctx.Request().Header.Get(AuthorizationHeaderKey)
 	if authHeader != "" {
 		username, password, err := a.getCredsFromHeader(ctx.Request())
 		if err != nil {
 			ctx.Set(types.HttpEndpointErrorKey, err.Error())
+			a.logger.Log(ctx)
 			return ctx.NoContent(http.StatusUnauthorized)
 		}
 
 		creds, err := a.validateUser(username, password)
 		if err != nil {
 			ctx.Set(types.HttpEndpointErrorKey, err.Error())
+			a.logger.Log(ctx)
 			return ctx.JSON(http.StatusUnauthorized, echo.Map{
 				"error": err.Error(),
 			})
@@ -48,6 +47,7 @@ func (a *auth) Token(ctx echo.Context) error {
 			"msg":   "invalid scope provided",
 		}
 		ctx.Set(types.HttpEndpointErrorKey, errMsg)
+		a.logger.Log(ctx)
 		return ctx.JSON(http.StatusBadRequest, errMsg)
 	}
 
@@ -57,6 +57,7 @@ func (a *auth) Token(ctx echo.Context) error {
 		token, err := a.newPublicPullToken()
 		if err != nil {
 			ctx.Set(types.HttpEndpointErrorKey, err.Error())
+			a.logger.Log(ctx)
 			return ctx.NoContent(http.StatusInternalServerError)
 		}
 

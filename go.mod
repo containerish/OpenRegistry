@@ -9,6 +9,7 @@ require (
 	github.com/go-playground/validator/v10 v10.9.0
 	github.com/golang-jwt/jwt v3.2.2+incompatible
 	github.com/google/uuid v1.3.0
+	github.com/hashicorp/go-multierror v1.0.0
 	github.com/labstack/echo-contrib v0.11.0
 	github.com/labstack/echo/v4 v4.5.0
 	github.com/rs/zerolog v1.24.0
@@ -17,6 +18,8 @@ require (
 	github.com/whyrusleeping/tar-utils v0.0.0-20201201191210-20a61371de5b
 	golang.org/x/crypto v0.0.0-20210817164053-32db794688a5
 )
+
+require github.com/hashicorp/errwrap v1.0.0 // indirect
 
 require (
 	github.com/beorn7/perks v1.0.1 // indirect

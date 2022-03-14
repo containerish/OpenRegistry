@@ -64,7 +64,7 @@ func (a *auth) BasicAuth() echo.MiddlewareFunc {
 			printInMiddleware := true
 			defer func() {
 				if printInMiddleware {
-					a.logger.Log(ctx).Send()
+					a.logger.Log(ctx)
 				}
 			}()
 

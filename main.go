@@ -44,7 +44,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	logger := telemetry.ZLogger(telemetry.SetupLogger(), fluentBitCollector)
+	logger := telemetry.ZLogger(fluentBitCollector, cfg.Environment)
 	authSvc := auth.New(localCache, cfg, pgStore, logger)
 	skynetClient := skynet.NewClient(cfg)
 
