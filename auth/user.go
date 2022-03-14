@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/containerish/OpenRegistry/types"
-	"github.com/fatih/color"
 	"github.com/labstack/echo/v4"
 )
 
@@ -16,23 +15,23 @@ func (a *auth) ReadUserWithSession(ctx echo.Context) error {
 		a.logger.Log(ctx).Send()
 	}()
 
-	cookie := ctx.QueryParam("session_id")
-	if cookie == "" {
+	session, _ := ctx.Cookie("session_id")
+	if session.Value == "" {
 		ctx.Set(types.HttpEndpointErrorKey, "error in getting cookies")
 		return ctx.JSON(http.StatusBadRequest, echo.Map{
 			"msg": "error is cookie",
 		})
 	}
-	parts := strings.Split(cookie, ":")
+
+	parts := strings.Split(session.Value, ":")
 	if len(parts) != 2 {
 		ctx.Set(types.HttpEndpointErrorKey, "invalid session id")
 		return ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error": "invalid session id",
 		})
 	}
-	sessionId := parts[0]
-	color.Yellow("sessin in getSesion: %s", sessionId)
 
+	sessionId := parts[0]
 	user, err := a.pgStore.GetUserWithSession(ctx.Request().Context(), sessionId)
 	if err != nil {
 		ctx.Set(types.HttpEndpointErrorKey, err.Error())

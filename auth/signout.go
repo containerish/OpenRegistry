@@ -8,12 +8,14 @@ import (
 )
 
 func (a *auth) SignOut(ctx echo.Context) error {
-	parts := strings.Split(ctx.QueryParam("session_id"), ":")
+	sessionCookie, _ := ctx.Cookie("session_id")
+	parts := strings.Split(sessionCookie.Value, ":")
 	if len(parts) != 2 {
 		return ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error": "INVALID_SESSION_ID",
 		})
 	}
+
 	sessionId := parts[0]
 	userId := parts[1]
 

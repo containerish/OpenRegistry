@@ -20,7 +20,7 @@ func (p *pg) AddUser(ctx context.Context, u *types.User) error {
 
 	t := time.Now()
 	id := uuid.New()
-	_, err := p.conn.Exec(childCtx, queries.AddUser, id.String(), true, u.Username, u.Email, u.Password, t, t)
+	_, err := p.conn.Exec(childCtx, queries.AddUser, id.String(), true, u.Username, u.Name, u.Email, u.Password, t, t)
 	if err != nil {
 		return fmt.Errorf("error adding user to database: %w", err)
 	}
@@ -94,7 +94,7 @@ func (p *pg) GetUserWithSession(ctx context.Context, sessionId string) (*types.U
 	row := p.conn.QueryRow(childCtx, queries.GetUserWithSession, sessionId)
 
 	var user types.User
-	err := row.Scan(
+	if err := row.Scan(
 		&user.Id,
 		&user.IsActive,
 		&user.Name,
@@ -102,9 +102,8 @@ func (p *pg) GetUserWithSession(ctx context.Context, sessionId string) (*types.U
 		&user.Email,
 		&user.CreatedAt,
 		&user.UpdatedAt,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("user not found")
+	); err != nil {
+		return nil, fmt.Errorf("ERR_SESSION_NOT_FOUND: %w", err)
 	}
 
 	return &user, nil

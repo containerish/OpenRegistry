@@ -39,7 +39,6 @@ func (a *auth) ExpireSessions(ctx echo.Context) error {
 		claims := user.Claims.(*Claims)
 		userId := claims.Id
 		color.Red("came here, userId:%s:%s", sessionID, userId)
-
 	}
 
 	return nil
