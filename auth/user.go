@@ -15,7 +15,14 @@ func (a *auth) ReadUserWithSession(ctx echo.Context) error {
 		a.logger.Log(ctx).Send()
 	}()
 
-	session, _ := ctx.Cookie("session_id")
+	session, err := ctx.Cookie("session_id")
+	if err != nil {
+		ctx.Set(types.HttpEndpointErrorKey, err.Error())
+		return ctx.JSON(http.StatusInternalServerError, echo.Map{
+			"error":   err.Error(),
+			"message": "ERROR_GETTING_SESSION_ID",
+		})
+	}
 	if session.Value == "" {
 		ctx.Set(types.HttpEndpointErrorKey, "error in getting cookies")
 		return ctx.JSON(http.StatusBadRequest, echo.Map{

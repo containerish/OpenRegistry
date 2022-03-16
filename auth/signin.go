@@ -35,7 +35,6 @@ func (a *auth) SignIn(ctx echo.Context) error {
 		key = user.Username
 	}
 
-	//bz, err := a.store.Get([]byte(key))
 	userFromDb, err := a.pgStore.GetUser(ctx.Request().Context(), key)
 	if err != nil {
 		a.logger.Log(ctx, err)

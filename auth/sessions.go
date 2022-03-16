@@ -1,27 +1,27 @@
 package auth
 
 import (
-	"github.com/fatih/color"
-	"github.com/golang-jwt/jwt"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	"net/http"
 	"strconv"
+	"strings"
 )
 
 func (a *auth) ExpireSessions(ctx echo.Context) error {
-	queryParamSessionId := ctx.QueryParam("session_id")
-	var sessionID uuid.UUID
-	var err error
-	if queryParamSessionId != "" {
-		sessionID, err = uuid.Parse(queryParamSessionId)
-		if err != nil {
-			return ctx.JSON(http.StatusBadRequest, echo.Map{
-				"error":   err.Error(),
-				"message": "invalid session id",
-			})
-		}
+	//queryParamSessionId := ctx.QueryParam("session_id")
+	cookie, _ := ctx.Cookie("session_id")
+	parts := strings.Split(cookie.Value, ":")
+	if len(parts) != 2 {
+		return ctx.JSON(http.StatusBadRequest, echo.Map{
+			"error": "invalid cookie",
+		})
 	}
+	
+	sessionID := parts[0]
+	userId := parts[1]
+	var err error
+
 	var deleteAllSessions bool
 	queryParamDeleteAll := ctx.QueryParam("delete_all")
 	if queryParamDeleteAll != "" {
@@ -32,13 +32,41 @@ func (a *auth) ExpireSessions(ctx echo.Context) error {
 				"message": "delete_all must be a boolean",
 			})
 		}
+		_, err := uuid.Parse(userId)
+		if err != nil {
+			return ctx.JSON(http.StatusBadRequest, echo.Map{
+				"error":   err.Error(),
+				"message": "invalid user id",
+			})
+		}
+
+		if deleteAllSessions {
+			err := a.pgStore.DeleteAllSessions(ctx.Request().Context(), userId)
+			if err != nil {
+				return ctx.JSON(http.StatusInternalServerError, echo.Map{
+					"error":   err.Error(),
+					"message": "could not delete all sessions",
+				})
+			}
+		}
+
 	}
 
-	if deleteAllSessions {
-		user := ctx.Get("user").(*jwt.Token)
-		claims := user.Claims.(*Claims)
-		userId := claims.Id
-		color.Red("came here, userId:%s:%s", sessionID, userId)
+	if sessionID != "" {
+		_, err := uuid.Parse(sessionID)
+		if err != nil {
+			return ctx.JSON(http.StatusBadRequest, echo.Map{
+				"error":   err.Error(),
+				"message": "invalid session id",
+			})
+		}
+		err = a.pgStore.DeleteSession(ctx.Request().Context(), sessionID, userId)
+		if err != nil {
+			return ctx.JSON(http.StatusInternalServerError, echo.Map{
+				"error":   err.Error(),
+				"message": "could not delete session",
+			})
+		}
 	}
 
 	return nil
