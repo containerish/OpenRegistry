@@ -49,7 +49,9 @@ func (a *auth) SignIn(ctx echo.Context) error {
 		return ctx.JSON(http.StatusUnauthorized, errMsg)
 	}
 
-	access, refresh, err := a.newWebLoginToken(*userFromDb)
+	access, err := a.newWebLoginToken(userFromDb.Id, userFromDb.Username, "access")
+	refresh, err := a.newWebLoginToken(userFromDb.Id, userFromDb.Username, "refresh")
+
 	if err != nil {
 		a.logger.Log(ctx, err)
 		return ctx.JSON(http.StatusInternalServerError, echo.Map{

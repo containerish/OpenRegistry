@@ -43,12 +43,14 @@ type AuthStore interface {
 type UserStore interface {
 	AddUser(ctx context.Context, u *types.User) error
 	AddOAuthUser(ctx context.Context, u *types.User) error
+	UserExists(ctx context.Context, id string) bool
 	GetUser(ctx context.Context, identifier string) (*types.User, error)
+	GetUserById(ctx context.Context, userId string) (*types.User, error)
+	GetUserWithSession(ctx context.Context, sessionId string) (*types.User, error)
 	UpdateUser(ctx context.Context, identifier string, u *types.User) error
 	DeleteUser(ctx context.Context, identifier string) error
 	IsActive(ctx context.Context, identifier string) bool
 	AddSession(ctx context.Context, sessionId, refreshToken, owner string) error
-	GetUserWithSession(ctx context.Context, sessionId string) (*types.User, error)
 	DeleteSession(ctx context.Context, sessionId, userId string) error
 	DeleteAllSessions(ctx context.Context, userId string) error
 }

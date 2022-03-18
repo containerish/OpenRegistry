@@ -87,6 +87,30 @@ func (p *pg) GetUser(ctx context.Context, identifier string) (*types.User, error
 
 	return &user, nil
 }
+
+func (p *pg) GetUserById(ctx context.Context, userId string) (*types.User, error) {
+	childCtx, cancel := context.WithTimeout(ctx, time.Millisecond*100)
+	defer cancel()
+
+	row := p.conn.QueryRow(childCtx, queries.GetUserById, userId)
+
+	var user types.User
+	err := row.Scan(
+		&user.Id,
+		&user.IsActive,
+		&user.Username,
+		&user.Email,
+		&user.Password,
+		&user.CreatedAt,
+		&user.UpdatedAt,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("user not found")
+	}
+
+	return &user, nil
+}
+
 func (p *pg) GetUserWithSession(ctx context.Context, sessionId string) (*types.User, error) {
 	childCtx, cancel := context.WithTimeout(ctx, time.Millisecond*100)
 	defer cancel()
@@ -145,4 +169,16 @@ func (p *pg) IsActive(ctx context.Context, identifier string) bool {
 	defer cancel()
 	row := p.conn.QueryRow(childCtx, queries.GetUser, identifier)
 	return row != nil
+}
+
+func (p *pg) UserExists(ctx context.Context, id string) bool {
+	childCtx, cancel := context.WithTimeout(ctx, time.Millisecond*100)
+	defer cancel()
+
+	row, err := p.GetUserById(childCtx, id)
+	if err != nil || row == nil {
+		return false
+	}
+
+	return true
 }

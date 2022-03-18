@@ -10,17 +10,22 @@ import (
 
 func (a *auth) ExpireSessions(ctx echo.Context) error {
 	//queryParamSessionId := ctx.QueryParam("session_id")
-	cookie, _ := ctx.Cookie("session_id")
+	cookie, err := ctx.Cookie("session_id")
+	if err != nil {
+		return ctx.JSON(http.StatusBadRequest, echo.Map{
+			"error": err.Error(),
+			"msg":   "error while getting cookie",
+		})
+	}
 	parts := strings.Split(cookie.Value, ":")
 	if len(parts) != 2 {
 		return ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error": "invalid cookie",
 		})
 	}
-	
+
 	sessionID := parts[0]
 	userId := parts[1]
-	var err error
 
 	var deleteAllSessions bool
 	queryParamDeleteAll := ctx.QueryParam("delete_all")

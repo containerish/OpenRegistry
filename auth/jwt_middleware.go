@@ -85,3 +85,28 @@ func (a *auth) ACL() echo.MiddlewareFunc {
 		}
 	}
 }
+
+// JWT basically uses the default JWT middleware by echo, but has a slightly different skipper func
+func (a *auth) JWTRest() echo.MiddlewareFunc {
+	return middleware.JWTWithConfig(middleware.JWTConfig{
+		BeforeFunc:     middleware.DefaultJWTConfig.BeforeFunc,
+		SuccessHandler: middleware.DefaultJWTConfig.SuccessHandler,
+		ErrorHandler:   nil,
+		ErrorHandlerWithContext: func(err error, ctx echo.Context) error {
+			// ErrorHandlerWithContext only logs the failing requtest
+			ctx.Set(types.HandlerStartTime, time.Now())
+			ctx.Set(types.HttpEndpointErrorKey, err.Error())
+			a.logger.Log(ctx)
+			return ctx.JSON(http.StatusUnauthorized, echo.Map{
+				"error":   err.Error(),
+				"message": "missing authentication information",
+			})
+		},
+		KeyFunc:        middleware.DefaultJWTConfig.KeyFunc,
+		ParseTokenFunc: middleware.DefaultJWTConfig.ParseTokenFunc,
+		SigningKey:     []byte(a.c.Registry.SigningSecret),
+		SigningKeys:    map[string]interface{}{},
+		SigningMethod:  jwt.SigningMethodHS256.Name,
+		Claims:         &Claims{},
+	})
+}
