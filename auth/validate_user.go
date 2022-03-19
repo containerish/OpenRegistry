@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/containerish/OpenRegistry/types"
 	"github.com/labstack/echo/v4"
 )
 
@@ -23,15 +22,14 @@ func (a *auth) validateUser(username, password string) (map[string]interface{}, 
 		return nil, fmt.Errorf("invalid password")
 	}
 
-	tokenLife := time.Now().Add(time.Hour * 24 * 14).Unix()
-	token, err := a.newToken(types.User{Username: username}, tokenLife)
+	token, err := a.newToken(userFromDb)
 	if err != nil {
 		return nil, err
 	}
 
 	return echo.Map{
 		"token":      token,
-		"expires_in": tokenLife,
+		"expires_in": time.Now().Add(time.Hour).Unix(), // look at auth/jwt.go:251
 		"issued_at":  time.Now(),
 	}, nil
 }

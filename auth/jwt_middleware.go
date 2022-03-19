@@ -75,9 +75,11 @@ func (a *auth) ACL() echo.MiddlewareFunc {
 				return ctx.NoContent(http.StatusUnauthorized)
 			}
 
-			username := ctx.Param("username")
-			if claims.Subject == username {
-				return hf(ctx)
+			if user, err := a.pgStore.GetUserById(ctx.Request().Context(), claims.Id); err == nil {
+				username := ctx.Param("username")
+				if user.Username == username {
+					return hf(ctx)
+				}
 			}
 
 			a.logger.Log(ctx, fmt.Errorf("ACL: username didn't match from token"))
