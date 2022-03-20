@@ -44,7 +44,7 @@ type UserStore interface {
 	AddUser(ctx context.Context, u *types.User) error
 	AddOAuthUser(ctx context.Context, u *types.User) error
 	UserExists(ctx context.Context, id string) bool
-	GetUser(ctx context.Context, identifier string) (*types.User, error)
+	GetUser(ctx context.Context, identifier string, wihtPassword bool) (*types.User, error)
 	GetUserById(ctx context.Context, userId string) (*types.User, error)
 	GetUserWithSession(ctx context.Context, sessionId string) (*types.User, error)
 	UpdateUser(ctx context.Context, identifier string, u *types.User) error

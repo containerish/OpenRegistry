@@ -10,6 +10,7 @@ import (
 	"unicode"
 
 	"github.com/containerish/OpenRegistry/types"
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 )
 
@@ -52,6 +53,7 @@ func (a *auth) SignUp(ctx echo.Context) error {
 		Email:    u.Email,
 		Username: u.Username,
 		Password: u.Password,
+		Id:       uuid.NewString(),
 	}
 
 	err = a.pgStore.AddUser(ctx.Request().Context(), newUser)
@@ -62,30 +64,39 @@ func (a *auth) SignUp(ctx echo.Context) error {
 		})
 	}
 
-	accessToken, refreshToken, err := a.newWebLoginToken(*newUser)
+	accessToken, err := a.newWebLoginToken(newUser.Id, newUser.Username, "access")
 	if err != nil {
-		return ctx.JSON(http.StatusBadRequest, echo.Map{
+		return ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error": err.Error(),
-			"code":  "CREATE_NEW_TOKEN",
+			"code":  "CREATE_NEW_ACCESS_TOKEN",
+		})
+	}
+	refreshToken, err := a.newWebLoginToken(newUser.Id, newUser.Username, "refresh")
+	if err != nil {
+		return ctx.JSON(http.StatusInternalServerError, echo.Map{
+			"error": err.Error(),
+			"code":  "CREATE_NEW_REFRESH_TOKEN",
 		})
 	}
 
-	accessCookie := &http.Cookie{
-		Name:    "access",
-		Value:   accessToken,
-		Expires: time.Now().Add(time.Hour),
-		Path:    "/",
+	id := uuid.NewString()
+	if err = a.pgStore.AddSession(ctx.Request().Context(), id, refreshToken, newUser.Username); err != nil {
+		ctx.Set(types.HttpEndpointErrorKey, err.Error())
+		return ctx.JSON(http.StatusBadRequest, echo.Map{
+			"error":   err.Error(),
+			"message": "ERR_CREATING_SESSION",
+		})
 	}
 
-	refreshCookie := &http.Cookie{
-		Name:    "refresh",
-		Value:   refreshToken,
-		Expires: time.Now().Add(time.Hour * 750),
-		Path:    "/",
-	}
+	sessionId := fmt.Sprintf("%s:%s", id, newUser.Id)
+	sessionCookie := a.createCookie("session_id", sessionId, false, time.Now().Add(time.Hour*750))
+	accessCookie := a.createCookie("access", accessToken, true, time.Now().Add(time.Hour))
+	refreshCookie := a.createCookie("refresh", refreshToken, true, time.Now().Add(time.Hour*750))
 
-	http.SetCookie(ctx.Response(), accessCookie)
-	http.SetCookie(ctx.Response(), refreshCookie)
+	ctx.SetCookie(accessCookie)
+	ctx.SetCookie(refreshCookie)
+	ctx.SetCookie(sessionCookie)
+
 	a.logger.Log(ctx, err)
 	return ctx.JSON(http.StatusCreated, echo.Map{
 		"message": "user successfully created",

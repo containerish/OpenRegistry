@@ -33,8 +33,7 @@ func (a *auth) JWT() echo.MiddlewareFunc {
 		ErrorHandlerWithContext: func(err error, ctx echo.Context) error {
 			// ErrorHandlerWithContext only logs the failing requtest
 			ctx.Set(types.HandlerStartTime, time.Now())
-			ctx.Set(types.HttpEndpointErrorKey, err.Error())
-			a.logger.Log(ctx, nil)
+			a.logger.Log(ctx, err)
 			return ctx.JSON(http.StatusUnauthorized, echo.Map{
 				"error":   err.Error(),
 				"message": "missing authentication information",
@@ -54,9 +53,6 @@ func (a *auth) ACL() echo.MiddlewareFunc {
 	return func(hf echo.HandlerFunc) echo.HandlerFunc {
 		return func(ctx echo.Context) error {
 			ctx.Set(types.HandlerStartTime, time.Now())
-			defer func() {
-				a.logger.Log(ctx, nil)
-			}()
 
 			m := ctx.Request().Method
 			if m == http.MethodGet || m == http.MethodHead {
@@ -75,15 +71,19 @@ func (a *auth) ACL() echo.MiddlewareFunc {
 				return ctx.NoContent(http.StatusUnauthorized)
 			}
 
-			if user, err := a.pgStore.GetUserById(ctx.Request().Context(), claims.Id); err == nil {
-				username := ctx.Param("username")
-				if user.Username == username {
-					return hf(ctx)
-				}
+			username := ctx.Param("username")
+
+			user, err := a.pgStore.GetUserById(ctx.Request().Context(), claims.Id)
+			if err != nil {
+				a.logger.Log(ctx, err)
+				return ctx.NoContent(http.StatusUnauthorized)
+			}
+			if user.Username == username {
+				return hf(ctx)
 			}
 
-			a.logger.Log(ctx, fmt.Errorf("ACL: username didn't match from token"))
 			return ctx.NoContent(http.StatusUnauthorized)
+
 		}
 	}
 }
@@ -98,7 +98,7 @@ func (a *auth) JWTRest() echo.MiddlewareFunc {
 			// ErrorHandlerWithContext only logs the failing requtest
 			ctx.Set(types.HandlerStartTime, time.Now())
 			ctx.Set(types.HttpEndpointErrorKey, err.Error())
-			a.logger.Log(ctx)
+			a.logger.Log(ctx, err)
 			return ctx.JSON(http.StatusUnauthorized, echo.Map{
 				"error":   err.Error(),
 				"message": "missing authentication information",

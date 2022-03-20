@@ -27,16 +27,28 @@ func (a *auth) Token(ctx echo.Context) error {
 			return ctx.NoContent(http.StatusUnauthorized)
 		}
 
-		if strings.HasPrefix(password, "gho_") {
-			if _, err = a.validateUserWithGithubOauthToken(ctx.Request().Context(), password); err != nil {
+		if strings.HasPrefix(password, "gho_") || strings.HasPrefix(password, "ghp_") {
+			user, err := a.getUserWithGithubOauthToken(ctx.Request().Context(), password)
+			if err != nil {
+				a.logger.Log(ctx, err)
 				return ctx.JSON(http.StatusUnauthorized, echo.Map{
 					"error": err.Error(),
 				})
 			}
 
-			token, _ := a.newPublicPullToken()
+			token, err := a.newServiceToken(*user)
+			if err != nil {
+				a.logger.Log(ctx, err)
+				return ctx.JSON(http.StatusInternalServerError, echo.Map{
+					"error":   err.Error(),
+					"message": "failed to get new service token",
+				})
+			}
+			a.logger.Log(ctx, nil)
 			return ctx.JSON(http.StatusOK, echo.Map{
-				"token": token,
+				"token":      token,
+				"expires_in": time.Now().Add(time.Hour).Unix(), // look at auth/jwt.go:251
+				"issued_at":  time.Now(),
 			})
 		}
 

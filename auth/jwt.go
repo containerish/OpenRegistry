@@ -84,13 +84,19 @@ func (a *auth) newOAuthToken(u types.User, payload *oauth2.Token) (string, strin
 
 //nolint
 func (a *auth) newServiceToken(u types.User) (string, error) {
-	u.StripForToken()
-	claims := a.createServiceClaims(u)
+	acl := AccessList{
+		{
+			Type:    "repository",
+			Name:    fmt.Sprintf("%s/*", u.Username),
+			Actions: []string{"push", "pull"},
+		},
+	}
+	claims := a.createClaims(u.Id, "service", acl)
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	sign, err := token.SignedString(a.c.Registry.SigningSecret)
+	sign, err := token.SignedString([]byte(a.c.Registry.SigningSecret))
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("error signing secret %w", err)
 	}
 
 	return sign, nil
@@ -196,7 +202,7 @@ func (a *auth) createWebLoginClaims(u types.User) PlatformClaims {
 	return claims
 }
 
-func (a *auth) newToken(u types.User, tokenLife int64) (string, error) {
+func (a *auth) newToken(u *types.User) (string, error) {
 	//for now we're sending same name for sub and name.
 	//TODO when repositories need collaborators
 

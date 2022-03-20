@@ -11,9 +11,6 @@ import (
 
 func (a *auth) ReadUserWithSession(ctx echo.Context) error {
 	ctx.Set(types.HandlerStartTime, time.Now())
-	defer func() {
-		a.logger.Log(ctx).Send()
-	}()
 
 	session, err := ctx.Cookie("session_id")
 	if err != nil {
