@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"fmt"
 	"net/http"
 	"time"
 
@@ -32,8 +33,7 @@ func (a *auth) JWT() echo.MiddlewareFunc {
 		ErrorHandlerWithContext: func(err error, ctx echo.Context) error {
 			// ErrorHandlerWithContext only logs the failing requtest
 			ctx.Set(types.HandlerStartTime, time.Now())
-			ctx.Set(types.HttpEndpointErrorKey, err.Error())
-			a.logger.Log(ctx)
+			a.logger.Log(ctx, err)
 			return ctx.NoContent(http.StatusUnauthorized)
 		},
 		KeyFunc:        middleware.DefaultJWTConfig.KeyFunc,
@@ -51,7 +51,7 @@ func (a *auth) ACL() echo.MiddlewareFunc {
 		return func(ctx echo.Context) error {
 			ctx.Set(types.HandlerStartTime, time.Now())
 			defer func() {
-				a.logger.Log(ctx)
+				a.logger.Log(ctx, nil)
 			}()
 
 			m := ctx.Request().Method
@@ -61,13 +61,13 @@ func (a *auth) ACL() echo.MiddlewareFunc {
 
 			token, ok := ctx.Get("user").(*jwt.Token)
 			if !ok {
-				ctx.Set(types.HttpEndpointErrorKey, "ACL: unauthorized")
+				a.logger.Log(ctx, fmt.Errorf("ACL: unauthorized"))
 				return ctx.NoContent(http.StatusUnauthorized)
 			}
 
 			claims, ok := token.Claims.(*Claims)
 			if !ok {
-				ctx.Set(types.HttpEndpointErrorKey, "ACL: invalid claims")
+				a.logger.Log(ctx, fmt.Errorf("ACL: invalid claims"))
 				return ctx.NoContent(http.StatusUnauthorized)
 			}
 
@@ -76,7 +76,7 @@ func (a *auth) ACL() echo.MiddlewareFunc {
 				return hf(ctx)
 			}
 
-			ctx.Set(types.HttpEndpointErrorKey, "ACL: username didn't match from token")
+			a.logger.Log(ctx, fmt.Errorf("ACL: username didn't match from token"))
 			return ctx.NoContent(http.StatusUnauthorized)
 		}
 	}
