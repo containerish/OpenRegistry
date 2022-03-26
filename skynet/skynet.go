@@ -21,8 +21,7 @@ func NewClient(oc *config.OpenRegistryConfig) *Client {
 	}
 
 	skynetClient := skynet.NewCustom(oc.SkynetConfig.SkynetPortalURL, opts)
-	httpClient := http.DefaultClient
-	httpClient.Timeout = time.Second * 60
+	httpClient := NewHttpClientForSkynet()
 
 	return &Client{
 		skynet:     &skynetClient,
@@ -106,4 +105,17 @@ func (c *Client) Metadata(skylink string) (*skynet.Metadata, error) {
 	}
 
 	return metadata, nil
+}
+
+func NewHttpClientForSkynet() *http.Client {
+	t := http.DefaultTransport.(*http.Transport).Clone()
+	t.MaxIdleConns = 100
+	t.MaxConnsPerHost = 100
+	t.MaxIdleConnsPerHost = 100
+
+	return &http.Client{
+		Transport:     t,
+		CheckRedirect: http.DefaultClient.CheckRedirect,
+		Timeout:       time.Minute * 20, //sounds super risky maybe find an alternative
+	}
 }
