@@ -143,8 +143,7 @@ func (a *auth) SignUp(ctx echo.Context) error {
 
 	var u User
 	if err := json.NewDecoder(ctx.Request().Body).Decode(&u); err != nil {
-		ctx.Set(types.HttpEndpointErrorKey, err.Error())
-		a.logger.Log(ctx)
+		a.logger.Log(ctx, err)
 		return ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error":   err.Error(),
 			"message": "error decoding request body in sign-up",
@@ -153,8 +152,7 @@ func (a *auth) SignUp(ctx echo.Context) error {
 	_ = ctx.Request().Body.Close()
 
 	if err := u.Validate(a.store); err != nil {
-		ctx.Set(types.HttpEndpointErrorKey, err.Error())
-		a.logger.Log(ctx)
+		a.logger.Log(ctx, err)
 		return ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error": err.Error(),
 		})
@@ -162,8 +160,7 @@ func (a *auth) SignUp(ctx echo.Context) error {
 
 	hpwd, err := a.hashPassword(u.Password)
 	if err != nil {
-		ctx.Set(types.HttpEndpointErrorKey, err.Error())
-		a.logger.Log(ctx)
+		a.logger.Log(ctx, err)
 		return ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error": err.Error(),
 		})
@@ -178,13 +175,13 @@ func (a *auth) SignUp(ctx echo.Context) error {
 
 	err = a.pgStore.AddUser(ctx.Request().Context(), newUser)
 	if err != nil {
-		ctx.Set(types.HttpEndpointErrorKey, err.Error())
-		a.logger.Log(ctx)
+		a.logger.Log(ctx, err)
 		return ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error": err.Error(),
 		})
 	}
 
+	a.logger.Log(ctx, nil)
 	return ctx.JSON(http.StatusCreated, echo.Map{
 		"message": "user successfully created",
 	})

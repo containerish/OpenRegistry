@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+
+	"github.com/fatih/color"
 )
 
 func (r *registry) errorResponse(code, msg string, detail map[string]interface{}) []byte {
@@ -19,7 +21,7 @@ func (r *registry) errorResponse(code, msg string, detail map[string]interface{}
 
 	bz, e := json.Marshal(err)
 	if e != nil {
-		r.logger.Error(e.Error())
+		color.Red("error marshalling error response: %w", err)
 	}
 
 	return bz

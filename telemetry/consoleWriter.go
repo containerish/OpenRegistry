@@ -3,9 +3,9 @@ package telemetry
 import (
 	"bytes"
 	"os"
+	"strings"
 	"time"
 
-	"github.com/containerish/OpenRegistry/types"
 	"github.com/fatih/color"
 	"github.com/hashicorp/go-multierror"
 	"github.com/labstack/echo/v4"
@@ -13,7 +13,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func (l logger) consoleWriter(ctx echo.Context) {
+func (l logger) consoleWriter(ctx echo.Context, errMsg error) {
 	l.zlog = log.Output(zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.RFC822})
 	l.zlog = l.zlog.With().Logger()
 
@@ -35,40 +35,41 @@ func (l logger) consoleWriter(ctx echo.Context) {
 		level = zerolog.ErrorLevel
 	}
 
-	var e multierror.Error
+	var e error
 
 	_, err := buf.WriteString(req.Method + " ")
-	e.Errors = append(e.Errors, err)
+	e = multierror.Append(e, err)
 
 	_, err = buf.WriteString(color.GreenString("%d ", res.Status))
-	e.Errors = append(e.Errors, err)
+	e = multierror.Append(e, err)
 
 	if level == zerolog.ErrorLevel {
-		e.Errors = append(e.Errors, err)
+		e = multierror.Append(e, err)
 	}
 	if level == zerolog.WarnLevel {
-		e.Errors = append(e.Errors, err)
+		e = multierror.Append(e, err)
 	}
 
 	_, err = buf.WriteString(req.Host)
-	e.Errors = append(e.Errors, err)
+	e = multierror.Append(e, err)
 
 	_, err = buf.WriteString(req.RequestURI + " ")
-	e.Errors = append(e.Errors, err)
+	e = multierror.Append(e, err)
 
 	_, err = buf.WriteString(req.Proto + " ")
-	e.Errors = append(e.Errors, err)
+	e = multierror.Append(e, err)
 
 	_, err = buf.WriteString(req.UserAgent() + " ")
-	e.Errors = append(e.Errors, err)
+	e = multierror.Append(e, err)
 
-	if ctxErr, ok := ctx.Get(types.HttpEndpointErrorKey).(string); ok {
-		_, err = buf.WriteString(color.YellowString(" %s", ctxErr))
-		e.Errors = append(e.Errors, err)
+	if errMsg != nil {
+		_, err = buf.WriteString(color.YellowString(" %s", errMsg))
+		e = multierror.Append(e, err)
 	}
 
-	if err := e.ErrorOrNil(); err != nil {
-		buf.WriteString(e.Error())
+	merr := e.(*multierror.Error)
+	if merr.ErrorOrNil() != nil {
+		buf.WriteString(strings.TrimSpace(merr.Error()))
 	}
 
 	l.zlog.WithLevel(level).Msg(buf.String())

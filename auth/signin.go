@@ -2,6 +2,7 @@ package auth
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -19,20 +20,14 @@ func (a *auth) SignIn(ctx echo.Context) error {
 		})
 	}
 	if user.Email == "" && user.Username == "" {
-		errMsg := echo.Map{
-			"error": "email and username cannot be empty, please provide at least one of them",
-		}
-		ctx.Set(types.HttpEndpointErrorKey, errMsg)
-		a.logger.Log(ctx)
+		errMsg := fmt.Errorf("email and username cannot be empty, please provide at least one of them")
+		a.logger.Log(ctx, errMsg)
 		return ctx.JSON(http.StatusBadRequest, errMsg)
 	}
 
 	if user.Password == "" {
-		errMsg := echo.Map{
-			"error": "password cannot be empty",
-		}
-		ctx.Set(types.HttpEndpointErrorKey, errMsg)
-		a.logger.Log(ctx)
+		errMsg := fmt.Errorf("password cannot be empty")
+		a.logger.Log(ctx, errMsg)
 		return ctx.JSON(http.StatusBadRequest, errMsg)
 	}
 
@@ -40,8 +35,7 @@ func (a *auth) SignIn(ctx echo.Context) error {
 
 	if user.Email != "" {
 		if err := verifyEmail(user.Email); err != nil {
-			ctx.Set(types.HttpEndpointErrorKey, err.Error())
-			a.logger.Log(ctx)
+			a.logger.Log(ctx, err)
 			return ctx.JSON(http.StatusBadRequest, echo.Map{
 				"error": err.Error(),
 			})
@@ -54,17 +48,15 @@ func (a *auth) SignIn(ctx echo.Context) error {
 	//bz, err := a.store.Get([]byte(key))
 	userFromDb, err := a.pgStore.GetUser(ctx.Request().Context(), key)
 	if err != nil {
-		ctx.Set(types.HttpEndpointErrorKey, err.Error())
-		a.logger.Log(ctx)
+		a.logger.Log(ctx, err)
 		return ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error": err.Error(),
 		})
 	}
 
 	if !a.verifyPassword(userFromDb.Password, user.Password) {
-		errMsg := "invalid password"
-		ctx.Set(types.HttpEndpointErrorKey, errMsg)
-		a.logger.Log(ctx)
+		errMsg := fmt.Errorf("invalid password")
+		a.logger.Log(ctx, errMsg)
 		return ctx.JSON(http.StatusUnauthorized, errMsg)
 	}
 
@@ -76,13 +68,13 @@ func (a *auth) SignIn(ctx echo.Context) error {
 
 	token, err := a.newToken(uu, tokenLife)
 	if err != nil {
-		ctx.Set(types.HttpEndpointErrorKey, err.Error())
-		a.logger.Log(ctx)
+		a.logger.Log(ctx, err)
 		return ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error": err.Error(),
 		})
 	}
 
+	a.logger.Log(ctx, nil)
 	return ctx.JSON(http.StatusOK, echo.Map{
 		"token":      token,
 		"expires_in": tokenLife,

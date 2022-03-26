@@ -77,8 +77,7 @@ func (r *registry) ManifestExists(ctx echo.Context) error {
 		}
 
 		errMsg := r.errorResponse(RegistryErrorCodeManifestBlobUnknown, err.Error(), details)
-		ctx.Set(types.HttpEndpointErrorKey, errMsg)
-		r.logger.Log(ctx)
+		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
 		return ctx.JSONBlob(http.StatusNotFound, errMsg)
 	}
 
@@ -90,8 +89,7 @@ func (r *registry) ManifestExists(ctx echo.Context) error {
 		}
 
 		errMsg := r.errorResponse(RegistryErrorCodeManifestBlobUnknown, "Manifest does not exist", detail)
-		ctx.Set(types.HttpEndpointErrorKey, errMsg)
-		r.logger.Log(ctx)
+		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
 
 		return ctx.JSONBlob(http.StatusNotFound, errMsg)
 	}
@@ -101,10 +99,8 @@ func (r *registry) ManifestExists(ctx echo.Context) error {
 			"foundDigest":  manifest.Digest,
 			"clientDigest": ref,
 		}
-		r.logger.Error(details)
-		errMsg := r.errorResponse(RegistryErrorCodeManifestInvalid, "manifest digest does not match", nil)
-		ctx.Set(types.HttpEndpointErrorKey, errMsg)
-		r.logger.Log(ctx)
+		errMsg := r.errorResponse(RegistryErrorCodeManifestInvalid, "manifest digest does not match", details)
+		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
 
 		return ctx.JSONBlob(http.StatusBadRequest, errMsg)
 	}
@@ -112,7 +108,7 @@ func (r *registry) ManifestExists(ctx echo.Context) error {
 	ctx.Response().Header().Set("Content-Type", "application/json")
 	ctx.Response().Header().Set("Content-Length", fmt.Sprintf("%d", metadata.ContentLength))
 	ctx.Response().Header().Set("Docker-Content-Digest", manifest.Digest)
-
+	r.logger.Log(ctx, nil)
 	return ctx.NoContent(http.StatusOK)
 }
 
@@ -130,8 +126,7 @@ func (r *registry) Catalog(ctx echo.Context) error {
 	if queryParamPageSize != "" {
 		ps, err := strconv.ParseInt(ctx.QueryParam("n"), 10, 64)
 		if err != nil {
-			ctx.Set(types.HttpEndpointErrorKey, err.Error())
-			r.logger.Log(ctx)
+			r.logger.Log(ctx, err)
 			return ctx.JSON(http.StatusBadRequest, echo.Map{
 				"error": err.Error(),
 			})
@@ -142,8 +137,7 @@ func (r *registry) Catalog(ctx echo.Context) error {
 	if queryParamOffset != "" {
 		o, err := strconv.ParseInt(ctx.QueryParam("last"), 10, 64)
 		if err != nil {
-			ctx.Set(types.HttpEndpointErrorKey, err.Error())
-			r.logger.Log(ctx)
+			r.logger.Log(ctx, err)
 			return ctx.JSON(http.StatusBadRequest, echo.Map{
 				"error": err.Error(),
 			})
@@ -153,20 +147,19 @@ func (r *registry) Catalog(ctx echo.Context) error {
 
 	catalogList, err := r.store.GetCatalog(ctx.Request().Context(), namespace, pageSize, offset)
 	if err != nil {
-		ctx.Set(types.HttpEndpointErrorKey, err.Error())
-		r.logger.Log(ctx)
+		r.logger.Log(ctx, err)
 		return ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error": err.Error(),
 		})
 	}
 	total, err := r.store.GetCatalogCount(ctx.Request().Context())
 	if err != nil {
-		ctx.Set(types.HttpEndpointErrorKey, err.Error())
-		r.logger.Log(ctx)
+		r.logger.Log(ctx, err)
 		return ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error": err.Error(),
 		})
 	}
+	r.logger.Log(ctx, nil)
 	return ctx.JSON(http.StatusOK, echo.Map{
 		"repositories": catalogList,
 		"total":        total,
@@ -186,8 +179,7 @@ func (r *registry) ListTags(ctx echo.Context) error {
 	tags, err := r.store.GetImageTags(ctx.Request().Context(), namespace)
 	if err != nil {
 		errMsg := r.errorResponse(RegistryErrorCodeTagInvalid, err.Error(), nil)
-		ctx.Set(types.HttpEndpointErrorKey, errMsg)
-		r.logger.Log(ctx)
+		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
 		return ctx.JSONBlob(http.StatusNotFound, errMsg)
 	}
 
@@ -195,8 +187,7 @@ func (r *registry) ListTags(ctx echo.Context) error {
 		n, err := strconv.ParseInt(limit, 10, 32)
 		if err != nil {
 			errMsg := r.errorResponse(RegistryErrorCodeTagInvalid, err.Error(), nil)
-			ctx.Set(types.HttpEndpointErrorKey, errMsg)
-			r.logger.Log(ctx)
+			r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
 			return ctx.JSONBlob(http.StatusNotFound, errMsg)
 		}
 		if n > 0 {
@@ -207,6 +198,7 @@ func (r *registry) ListTags(ctx echo.Context) error {
 		}
 	}
 
+	r.logger.Log(ctx, nil)
 	return ctx.JSON(http.StatusOK, echo.Map{
 		"name": namespace,
 		"tags": tags,
@@ -228,23 +220,20 @@ func (r *registry) PullManifest(ctx echo.Context) error {
 	manifest, err := r.store.GetManifestByReference(ctx.Request().Context(), namespace, ref)
 	if err != nil {
 		errMsg := r.errorResponse(RegistryErrorCodeManifestUnknown, err.Error(), nil)
-		ctx.Set(types.HttpEndpointErrorKey, errMsg)
-		r.logger.Log(ctx)
+		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
 		return ctx.JSONBlob(http.StatusNotFound, errMsg)
 	}
 	resp, err := r.skynet.Download(manifest.Skylink)
 	if err != nil {
 		errMsg := r.errorResponse(RegistryErrorCodeManifestInvalid, err.Error(), nil)
-		ctx.Set(types.HttpEndpointErrorKey, errMsg)
-		r.logger.Log(ctx)
+		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
 		return ctx.JSONBlob(http.StatusNotFound, errMsg)
 	}
 
 	bz, err := io.ReadAll(resp)
 	if err != nil {
 		errMsg := r.errorResponse(RegistryErrorCodeManifestInvalid, err.Error(), nil)
-		ctx.Set(types.HttpEndpointErrorKey, errMsg)
-		r.logger.Log(ctx)
+		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
 		return ctx.JSONBlob(http.StatusNotFound, errMsg)
 	}
 	_ = resp.Close()
@@ -252,6 +241,7 @@ func (r *registry) PullManifest(ctx echo.Context) error {
 	ctx.Response().Header().Set("X-Docker-Content-ID", manifest.Skylink)
 	ctx.Response().Header().Set("Content-Type", manifest.MediaType)
 	ctx.Response().Header().Set("Content-Length", fmt.Sprintf("%d", len(bz)))
+	r.logger.Log(ctx, nil)
 	return ctx.JSONBlob(http.StatusOK, bz)
 }
 
@@ -267,10 +257,8 @@ func (r *registry) PullLayer(ctx echo.Context) error {
 	layer, err := r.store.GetLayer(ctx.Request().Context(), clientDigest)
 	if err != nil {
 		errMsg := r.errorResponse(RegistryErrorCodeBlobUnknown, err.Error(), nil)
-		ctx.Set(types.HttpEndpointErrorKey, errMsg)
-		r.logger.Log(ctx)
+		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
 		return ctx.JSONBlob(http.StatusNotFound, errMsg)
-
 	}
 
 	if layer.SkynetLink == "" {
@@ -279,8 +267,7 @@ func (r *registry) PullLayer(ctx echo.Context) error {
 		}
 		e := fmt.Errorf("skylink is empty").Error()
 		errMsg := r.errorResponse(RegistryErrorCodeBlobUnknown, e, detail)
-		ctx.Set(types.HttpEndpointErrorKey, errMsg)
-		r.logger.Log(ctx)
+		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
 		return ctx.JSONBlob(http.StatusNotFound, errMsg)
 	}
 
@@ -291,15 +278,13 @@ func (r *registry) PullLayer(ctx echo.Context) error {
 			"skylink": layer.SkynetLink,
 		}
 		errMsg := r.errorResponse(RegistryErrorCodeBlobUnknown, err.Error(), detail)
-		ctx.Set(types.HttpEndpointErrorKey, errMsg)
-		r.logger.Log(ctx)
+		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
 		return ctx.JSONBlob(http.StatusNotFound, errMsg)
 	}
 	buf := &bytes.Buffer{}
 	if _, err := io.Copy(buf, resp); err != nil {
 		errMsg := r.errorResponse(RegistryErrorCodeBlobUploadInvalid, err.Error(), nil)
-		ctx.Set(types.HttpEndpointErrorKey, errMsg)
-		r.logger.Log(ctx)
+		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
 		return ctx.JSONBlob(http.StatusInternalServerError, errMsg)
 	}
 	_ = resp.Close()
@@ -315,13 +300,13 @@ func (r *registry) PullLayer(ctx echo.Context) error {
 			"client digest is different than computed digest",
 			details,
 		)
-		ctx.Set(types.HttpEndpointErrorKey, errMsg)
-		r.logger.Log(ctx)
+		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
 		return ctx.JSONBlob(http.StatusNotFound, errMsg)
 	}
 
 	ctx.Response().Header().Set("Content-Length", fmt.Sprintf("%d", len(buf.Bytes())))
 	ctx.Response().Header().Set("Docker-Content-Digest", dig)
+	r.logger.Log(ctx, nil)
 	return ctx.Blob(http.StatusOK, "application/octet-stream", buf.Bytes())
 }
 
@@ -332,48 +317,42 @@ func (r *registry) MonolithicUpload(ctx echo.Context) error {
 
 	namespace := ctx.Param("username") + "/" + ctx.Param("imagename")
 	uuid := ctx.Param("uuid")
-	digest := ctx.QueryParam("digest")
+
+	if _, ok := r.b.uploads[uuid]; ok {
+		errMsg := r.b.errorResponse(
+			RegistryErrorCodeBlobUploadInvalid,
+			"error in monolithic upload",
+			nil,
+		)
+		r.b.registry.logger.Log(ctx, fmt.Errorf("%s", errMsg))
+		return ctx.JSONBlob(http.StatusBadRequest, errMsg)
+	}
 
 	buf := &bytes.Buffer{}
 	if _, err := io.Copy(buf, ctx.Request().Body); err != nil {
-		errMsg := r.errorResponse(RegistryErrorCodeBlobUploadInvalid, err.Error(), nil)
-		ctx.Set(types.HttpEndpointErrorKey, errMsg)
-		r.logger.Log(ctx)
-		return ctx.JSONBlob(http.StatusBadRequest, errMsg)
+		return ctx.JSON(http.StatusBadRequest, echo.Map{
+			"error":   err.Error(),
+			"message": "error copying request body in monolithic upload blob",
+		})
 	}
+
 	_ = ctx.Request().Body.Close()
+	r.b.uploads[uuid] = buf.Bytes()
 
-	link, err := r.skynet.Upload(namespace, digest, buf.Bytes(), true)
-	if err != nil {
-		detail := echo.Map{
-			"error":  err.Error(),
-			"caller": "MonolithicUpload",
-		}
-		errMsg := r.errorResponse(RegistryErrorCodeBlobUploadInvalid, err.Error(), detail)
-		ctx.Set(types.HttpEndpointErrorKey, errMsg)
-		r.logger.Log(ctx)
-		return ctx.JSONBlob(http.StatusInternalServerError, buf.Bytes())
-	}
-
-	metadata := types.Metadata{
-		Namespace: namespace,
-		Manifest: types.ImageManifest{
-			SchemaVersion: 2,
-			MediaType:     "",
-			Layers:        []*types.Layer{{MediaType: "", Size: len(buf.Bytes()), Digest: digest, SkynetLink: link, UUID: uuid}},
-		},
-	}
-
-	err = r.localCache.Update([]byte(namespace), metadata.Bytes())
-	if err != nil {
-		errMsg := r.errorResponse(RegistryErrorCodeBlobUploadInvalid, err.Error(), nil)
-		ctx.Set(types.HttpEndpointErrorKey, errMsg)
-		r.logger.Log(ctx)
+	if err := r.b.blobTransaction(ctx, buf.Bytes(), uuid); err != nil {
+		errMsg := r.b.errorResponse(
+			RegistryErrorCodeBlobUploadInvalid,
+			err.Error(),
+			nil,
+		)
+		r.b.registry.logger.Log(ctx, fmt.Errorf("%s", errMsg))
 		return ctx.JSONBlob(http.StatusBadRequest, errMsg)
 	}
 
-	locationHeader := link
+	locationHeader := fmt.Sprintf("/v2/%s/blobs/uploads/%s", namespace, uuid)
+
 	ctx.Response().Header().Set("Location", locationHeader)
+	r.logger.Log(ctx, nil)
 	return ctx.NoContent(http.StatusCreated)
 }
 
@@ -407,9 +386,7 @@ func (r *registry) StartUpload(ctx echo.Context) error {
 				"error while reading request body",
 				details,
 			)
-
-			ctx.Set(types.HttpEndpointErrorKey, errMsg)
-			r.logger.Log(ctx)
+			r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
 			return ctx.JSONBlob(http.StatusNotFound, errMsg)
 		}
 		_ = ctx.Request().Body.Close() // why defer? body is already read :)
@@ -425,16 +402,14 @@ func (r *registry) StartUpload(ctx echo.Context) error {
 				"client digest does not meet computed digest",
 				details,
 			)
-			ctx.Set(types.HttpEndpointErrorKey, errMsg)
-			r.logger.Log(ctx)
+			r.logger.Log(ctx, fmt.Errorf("%s", fmt.Errorf("%s", errMsg)))
 			return ctx.JSONBlob(http.StatusBadRequest, errMsg)
 		}
 
 		skylink, err := r.skynet.Upload(namespace, dig, buf.Bytes(), true)
 		if err != nil {
 			errMsg := r.errorResponse(RegistryErrorCodeBlobUploadInvalid, err.Error(), nil)
-			ctx.Set(types.HttpEndpointErrorKey, errMsg)
-			r.logger.Log(ctx)
+			r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
 			return ctx.JSONBlob(http.StatusRequestedRangeNotSatisfiable, errMsg)
 		}
 
@@ -450,27 +425,24 @@ func (r *registry) StartUpload(ctx echo.Context) error {
 		txnOp, err := r.store.NewTxn(ctx.Request().Context())
 		if err != nil {
 			errMsg := r.errorResponse(RegistryErrorCodeUnknown, err.Error(), nil)
-			ctx.Set(types.HttpEndpointErrorKey, errMsg)
-			r.logger.Log(ctx)
+			r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
 			return ctx.JSONBlob(http.StatusInternalServerError, errMsg)
 		}
 
 		if err := r.store.SetLayer(ctx.Request().Context(), txnOp, layerV2); err != nil {
 			errMsg := r.errorResponse(RegistryErrorCodeBlobUploadInvalid, err.Error(), nil)
-			ctx.Set(types.HttpEndpointErrorKey, errMsg)
-			r.logger.Log(ctx)
+			r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
 			return ctx.JSONBlob(http.StatusBadRequest, errMsg)
 		}
 		if err := r.store.Commit(ctx.Request().Context(), txnOp); err != nil {
 			errMsg := r.errorResponse(RegistryErrorCodeBlobUploadInvalid, err.Error(), nil)
-			ctx.Set(types.HttpEndpointErrorKey, errMsg)
-			r.logger.Log(ctx)
+			r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
 			return ctx.JSONBlob(http.StatusBadRequest, errMsg)
 		}
 
 		link := r.getHttpUrlFromSkylink(skylink)
 		ctx.Response().Header().Set("Location", link)
-		r.logger.Log(ctx)
+		r.logger.Log(ctx, nil)
 		return ctx.NoContent(http.StatusCreated)
 	}
 
@@ -483,8 +455,7 @@ func (r *registry) StartUpload(ctx echo.Context) error {
 			err.Error(),
 			nil,
 		)
-		ctx.Set(types.HttpEndpointErrorKey, errMsg)
-		r.logger.Log(ctx)
+		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
 		return ctx.JSONBlob(http.StatusInternalServerError, errMsg)
 	}
 	r.txnMap[id.String()] = TxnStore{
@@ -496,7 +467,7 @@ func (r *registry) StartUpload(ctx echo.Context) error {
 	ctx.Response().Header().Set("Content-Length", "0")
 	ctx.Response().Header().Set("Docker-Upload-UUID", id.String())
 	ctx.Response().Header().Set("Range", fmt.Sprintf("0-%d", 0))
-
+	r.logger.Log(ctx, nil)
 	return ctx.NoContent(http.StatusAccepted)
 }
 
@@ -513,7 +484,7 @@ func (r *registry) UploadProgress(ctx echo.Context) error {
 		ctx.Response().Header().Set("Location", locationHeader)
 		ctx.Response().Header().Set("Range", "bytes=0-0")
 		ctx.Response().Header().Set("Docker-Upload-UUID", uuid)
-
+		r.logger.Log(ctx, err)
 		return ctx.NoContent(http.StatusNoContent)
 	}
 
@@ -523,7 +494,7 @@ func (r *registry) UploadProgress(ctx echo.Context) error {
 		ctx.Response().Header().Set("Location", locationHeader)
 		ctx.Response().Header().Set("Range", "bytes=0-0")
 		ctx.Response().Header().Set("Docker-Upload-UUID", uuid)
-
+		r.logger.Log(ctx, err)
 		return ctx.NoContent(http.StatusNoContent)
 	}
 
@@ -531,7 +502,7 @@ func (r *registry) UploadProgress(ctx echo.Context) error {
 	ctx.Response().Header().Set("Location", locationHeader)
 	ctx.Response().Header().Set("Range", fmt.Sprintf("bytes=0-%d", metadata.ContentLength))
 	ctx.Response().Header().Set("Docker-Upload-UUID", uuid)
-
+	r.logger.Log(ctx, nil)
 	return ctx.NoContent(http.StatusNoContent)
 }
 
@@ -552,8 +523,7 @@ func (r *registry) CompleteUpload(ctx echo.Context) error {
 	buf := &bytes.Buffer{}
 	if _, err := io.Copy(buf, ctx.Request().Body); err != nil {
 		errMsg := r.errorResponse(RegistryErrorCodeDigestInvalid, err.Error(), nil)
-		ctx.Set(types.HttpEndpointErrorKey, errMsg)
-		r.logger.Log(ctx)
+		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
 		return ctx.JSONBlob(http.StatusBadRequest, errMsg)
 	}
 	_ = ctx.Request().Body.Close()
@@ -568,8 +538,7 @@ func (r *registry) CompleteUpload(ctx echo.Context) error {
 			"headerDigest": dig, "serverSideDigest": ourHash, "bodyDigest": digest(buf.Bytes()),
 		}
 		errMsg := r.errorResponse(RegistryErrorCodeDigestInvalid, "digest mismatch", details)
-		ctx.Set(types.HttpEndpointErrorKey, errMsg)
-		r.logger.Log(ctx)
+		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
 		return ctx.JSONBlob(http.StatusBadRequest, errMsg)
 	}
 
@@ -577,8 +546,7 @@ func (r *registry) CompleteUpload(ctx echo.Context) error {
 	skylink, err := r.skynet.Upload(blobNamespace, dig, ubuf.Bytes(), true)
 	if err != nil {
 		errMsg := r.errorResponse(RegistryErrorCodeBlobUploadInvalid, err.Error(), nil)
-		ctx.Set(types.HttpEndpointErrorKey, errMsg)
-		r.logger.Log(ctx)
+		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
 		return ctx.JSONBlob(http.StatusRequestedRangeNotSatisfiable, errMsg)
 	}
 
@@ -593,8 +561,7 @@ func (r *registry) CompleteUpload(ctx echo.Context) error {
 	}
 	if !ok {
 		errMsg := r.errorResponse(RegistryErrorCodeUnknown, "transaction does not exist for uuid -"+id, nil)
-		ctx.Set(types.HttpEndpointErrorKey, errMsg)
-		r.logger.Log(ctx)
+		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
 		return ctx.JSONBlob(http.StatusBadRequest, errMsg)
 	}
 
@@ -602,8 +569,7 @@ func (r *registry) CompleteUpload(ctx echo.Context) error {
 		errMsg := r.errorResponse(RegistryErrorCodeUnknown, err.Error(), echo.Map{
 			"error_detail": "set layer issues",
 		})
-		ctx.Set(types.HttpEndpointErrorKey, errMsg)
-		r.logger.Log(ctx)
+		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
 		return ctx.JSONBlob(http.StatusBadRequest, errMsg)
 	}
 
@@ -611,8 +577,7 @@ func (r *registry) CompleteUpload(ctx echo.Context) error {
 		errMsg := r.errorResponse(RegistryErrorCodeUnknown, err.Error(), echo.Map{
 			"error_detail": "commitment issue",
 		})
-		ctx.Set(types.HttpEndpointErrorKey, errMsg)
-		r.logger.Log(ctx)
+		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
 		return ctx.JSONBlob(http.StatusBadRequest, errMsg)
 	}
 	delete(r.txnMap, id)
@@ -621,6 +586,7 @@ func (r *registry) CompleteUpload(ctx echo.Context) error {
 	ctx.Response().Header().Set("Content-Length", "0")
 	ctx.Response().Header().Set("Docker-Content-Digest", ourHash)
 	ctx.Response().Header().Set("Location", locationHeader)
+	r.logger.Log(ctx, nil)
 	return ctx.NoContent(http.StatusCreated)
 }
 
@@ -656,8 +622,7 @@ func (r *registry) PushManifest(ctx echo.Context) error {
 	err = json.Unmarshal(buf.Bytes(), &manifest)
 	if err != nil {
 		errMsg := r.errorResponse(RegistryErrorCodeBlobUnknown, err.Error(), nil)
-		ctx.Set(types.HttpEndpointErrorKey, errMsg)
-		r.logger.Log(ctx)
+		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
 		return ctx.JSONBlob(http.StatusBadRequest, errMsg)
 	}
 	dig := digest(buf.Bytes())
@@ -666,8 +631,7 @@ func (r *registry) PushManifest(ctx echo.Context) error {
 	skylink, err := r.skynet.Upload(mfNamespace, dig, buf.Bytes(), true)
 	if err != nil {
 		errMsg := r.errorResponse(RegistryErrorCodeManifestBlobUnknown, err.Error(), nil)
-		ctx.Set(types.HttpEndpointErrorKey, errMsg)
-		r.logger.Log(ctx)
+		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
 		return ctx.JSONBlob(http.StatusNotFound, errMsg)
 	}
 
@@ -700,24 +664,21 @@ func (r *registry) PushManifest(ctx echo.Context) error {
 		errMsg := r.errorResponse(RegistryErrorCodeUnknown, err.Error(), echo.Map{
 			"reason": "PG_ERR_CREATE_NEW_TXN",
 		})
-		ctx.Set(types.HttpEndpointErrorKey, errMsg)
-		r.logger.Log(ctx)
+		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
 		_ = r.store.Abort(ctx.Request().Context(), txnOp)
 		return ctx.JSONBlob(http.StatusInternalServerError, errMsg)
 	}
 
 	if err := r.store.SetManifest(ctx.Request().Context(), txnOp, val); err != nil {
 		errMsg := r.errorResponse(RegistryErrorCodeUnknown, err.Error(), nil)
-		ctx.Set(types.HttpEndpointErrorKey, errMsg)
-		r.logger.Log(ctx)
+		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
 		_ = r.store.Abort(ctx.Request().Context(), txnOp)
 		return ctx.JSONBlob(http.StatusBadRequest, errMsg)
 	}
 
 	if err := r.store.SetConfig(ctx.Request().Context(), txnOp, mfc); err != nil {
 		errMsg := r.errorResponse(RegistryErrorCodeUnknown, err.Error(), nil)
-		ctx.Set(types.HttpEndpointErrorKey, errMsg)
-		r.logger.Log(ctx)
+		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
 		_ = r.store.Abort(ctx.Request().Context(), txnOp)
 		return ctx.JSONBlob(http.StatusBadRequest, errMsg)
 	}
@@ -726,8 +687,7 @@ func (r *registry) PushManifest(ctx echo.Context) error {
 		errMsg := r.errorResponse(RegistryErrorCodeUnknown, err.Error(), echo.Map{
 			"reason": "ERR_PG_COMMIT_TXN",
 		})
-		ctx.Set(types.HttpEndpointErrorKey, errMsg)
-		r.logger.Log(ctx)
+		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
 		_ = r.store.Abort(ctx.Request().Context(), txnOp)
 		return ctx.JSONBlob(http.StatusInternalServerError, errMsg)
 	}
@@ -736,6 +696,7 @@ func (r *registry) PushManifest(ctx echo.Context) error {
 	ctx.Response().Header().Set("Location", locationHeader)
 	ctx.Response().Header().Set("Docker-Content-Digest", dig)
 	ctx.Response().Header().Set("X-Docker-Content-ID", skylink)
+	r.logger.Log(ctx, nil)
 	return ctx.String(http.StatusCreated, "Created")
 }
 
@@ -752,8 +713,7 @@ func (r *registry) PushLayer(ctx echo.Context) error {
 	// Must have a path of form /v2/{name}/blobs/{upload,sha256:}
 	if len(elem) < 4 {
 		errMsg := r.errorResponse(RegistryErrorCodeNameInvalid, "blobs must be attached to a repo", nil)
-		ctx.Set(types.HttpEndpointErrorKey, errMsg)
-		r.logger.Log(ctx)
+		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
 		return ctx.JSONBlob(http.StatusNotFound, errMsg)
 	}
 
@@ -763,7 +723,7 @@ func (r *registry) PushLayer(ctx echo.Context) error {
 	ctx.Response().Header().Set("Location", locationHeader)
 	ctx.Response().Header().Set("Docker-Upload-UUID", id.String())
 	ctx.Response().Header().Set("Range", "bytes=0-0")
-
+	r.logger.Log(ctx, nil)
 	return ctx.NoContent(http.StatusAccepted)
 }
 
@@ -793,12 +753,12 @@ func (r *registry) DeleteTagOrManifest(ctx echo.Context) error {
 			"digest":    ref,
 		}
 		errMsg := r.errorResponse(RegistryErrorCodeManifestUnknown, err.Error(), details)
-		ctx.Set(types.HttpEndpointErrorKey, errMsg)
-		r.logger.Log(ctx)
+		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
 		return ctx.JSONBlob(http.StatusNotFound, errMsg)
 	}
 
-	_ = r.store.Commit(ctx.Request().Context(), txnOp)
+	err := r.store.Commit(ctx.Request().Context(), txnOp)
+	r.logger.Log(ctx, err)
 	return ctx.NoContent(http.StatusAccepted)
 }
 
@@ -806,21 +766,15 @@ func (r *registry) DeleteLayer(ctx echo.Context) error {
 	ctx.Set(types.HandlerStartTime, time.Now())
 
 	dig := ctx.Param("digest")
-
-	//var m types.Metadata
-
 	layer, err := r.store.GetLayer(ctx.Request().Context(), dig)
-	//_, err := r.localCache.GetDigest(dig)
 	if err != nil {
 
 		errMsg := r.errorResponse(RegistryErrorCodeBlobUnknown, err.Error(), nil)
-		ctx.Set(types.HttpEndpointErrorKey, errMsg)
-		r.logger.Log(ctx)
+		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
 		return ctx.JSONBlob(http.StatusNotFound, errMsg)
 	}
 	blobs := layer.BlobDigests
 
-	//err = r.localCache.DeleteLayer(namespace, dig)
 	txnOp, _ := r.store.NewTxn(context.Background())
 	err = r.store.DeleteLayerV2(ctx.Request().Context(), txnOp, dig)
 	if err != nil {
@@ -831,32 +785,29 @@ func (r *registry) DeleteLayer(ctx echo.Context) error {
 
 		bz, err := json.Marshal(logMsg)
 		if err == nil {
-			ctx.Set(types.HttpEndpointErrorKey, logMsg)
-			r.logger.Log(ctx)
+			r.logger.Log(ctx, err)
 		}
 
 		return ctx.JSONBlob(http.StatusInternalServerError, bz)
 	}
 
 	for i := range blobs {
-		//if err = r.localCache.DeleteDigest(dig); err != nil {
 		if err = r.store.DeleteBlobV2(ctx.Request().Context(), txnOp, blobs[i]); err != nil {
 			logMsg := echo.Map{
 				"error":  err.Error(),
 				"caller": "DeleteLayer",
 			}
 
-			ctx.Set(types.HttpEndpointErrorKey, logMsg)
-			r.logger.Log(ctx)
+			r.logger.Log(ctx, fmt.Errorf("%s", logMsg))
 			bz, err := json.Marshal(logMsg)
 			if err != nil {
 				r.log.Err(err).Send()
 			}
-
 			return ctx.JSONBlob(http.StatusInternalServerError, bz)
 		}
 	}
-	_ = r.store.Commit(ctx.Request().Context(), txnOp)
+	err = r.store.Commit(ctx.Request().Context(), txnOp)
+	r.logger.Log(ctx, err)
 	return ctx.NoContent(http.StatusAccepted)
 }
 

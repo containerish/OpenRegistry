@@ -64,14 +64,14 @@ func (a *auth) BasicAuth() echo.MiddlewareFunc {
 			printInMiddleware := true
 			defer func() {
 				if printInMiddleware {
-					a.logger.Log(ctx)
+					a.logger.Log(ctx, nil)
 				}
 			}()
 
 			if ctx.Request().RequestURI == "/v2/" {
 				_, err := a.validateUser(username, password)
 				if err != nil {
-					ctx.Set(types.HttpEndpointErrorKey, err.Error())
+					a.logger.Log(ctx, err)
 					return false, ctx.NoContent(http.StatusUnauthorized)
 				}
 
@@ -87,12 +87,12 @@ func (a *auth) BasicAuth() echo.MiddlewareFunc {
 					Message: "not authorised",
 					Detail:  nil,
 				})
-				ctx.Set(types.HttpEndpointErrorKey, errMsg)
+				a.logger.Log(ctx, fmt.Errorf("%s", errMsg))
 				return false, ctx.JSON(http.StatusForbidden, errMsg)
 			}
 			resp, err := a.validateUser(username, password)
 			if err != nil {
-				ctx.Set(types.HttpEndpointErrorKey, err.Error())
+				a.logger.Log(ctx, err)
 				return false, err
 			}
 
