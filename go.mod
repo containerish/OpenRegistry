@@ -20,7 +20,6 @@ require (
 	golang.org/x/crypto v0.0.0-20210817164053-32db794688a5
 )
 
-
 require (
 	github.com/hashicorp/errwrap v1.0.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
@@ -75,9 +74,10 @@ require (
 	golang.org/x/sys v0.0.0-20210806184541-e5e7981a1069 // indirect
 	golang.org/x/text v0.3.6 // indirect
 	golang.org/x/time v0.0.0-20201208040808-7e3f01d25324 // indirect
+	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/protobuf v1.26.0 // indirect
 	gopkg.in/ini.v1 v1.62.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
 
-replace github.com/SkynetLabs/go-skynet/v2 => github.com/containerish/go-skynet/v2 v2.0.2-0.20220220103754-a52c946c4136
+replace github.com/SkynetLabs/go-skynet/v2 => github.com/containerish/go-skynet/v2 v2.0.2-0.20220319175248-c0c090653812

@@ -94,8 +94,8 @@ github.com/cockroachdb/apd v1.1.0 h1:3LFP3629v+1aKXU5Q37mxmRxX/pIu1nijXydLShEq5I
 github.com/cockroachdb/apd v1.1.0/go.mod h1:8Sl8LxpKi29FqWXR16WEFZRNSz3SoPzUzeMeY4+DwBQ=
 github.com/cockroachdb/datadriven v0.0.0-20190809214429-80d97fb3cbaa/go.mod h1:zn76sxSg3SzpJ0PPJaLDCu+Bu0Lg3sKTORVIj19EIF8=
 github.com/codahale/hdrhistogram v0.0.0-20161010025455-3a0bb77429bd/go.mod h1:sE/e/2PUdi/liOCUjSTXgM1o87ZssimdTWN964YiIeI=
-github.com/containerish/go-skynet/v2 v2.0.2-0.20220220103754-a52c946c4136 h1:iUaIru+UYmQZovLKn6DO2DHYoa/verV4dkH5OzfuNvY=
-github.com/containerish/go-skynet/v2 v2.0.2-0.20220220103754-a52c946c4136/go.mod h1:XOk0zwGlXeGjHQgmhXTEk7qTD6FVv3dXPW38Wh3XsIc=
+github.com/containerish/go-skynet/v2 v2.0.2-0.20220319175248-c0c090653812 h1:GYIStejKwvaHADvrkDpsE3kfgLhTMF9x1iTLvBFGAUg=
+github.com/containerish/go-skynet/v2 v2.0.2-0.20220319175248-c0c090653812/go.mod h1:XOk0zwGlXeGjHQgmhXTEk7qTD6FVv3dXPW38Wh3XsIc=
 github.com/coreos/etcd v3.3.10+incompatible/go.mod h1:uF7uidLiAD3TWHmW31ZFd/JWoc32PjwdhPthX9715RE=
 github.com/coreos/go-etcd v2.0.0+incompatible/go.mod h1:Jez6KQU2B/sWsbdaef3ED8NzMklzPG4d5KIOhIy30Tk=
 github.com/coreos/go-semver v0.2.0/go.mod h1:nnelYz7RCh+5ahJtPPxZlU+153eP4D4r3EedlOD2RNk=
