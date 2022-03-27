@@ -3,6 +3,7 @@ package auth
 import (
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/containerish/OpenRegistry/types"
@@ -11,10 +12,16 @@ import (
 	"github.com/labstack/echo/v4/middleware"
 )
 
+const AccessCookieKey = "access"
+
 // JWT basically uses the default JWT middleware by echo, but has a slightly different skipper func
 func (a *auth) JWT() echo.MiddlewareFunc {
 	return middleware.JWTWithConfig(middleware.JWTConfig{
 		Skipper: func(ctx echo.Context) bool {
+			if strings.Contains(ctx.Request().RequestURI, "/auth") {
+				return false
+			}
+
 			// if JWT_AUTH is not set, we don't need to perform JWT authentication
 			jwtAuth, ok := ctx.Get(JWT_AUTH_KEY).(bool)
 			if !ok {
@@ -45,6 +52,7 @@ func (a *auth) JWT() echo.MiddlewareFunc {
 		SigningKeys:    map[string]interface{}{},
 		SigningMethod:  jwt.SigningMethodHS256.Name,
 		Claims:         &Claims{},
+		TokenLookup:    fmt.Sprintf("cookie:%s,header:%s", AccessCookieKey, echo.HeaderAuthorization),
 	})
 }
 

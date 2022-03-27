@@ -20,4 +20,6 @@ func RegisterAuthRoutes(authRouter *echo.Group, authSvc auth.Authentication) {
 	authRouter.Add(http.MethodGet, "/sessions/me", authSvc.ReadUserWithSession)
 	authRouter.Add(http.MethodDelete, "/sessions", authSvc.ExpireSessions)
 	authRouter.Add(http.MethodGet, "/renew", authSvc.RenewAccessToken)
+	authRouter.Add(http.MethodPost, "/reset-password", authSvc.ResetPassword, authSvc.JWT())
+
 }

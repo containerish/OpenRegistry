@@ -96,6 +96,7 @@ func (p *pg) GetUser(ctx context.Context, identifier string, withPassword bool) 
 		&user.Id,
 		&user.IsActive,
 		&user.Username,
+		&user.Password,
 		&user.Email,
 		&user.CreatedAt,
 		&user.UpdatedAt,

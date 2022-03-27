@@ -1,6 +1,9 @@
 package auth
 
-import "golang.org/x/crypto/bcrypt"
+import (
+	"github.com/fatih/color"
+	"golang.org/x/crypto/bcrypt"
+)
 
 const bcryptMinCost = 6
 
@@ -16,5 +19,6 @@ func (a *auth) hashPassword(password string) (string, error) {
 
 func (a *auth) verifyPassword(hashedPassword, currPassword string) bool {
 	err := bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(currPassword))
+	color.Yellow("error in becrypt pws %w", err)
 	return err == nil
 }

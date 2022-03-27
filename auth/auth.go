@@ -29,6 +29,7 @@ type Authentication interface {
 	ReadUserWithSession(ctx echo.Context) error
 	RenewAccessToken(ctx echo.Context) error
 	VerifyEmail(ctx echo.Context) error
+	ResetPassword(ctx echo.Context) error
 }
 
 // New is the constructor function returns an Authentication implementation
