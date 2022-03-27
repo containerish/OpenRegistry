@@ -192,7 +192,7 @@ func (a *auth) createWebLoginClaims(u types.User) PlatformClaims {
 	return claims
 }
 
-func (a *auth) newToken(u User, tokenLife int64) (string, error) {
+func (a *auth) newToken(u types.User, tokenLife int64) (string, error) {
 	//for now we're sending same name for sub and name.
 	//TODO when repositories need collaborators
 	claims := a.createClaims(u.Username, u.Username, tokenLife)

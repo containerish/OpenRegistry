@@ -74,8 +74,9 @@ func (a *auth) SignIn(ctx echo.Context) error {
 	a.logger.Log(ctx, err)
 
 	return ctx.JSON(http.StatusOK, echo.Map{
-		"token":      token,
-		"expires_in": tokenLife,
+		"token":      access,
+		"refresh":    refresh,
+		"expires_in": time.Now().Add(time.Hour).Unix(),
 		"issued_at":  time.Now().Unix(),
 	})
 }

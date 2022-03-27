@@ -9,64 +9,84 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/containerish/OpenRegistry/cache"
 	"github.com/containerish/OpenRegistry/types"
 	"github.com/labstack/echo/v4"
 )
 
-type User struct {
-	Id       string `json:"id"`
-	Email    string `json:"email"`
-	Username string `json:"username"`
-	Password string `json:"password"`
-}
+func (a *auth) SignUp(ctx echo.Context) error {
+	ctx.Set(types.HandlerStartTime, time.Now())
 
-const UserNameSpace = "users"
-
-func (u *User) Validate(store cache.Store) error {
-
-	if err := verifyEmail(u.Email); err != nil {
-		return err
+	var u types.User
+	if err := json.NewDecoder(ctx.Request().Body).Decode(&u); err != nil {
+		a.logger.Log(ctx, err)
+		return ctx.JSON(http.StatusBadRequest, echo.Map{
+			"error":   err.Error(),
+			"message": "error decoding request body in sign-up",
+		})
 	}
-	key := fmt.Sprintf("%s/%s", UserNameSpace, u.Email)
-	_, err := store.Get([]byte(key))
-	if err == nil {
-		return fmt.Errorf("user already exists, try loggin in or password reset")
-	}
+	_ = ctx.Request().Body.Close()
 
-	if len(u.Username) < 3 {
-		return fmt.Errorf("username should be atleast 3 chars")
+	if err := u.Validate(); err != nil {
+		return ctx.JSON(http.StatusBadRequest, echo.Map{
+			"error":   err.Error(),
+			"message": "invalid request for user sign up",
+		})
 	}
 
-	bz, err := store.ListWithPrefix([]byte(UserNameSpace))
+	passwordHash, err := a.hashPassword(u.Password)
 	if err != nil {
-		return fmt.Errorf("internal server error")
+		a.logger.Log(ctx, err)
+		return ctx.JSON(http.StatusInternalServerError, echo.Map{
+			"error": err.Error(),
+		})
+	}
+	u.Password = passwordHash
+
+	newUser := &types.User{
+		Email:    u.Email,
+		Username: u.Username,
+		Password: u.Password,
 	}
 
-	if bz != nil {
-		var userList []User
-		if err := json.Unmarshal(bz, &userList); err != nil {
-
-			if strings.Contains(err.Error(), "object into Go value of type []auth.User") {
-				var usr User
-				if e := json.Unmarshal(bz, &usr); e != nil {
-					return e
-				}
-				userList = append(userList, usr)
-			} else {
-				return fmt.Errorf("error in unmarshaling: %w", err)
-			}
-		}
-
-		for _, user := range userList {
-			if u.Username == user.Username {
-				return fmt.Errorf("username already taken")
-			}
-		}
+	err = a.pgStore.AddUser(ctx.Request().Context(), newUser)
+	if err != nil {
+		a.logger.Log(ctx, err)
+		return ctx.JSON(http.StatusInternalServerError, echo.Map{
+			"error": err.Error(),
+		})
 	}
-	return verifyPassword(u.Password)
+
+	accessToken, refreshToken, err := a.newWebLoginToken(*newUser)
+	if err != nil {
+		return ctx.JSON(http.StatusBadRequest, echo.Map{
+			"error": err.Error(),
+			"code":  "CREATE_NEW_TOKEN",
+		})
+	}
+
+	accessCookie := &http.Cookie{
+		Name:    "access",
+		Value:   accessToken,
+		Expires: time.Now().Add(time.Hour),
+		Path:    "/",
+	}
+
+	refreshCookie := &http.Cookie{
+		Name:    "refresh",
+		Value:   refreshToken,
+		Expires: time.Now().Add(time.Hour * 750),
+		Path:    "/",
+	}
+
+	http.SetCookie(ctx.Response(), accessCookie)
+	http.SetCookie(ctx.Response(), refreshCookie)
+	a.logger.Log(ctx, err)
+	return ctx.JSON(http.StatusCreated, echo.Map{
+		"message": "user successfully created",
+	})
 }
 
+// nolint
 func verifyEmail(email string) error {
 	if email == "" {
 		return fmt.Errorf("email can not be empty")
@@ -136,77 +156,4 @@ func verifyPassword(password string) error {
 		return fmt.Errorf(errorString)
 	}
 	return nil
-}
-
-func (a *auth) SignUp(ctx echo.Context) error {
-	ctx.Set(types.HandlerStartTime, time.Now())
-
-	var u User
-	if err := json.NewDecoder(ctx.Request().Body).Decode(&u); err != nil {
-		a.logger.Log(ctx, err)
-		return ctx.JSON(http.StatusBadRequest, echo.Map{
-			"error":   err.Error(),
-			"message": "error decoding request body in sign-up",
-		})
-	}
-	_ = ctx.Request().Body.Close()
-
-	if err := u.Validate(a.store); err != nil {
-		a.logger.Log(ctx, err)
-		return ctx.JSON(http.StatusBadRequest, echo.Map{
-			"error": err.Error(),
-		})
-	}
-
-	hpwd, err := a.hashPassword(u.Password)
-	if err != nil {
-		a.logger.Log(ctx, err)
-		return ctx.JSON(http.StatusInternalServerError, echo.Map{
-			"error": err.Error(),
-		})
-	}
-	u.Password = hpwd
-
-	newUser := &types.User{
-		Email:    u.Email,
-		Username: u.Username,
-		Password: u.Password,
-	}
-
-	err = a.pgStore.AddUser(ctx.Request().Context(), newUser)
-	if err != nil {
-		a.logger.Log(ctx, err)
-		return ctx.JSON(http.StatusInternalServerError, echo.Map{
-			"error": err.Error(),
-		})
-	}
-
-	accessToken, refreshToken, err := a.newWebLoginToken(*newUser)
-	if err != nil {
-		return ctx.JSON(http.StatusBadRequest, echo.Map{
-			"error": err.Error(),
-			"code":  "CREATE_NEW_TOKEN",
-		})
-	}
-
-	accessCookie := &http.Cookie{
-		Name:    "access",
-		Value:   accessToken,
-		Expires: time.Now().Add(time.Hour),
-		Path:    "/",
-	}
-
-	refreshCookie := &http.Cookie{
-		Name:    "refresh",
-		Value:   refreshToken,
-		Expires: time.Now().Add(time.Hour * 750),
-		Path:    "/",
-	}
-
-	http.SetCookie(ctx.Response(), accessCookie)
-	http.SetCookie(ctx.Response(), refreshCookie)
-	a.logger.Log(ctx, err)
-	return ctx.JSON(http.StatusCreated, echo.Map{
-		"message": "user successfully created",
-	})
 }

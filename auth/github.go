@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/containerish/OpenRegistry/config"
@@ -14,11 +15,10 @@ import (
 
 func (a *auth) LoginWithGithub(ctx echo.Context) error {
 	ctx.Set(types.HandlerStartTime, time.Now())
-	defer func() {
-		a.logger.Log(ctx).Send()
-	}()
-
-	url := a.github.AuthCodeURL(a.oauthStateToken, oauth2.AccessTypeOnline)
+	state := uuid.NewString()
+	a.oauthStateStore[state] = time.Now().Add(time.Minute * 10)
+	url := a.github.AuthCodeURL(state, oauth2.AccessTypeOffline)
+	a.logger.Log(ctx, nil)
 	return ctx.Redirect(http.StatusTemporaryRedirect, url)
 }
 
@@ -27,22 +27,23 @@ func (a *auth) GithubLoginCallbackHandler(ctx echo.Context) error {
 	if path == "" {
 		path = a.c.WebAppRedirectURL
 	}
-
 	ctx.Set(types.HandlerStartTime, time.Now())
-	defer func() {
-		a.logger.Log(ctx).Send()
-	}()
 
 	stateToken := ctx.FormValue("state")
-	if stateToken != a.oauthStateToken {
-		ctx.Set(types.HttpEndpointErrorKey, "state token is invalid")
-		return ctx.Redirect(http.StatusTemporaryRedirect, "/")
+	_, ok := a.oauthStateStore[stateToken]
+	if !ok {
+		return ctx.JSON(http.StatusBadRequest, echo.Map{
+			"error": "missing or invalid state token",
+		})
 	}
+	// no need to compare the stateToken from QueryParam \w stateToken from a.oauthStateStore
+	// the key is the actual token :p
+	delete(a.oauthStateStore, stateToken)
 
 	code := ctx.FormValue("code")
 	token, err := a.github.Exchange(context.Background(), code)
 	if err != nil {
-		ctx.Set(types.HttpEndpointErrorKey, err.Error())
+		a.logger.Log(ctx, err)
 		return ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error": err.Error(),
 			"code":  "GITHUB_EXCHANGE_ERR",
@@ -51,7 +52,7 @@ func (a *auth) GithubLoginCallbackHandler(ctx echo.Context) error {
 
 	req, err := a.ghClient.NewRequest(http.MethodGet, "/user", nil)
 	if err != nil {
-		ctx.Set(types.HttpEndpointErrorKey, err.Error())
+		a.logger.Log(ctx, err)
 		return ctx.JSON(http.StatusPreconditionFailed, echo.Map{
 			"error": err.Error(),
 			"code":  "GH_CLIENT_REQ_FAILED",
@@ -62,7 +63,7 @@ func (a *auth) GithubLoginCallbackHandler(ctx echo.Context) error {
 	var oauthUser types.User
 	_, err = a.ghClient.Do(ctx.Request().Context(), req, &oauthUser)
 	if err != nil {
-		ctx.Set(types.HttpEndpointErrorKey, err.Error())
+		a.logger.Log(ctx, err)
 		return ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error": err.Error(),
 			"code":  "GH_CLIENT_REQ_EXEC_FAILED",
@@ -74,7 +75,7 @@ func (a *auth) GithubLoginCallbackHandler(ctx echo.Context) error {
 
 	accessToken, refreshToken, err := a.SignOAuthToken(oauthUser, token)
 	if err != nil {
-		ctx.Set(types.HttpEndpointErrorKey, err.Error())
+		a.logger.Log(ctx, err)
 		return ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error": err.Error(),
 			"cause": "JWT_SIGNING",
@@ -83,16 +84,18 @@ func (a *auth) GithubLoginCallbackHandler(ctx echo.Context) error {
 
 	secure := true
 	sameSite := http.SameSiteStrictMode
+	domain := strings.TrimPrefix(a.c.WebAppEndpoint, "https://")
 	if a.c.Environment == config.Local {
 		secure = false
 		sameSite = http.SameSiteLaxMode
+		domain = "localhost"
 	}
 
 	accessCookie := &http.Cookie{
 		Name:     "access",
 		Value:    accessToken,
 		Path:     "/",
-		Domain:   a.c.WebAppEndpoint,
+		Domain:   domain,
 		Expires:  time.Now().Add(time.Hour),
 		MaxAge:   AccessCookieMaxAge,
 		Secure:   secure,
@@ -104,7 +107,7 @@ func (a *auth) GithubLoginCallbackHandler(ctx echo.Context) error {
 		Name:     "refresh",
 		Value:    refreshToken,
 		Path:     "/",
-		Domain:   a.c.WebAppEndpoint,
+		Domain:   domain,
 		Expires:  time.Now().Add(time.Hour * 750),
 		MaxAge:   RefreshCookieMaxAge,
 		Secure:   secure,
@@ -124,6 +127,7 @@ func (a *auth) GithubLoginCallbackHandler(ctx echo.Context) error {
 	ctx.SetCookie(accessCookie)
 	ctx.SetCookie(refreshCookie)
 	redirectURL := a.c.WebAppEndpoint + path
+	a.logger.Log(ctx, nil)
 	return ctx.Redirect(http.StatusTemporaryRedirect, redirectURL)
 }
 

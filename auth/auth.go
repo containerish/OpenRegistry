@@ -1,7 +1,7 @@
 package auth
 
 import (
-	"fmt"
+	"time"
 
 	"github.com/containerish/OpenRegistry/cache"
 	"github.com/containerish/OpenRegistry/config"
@@ -25,16 +25,6 @@ type Authentication interface {
 	GithubLoginCallbackHandler(ctx echo.Context) error
 }
 
-type auth struct {
-	pgStore         postgres.PersistentStore
-	store           cache.Store
-	logger          telemetry.Logger
-	github          *oauth2.Config
-	ghClient        *gh.Client
-	c               *config.OpenRegistryConfig
-	oauthStateToken string
-}
-
 // New is the constructor function returns an Authentication implementation
 func New(
 	s cache.Store,
@@ -47,7 +37,6 @@ func New(
 		ClientID:     c.OAuth.Github.ClientID,
 		ClientSecret: c.OAuth.Github.ClientSecret,
 		Endpoint:     github.Endpoint,
-		RedirectURL:  fmt.Sprintf("%s/auth/github/callback", c.Endpoint()),
 		Scopes:       []string{"user:email"},
 	}
 
@@ -60,8 +49,35 @@ func New(
 		logger:          logger,
 		github:          githubOAuth,
 		ghClient:        ghClient,
-		oauthStateToken: "skljdfkljsdjfklj",
+		oauthStateStore: make(map[string]time.Time),
 	}
 
+	go a.StateTokenCleanup()
+
 	return a
+}
+
+type (
+	auth struct {
+		pgStore         postgres.PersistentStore
+		store           cache.Store
+		logger          telemetry.Logger
+		github          *oauth2.Config
+		ghClient        *gh.Client
+		oauthStateStore map[string]time.Time
+		c               *config.OpenRegistryConfig
+	}
+)
+
+// @TODO (jay-dee7) maybe a better way to do it?
+func (a *auth) StateTokenCleanup() {
+	// tick every 10 minutes, delete ant oauth state tokens which are older than 10 mins
+	// duration = 10mins, because github short lived code is valid for 10 mins
+	for range time.Tick(time.Second * 10) {
+		for key, t := range a.oauthStateStore {
+			if time.Now().Unix() > t.Unix() {
+				delete(a.oauthStateStore, key)
+			}
+		}
+	}
 }
