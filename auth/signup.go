@@ -33,6 +33,12 @@ func (a *auth) SignUp(ctx echo.Context) error {
 		})
 	}
 
+	if err := verifyPassword(u.Password); err != nil {
+		return ctx.JSON(http.StatusBadRequest, echo.Map{
+			"error": err.Error(),
+		})
+	}
+
 	passwordHash, err := a.hashPassword(u.Password)
 	if err != nil {
 		a.logger.Log(ctx, err)
@@ -148,7 +154,8 @@ func verifyPassword(password string) error {
 	if !specialCharPresent {
 		appendError("special character missing")
 	}
-	if !(minPassLength <= passLen && passLen <= maxPassLength) {
+
+	if minPassLength > passLen || passLen > maxPassLength {
 		appendError(fmt.Sprintf("password length must be between %d to %d characters long", minPassLength, maxPassLength))
 	}
 

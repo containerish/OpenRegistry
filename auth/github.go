@@ -23,10 +23,6 @@ func (a *auth) LoginWithGithub(ctx echo.Context) error {
 }
 
 func (a *auth) GithubLoginCallbackHandler(ctx echo.Context) error {
-	path := ctx.QueryParam("path")
-	if path == "" {
-		path = a.c.WebAppRedirectURL
-	}
 	ctx.Set(types.HandlerStartTime, time.Now())
 
 	stateToken := ctx.FormValue("state")
@@ -115,7 +111,6 @@ func (a *auth) GithubLoginCallbackHandler(ctx echo.Context) error {
 		HttpOnly: true,
 	}
 
-	oauthUser.Password = refreshToken
 	if err := a.pgStore.AddOAuthUser(ctx.Request().Context(), &oauthUser); err != nil {
 		ctx.Set(types.HttpEndpointErrorKey, err.Error())
 		return ctx.JSON(http.StatusInternalServerError, echo.Map{
@@ -126,9 +121,8 @@ func (a *auth) GithubLoginCallbackHandler(ctx echo.Context) error {
 
 	ctx.SetCookie(accessCookie)
 	ctx.SetCookie(refreshCookie)
-	redirectURL := a.c.WebAppEndpoint + path
 	a.logger.Log(ctx, nil)
-	return ctx.Redirect(http.StatusTemporaryRedirect, redirectURL)
+	return ctx.Redirect(http.StatusTemporaryRedirect, a.c.WebAppRedirectURL)
 }
 
 const (

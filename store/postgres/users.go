@@ -45,7 +45,6 @@ func (p *pg) AddOAuthUser(ctx context.Context, u *types.User) error {
 		id.String(),
 		u.Username,
 		u.Email,
-		u.Password,
 		t,
 		t,
 		u.Bio,
