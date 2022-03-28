@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/containerish/OpenRegistry/types"
 	"github.com/labstack/echo/v4"
 )
 
@@ -23,7 +24,7 @@ func (a *auth) validateUser(username, password string) (map[string]interface{}, 
 	}
 
 	tokenLife := time.Now().Add(time.Hour * 24 * 14).Unix()
-	token, err := a.newToken(User{Username: username}, tokenLife)
+	token, err := a.newToken(types.User{Username: username}, tokenLife)
 	if err != nil {
 		return nil, err
 	}

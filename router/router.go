@@ -25,7 +25,16 @@ func Register(
 	pStore postgres.PersistentStore,
 ) {
 	e.Use(middleware.Recover())
-	e.Use(middleware.CORS())
+	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
+		AllowOrigins: []string{
+			cfg.WebAppEndpoint,
+		},
+		AllowMethods:     middleware.DefaultCORSConfig.AllowMethods,
+		AllowHeaders:     middleware.DefaultCORSConfig.AllowHeaders,
+		AllowCredentials: true,
+		ExposeHeaders:    middleware.DefaultCORSConfig.ExposeHeaders,
+		MaxAge:           750,
+	}))
 
 	e.Use(middleware.RequestIDWithConfig(middleware.RequestIDConfig{
 		Generator: func() string {
@@ -44,15 +53,20 @@ func Register(
 
 	internal := e.Group(Internal)
 	authRouter := e.Group(Auth)
+	githubRouter := authRouter.Group("/github")
 	betaRouter := e.Group(Beta)
 
 	v2Router.Add(http.MethodGet, Root, reg.ApiVersion)
+
 	e.Add(http.MethodGet, TokenAuth, authSvc.Token)
+
+	githubRouter.Add(http.MethodGet, "/callback", authSvc.GithubLoginCallbackHandler)
+	githubRouter.Add(http.MethodGet, "/login", authSvc.LoginWithGithub)
 
 	RegisterNSRoutes(nsRouter, reg)
 	RegisterAuthRoutes(authRouter, authSvc)
 	RegisterBetaRoutes(betaRouter, localCache)
-	InternalRoutes(internal, localCache)
+	InternalRoutes(internal, pStore)
 	Extensions(v2Router, reg)
 }
 

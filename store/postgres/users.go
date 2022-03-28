@@ -28,6 +28,43 @@ func (p *pg) AddUser(ctx context.Context, u *types.User) error {
 	return nil
 }
 
+func (p *pg) AddOAuthUser(ctx context.Context, u *types.User) error {
+	if err := u.Validate(); err != nil {
+		return err
+	}
+
+	childCtx, cancel := context.WithTimeout(ctx, time.Millisecond*100)
+	defer cancel()
+
+	t := time.Now()
+	id := uuid.New()
+
+	_, err := p.conn.Exec(
+		childCtx,
+		queries.AddOAuthUser,
+		id.String(),
+		u.Username,
+		u.Email,
+		t,
+		t,
+		u.Bio,
+		u.Type,
+		u.GravatarID,
+		u.Login,
+		u.Name,
+		u.NodeID,
+		u.AvatarURL,
+		u.OAuthID,
+		u.IsActive,
+		u.Hireable,
+	)
+	if err != nil {
+		return fmt.Errorf("error adding user to database: %w", err)
+	}
+
+	return nil
+}
+
 func (p *pg) GetUser(ctx context.Context, identifier string) (*types.User, error) {
 	childCtx, cancel := context.WithTimeout(ctx, time.Millisecond*100)
 	defer cancel()
@@ -35,7 +72,15 @@ func (p *pg) GetUser(ctx context.Context, identifier string) (*types.User, error
 	row := p.conn.QueryRow(childCtx, queries.GetUser, identifier)
 
 	var user types.User
-	err := row.Scan(&user.IsActive, &user.Username, &user.Email, &user.Password, &user.CreatedAt, &user.UpdatedAt)
+	err := row.Scan(
+		&user.Id,
+		&user.IsActive,
+		&user.Username,
+		&user.Email,
+		&user.Password,
+		&user.CreatedAt,
+		&user.UpdatedAt,
+	)
 	if err != nil {
 		return nil, fmt.Errorf("user not found")
 	}

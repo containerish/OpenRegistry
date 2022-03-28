@@ -1,5 +1,9 @@
-mod-fix:
-	git clone https://github.com/jay-dee7/go-skynet.git .go-skynet
+POSTGRESQL_URL='postgres://postgres:postgres@0.0.0.0:5432/open_registry?sslmode=disable'
+
+migup:
+	migrate -database ${POSTGRESQL_URL} -path db/migrations up
+migdown:
+	migrate -database ${POSTGRESQL_URL} -path db/migrations down
 
 tools:
 	pip3 install ggshield pre-commit

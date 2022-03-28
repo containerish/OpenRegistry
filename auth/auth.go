@@ -1,11 +1,16 @@
 package auth
 
 import (
+	"time"
+
 	"github.com/containerish/OpenRegistry/cache"
 	"github.com/containerish/OpenRegistry/config"
 	"github.com/containerish/OpenRegistry/store/postgres"
 	"github.com/containerish/OpenRegistry/telemetry"
+	gh "github.com/google/go-github/v42/github"
 	"github.com/labstack/echo/v4"
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/github"
 )
 
 // Authentication interface defines the behaviour for container registry and general authentication for the backend
@@ -16,13 +21,8 @@ type Authentication interface {
 	Token(ctx echo.Context) error
 	JWT() echo.MiddlewareFunc
 	ACL() echo.MiddlewareFunc
-}
-
-type auth struct {
-	pgStore postgres.PersistentStore
-	store   cache.Store
-	c       *config.OpenRegistryConfig
-	logger  telemetry.Logger
+	LoginWithGithub(ctx echo.Context) error
+	GithubLoginCallbackHandler(ctx echo.Context) error
 }
 
 // New is the constructor function returns an Authentication implementation
@@ -32,6 +32,52 @@ func New(
 	pgStore postgres.PersistentStore,
 	logger telemetry.Logger,
 ) Authentication {
-	a := &auth{store: s, c: c, pgStore: pgStore, logger: logger}
+
+	githubOAuth := &oauth2.Config{
+		ClientID:     c.OAuth.Github.ClientID,
+		ClientSecret: c.OAuth.Github.ClientSecret,
+		Endpoint:     github.Endpoint,
+		Scopes:       []string{"user:email"},
+	}
+
+	ghClient := gh.NewClient(nil)
+
+	a := &auth{
+		store:           s,
+		c:               c,
+		pgStore:         pgStore,
+		logger:          logger,
+		github:          githubOAuth,
+		ghClient:        ghClient,
+		oauthStateStore: make(map[string]time.Time),
+	}
+
+	go a.StateTokenCleanup()
+
 	return a
+}
+
+type (
+	auth struct {
+		pgStore         postgres.PersistentStore
+		store           cache.Store
+		logger          telemetry.Logger
+		github          *oauth2.Config
+		ghClient        *gh.Client
+		oauthStateStore map[string]time.Time
+		c               *config.OpenRegistryConfig
+	}
+)
+
+// @TODO (jay-dee7) maybe a better way to do it?
+func (a *auth) StateTokenCleanup() {
+	// tick every 10 minutes, delete ant oauth state tokens which are older than 10 mins
+	// duration = 10mins, because github short lived code is valid for 10 mins
+	for range time.Tick(time.Second * 10) {
+		for key, t := range a.oauthStateStore {
+			if time.Now().Unix() > t.Unix() {
+				delete(a.oauthStateStore, key)
+			}
+		}
+	}
 }

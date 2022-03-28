@@ -17,8 +17,8 @@ registry:
     - skynet_homescreen
 oauth:
   github:
-    client_id:
-    client_secret:
+    client_id: dummy-gh-client-id
+    client_secret: dummy-gh-client-secret
 skynet:
   portal_url: https://siasky.dev
   api_key: skynet-key

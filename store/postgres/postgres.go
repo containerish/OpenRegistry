@@ -41,6 +41,7 @@ type AuthStore interface {
 
 type UserStore interface {
 	AddUser(ctx context.Context, u *types.User) error
+	AddOAuthUser(ctx context.Context, u *types.User) error
 	GetUser(ctx context.Context, identifier string) (*types.User, error)
 	UpdateUser(ctx context.Context, identifier string, u *types.User) error
 	DeleteUser(ctx context.Context, identifier string) error
