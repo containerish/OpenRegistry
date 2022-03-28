@@ -1,64 +1,39 @@
 package auth
 
 import (
-	"encoding/base64"
-	"fmt"
 	"net/http"
 	"time"
 
 	"github.com/containerish/OpenRegistry/types"
-	"github.com/golang-jwt/jwt"
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 )
 
 func (a *auth) VerifyEmail(ctx echo.Context) error {
 	ctx.Set(types.HandlerStartTime, time.Now())
-
 	token := ctx.QueryParam("token")
 	if token == "" {
 		return ctx.JSON(http.StatusBadRequest, echo.Map{
-			"error": "EMPTY_TOKEN",
+			"error": "token can not be empty",
 		})
 	}
 
-	jToken, err := base64.StdEncoding.DecodeString(token)
+	if _, err := uuid.Parse(token); err != nil {
+		return ctx.JSON(http.StatusBadRequest, echo.Map{
+			"error":   err.Error(),
+			"message": "ERR_PARSE_TOKEN",
+		})
+	}
+
+	userId, err := a.pgStore.GetVerifyEmail(ctx.Request().Context(), token)
 	if err != nil {
 		return ctx.JSON(http.StatusBadRequest, echo.Map{
-			"error": err.Error(),
-			"msg":   "EMPTY_TOKEN",
+			"error":   err.Error(),
+			"message": "invalid token",
 		})
 	}
 
-	var t *jwt.Token
-
-	_, err = jwt.Parse(string(jToken), func(jt *jwt.Token) (interface{}, error) {
-		if jt == nil {
-			return nil, fmt.Errorf("ERR_PARSE_JWT_TOKEN")
-		}
-		t = jt
-		return nil, nil
-	})
-
-	claims, ok := t.Claims.(jwt.MapClaims)
-	if !ok {
-		ctx.Set(types.HttpEndpointErrorKey, err.Error())
-		return ctx.JSON(http.StatusBadRequest, echo.Map{
-			"error": err.Error(),
-			"msg":   "ERR_CONVERT_CLAIMS",
-		})
-	}
-
-	id := claims["ID"].(string)
-	tokenFromDb, err := a.pgStore.GetVerifyEmail(ctx.Request().Context(), id)
-	if tokenFromDb != string(jToken) {
-		ctx.Set(types.HttpEndpointErrorKey, err.Error())
-		return ctx.JSON(http.StatusInternalServerError, echo.Map{
-			"error": err.Error(),
-			"msg":   "ERR_TOKEN_MISMATCH",
-		})
-	}
-
-	user, err := a.pgStore.GetUserById(ctx.Request().Context(), id)
+	user, err := a.pgStore.GetUserById(ctx.Request().Context(), userId, false)
 	if err != nil {
 		ctx.Set(types.HttpEndpointErrorKey, err.Error())
 		return ctx.JSON(http.StatusInternalServerError, echo.Map{
@@ -69,7 +44,7 @@ func (a *auth) VerifyEmail(ctx echo.Context) error {
 
 	user.IsActive = true
 
-	err = a.pgStore.UpdateUser(ctx.Request().Context(), id, user)
+	err = a.pgStore.UpdateUser(ctx.Request().Context(), userId, user)
 	if err != nil {
 		ctx.Set(types.HttpEndpointErrorKey, err.Error())
 		return ctx.JSON(http.StatusInternalServerError, echo.Map{
@@ -78,7 +53,7 @@ func (a *auth) VerifyEmail(ctx echo.Context) error {
 		})
 	}
 
-	err = a.pgStore.DeleteVerifyEmail(ctx.Request().Context(), id)
+	err = a.pgStore.DeleteVerifyEmail(ctx.Request().Context(), token)
 	if err != nil {
 		ctx.Set(types.HttpEndpointErrorKey, err.Error())
 		return ctx.JSON(http.StatusInternalServerError, echo.Map{
@@ -88,6 +63,6 @@ func (a *auth) VerifyEmail(ctx echo.Context) error {
 	}
 
 	return ctx.JSON(http.StatusOK, echo.Map{
-		"message": "success",
+		"message": "user profile activated successfully",
 	})
 }

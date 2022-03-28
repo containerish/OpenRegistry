@@ -21,17 +21,17 @@ type MailData struct {
 }
 
 type Mail struct {
+	Data    MailData
 	Name    string
 	To      string
 	Subject string
 	Body    string
 	Mtype   MailType
-	Data    MailData
 }
 
 type MailService interface {
-	CreateEmail(mailReq *Mail) (*mail.SGMailV3, error)
-	SendEmail(u *types.User, token string) error
+	CreateEmail(u *types.User, kind EmailKind, token string) (*mail.SGMailV3, error)
+	SendEmail(u *types.User, token string, kind EmailKind) error
 }
 
 func New(config *config.Email, backendEndpoint string) MailService {

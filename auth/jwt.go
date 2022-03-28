@@ -6,7 +6,6 @@ import (
 
 	"github.com/containerish/OpenRegistry/types"
 	"github.com/golang-jwt/jwt"
-	"github.com/google/uuid"
 	"golang.org/x/oauth2"
 )
 
@@ -158,7 +157,7 @@ func (a *auth) createOAuthClaims(u types.User, token *oauth2.Token) PlatformClai
 		StandardClaims: jwt.StandardClaims{
 			Audience:  a.c.Endpoint(),
 			ExpiresAt: time.Now().Add(time.Hour).Unix(),
-			Id:        uuid.NewString(),
+			Id:        u.Id,
 			IssuedAt:  time.Now().Unix(),
 			Issuer:    a.c.Endpoint(),
 			NotBefore: time.Now().Unix(),
