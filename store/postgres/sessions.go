@@ -3,10 +3,11 @@ package postgres
 import (
 	"context"
 	"fmt"
+	"time"
+
 	"github.com/containerish/OpenRegistry/store/postgres/queries"
 	"github.com/containerish/OpenRegistry/types"
 	"github.com/jackc/pgx/v4"
-	"time"
 )
 
 func (p *pg) AddSession(ctx context.Context, id, refreshToken, username string) error {

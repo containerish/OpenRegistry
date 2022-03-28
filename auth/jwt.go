@@ -12,8 +12,8 @@ import (
 
 type Claims struct {
 	jwt.StandardClaims
-	Access AccessList
 	Type   string
+	Access AccessList
 }
 
 type PlatformClaims struct {
@@ -37,7 +37,7 @@ func (a *auth) newPublicPullToken() (string, error) {
 	acl := AccessList{
 		{
 			Type:    "repository",
-			Name:    fmt.Sprintf("*/*"),
+			Name:    "*/*",
 			Actions: []string{"pull"},
 		},
 	}
@@ -180,22 +180,6 @@ func (a *auth) createRefreshClaims(userId string) RefreshClaims {
 			Issuer:    a.c.Endpoint(),
 			NotBefore: time.Now().Unix(),
 			Subject:   userId,
-		},
-	}
-
-	return claims
-}
-
-func (a *auth) createWebLoginClaims(u types.User) PlatformClaims {
-	claims := PlatformClaims{
-		StandardClaims: jwt.StandardClaims{
-			Audience:  a.c.Endpoint(),
-			ExpiresAt: time.Now().Add(time.Minute).Unix(),
-			Id:        u.Id,
-			IssuedAt:  time.Now().Unix(),
-			Issuer:    a.c.Endpoint(),
-			NotBefore: time.Now().Unix(),
-			Subject:   u.Id,
 		},
 	}
 

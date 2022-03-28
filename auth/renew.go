@@ -1,14 +1,14 @@
 package auth
 
 import (
-	"github.com/golang-jwt/jwt"
-	"github.com/labstack/echo/v4"
 	"net/http"
 	"time"
+
+	"github.com/golang-jwt/jwt"
+	"github.com/labstack/echo/v4"
 )
 
 func (a *auth) RenewAccessToken(ctx echo.Context) error {
-
 	c, err := ctx.Cookie("refresh")
 	if err != nil {
 		if err == http.ErrNoCookie {
@@ -38,10 +38,10 @@ func (a *auth) RenewAccessToken(ctx echo.Context) error {
 			"error": err.Error(),
 		})
 	}
+
 	if !tkn.Valid {
 		return ctx.JSON(http.StatusUnauthorized, echo.Map{
-			"error":   err.Error(),
-			"message": "invalid token, unauthorised",
+			"error": "invalid token, unauthorised",
 		})
 	}
 

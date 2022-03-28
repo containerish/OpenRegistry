@@ -50,8 +50,13 @@ func (a *auth) SignIn(ctx echo.Context) error {
 	}
 
 	access, err := a.newWebLoginToken(userFromDb.Id, userFromDb.Username, "access")
+	if err != nil {
+		a.logger.Log(ctx, err)
+		return ctx.JSON(http.StatusInternalServerError, echo.Map{
+			"error": err.Error(),
+		})
+	}
 	refresh, err := a.newWebLoginToken(userFromDb.Id, userFromDb.Username, "refresh")
-
 	if err != nil {
 		a.logger.Log(ctx, err)
 		return ctx.JSON(http.StatusInternalServerError, echo.Map{

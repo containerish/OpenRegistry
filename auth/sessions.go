@@ -1,11 +1,12 @@
 package auth
 
 import (
-	"github.com/google/uuid"
-	"github.com/labstack/echo/v4"
 	"net/http"
 	"strconv"
 	"strings"
+
+	"github.com/google/uuid"
+	"github.com/labstack/echo/v4"
 )
 
 func (a *auth) ExpireSessions(ctx echo.Context) error {

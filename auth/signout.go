@@ -1,11 +1,12 @@
 package auth
 
 import (
-	"github.com/containerish/OpenRegistry/types"
-	"github.com/labstack/echo/v4"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/containerish/OpenRegistry/types"
+	"github.com/labstack/echo/v4"
 )
 
 func (a *auth) SignOut(ctx echo.Context) error {

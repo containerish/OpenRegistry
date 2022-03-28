@@ -7,6 +7,7 @@ import (
 	"github.com/containerish/OpenRegistry/cache"
 	"github.com/containerish/OpenRegistry/config"
 	"github.com/containerish/OpenRegistry/registry/v2"
+	"github.com/containerish/OpenRegistry/registry/v2/extensions"
 	"github.com/containerish/OpenRegistry/store/postgres"
 	"github.com/google/uuid"
 	"github.com/labstack/echo-contrib/prometheus"
@@ -23,6 +24,7 @@ func Register(
 	authSvc auth.Authentication,
 	localCache cache.Store,
 	pStore postgres.PersistentStore,
+	ext extensions.Extenion,
 ) {
 	e.Use(middleware.Recover())
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
@@ -67,7 +69,7 @@ func Register(
 	RegisterAuthRoutes(authRouter, authSvc)
 	RegisterBetaRoutes(betaRouter, localCache)
 	InternalRoutes(internal, pStore)
-	Extensions(v2Router, reg)
+	Extensions(v2Router, reg, ext)
 }
 
 // RegisterNSRoutes is one of the helper functions to Register
@@ -124,10 +126,13 @@ func RegisterNSRoutes(nsRouter *echo.Group, reg registry.Registry) {
 }
 
 // Extensions for teh OCI dist spec
-func Extensions(group *echo.Group, reg registry.Registry) {
+func Extensions(group *echo.Group, reg registry.Registry, ext extensions.Extenion) {
 
 	// GET /v2/_catalog
 	group.Add(http.MethodGet, Catalog, reg.Catalog)
+	// Auto-complete image search
 	group.Add(http.MethodGet, Search, reg.GetImageNamespace)
+	group.Add(http.MethodGet, CatalogDetail, ext.CatalogDetail)
+	group.Add(http.MethodGet, RepositoryDetail, ext.RepositoryDetail)
 
 }

@@ -46,7 +46,18 @@ const (
 	// Catalog is used to list the available repositories
 	Catalog = "/_catalog"
 
+	// Prefix for Extensions
+	Ext = "/ext"
+
+	// Catalog Extensions API Prefix
+	C = Ext + "/catalog"
+
 	// JWT based auth endpoint
 	TokenAuth = "/token"
-	Search    = "/catalog/search"
+	Search    = C + "/search"
+
+	// API to get detailed catalog information
+	CatalogDetail = C + "/detail"
+
+	RepositoryDetail = Ext + "/repository"
 )
