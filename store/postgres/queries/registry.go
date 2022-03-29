@@ -32,13 +32,16 @@ var (
 	GetCatalog                   = `select namespace from image_manifest;`
 	GetCatalogWithPagination     = `select namespace from image_manifest limit $1 offset $2;`
 	GetUserCatalogWithPagination = `select namespace from image_manifest where namespace like $1 limit $2 offset $3;`
-	GetImageNamespace            = `select uuid,namespace,created_at::timestamptz,updated_at::timestamptz from image_manifest where substr(namespace, 1, 50) like $1;`
+	GetImageNamespace            = `select uuid,namespace,created_at::timestamptz,updated_at::timestamptz from 
+		image_manifest where substr(namespace, 1, 50) like $1;`
 
-	GetCatalogDetailWithPagination     = `select namespace,created_at::timestamptz,updated_at::timestamptz from image_manifest limit $1 offset $2;`
-	GetUserCatalogDetailWithPagination = `select namespace,created_at::timestamptz,updated_at::timestamptz from image_manifest where namespace like $1 limit $2 offset $3;`
-
-	// select floor(sum(size::float4/1000000)) from layer where digest = ANY(ARRAY(select layers from config where namespace='johndoe/traefik'));
-	GetRepoDetailWithPagination = `select reference, digest, sky_link, (select sum(size) from layer where digest = ANY(layers)) as size, created_at::timestamptz, updated_at::timestamptz from config where namespace=$1 limit $2 offset $3;`
+	// be very careful using this one
+	GetCatalogDetailWithPagination     = `select namespace,created_at::timestamptz,updated_at::timestamptz from image_manifest order by %s limit $1 offset $2;`
+	GetUserCatalogDetailWithPagination = `select namespace,created_at::timestamptz,updated_at::timestamptz from 
+		image_manifest where namespace like $1 order by %s limit $3 offset $4;`
+	GetRepoDetailWithPagination = `select reference, digest, sky_link, (select sum(size) from layer where digest = 
+		ANY(layers)) as size, created_at::timestamptz, updated_at::timestamptz from config where namespace=$1 
+		limit $2 offset $3;`
 )
 
 // delete queries
