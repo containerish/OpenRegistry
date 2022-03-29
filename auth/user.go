@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -14,14 +15,14 @@ func (a *auth) ReadUserWithSession(ctx echo.Context) error {
 
 	session, err := ctx.Cookie("session_id")
 	if err != nil {
-		ctx.Set(types.HttpEndpointErrorKey, err.Error())
+		a.logger.Log(ctx, err)
 		return ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error":   err.Error(),
 			"message": "ERROR_GETTING_SESSION_ID",
 		})
 	}
 	if session.Value == "" {
-		ctx.Set(types.HttpEndpointErrorKey, "error in getting cookies")
+		a.logger.Log(ctx, fmt.Errorf("error getting cookies"))
 		return ctx.JSON(http.StatusBadRequest, echo.Map{
 			"msg": "error is cookie",
 		})
@@ -29,7 +30,7 @@ func (a *auth) ReadUserWithSession(ctx echo.Context) error {
 
 	parts := strings.Split(session.Value, ":")
 	if len(parts) != 2 {
-		ctx.Set(types.HttpEndpointErrorKey, "invalid session id")
+		a.logger.Log(ctx, fmt.Errorf("invalid session id"))
 		return ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error": "invalid session id",
 		})
@@ -38,7 +39,7 @@ func (a *auth) ReadUserWithSession(ctx echo.Context) error {
 	sessionId := parts[0]
 	user, err := a.pgStore.GetUserWithSession(ctx.Request().Context(), sessionId)
 	if err != nil {
-		ctx.Set(types.HttpEndpointErrorKey, err.Error())
+		a.logger.Log(ctx, err)
 		return ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error":   err.Error(),
 			"message": "ERROR_FETCHING_USER_WITH_SESSION",

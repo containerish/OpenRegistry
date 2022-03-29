@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -10,9 +11,11 @@ import (
 )
 
 func (a *auth) SignOut(ctx echo.Context) error {
+	ctx.Set(types.HandlerStartTime, time.Now())
+
 	sessionCookie, err := ctx.Cookie("session_id")
 	if err != nil {
-		ctx.Set(types.HttpEndpointErrorKey, err.Error())
+		a.logger.Log(ctx, err)
 		return ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error":   err.Error(),
 			"message": "ERROR_GETTING_SESSION_ID_FOR_SIGN_OUT",
@@ -20,6 +23,7 @@ func (a *auth) SignOut(ctx echo.Context) error {
 	}
 	parts := strings.Split(sessionCookie.Value, ":")
 	if len(parts) != 2 {
+		a.logger.Log(ctx, fmt.Errorf("invalid session id"))
 		return ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error": "INVALID_SESSION_ID",
 		})
@@ -29,6 +33,7 @@ func (a *auth) SignOut(ctx echo.Context) error {
 	userId := parts[1]
 
 	if err := a.pgStore.DeleteSession(ctx.Request().Context(), sessionId, userId); err != nil {
+		a.logger.Log(ctx, err)
 		return ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error":   err.Error(),
 			"message": "could not delete sessions",

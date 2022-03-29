@@ -21,7 +21,6 @@ require (
 )
 
 require (
-	github.com/hashicorp/errwrap v1.0.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash v1.1.0 // indirect
 	github.com/cespare/xxhash/v2 v2.1.1 // indirect
@@ -37,6 +36,7 @@ require (
 	github.com/golang/snappy v0.0.3 // indirect
 	github.com/google/flatbuffers v1.12.0 // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
+	github.com/hashicorp/errwrap v1.0.0 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/jackc/chunkreader/v2 v2.0.1 // indirect
 	github.com/jackc/pgconn v1.10.0 // indirect
@@ -48,7 +48,7 @@ require (
 	github.com/jackc/pgx/v4 v4.13.0
 	github.com/jackc/puddle v1.1.3 // indirect
 	github.com/klauspost/compress v1.12.3 // indirect
-	github.com/labstack/gommon v0.3.0
+	github.com/labstack/gommon v0.3.0 // indirect
 	github.com/leodido/go-urn v1.2.1 // indirect
 	github.com/magiconair/properties v1.8.5 // indirect
 	github.com/mattn/go-colorable v0.1.8 // indirect
