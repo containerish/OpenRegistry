@@ -4,7 +4,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/containerish/OpenRegistry/cache"
 	"github.com/containerish/OpenRegistry/skynet"
 	"github.com/containerish/OpenRegistry/store/postgres"
 	"github.com/containerish/OpenRegistry/telemetry"
@@ -88,15 +87,14 @@ const (
 
 type (
 	registry struct {
-		b          blobs
-		logger     telemetry.Logger
-		localCache cache.Store
-		store      postgres.PersistentStore
-		skynet     *skynet.Client
-		mu         *sync.RWMutex
-		txnMap     map[string]TxnStore
-		log        zerolog.Logger
-		debug      bool
+		b      blobs
+		logger telemetry.Logger
+		store  postgres.PersistentStore
+		skynet *skynet.Client
+		mu     *sync.RWMutex
+		txnMap map[string]TxnStore
+		log    zerolog.Logger
+		debug  bool
 	}
 
 	TxnStore struct {

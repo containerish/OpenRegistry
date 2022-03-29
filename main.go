@@ -4,7 +4,6 @@ import (
 	"os"
 
 	"github.com/containerish/OpenRegistry/auth"
-	"github.com/containerish/OpenRegistry/cache"
 	"github.com/containerish/OpenRegistry/config"
 	"github.com/containerish/OpenRegistry/registry/v2"
 	"github.com/containerish/OpenRegistry/registry/v2/extensions"
@@ -25,18 +24,12 @@ func main() {
 	}
 	e := echo.New()
 
-	localCache, err := cache.New(".kvstore")
-	if err != nil {
-		e.Logger.Errorf("error opening local kv store: %s", err)
-		return
-	}
-	defer localCache.Close()
-
 	pgStore, err := postgres.New(cfg.StoreConfig)
 	if err != nil {
 		color.Red("error here: %s", err.Error())
 		return
 	}
+	defer pgStore.Close()
 
 	fluentBitCollector, err := fluentbit.New(cfg)
 	if err != nil {
@@ -45,10 +38,10 @@ func main() {
 	}
 
 	logger := telemetry.ZLogger(fluentBitCollector, cfg.Environment)
-	authSvc := auth.New(localCache, cfg, pgStore, logger)
+	authSvc := auth.New(cfg, pgStore, logger)
 	skynetClient := skynet.NewClient(cfg)
 
-	reg, err := registry.NewRegistry(skynetClient, localCache, logger, pgStore)
+	reg, err := registry.NewRegistry(skynetClient, logger, pgStore)
 	if err != nil {
 		e.Logger.Errorf("error creating new container registry: %s", err)
 		return
@@ -60,6 +53,6 @@ func main() {
 	}
 
 	color.Green("Service Endpoint: %s\n", cfg.Endpoint())
-	router.Register(cfg, e, reg, authSvc, localCache, pgStore, ext)
+	router.Register(cfg, e, reg, authSvc, pgStore, ext)
 	color.Red("error initialising OpenRegistry Server: %s", e.Start(cfg.Registry.Address()))
 }

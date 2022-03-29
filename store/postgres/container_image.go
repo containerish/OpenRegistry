@@ -36,6 +36,19 @@ func (p *pg) GetLayer(ctx context.Context, digest string) (*types.LayerV2, error
 
 }
 
+func (p *pg) GetContentHashById(ctx context.Context, uuid string) (string, error) {
+	childCtx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+
+	var contentHash string
+	row := p.conn.QueryRow(childCtx, queries.GetContentHashById)
+	if err := row.Scan(&contentHash); err != nil {
+		return "nil", err
+	}
+
+	return contentHash, nil
+}
+
 func (p *pg) SetLayer(ctx context.Context, txn pgx.Tx, l *types.LayerV2) error {
 	childCtx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
