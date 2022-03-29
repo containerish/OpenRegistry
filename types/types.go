@@ -3,6 +3,7 @@ package types
 import (
 	"encoding/json"
 	"fmt"
+	"time"
 )
 
 type (
@@ -19,13 +20,16 @@ type (
 	}
 
 	ImageManifestV2 struct {
-		Uuid          string `json:"uuid"`
-		Namespace     string `json:"namespace"`
-		MediaType     string `json:"mediaType"`
-		SchemaVersion int    `json:"schemaVersion"`
+		CreatedAt     time.Time `json:"created_at,omitempty"`
+		UpdatedAt     time.Time `json:"updated_at,omitempty"`
+		Uuid          string    `json:"uuid,omitempty"`
+		Namespace     string    `json:"namespace"`
+		MediaType     string    `json:"mediaType,omitempty"`
+		SchemaVersion int       `json:"schemaVersion,omitempty"`
 	}
 
 	Blob struct {
+		CreatedAt  time.Time
 		Digest     string
 		Skylink    string
 		UUID       string
@@ -43,12 +47,14 @@ type (
 	}
 
 	LayerV2 struct {
-		MediaType   string   `json:"mediaType"`
-		Digest      string   `json:"digest"`
-		SkynetLink  string   `json:"skynetLink"`
-		UUID        string   `json:"uuid"`
-		BlobDigests []string `json:"blobs"`
-		Size        int      `json:"size"`
+		CreatedAt   time.Time `json:"created_at,omitempty"`
+		UpdatedAt   time.Time `json:"updated_at,omitempty"`
+		MediaType   string    `json:"mediaType"`
+		Digest      string    `json:"digest"`
+		SkynetLink  string    `json:"skynetLink"`
+		UUID        string    `json:"uuid"`
+		BlobDigests []string  `json:"blobs"`
+		Size        int       `json:"size"`
 	}
 
 	LayerRef struct {
@@ -65,14 +71,24 @@ type (
 	}
 
 	ConfigV2 struct {
-		UUID      string   `json:"uuid"`
-		Namespace string   `json:"namespace"`
-		Reference string   `json:"reference"`
-		Digest    string   `json:"digest"`
-		Skylink   string   `json:"sky_link,omitempty"`
-		MediaType string   `json:"media_type,omitempty"`
-		Layers    []string `json:"layers,omitempty"`
-		Size      int      `json:"size,omitempty"`
+		CreatedAt time.Time `json:"created_at"`
+		UpdatedAt time.Time `json:"updated_at"`
+		UUID      string    `json:"uuid,omitempty"`
+		Namespace string    `json:"namespace,omitempty"`
+		Skylink   string    `json:"sky_link,omitempty"`
+		MediaType string    `json:"media_type,omitempty"`
+		Reference string    `json:"reference"`
+		Digest    string    `json:"digest"`
+		Layers    []string  `json:"layers,omitempty"`
+		Size      int       `json:"size,omitempty"`
+	}
+	Catalog struct {
+		Repositories []*Repository `json:"repositories"`
+	}
+
+	Repository struct {
+		Namespace string      `json:"namespace"`
+		Tags      []*ConfigV2 `json:"tags"`
 	}
 )
 

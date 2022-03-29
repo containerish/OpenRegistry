@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/containerish/OpenRegistry/types"
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 )
 
@@ -15,6 +16,7 @@ func (a *auth) SignIn(ctx echo.Context) error {
 	var user types.User
 
 	if err := json.NewDecoder(ctx.Request().Body).Decode(&user); err != nil {
+		ctx.Set(types.HttpEndpointErrorKey, err.Error())
 		return ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error": err.Error(),
 		})
@@ -33,8 +35,7 @@ func (a *auth) SignIn(ctx echo.Context) error {
 		key = user.Username
 	}
 
-	//bz, err := a.store.Get([]byte(key))
-	userFromDb, err := a.pgStore.GetUser(ctx.Request().Context(), key)
+	userFromDb, err := a.pgStore.GetUser(ctx.Request().Context(), key, true)
 	if err != nil {
 		a.logger.Log(ctx, err)
 		return ctx.JSON(http.StatusBadRequest, echo.Map{
@@ -48,7 +49,14 @@ func (a *auth) SignIn(ctx echo.Context) error {
 		return ctx.JSON(http.StatusUnauthorized, errMsg)
 	}
 
-	access, refresh, err := a.newWebLoginToken(*userFromDb)
+	access, err := a.newWebLoginToken(userFromDb.Id, userFromDb.Username, "access")
+	if err != nil {
+		a.logger.Log(ctx, err)
+		return ctx.JSON(http.StatusInternalServerError, echo.Map{
+			"error": err.Error(),
+		})
+	}
+	refresh, err := a.newWebLoginToken(userFromDb.Id, userFromDb.Username, "refresh")
 	if err != nil {
 		a.logger.Log(ctx, err)
 		return ctx.JSON(http.StatusInternalServerError, echo.Map{
@@ -56,27 +64,26 @@ func (a *auth) SignIn(ctx echo.Context) error {
 		})
 	}
 
-	accessCookie := &http.Cookie{
-		Name:    "access",
-		Value:   access,
-		Expires: time.Now().Add(time.Hour),
-		Path:    "/",
+	id := uuid.NewString()
+	if err = a.pgStore.AddSession(ctx.Request().Context(), id, refresh, userFromDb.Username); err != nil {
+		ctx.Set(types.HttpEndpointErrorKey, err.Error())
+		return ctx.JSON(http.StatusBadRequest, echo.Map{
+			"error":   err.Error(),
+			"message": "ERR_CREATING_SESSION",
+		})
 	}
+	sessionId := fmt.Sprintf("%s:%s", id, userFromDb.Id)
+	sessionCookie := a.createCookie("session_id", sessionId, false, time.Now().Add(time.Hour*750))
+	accessCookie := a.createCookie("access", access, true, time.Now().Add(time.Hour))
+	refreshCookie := a.createCookie("refresh", refresh, true, time.Now().Add(time.Hour*750))
 
-	refreshCookie := &http.Cookie{
-		Name:    "refresh",
-		Value:   refresh,
-		Expires: time.Now().Add(time.Hour * 750),
-		Path:    "/",
-	}
-	http.SetCookie(ctx.Response(), accessCookie)
-	http.SetCookie(ctx.Response(), refreshCookie)
 	a.logger.Log(ctx, err)
 
+	ctx.SetCookie(accessCookie)
+	ctx.SetCookie(refreshCookie)
+	ctx.SetCookie(sessionCookie)
 	return ctx.JSON(http.StatusOK, echo.Map{
-		"token":      access,
-		"refresh":    refresh,
-		"expires_in": time.Now().Add(time.Hour).Unix(),
-		"issued_at":  time.Now().Unix(),
+		"token":   access,
+		"refresh": refresh,
 	})
 }

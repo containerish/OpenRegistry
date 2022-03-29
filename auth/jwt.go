@@ -12,13 +12,14 @@ import (
 
 type Claims struct {
 	jwt.StandardClaims
+	Type   string
 	Access AccessList
 }
 
 type PlatformClaims struct {
 	OauthPayload *oauth2.Token `json:"oauth2_token,omitempty"`
 	jwt.StandardClaims
-	UserPayload types.User
+	Type string
 }
 
 type RefreshClaims struct {
@@ -31,9 +32,17 @@ type ServiceClaims struct {
 	Access AccessList
 }
 
+//
 func (a *auth) newPublicPullToken() (string, error) {
-	tokenLife := time.Now().Add(time.Hour * 24 * 14).Unix()
-	claims := a.createClaims("public_pull_user", "", tokenLife)
+	acl := AccessList{
+		{
+			Type:    "repository",
+			Name:    "*/*",
+			Actions: []string{"pull"},
+		},
+	}
+
+	claims := a.createClaims("public_pull_user", "", acl)
 
 	// TODO (jay-dee7)- handle this properly, check for errors and don't set defaults for actions
 	claims.Access[0].Actions = []string{"pull"}
@@ -55,7 +64,7 @@ func (a *auth) SignOAuthToken(u types.User, payload *oauth2.Token) (string, stri
 
 func (a *auth) newOAuthToken(u types.User, payload *oauth2.Token) (string, string, error) {
 	accessClaims := a.createOAuthClaims(u, payload)
-	refreshClaims := a.createRefreshClaims(u)
+	refreshClaims := a.createRefreshClaims(u.Id)
 
 	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, &accessClaims)
 	accessSign, err := accessToken.SignedString([]byte(a.c.Registry.SigningSecret))
@@ -75,37 +84,40 @@ func (a *auth) newOAuthToken(u types.User, payload *oauth2.Token) (string, strin
 
 //nolint
 func (a *auth) newServiceToken(u types.User) (string, error) {
-	u.StripForToken()
-	claims := a.createServiceClaims(u)
+	acl := AccessList{
+		{
+			Type:    "repository",
+			Name:    fmt.Sprintf("%s/*", u.Username),
+			Actions: []string{"push", "pull"},
+		},
+	}
+	claims := a.createClaims(u.Id, "service", acl)
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	sign, err := token.SignedString(a.c.Registry.SigningSecret)
+	sign, err := token.SignedString([]byte(a.c.Registry.SigningSecret))
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("error signing secret %w", err)
 	}
 
 	return sign, nil
 }
 
-func (a *auth) newWebLoginToken(u types.User) (string, string, error) {
-	u.StripForToken()
-	claims := a.createWebLoginClaims(u)
-	refreshClaims := a.createRefreshClaims(u)
-
-	rawAccess := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	rawRefresh := jwt.NewWithClaims(jwt.SigningMethodHS256, refreshClaims)
-
-	accessToken, err := rawAccess.SignedString([]byte(a.c.Registry.SigningSecret))
+func (a *auth) newWebLoginToken(userId, username, tokenType string) (string, error) {
+	acl := AccessList{
+		{
+			Type:    "repository",
+			Name:    fmt.Sprintf("%s/*", username),
+			Actions: []string{"push", "pull"},
+		},
+	}
+	claims := a.createClaims(userId, tokenType, acl)
+	raw := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	token, err := raw.SignedString([]byte(a.c.Registry.SigningSecret))
 	if err != nil {
-		return "", "", err
+		return "", err
 	}
 
-	refreshToken, err := rawRefresh.SignedString([]byte(a.c.Registry.SigningSecret))
-	if err != nil {
-		return "", "", err
-	}
-
-	return accessToken, refreshToken, nil
+	return token, nil
 }
 
 //nolint
@@ -142,7 +154,6 @@ func (a *auth) createServiceClaims(u types.User) ServiceClaims {
 // },
 func (a *auth) createOAuthClaims(u types.User, token *oauth2.Token) PlatformClaims {
 	claims := PlatformClaims{
-		UserPayload:  u,
 		OauthPayload: token,
 		StandardClaims: jwt.StandardClaims{
 			Audience:  a.c.Endpoint(),
@@ -158,44 +169,35 @@ func (a *auth) createOAuthClaims(u types.User, token *oauth2.Token) PlatformClai
 	return claims
 }
 
-func (a *auth) createRefreshClaims(u types.User) RefreshClaims {
+func (a *auth) createRefreshClaims(userId string) RefreshClaims {
 	claims := RefreshClaims{
-		ID: u.Id,
+		ID: userId,
 		StandardClaims: jwt.StandardClaims{
 			Audience:  a.c.Endpoint(),
 			ExpiresAt: time.Now().Add(time.Hour * 750).Unix(), // Refresh tokens can live longer
-			Id:        uuid.NewString(),
+			Id:        userId,
 			IssuedAt:  time.Now().Unix(),
 			Issuer:    a.c.Endpoint(),
 			NotBefore: time.Now().Unix(),
-			Subject:   u.Id,
+			Subject:   userId,
 		},
 	}
 
 	return claims
 }
 
-func (a *auth) createWebLoginClaims(u types.User) PlatformClaims {
-	claims := PlatformClaims{
-		UserPayload: u,
-		StandardClaims: jwt.StandardClaims{
-			Audience:  a.c.Endpoint(),
-			ExpiresAt: time.Now().Add(time.Hour).Unix(),
-			Id:        uuid.NewString(),
-			IssuedAt:  time.Now().Unix(),
-			Issuer:    a.c.Endpoint(),
-			NotBefore: time.Now().Unix(),
-			Subject:   u.Id,
-		},
-	}
-
-	return claims
-}
-
-func (a *auth) newToken(u types.User, tokenLife int64) (string, error) {
+func (a *auth) newToken(u *types.User) (string, error) {
 	//for now we're sending same name for sub and name.
 	//TODO when repositories need collaborators
-	claims := a.createClaims(u.Username, u.Username, tokenLife)
+
+	acl := AccessList{
+		{
+			Type:    "repository",
+			Name:    fmt.Sprintf("%s/*", u.Username),
+			Actions: []string{"push", "pull"},
+		},
+	}
+	claims := a.createClaims(u.Id, "access", acl)
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, &claims)
 
 	// Generate encoded token and send it as response.
@@ -231,24 +233,30 @@ claims format
 }
 */
 
-func (a *auth) createClaims(sub, name string, tokenLife int64) Claims {
+func (a *auth) createClaims(id, tokenType string, acl AccessList) Claims {
+
+	var tokenLife int64
+	switch tokenType {
+	case "access":
+		tokenLife = time.Now().Add(time.Hour).Unix()
+	case "refresh":
+		tokenLife = time.Now().Add(time.Hour * 750).Unix()
+	case "service":
+		tokenLife = time.Now().Add(time.Hour * 750).Unix()
+	}
+
 	claims := Claims{
 		StandardClaims: jwt.StandardClaims{
 			Audience:  a.c.Endpoint(),
 			ExpiresAt: tokenLife,
-			Id:        uuid.NewString(),
+			Id:        id,
 			IssuedAt:  time.Now().Unix(),
 			Issuer:    a.c.Endpoint(),
 			NotBefore: time.Now().Unix(),
-			Subject:   sub,
+			Subject:   id,
 		},
-		Access: AccessList{
-			{
-				Type:    "repository",
-				Name:    fmt.Sprintf("%s/*", name),
-				Actions: []string{"push", "pull"},
-			},
-		},
+		Access: acl,
+		Type:   tokenType,
 	}
 	return claims
 }

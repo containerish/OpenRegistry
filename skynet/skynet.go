@@ -9,6 +9,7 @@ import (
 
 	"github.com/SkynetLabs/go-skynet/v2"
 	"github.com/containerish/OpenRegistry/config"
+	"github.com/fatih/color"
 	tar "github.com/whyrusleeping/tar-utils"
 )
 
@@ -20,6 +21,7 @@ func NewClient(oc *config.OpenRegistryConfig) *Client {
 		CustomCookie:    oc.SkynetConfig.ApiKey,
 	}
 
+	color.Green("Skynet Portal: %s", oc.SkynetConfig.SkynetPortalURL)
 	skynetClient := skynet.NewCustom(oc.SkynetConfig.SkynetPortalURL, opts)
 	httpClient := NewHttpClientForSkynet()
 

@@ -26,6 +26,8 @@ func (p *pg) GetLayer(ctx context.Context, digest string) (*types.LayerV2, error
 		&layer.MediaType,
 		&layer.SkynetLink,
 		&layer.Size,
+		&layer.CreatedAt,
+		&layer.UpdatedAt,
 	); err != nil {
 		return nil, err
 	}
@@ -38,7 +40,19 @@ func (p *pg) SetLayer(ctx context.Context, txn pgx.Tx, l *types.LayerV2) error {
 	childCtx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 
-	_, err := txn.Exec(childCtx, queries.SetLayer, l.MediaType, l.Digest, l.SkynetLink, l.UUID, l.BlobDigests, l.Size)
+	_, err := txn.Exec(
+		childCtx,
+		queries.SetLayer,
+		l.MediaType,
+		l.Digest,
+		l.SkynetLink,
+		l.UUID,
+		l.BlobDigests,
+		l.Size,
+		l.CreatedAt,
+		l.UpdatedAt,
+	)
+
 	return err
 }
 
@@ -53,6 +67,8 @@ func (p *pg) GetManifest(ctx context.Context, namespace string) (*types.ImageMan
 		&im.Namespace,
 		&im.MediaType,
 		&im.SchemaVersion,
+		&im.CreatedAt,
+		&im.UpdatedAt,
 	); err != nil {
 		return nil, err
 	}
@@ -78,6 +94,8 @@ func (p *pg) GetManifestByReference(ctx context.Context, namespace string, ref s
 		&im.MediaType,
 		&im.Layers,
 		&im.Size,
+		&im.CreatedAt,
+		&im.UpdatedAt,
 	); err != nil {
 		return nil, err
 	}
@@ -88,7 +106,17 @@ func (p *pg) SetManifest(ctx context.Context, txn pgx.Tx, im *types.ImageManifes
 	childCtx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 
-	_, err := txn.Exec(childCtx, queries.SetImageManifest, im.Uuid, im.Namespace, im.MediaType, im.SchemaVersion)
+	_, err := txn.Exec(
+		childCtx,
+		queries.SetImageManifest,
+		im.Uuid,
+		im.Namespace,
+		im.MediaType,
+		im.SchemaVersion,
+		im.CreatedAt,
+		im.UpdatedAt,
+	)
+
 	return err
 }
 
@@ -112,6 +140,7 @@ func (p *pg) GetBlob(ctx context.Context, digest string) ([]*types.Blob, error) 
 			&blob.Skylink,
 			&blob.RangeStart,
 			&blob.RangeEnd,
+			&blob.CreatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -126,7 +155,8 @@ func (p *pg) SetBlob(ctx context.Context, txn pgx.Tx, b *types.Blob) error {
 	childCtx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 
-	_, err := txn.Exec(childCtx, queries.SetBlob, b.UUID, b.Digest, b.Skylink, b.RangeStart, b.RangeEnd)
+	_, err := txn.Exec(childCtx, queries.SetBlob, b.UUID, b.Digest, b.Skylink, b.RangeStart, b.RangeEnd, b.CreatedAt)
+
 	return err
 
 }
@@ -153,6 +183,8 @@ func (p *pg) GetConfig(ctx context.Context, namespace string) ([]*types.ConfigV2
 			&cfg.MediaType,
 			&cfg.Layers,
 			&cfg.Size,
+			&cfg.CreatedAt,
+			&cfg.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -189,7 +221,8 @@ func (p *pg) SetConfig(ctx context.Context, txn pgx.Tx, cfg types.ConfigV2) erro
 	childCtx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 
-	if _, err := txn.Exec(childCtx,
+	if _, err := txn.Exec(
+		childCtx,
 		queries.SetConfig,
 		cfg.UUID,
 		cfg.Namespace,
@@ -199,6 +232,8 @@ func (p *pg) SetConfig(ctx context.Context, txn pgx.Tx, cfg types.ConfigV2) erro
 		cfg.MediaType,
 		cfg.Layers,
 		cfg.Size,
+		cfg.CreatedAt,
+		cfg.UpdatedAt,
 	); err != nil {
 		return err
 	}
@@ -217,7 +252,7 @@ func (p *pg) GetCatalogCount(ctx context.Context) (int64, error) {
 	return count, nil
 }
 
-func (p *pg) GetCatalog(ctx context.Context, ns string, pageSize, offset int64) ([]*types.ConfigV2, error) {
+func (p *pg) GetCatalog(ctx context.Context, ns string, pageSize, offset int64) ([]string, error) {
 	childCtx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 
@@ -247,20 +282,116 @@ func (p *pg) GetCatalog(ctx context.Context, ns string, pageSize, offset int64) 
 
 	defer rows.Close()
 
-	cfgList := make([]*types.ConfigV2, 0)
+	var repositories []string
 	for i := 0; rows.Next(); i++ {
-		var cfg types.ConfigV2
+		var repo string
+		if err := rows.Scan(&repo); err != nil {
+			return nil, err
+		}
+
+		repositories = append(repositories, repo)
+	}
+
+	return repositories, nil
+}
+
+// GetCatalogDetail - ns -> Namespace; ps -> PageSize
+func (p *pg) GetCatalogDetail(ctx context.Context, ns string, ps, offset int64) ([]*types.ImageManifestV2, error) {
+	childCtx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+
+	var rows pgx.Rows
+	var err error
+
+	if ps != 0 {
+		rows, err = p.conn.Query(childCtx, queries.GetCatalogDetailWithPagination, ps, offset)
+		if err != nil {
+			err = fmt.Errorf("ERR_CATALOG_WITH_PAGINATION: %w", err)
+		}
+	} else {
+		rows, err = p.conn.Query(childCtx, queries.GetCatalogDetailWithPagination, 10, 0)
+		if err != nil {
+			err = fmt.Errorf("ERR_CATALOG: %w", err)
+		}
+	}
+
+	if ns != "" {
+		rows, err = p.conn.Query(childCtx, queries.GetUserCatalogDetailWithPagination, ns+"/%", ps, offset)
+		if err != nil {
+			err = fmt.Errorf("ERR_USER_CATALOG: %w", err)
+		}
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+	var catalog []*types.ImageManifestV2
+
+	for i := 0; rows.Next(); i++ {
+		var mf types.ImageManifestV2
+
 		if err := rows.Scan(
-			&cfg.UUID,
-			&cfg.Namespace,
-			&cfg.Reference,
-			&cfg.Digest,
+			&mf.Namespace,
+			&mf.CreatedAt,
+			&mf.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}
-		cfgList = append(cfgList, &cfg)
+
+		catalog = append(catalog, &mf)
 	}
-	return cfgList, nil
+
+	return catalog, nil
+}
+
+func (p *pg) GetRepoDetail(ctx context.Context, ns string, pageSize, offset int64) (*types.Repository, error) {
+	childCtx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+	defer cancel()
+
+	var rows pgx.Rows
+	var err error
+
+	if pageSize != 0 {
+		rows, err = p.conn.Query(childCtx, queries.GetRepoDetailWithPagination, ns, pageSize, offset)
+		if err != nil {
+			err = fmt.Errorf("ERR_REPO_DETAIL_WITH_PAGINATION: %w", err)
+		}
+	} else {
+		rows, err = p.conn.Query(childCtx, queries.GetRepoDetailWithPagination, ns, 10, 0)
+		if err != nil {
+			err = fmt.Errorf("ERR_REPO_DETAIL: %w", err)
+		}
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+	var repo types.Repository
+
+	for i := 0; rows.Next(); i++ {
+		var tag types.ConfigV2
+
+		if err := rows.Scan(
+			&tag.Reference,
+			&tag.Digest,
+			&tag.Skylink,
+			&tag.Size,
+			&tag.CreatedAt,
+			&tag.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+
+		repo.Tags = append(repo.Tags, &tag)
+	}
+
+	// why get it from db?
+	repo.Namespace = ns
+	return &repo, nil
 }
 
 func (p *pg) DeleteLayerV2(ctx context.Context, txn pgx.Tx, digest string) error {
@@ -337,7 +468,7 @@ func (p *pg) Metadata(ctx echo.Context) error {
 	return ctx.JSON(http.StatusOK, imageManifestList)
 }
 
-func (p *pg) GetImageNamespace(ctx context.Context, search string) ([]string, error) {
+func (p *pg) GetImageNamespace(ctx context.Context, search string) ([]*types.ImageManifestV2, error) {
 	childCtx, cancel := context.WithTimeout(context.Background(), time.Minute*30)
 	defer cancel()
 	rows, err := p.conn.Query(childCtx, queries.GetImageNamespace, "%"+search+"%")
@@ -346,13 +477,18 @@ func (p *pg) GetImageNamespace(ctx context.Context, search string) ([]string, er
 	}
 	defer rows.Close()
 
-	var result []string
+	var result []*types.ImageManifestV2
 	for rows.Next() {
-		var ns string
-		if err := rows.Scan(&ns); err != nil {
+		var mf types.ImageManifestV2
+		if err := rows.Scan(
+			&mf.Uuid,
+			&mf.Namespace,
+			&mf.CreatedAt,
+			&mf.UpdatedAt,
+		); err != nil {
 			return nil, fmt.Errorf("ERR_IMAGE_NAMESPACE_SCAN: %w", err)
 		}
-		result = append(result, ns)
+		result = append(result, &mf)
 	}
 	return result, nil
 }

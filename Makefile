@@ -5,6 +5,12 @@ migup:
 migdown:
 	migrate -database ${POSTGRESQL_URL} -path db/migrations down
 
+cleanup: migdown migup
+
+mock-images:
+	bash ./scripts/mock-images.sh
+
 tools:
 	pip3 install ggshield pre-commit
 	pre-commit install
+

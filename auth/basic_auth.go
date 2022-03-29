@@ -174,26 +174,27 @@ func BasicAuthWithConfig(config middleware.BasicAuthConfig) echo.MiddlewareFunc 
 }
 
 // makes an http request to get user info from token, if it's valid, it's all good :)
-func (a *auth) validateUserWithGithubOauthToken(ctx context.Context, token string) (bool, error) {
+func (a *auth) getUserWithGithubOauthToken(ctx context.Context, token string) (*types.User, error) {
 	req, err := a.ghClient.NewRequest(http.MethodGet, "/user", nil)
 	if err != nil {
-		return false, fmt.Errorf("GH_AUTH_REQUEST_ERROR: %w", err)
+		return nil, fmt.Errorf("GH_AUTH_REQUEST_ERROR: %w", err)
 	}
 	req.Header.Set(AuthorizationHeaderKey, "token "+token)
 
 	var oauthUser types.User
 	resp, err := a.ghClient.Do(ctx, req, &oauthUser)
 	if err != nil {
-		return false, fmt.Errorf("GH_AUTH_ERROR: %w", err)
+		return nil, fmt.Errorf("GH_AUTH_ERROR: %w", err)
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return false, fmt.Errorf("UNAUTHORIZED")
+		return nil, fmt.Errorf("GHO_UNAUTHORIZED")
 	}
 
-	if _, err = a.pgStore.GetUser(ctx, oauthUser.Email); err != nil {
-		return false, fmt.Errorf("PG_GET_USER_ERR: %w", err)
+	user, err := a.pgStore.GetUser(ctx, oauthUser.Email, false)
+	if err != nil {
+		return nil, fmt.Errorf("PG_GET_USER_ERR: %w", err)
 	}
 
-	return true, nil
+	return user, nil
 }

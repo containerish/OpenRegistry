@@ -17,7 +17,10 @@ func RegisterAuthRoutes(authRouter *echo.Group, authSvc auth.Authentication) {
 	authRouter.Add(http.MethodPost, "/signup", authSvc.SignUp)
 	authRouter.Add(http.MethodPost, "/signin", authSvc.SignIn)
 	authRouter.Add(http.MethodPost, "/token", authSvc.SignIn)
-
+	authRouter.Add(http.MethodDelete, "/signout", authSvc.SignOut)
+	authRouter.Add(http.MethodGet, "/sessions/me", authSvc.ReadUserWithSession)
+	authRouter.Add(http.MethodDelete, "/sessions", authSvc.ExpireSessions)
+	authRouter.Add(http.MethodGet, "/renew", authSvc.RenewAccessToken)
 }
 
 // RegisterBetaRoutes contains the experimental features, the betas

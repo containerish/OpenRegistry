@@ -88,15 +88,15 @@ const (
 
 type (
 	registry struct {
-		log        zerolog.Logger
 		b          blobs
 		logger     telemetry.Logger
 		localCache cache.Store
+		store      postgres.PersistentStore
 		skynet     *skynet.Client
 		mu         *sync.RWMutex
-		debug      bool
 		txnMap     map[string]TxnStore
-		store      postgres.PersistentStore
+		log        zerolog.Logger
+		debug      bool
 	}
 
 	TxnStore struct {
@@ -106,45 +106,45 @@ type (
 	}
 
 	blobs struct {
-		mutex    sync.Mutex
 		contents map[string][]byte
 		uploads  map[string][]byte
 		layers   map[string][]string
 		registry *registry
+		mutex    sync.Mutex
 	}
 
 	ManifestList struct {
-		SchemaVersion int    `json:"schemaVersion"`
-		MediaType     string `json:"mediaType"`
-		Manifests     []struct {
+		MediaType string `json:"mediaType"`
+		Manifests []struct {
 			MediaType string `json:"mediaType"`
-			Size      int    `json:"size"`
 			Digest    string `json:"digest"`
 			Platform  struct {
 				Architecture string   `json:"architecture"`
 				Os           string   `json:"os"`
 				Features     []string `json:"features"`
 			} `json:"platform"`
+			Size int `json:"size"`
 		} `json:"manifests"`
+		SchemaVersion int `json:"schemaVersion"`
 	}
 
 	ImageManifest struct {
-		SchemaVersion int    `json:"schemaVersion"`
+		Config        Config `json:"config"`
 		MediaType     string `json:"mediaType"`
 		Layers        Layers `json:"layers"`
-		Config        Config `json:"config"`
+		SchemaVersion int    `json:"schemaVersion"`
 	}
 
 	Layers []struct {
 		MediaType string `json:"mediaType"`
-		Size      int    `json:"size"`
 		Digest    string `json:"digest"`
+		Size      int    `json:"size"`
 	}
 
 	Config struct {
 		MediaType string `json:"mediaType"`
-		Size      int    `json:"size"`
 		Digest    string `json:"digest"`
+		Size      int    `json:"size"`
 	}
 )
 

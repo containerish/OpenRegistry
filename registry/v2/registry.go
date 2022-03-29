@@ -419,7 +419,9 @@ func (r *registry) StartUpload(ctx echo.Context) error {
 			SkynetLink:  skylink,
 			UUID:        uuid.NewString(),
 			BlobDigests: nil,
-			Size:        len(buf.Bytes()),
+			Size:        buf.Len(),
+			CreatedAt:   time.Now(),
+			UpdatedAt:   time.Now(),
 		}
 
 		txnOp, err := r.store.NewTxn(ctx.Request().Context())
@@ -545,19 +547,31 @@ func (r *registry) CompleteUpload(ctx echo.Context) error {
 	blobNamespace := fmt.Sprintf("%s/blobs", namespace)
 	skylink, err := r.skynet.Upload(blobNamespace, dig, ubuf.Bytes(), true)
 	if err != nil {
-		errMsg := r.errorResponse(RegistryErrorCodeBlobUploadInvalid, err.Error(), nil)
+		errMsg := r.errorResponse(RegistryErrorCodeBlobUploadInvalid, err.Error(), echo.Map{
+			"reason": "ERR_SKYNET_UPLOAD",
+			"error":  err.Error(),
+		})
+
 		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
 		return ctx.JSONBlob(http.StatusRequestedRangeNotSatisfiable, errMsg)
 	}
 
 	txnOp, ok := r.txnMap[id]
+	if !ok {
+		errMsg := r.errorResponse(RegistryErrorCodeUnknown, "transaction does not exist for uuid -"+id, nil)
+		ctx.Set(types.HttpEndpointErrorKey, errMsg)
+		return ctx.JSONBlob(http.StatusBadRequest, errMsg)
+	}
+
 	layer := &types.LayerV2{
 		MediaType:   "",
 		Digest:      dig,
 		SkynetLink:  skylink,
 		UUID:        id,
 		BlobDigests: txnOp.blobDigests,
-		Size:        len(buf.Bytes()),
+		Size:        ubuf.Len(),
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
 	}
 	if !ok {
 		errMsg := r.errorResponse(RegistryErrorCodeUnknown, "transaction does not exist for uuid -"+id, nil)
@@ -650,6 +664,8 @@ func (r *registry) PushManifest(ctx echo.Context) error {
 		MediaType: contentType,
 		Layers:    layerIDs,
 		Size:      0,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
 	}
 
 	val := &types.ImageManifestV2{
@@ -657,6 +673,8 @@ func (r *registry) PushManifest(ctx echo.Context) error {
 		Namespace:     namespace,
 		MediaType:     "",
 		SchemaVersion: 2,
+		CreatedAt:     time.Now(),
+		UpdatedAt:     time.Now(),
 	}
 
 	txnOp, err := r.store.NewTxn(context.Background())
@@ -669,14 +687,14 @@ func (r *registry) PushManifest(ctx echo.Context) error {
 		return ctx.JSONBlob(http.StatusInternalServerError, errMsg)
 	}
 
-	if err := r.store.SetManifest(ctx.Request().Context(), txnOp, val); err != nil {
+	if err = r.store.SetManifest(ctx.Request().Context(), txnOp, val); err != nil {
 		errMsg := r.errorResponse(RegistryErrorCodeUnknown, err.Error(), nil)
 		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
 		_ = r.store.Abort(ctx.Request().Context(), txnOp)
 		return ctx.JSONBlob(http.StatusBadRequest, errMsg)
 	}
 
-	if err := r.store.SetConfig(ctx.Request().Context(), txnOp, mfc); err != nil {
+	if err = r.store.SetConfig(ctx.Request().Context(), txnOp, mfc); err != nil {
 		errMsg := r.errorResponse(RegistryErrorCodeUnknown, err.Error(), nil)
 		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
 		_ = r.store.Abort(ctx.Request().Context(), txnOp)
@@ -814,7 +832,6 @@ func (r *registry) DeleteLayer(ctx echo.Context) error {
 // Should also look into 401 Code
 // https://docs.docker.com/registry/spec/api/
 func (r *registry) ApiVersion(ctx echo.Context) error {
-
 	ctx.Response().Header().Set(HeaderDockerDistributionApiVersion, "registry/2.0")
 	return ctx.String(http.StatusOK, "OK\n")
 }
@@ -834,5 +851,17 @@ func (r *registry) GetImageNamespace(ctx echo.Context) error {
 			"message": "error getting image namespace",
 		})
 	}
-	return ctx.JSON(http.StatusOK, result)
+
+	total, err := r.store.GetCatalogCount(ctx.Request().Context())
+	if err != nil {
+		return ctx.JSON(http.StatusInternalServerError, echo.Map{
+			"error":   err.Error(),
+			"message": "ERR_GET_CATALOG_COUNT",
+		})
+	}
+
+	return ctx.JSON(http.StatusOK, echo.Map{
+		"repositories": result,
+		"total":        total,
+	})
 }

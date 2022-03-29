@@ -7,6 +7,7 @@ import (
 	"github.com/containerish/OpenRegistry/cache"
 	"github.com/containerish/OpenRegistry/config"
 	"github.com/containerish/OpenRegistry/registry/v2"
+	"github.com/containerish/OpenRegistry/registry/v2/extensions"
 	"github.com/containerish/OpenRegistry/router"
 	"github.com/containerish/OpenRegistry/skynet"
 	"github.com/containerish/OpenRegistry/store/postgres"
@@ -52,8 +53,13 @@ func main() {
 		e.Logger.Errorf("error creating new container registry: %s", err)
 		return
 	}
+	ext, err := extensions.New(pgStore, logger)
+	if err != nil {
+		e.Logger.Errorf("error creating new container registry extensions api: %s", err)
+		return
+	}
 
 	color.Green("Service Endpoint: %s\n", cfg.Endpoint())
-	router.Register(cfg, e, reg, authSvc, localCache, pgStore)
+	router.Register(cfg, e, reg, authSvc, localCache, pgStore, ext)
 	color.Red("error initialising OpenRegistry Server: %s", e.Start(cfg.Registry.Address()))
 }

@@ -29,12 +29,15 @@ func (a *auth) JWT() echo.MiddlewareFunc {
 		},
 		BeforeFunc:     middleware.DefaultJWTConfig.BeforeFunc,
 		SuccessHandler: middleware.DefaultJWTConfig.SuccessHandler,
-		ErrorHandler:   middleware.DefaultJWTConfig.ErrorHandler,
+		ErrorHandler:   nil,
 		ErrorHandlerWithContext: func(err error, ctx echo.Context) error {
 			// ErrorHandlerWithContext only logs the failing requtest
 			ctx.Set(types.HandlerStartTime, time.Now())
 			a.logger.Log(ctx, err)
-			return ctx.NoContent(http.StatusUnauthorized)
+			return ctx.JSON(http.StatusUnauthorized, echo.Map{
+				"error":   err.Error(),
+				"message": "missing authentication information",
+			})
 		},
 		KeyFunc:        middleware.DefaultJWTConfig.KeyFunc,
 		ParseTokenFunc: middleware.DefaultJWTConfig.ParseTokenFunc,
@@ -50,9 +53,6 @@ func (a *auth) ACL() echo.MiddlewareFunc {
 	return func(hf echo.HandlerFunc) echo.HandlerFunc {
 		return func(ctx echo.Context) error {
 			ctx.Set(types.HandlerStartTime, time.Now())
-			defer func() {
-				a.logger.Log(ctx, nil)
-			}()
 
 			m := ctx.Request().Method
 			if m == http.MethodGet || m == http.MethodHead {
@@ -72,12 +72,43 @@ func (a *auth) ACL() echo.MiddlewareFunc {
 			}
 
 			username := ctx.Param("username")
-			if claims.Subject == username {
+
+			user, err := a.pgStore.GetUserById(ctx.Request().Context(), claims.Id)
+			if err != nil {
+				a.logger.Log(ctx, err)
+				return ctx.NoContent(http.StatusUnauthorized)
+			}
+			if user.Username == username {
 				return hf(ctx)
 			}
 
-			a.logger.Log(ctx, fmt.Errorf("ACL: username didn't match from token"))
 			return ctx.NoContent(http.StatusUnauthorized)
+
 		}
 	}
+}
+
+// JWT basically uses the default JWT middleware by echo, but has a slightly different skipper func
+func (a *auth) JWTRest() echo.MiddlewareFunc {
+	return middleware.JWTWithConfig(middleware.JWTConfig{
+		BeforeFunc:     middleware.DefaultJWTConfig.BeforeFunc,
+		SuccessHandler: middleware.DefaultJWTConfig.SuccessHandler,
+		ErrorHandler:   nil,
+		ErrorHandlerWithContext: func(err error, ctx echo.Context) error {
+			// ErrorHandlerWithContext only logs the failing requtest
+			ctx.Set(types.HandlerStartTime, time.Now())
+			ctx.Set(types.HttpEndpointErrorKey, err.Error())
+			a.logger.Log(ctx, err)
+			return ctx.JSON(http.StatusUnauthorized, echo.Map{
+				"error":   err.Error(),
+				"message": "missing authentication information",
+			})
+		},
+		KeyFunc:        middleware.DefaultJWTConfig.KeyFunc,
+		ParseTokenFunc: middleware.DefaultJWTConfig.ParseTokenFunc,
+		SigningKey:     []byte(a.c.Registry.SigningSecret),
+		SigningKeys:    map[string]interface{}{},
+		SigningMethod:  jwt.SigningMethodHS256.Name,
+		Claims:         &Claims{},
+	})
 }

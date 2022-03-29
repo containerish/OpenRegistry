@@ -20,9 +20,14 @@ type Authentication interface {
 	BasicAuth() echo.MiddlewareFunc
 	Token(ctx echo.Context) error
 	JWT() echo.MiddlewareFunc
+	JWTRest() echo.MiddlewareFunc
 	ACL() echo.MiddlewareFunc
 	LoginWithGithub(ctx echo.Context) error
 	GithubLoginCallbackHandler(ctx echo.Context) error
+	ExpireSessions(ctx echo.Context) error
+	SignOut(ctx echo.Context) error
+	ReadUserWithSession(ctx echo.Context) error
+	RenewAccessToken(ctx echo.Context) error
 }
 
 // New is the constructor function returns an Authentication implementation
