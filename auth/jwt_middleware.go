@@ -97,7 +97,6 @@ func (a *auth) JWTRest() echo.MiddlewareFunc {
 		ErrorHandlerWithContext: func(err error, ctx echo.Context) error {
 			// ErrorHandlerWithContext only logs the failing requtest
 			ctx.Set(types.HandlerStartTime, time.Now())
-			ctx.Set(types.HttpEndpointErrorKey, err.Error())
 			a.logger.Log(ctx, err)
 			return ctx.JSON(http.StatusUnauthorized, echo.Map{
 				"error":   err.Error(),

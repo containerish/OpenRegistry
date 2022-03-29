@@ -324,12 +324,13 @@ func (r *registry) MonolithicUpload(ctx echo.Context) error {
 			"error in monolithic upload",
 			nil,
 		)
-		r.b.registry.logger.Log(ctx, fmt.Errorf("%s", errMsg))
+		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
 		return ctx.JSONBlob(http.StatusBadRequest, errMsg)
 	}
 
 	buf := &bytes.Buffer{}
 	if _, err := io.Copy(buf, ctx.Request().Body); err != nil {
+		r.logger.Log(ctx, err)
 		return ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error":   err.Error(),
 			"message": "error copying request body in monolithic upload blob",
@@ -345,7 +346,7 @@ func (r *registry) MonolithicUpload(ctx echo.Context) error {
 			err.Error(),
 			nil,
 		)
-		r.b.registry.logger.Log(ctx, fmt.Errorf("%s", errMsg))
+		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
 		return ctx.JSONBlob(http.StatusBadRequest, errMsg)
 	}
 
@@ -559,7 +560,7 @@ func (r *registry) CompleteUpload(ctx echo.Context) error {
 	txnOp, ok := r.txnMap[id]
 	if !ok {
 		errMsg := r.errorResponse(RegistryErrorCodeUnknown, "transaction does not exist for uuid -"+id, nil)
-		ctx.Set(types.HttpEndpointErrorKey, errMsg)
+		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
 		return ctx.JSONBlob(http.StatusBadRequest, errMsg)
 	}
 
