@@ -4,7 +4,6 @@ import (
 	"net/http"
 
 	"github.com/containerish/OpenRegistry/auth"
-	"github.com/containerish/OpenRegistry/cache"
 	"github.com/containerish/OpenRegistry/config"
 	"github.com/containerish/OpenRegistry/registry/v2"
 	"github.com/containerish/OpenRegistry/registry/v2/extensions"
@@ -22,7 +21,6 @@ func Register(
 	e *echo.Echo,
 	reg registry.Registry,
 	authSvc auth.Authentication,
-	localCache cache.Store,
 	pStore postgres.PersistentStore,
 	ext extensions.Extenion,
 ) {
@@ -53,10 +51,8 @@ func Register(
 	v2Router := e.Group(V2, authSvc.BasicAuth(), authSvc.JWT())
 	nsRouter := v2Router.Group(Namespace, authSvc.ACL())
 
-	internal := e.Group(Internal)
 	authRouter := e.Group(Auth)
 	githubRouter := authRouter.Group("/github")
-	betaRouter := e.Group(Beta)
 
 	v2Router.Add(http.MethodGet, Root, reg.ApiVersion)
 
@@ -67,8 +63,6 @@ func Register(
 
 	RegisterNSRoutes(nsRouter, reg)
 	RegisterAuthRoutes(authRouter, authSvc)
-	RegisterBetaRoutes(betaRouter, localCache)
-	InternalRoutes(internal, pStore)
 	Extensions(v2Router, reg, ext)
 }
 

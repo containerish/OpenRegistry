@@ -13,7 +13,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/containerish/OpenRegistry/cache"
 	"github.com/containerish/OpenRegistry/skynet"
 	"github.com/containerish/OpenRegistry/store/postgres"
 	"github.com/containerish/OpenRegistry/telemetry"
@@ -24,7 +23,6 @@ import (
 
 func NewRegistry(
 	skynetClient *skynet.Client,
-	c cache.Store,
 	logger telemetry.Logger,
 	pgStore postgres.PersistentStore,
 ) (Registry, error) {
@@ -37,11 +35,10 @@ func NewRegistry(
 			uploads:  map[string][]byte{},
 			layers:   map[string][]string{},
 		},
-		localCache: c,
-		logger:     logger,
-		mu:         &sync.RWMutex{},
-		store:      pgStore,
-		txnMap:     map[string]TxnStore{},
+		logger: logger,
+		mu:     &sync.RWMutex{},
+		store:  pgStore,
+		txnMap: map[string]TxnStore{},
 	}
 
 	r.b.registry = r
@@ -480,14 +477,18 @@ func (r *registry) UploadProgress(ctx echo.Context) error {
 	namespace := ctx.Param("username") + "/" + ctx.Param("imagename")
 	uuid := ctx.Param("uuid")
 
-	skylink, err := r.localCache.GetSkynetURL(namespace, uuid)
+	skylink, err := r.store.GetContentHashById(ctx.Request().Context(), uuid)
 	if err != nil {
-		locationHeader := fmt.Sprintf("/v2/%s/blobs/uploads/%s", namespace, uuid)
-		ctx.Response().Header().Set("Location", locationHeader)
-		ctx.Response().Header().Set("Range", "bytes=0-0")
-		ctx.Response().Header().Set("Docker-Upload-UUID", uuid)
-		r.logger.Log(ctx, err)
-		return ctx.NoContent(http.StatusNoContent)
+		errMsg := r.errorResponse(RegistryErrorCodeBlobUnknown, err.Error(), nil)
+		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
+		return ctx.JSONBlob(http.StatusNotFound, errMsg)
+	}
+
+	if skylink == "" {
+		err = fmt.Errorf("skylink is empty")
+		errMsg := r.errorResponse(RegistryErrorCodeBlobUnknown, err.Error(), nil)
+		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
+		return ctx.JSONBlob(http.StatusNotFound, errMsg)
 	}
 
 	metadata, err := r.skynet.Metadata(skylink)
@@ -765,7 +766,6 @@ func (r *registry) DeleteTagOrManifest(ctx echo.Context) error {
 	}
 	txnOp, _ := r.store.NewTxn(context.Background())
 	if err := r.store.DeleteManifestOrTag(ctx.Request().Context(), txnOp, ref); err != nil {
-		//if err := r.localCache.UpdateManifestRef(namespace, ref); err != nil {
 		details := map[string]interface{}{
 			"namespace": namespace,
 			"digest":    ref,
