@@ -89,6 +89,7 @@ func (b *blobs) UploadBlob(ctx echo.Context) error {
 
 		buf := &bytes.Buffer{}
 		if _, err := io.Copy(buf, ctx.Request().Body); err != nil {
+			b.registry.logger.Log(ctx, err)
 			return ctx.JSON(http.StatusBadRequest, echo.Map{
 				"error":   err.Error(),
 				"message": "error copying request body in upload blob",

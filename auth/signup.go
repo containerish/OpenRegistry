@@ -28,6 +28,7 @@ func (a *auth) SignUp(ctx echo.Context) error {
 	_ = ctx.Request().Body.Close()
 
 	if err := u.Validate(); err != nil {
+		a.logger.Log(ctx, err)
 		return ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error":   err.Error(),
 			"message": "invalid request for user sign up",
@@ -35,6 +36,7 @@ func (a *auth) SignUp(ctx echo.Context) error {
 	}
 
 	if err := verifyPassword(u.Password); err != nil {
+		a.logger.Log(ctx, err)
 		return ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error": err.Error(),
 		})
@@ -66,6 +68,7 @@ func (a *auth) SignUp(ctx echo.Context) error {
 
 	accessToken, err := a.newWebLoginToken(newUser.Id, newUser.Username, "access")
 	if err != nil {
+		a.logger.Log(ctx, err)
 		return ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error": err.Error(),
 			"code":  "CREATE_NEW_ACCESS_TOKEN",
@@ -73,6 +76,7 @@ func (a *auth) SignUp(ctx echo.Context) error {
 	}
 	refreshToken, err := a.newWebLoginToken(newUser.Id, newUser.Username, "refresh")
 	if err != nil {
+		a.logger.Log(ctx, err)
 		return ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error": err.Error(),
 			"code":  "CREATE_NEW_REFRESH_TOKEN",
@@ -81,7 +85,7 @@ func (a *auth) SignUp(ctx echo.Context) error {
 
 	id := uuid.NewString()
 	if err = a.pgStore.AddSession(ctx.Request().Context(), id, refreshToken, newUser.Username); err != nil {
-		ctx.Set(types.HttpEndpointErrorKey, err.Error())
+		a.logger.Log(ctx, err)
 		return ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error":   err.Error(),
 			"message": "ERR_CREATING_SESSION",

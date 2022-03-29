@@ -4,15 +4,20 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
+	"github.com/containerish/OpenRegistry/types"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 )
 
 func (a *auth) ExpireSessions(ctx echo.Context) error {
 	//queryParamSessionId := ctx.QueryParam("session_id")
+	ctx.Set(types.HandlerStartTime, time.Now())
+
 	cookie, err := ctx.Cookie("session_id")
 	if err != nil {
+		a.logger.Log(ctx, err)
 		return ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error": err.Error(),
 			"msg":   "error while getting cookie",
@@ -20,6 +25,7 @@ func (a *auth) ExpireSessions(ctx echo.Context) error {
 	}
 	parts := strings.Split(cookie.Value, ":")
 	if len(parts) != 2 {
+		a.logger.Log(ctx, err)
 		return ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error": "invalid cookie",
 		})
@@ -33,6 +39,7 @@ func (a *auth) ExpireSessions(ctx echo.Context) error {
 	if queryParamDeleteAll != "" {
 		deleteAllSessions, err = strconv.ParseBool(queryParamDeleteAll)
 		if err != nil {
+			a.logger.Log(ctx, err)
 			return ctx.JSON(http.StatusBadRequest, echo.Map{
 				"error":   err.Error(),
 				"message": "delete_all must be a boolean",
@@ -40,6 +47,7 @@ func (a *auth) ExpireSessions(ctx echo.Context) error {
 		}
 		_, err := uuid.Parse(userId)
 		if err != nil {
+			a.logger.Log(ctx, err)
 			return ctx.JSON(http.StatusBadRequest, echo.Map{
 				"error":   err.Error(),
 				"message": "invalid user id",
@@ -49,6 +57,7 @@ func (a *auth) ExpireSessions(ctx echo.Context) error {
 		if deleteAllSessions {
 			err := a.pgStore.DeleteAllSessions(ctx.Request().Context(), userId)
 			if err != nil {
+				a.logger.Log(ctx, err)
 				return ctx.JSON(http.StatusInternalServerError, echo.Map{
 					"error":   err.Error(),
 					"message": "could not delete all sessions",
@@ -61,6 +70,7 @@ func (a *auth) ExpireSessions(ctx echo.Context) error {
 	if sessionID != "" {
 		_, err := uuid.Parse(sessionID)
 		if err != nil {
+			a.logger.Log(ctx, err)
 			return ctx.JSON(http.StatusBadRequest, echo.Map{
 				"error":   err.Error(),
 				"message": "invalid session id",
@@ -68,6 +78,7 @@ func (a *auth) ExpireSessions(ctx echo.Context) error {
 		}
 		err = a.pgStore.DeleteSession(ctx.Request().Context(), sessionID, userId)
 		if err != nil {
+			a.logger.Log(ctx, err)
 			return ctx.JSON(http.StatusInternalServerError, echo.Map{
 				"error":   err.Error(),
 				"message": "could not delete session",

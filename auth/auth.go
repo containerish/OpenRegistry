@@ -3,7 +3,6 @@ package auth
 import (
 	"time"
 
-	"github.com/containerish/OpenRegistry/cache"
 	"github.com/containerish/OpenRegistry/config"
 	"github.com/containerish/OpenRegistry/store/postgres"
 	"github.com/containerish/OpenRegistry/telemetry"
@@ -32,7 +31,6 @@ type Authentication interface {
 
 // New is the constructor function returns an Authentication implementation
 func New(
-	s cache.Store,
 	c *config.OpenRegistryConfig,
 	pgStore postgres.PersistentStore,
 	logger telemetry.Logger,
@@ -48,7 +46,6 @@ func New(
 	ghClient := gh.NewClient(nil)
 
 	a := &auth{
-		store:           s,
 		c:               c,
 		pgStore:         pgStore,
 		logger:          logger,
@@ -65,7 +62,6 @@ func New(
 type (
 	auth struct {
 		pgStore         postgres.PersistentStore
-		store           cache.Store
 		logger          telemetry.Logger
 		github          *oauth2.Config
 		ghClient        *gh.Client

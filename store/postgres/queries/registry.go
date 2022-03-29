@@ -22,6 +22,7 @@ var (
 	GetDigest                    = `select digest from layers where digest=$1;`
 	ReadMetadata                 = `select * from metadata where namespace=$1;`
 	GetLayer                     = `select * from layer where digest=$1;`
+	GetContentHashById           = `select sky_link from layer where uuid=$1;`
 	GetManifest                  = `select * from image_manifest where namespace=$1;`
 	GetBlob                      = `select * from blob where digest=$1;`
 	GetConfig                    = `select * from config where namespace=$1;`

@@ -30,6 +30,7 @@ func (a *auth) GithubLoginCallbackHandler(ctx echo.Context) error {
 	stateToken := ctx.FormValue("state")
 	_, ok := a.oauthStateStore[stateToken]
 	if !ok {
+		a.logger.Log(ctx, fmt.Errorf("missing or invalid state token"))
 		return ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error": "missing or invalid state token",
 		})
@@ -82,7 +83,7 @@ func (a *auth) GithubLoginCallbackHandler(ctx echo.Context) error {
 
 	oauthUser.Password = refreshToken
 	if err = a.pgStore.AddOAuthUser(ctx.Request().Context(), &oauthUser); err != nil {
-		ctx.Set(types.HttpEndpointErrorKey, err.Error())
+		a.logger.Log(ctx, err)
 		return ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error": err.Error(),
 			"code":  "GH_OAUTH_STORE_OAUTH_USER",
@@ -91,6 +92,7 @@ func (a *auth) GithubLoginCallbackHandler(ctx echo.Context) error {
 
 	sessionId := uuid.NewString()
 	if err = a.pgStore.AddSession(ctx.Request().Context(), sessionId, refreshToken, oauthUser.Username); err != nil {
+		a.logger.Log(ctx, err)
 		return ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error":   err.Error(),
 			"message": "ERR_CREATING_SESSION",

@@ -16,7 +16,7 @@ func (a *auth) SignIn(ctx echo.Context) error {
 	var user types.User
 
 	if err := json.NewDecoder(ctx.Request().Body).Decode(&user); err != nil {
-		ctx.Set(types.HttpEndpointErrorKey, err.Error())
+		a.logger.Log(ctx, err)
 		return ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error": err.Error(),
 		})
@@ -66,7 +66,7 @@ func (a *auth) SignIn(ctx echo.Context) error {
 
 	id := uuid.NewString()
 	if err = a.pgStore.AddSession(ctx.Request().Context(), id, refresh, userFromDb.Username); err != nil {
-		ctx.Set(types.HttpEndpointErrorKey, err.Error())
+		a.logger.Log(ctx, err)
 		return ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error":   err.Error(),
 			"message": "ERR_CREATING_SESSION",
