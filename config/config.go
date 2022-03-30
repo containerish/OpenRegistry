@@ -20,6 +20,7 @@ type (
 		WebAppEndpoint    string    `mapstructure:"web_app_url"`
 		WebAppRedirectURL string    `mapstructure:"web_app_redirect_url"`
 		Debug             bool      `mapstructure:"debug"`
+		Email             *Email    `mapstructure:"email"`
 	}
 
 	Registry struct {
@@ -67,6 +68,14 @@ type (
 
 	OAuth struct {
 		Github GithubOAuth `mapstructure:"github"`
+	}
+
+	Email struct {
+		ApiKey               string `mapstructure:"api_key"`
+		SendAs               string `mapstructure:"send_as"`
+		VerifyEmailTemplate  string `mapstructure:"verify_template_id"`
+		WelcomeEmailTemplate string `mapstructure:"welcome_template_id"`
+		Enabled              bool   `mapstructure:"enabled"`
 	}
 )
 

@@ -144,3 +144,29 @@ func (a *auth) createCookie(name string, value string, httpOnly bool, expiresAt 
 	}
 	return cookie
 }
+
+// makes an http request to get user info from token, if it's valid, it's all good :)
+func (a *auth) getUserWithGithubOauthToken(ctx context.Context, token string) (*types.User, error) {
+	req, err := a.ghClient.NewRequest(http.MethodGet, "/user", nil)
+	if err != nil {
+		return nil, fmt.Errorf("GH_AUTH_REQUEST_ERROR: %w", err)
+	}
+	req.Header.Set(AuthorizationHeaderKey, "token "+token)
+
+	var oauthUser types.User
+	resp, err := a.ghClient.Do(ctx, req, &oauthUser)
+	if err != nil {
+		return nil, fmt.Errorf("GH_AUTH_ERROR: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("GHO_UNAUTHORIZED")
+	}
+
+	user, err := a.pgStore.GetUser(ctx, oauthUser.Email, false)
+	if err != nil {
+		return nil, fmt.Errorf("PG_GET_USER_ERR: %w", err)
+	}
+
+	return user, nil
+}

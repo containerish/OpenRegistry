@@ -82,6 +82,7 @@ type (
 		Layers    []string  `json:"layers,omitempty"`
 		Size      int       `json:"size,omitempty"`
 	}
+
 	Catalog struct {
 		Repositories []*Repository `json:"repositories"`
 	}

@@ -7,7 +7,6 @@ import (
 	"github.com/containerish/OpenRegistry/config"
 	"github.com/containerish/OpenRegistry/registry/v2"
 	"github.com/containerish/OpenRegistry/registry/v2/extensions"
-	"github.com/containerish/OpenRegistry/store/postgres"
 	"github.com/google/uuid"
 	"github.com/labstack/echo-contrib/prometheus"
 	"github.com/labstack/echo/v4"
@@ -21,7 +20,6 @@ func Register(
 	e *echo.Echo,
 	reg registry.Registry,
 	authSvc auth.Authentication,
-	pStore postgres.PersistentStore,
 	ext extensions.Extenion,
 ) {
 	e.Use(middleware.Recover())

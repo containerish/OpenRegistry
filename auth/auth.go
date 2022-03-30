@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/containerish/OpenRegistry/config"
+	"github.com/containerish/OpenRegistry/services/email"
 	"github.com/containerish/OpenRegistry/store/postgres"
 	"github.com/containerish/OpenRegistry/telemetry"
 	gh "github.com/google/go-github/v42/github"
@@ -27,6 +28,7 @@ type Authentication interface {
 	SignOut(ctx echo.Context) error
 	ReadUserWithSession(ctx echo.Context) error
 	RenewAccessToken(ctx echo.Context) error
+	VerifyEmail(ctx echo.Context) error
 }
 
 // New is the constructor function returns an Authentication implementation
@@ -44,6 +46,7 @@ func New(
 	}
 
 	ghClient := gh.NewClient(nil)
+	emailClient := email.New(c.Email, c.Endpoint())
 
 	a := &auth{
 		c:               c,
@@ -52,6 +55,7 @@ func New(
 		github:          githubOAuth,
 		ghClient:        ghClient,
 		oauthStateStore: make(map[string]time.Time),
+		emailClient:     emailClient,
 	}
 
 	go a.StateTokenCleanup()
@@ -67,6 +71,7 @@ type (
 		ghClient        *gh.Client
 		oauthStateStore map[string]time.Time
 		c               *config.OpenRegistryConfig
+		emailClient     email.MailService
 	}
 )
 
