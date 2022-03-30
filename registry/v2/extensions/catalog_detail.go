@@ -1,6 +1,7 @@
 package extensions
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -35,6 +36,7 @@ func (ext *extension) CatalogDetail(ctx echo.Context) error {
 	queryParamPageSize := ctx.QueryParam("n")
 	queryParamOffset := ctx.QueryParam("last")
 	namespace := ctx.QueryParam("ns")
+	sortBy := ctx.QueryParam("sort_by")
 	var pageSize int64
 	var offset int64
 	if queryParamPageSize != "" {
@@ -62,12 +64,25 @@ func (ext *extension) CatalogDetail(ctx echo.Context) error {
 	total, err := ext.store.GetCatalogCount(ctx.Request().Context())
 	if err != nil {
 		ext.logger.Log(ctx, err)
-		return ctx.JSON(http.StatusInternalServerError, echo.Map{
+		return ctx.JSON(http.StatusInternalServerError, echo.Map{"error": err.Error()})
+	}
+
+	switch sortBy {
+	case "last_updated":
+		sortBy = "updated_at desc"
+	case "namespace":
+		sortBy = "namespace asc"
+	case "":
+		sortBy = "namespace asc"
+	default:
+		err = fmt.Errorf("invalid choice of sort_by element")
+		ext.logger.Log(ctx, err)
+		return ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error": err.Error(),
 		})
 	}
 
-	catalogWithDetail, err := ext.store.GetCatalogDetail(ctx.Request().Context(), namespace, pageSize, offset)
+	catalogWithDetail, err := ext.store.GetCatalogDetail(ctx.Request().Context(), namespace, pageSize, offset, sortBy)
 	if err != nil {
 		ext.logger.Log(ctx, err)
 		return ctx.JSON(http.StatusInternalServerError, echo.Map{
@@ -75,7 +90,6 @@ func (ext *extension) CatalogDetail(ctx echo.Context) error {
 		})
 	}
 
-	ext.logger.Log(ctx, nil)
 	return ctx.JSON(http.StatusOK, echo.Map{
 		"repositories": catalogWithDetail,
 		"total":        total,

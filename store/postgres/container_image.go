@@ -309,27 +309,31 @@ func (p *pg) GetCatalog(ctx context.Context, ns string, pageSize, offset int64) 
 }
 
 // GetCatalogDetail - ns -> Namespace; ps -> PageSize
-func (p *pg) GetCatalogDetail(ctx context.Context, ns string, ps, offset int64) ([]*types.ImageManifestV2, error) {
+func (p *pg) GetCatalogDetail(
+	ctx context.Context, ns string, ps, offset int64, sortBy string,
+) ([]*types.ImageManifestV2, error) {
 	childCtx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 
 	var rows pgx.Rows
 	var err error
+	pageSize := int64(10)
+	if ps > 0 {
+		pageSize = ps
+	}
 
-	if ps != 0 {
-		rows, err = p.conn.Query(childCtx, queries.GetCatalogDetailWithPagination, ps, offset)
-		if err != nil {
-			err = fmt.Errorf("ERR_CATALOG_WITH_PAGINATION: %w", err)
-		}
-	} else {
-		rows, err = p.conn.Query(childCtx, queries.GetCatalogDetailWithPagination, 10, 0)
-		if err != nil {
-			err = fmt.Errorf("ERR_CATALOG: %w", err)
-		}
+	q := fmt.Sprintf(queries.GetCatalogDetailWithPagination, sortBy)
+	if ns != "" {
+		q = fmt.Sprintf(queries.GetUserCatalogDetailWithPagination, sortBy)
+	}
+
+	rows, err = p.conn.Query(childCtx, q, pageSize, offset)
+	if err != nil {
+		err = fmt.Errorf("ERR_CATALOG_WITH_PAGINATION: %w", err)
 	}
 
 	if ns != "" {
-		rows, err = p.conn.Query(childCtx, queries.GetUserCatalogDetailWithPagination, ns+"/%", ps, offset)
+		rows, err = p.conn.Query(childCtx, q, ns+"/%", sortBy, ps, offset)
 		if err != nil {
 			err = fmt.Errorf("ERR_USER_CATALOG: %w", err)
 		}
@@ -340,8 +344,8 @@ func (p *pg) GetCatalogDetail(ctx context.Context, ns string, ps, offset int64) 
 	}
 
 	defer rows.Close()
-	var catalog []*types.ImageManifestV2
 
+	var catalog []*types.ImageManifestV2
 	for i := 0; rows.Next(); i++ {
 		var mf types.ImageManifestV2
 

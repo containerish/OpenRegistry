@@ -49,7 +49,9 @@ type RegistryStore interface {
 	GetConfig(ctx context.Context, namespace string) ([]*types.ConfigV2, error)
 	GetImageTags(ctx context.Context, namespace string) ([]string, error)
 	GetCatalog(ctx context.Context, namespace string, pageSize int64, offset int64) ([]string, error)
-	GetCatalogDetail(ctx context.Context, namespace string, pageSize int64, offset int64) ([]*types.ImageManifestV2, error)
+	GetCatalogDetail(
+		ctx context.Context, namespace string, pageSize int64, offset int64, sortBy string,
+	) ([]*types.ImageManifestV2, error)
 	GetRepoDetail(ctx context.Context, namespace string, pageSize int64, offset int64) (*types.Repository, error)
 	GetCatalogCount(ctx context.Context) (int64, error)
 	GetImageNamespace(ctx context.Context, search string) ([]*types.ImageManifestV2, error)
