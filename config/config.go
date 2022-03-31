@@ -5,7 +5,6 @@ import (
 	"log"
 	"os"
 
-	"github.com/fatih/color"
 	"github.com/spf13/viper"
 )
 
@@ -101,7 +100,6 @@ func NewStoreConfig() (*Store, error) {
 }
 
 func (sc *Store) Endpoint() string {
-	color.Green("stoer: %s", sc)
 	return fmt.Sprintf("postgres://%s:%s@%s:%d/%s?pool_max_conns=1000&sslmode=disable",
 		sc.User, sc.Password, sc.Host, sc.Port, sc.Database)
 }

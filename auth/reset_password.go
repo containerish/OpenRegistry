@@ -62,7 +62,8 @@ func (a *auth) ResetPassword(ctx echo.Context) error {
 	if err != nil {
 		a.logger.Log(ctx, err)
 		return ctx.JSON(http.StatusBadRequest, echo.Map{
-			"error": "request body could not be decoded",
+			"error": err.Error(),
+			"msg":   "request body could not be decoded",
 		})
 	}
 

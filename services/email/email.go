@@ -23,7 +23,7 @@ type MailData struct {
 type Mail struct {
 	Data    MailData
 	Name    string
-	To      string
+	To      []string
 	Subject string
 	Body    string
 	Mtype   MailType
@@ -32,6 +32,7 @@ type Mail struct {
 type MailService interface {
 	CreateEmail(u *types.User, kind EmailKind, token string) (*mail.SGMailV3, error)
 	SendEmail(u *types.User, token string, kind EmailKind) error
+	WelcomeEmail(list []string) error
 }
 
 func New(config *config.Email, backendEndpoint string) MailService {
