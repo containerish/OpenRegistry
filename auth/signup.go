@@ -10,6 +10,7 @@ import (
 	"unicode"
 
 	"github.com/containerish/OpenRegistry/config"
+	"github.com/containerish/OpenRegistry/services/email"
 	"github.com/containerish/OpenRegistry/types"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
@@ -79,15 +80,7 @@ func (a *auth) SignUp(ctx echo.Context) error {
 		})
 	}
 
-	token, err := a.newWebLoginToken(newUser.Id, newUser.Username, "access")
-	if err != nil {
-		a.logger.Log(ctx, err)
-		return ctx.JSON(http.StatusInternalServerError, echo.Map{
-			"error": err.Error(),
-			"code":  "CREATE_NEW_ACCESS_TOKEN",
-		})
-	}
-
+	token := uuid.NewString()
 	err = a.pgStore.AddVerifyEmail(ctx.Request().Context(), token, newUser.Id)
 	if err != nil {
 		ctx.Set(types.HttpEndpointErrorKey, err.Error())
@@ -97,7 +90,7 @@ func (a *auth) SignUp(ctx echo.Context) error {
 		})
 	}
 
-	if err = a.emailClient.SendEmail(newUser, token); err != nil {
+	if err = a.emailClient.SendEmail(newUser, token, email.VerifyEmailKind); err != nil {
 		ctx.Set(types.HttpEndpointErrorKey, err.Error())
 		return ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error": err.Error(),
@@ -106,7 +99,7 @@ func (a *auth) SignUp(ctx echo.Context) error {
 
 	a.logger.Log(ctx, err)
 	return ctx.JSON(http.StatusCreated, echo.Map{
-		"message": "user successfully created",
+		"message": "signup was successful, please check your email to activate your account",
 	})
 }
 

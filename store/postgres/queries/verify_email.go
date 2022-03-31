@@ -2,6 +2,6 @@ package queries
 
 const (
 	AddVerifyUser    = `insert into verify_emails (token,user_id) values ($1,$2);`
-	GetVerifyUser    = `select token from verify_emails where user_id=$1;`
-	DeleteVerifyUser = `delete from verify_emails where user_id=$1;`
+	GetVerifyUser    = `select user_id from verify_emails where token=$1;`
+	DeleteVerifyUser = `delete from verify_emails where token=$1;`
 )

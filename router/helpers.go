@@ -12,7 +12,9 @@ import (
 // RegisterAuthRoutes includes all the auth related endpoints
 func RegisterAuthRoutes(authRouter *echo.Group, authSvc auth.Authentication) {
 
+	//send-email/welcome
 	authRouter.Add(http.MethodPost, "/signup", authSvc.SignUp)
+	authRouter.Add(http.MethodPost, "/send-email/welcome", authSvc.Invites)
 	authRouter.Add(http.MethodGet, "/signup/verify", authSvc.VerifyEmail)
 	authRouter.Add(http.MethodPost, "/signin", authSvc.SignIn)
 	authRouter.Add(http.MethodPost, "/token", authSvc.SignIn)
@@ -20,4 +22,6 @@ func RegisterAuthRoutes(authRouter *echo.Group, authSvc auth.Authentication) {
 	authRouter.Add(http.MethodGet, "/sessions/me", authSvc.ReadUserWithSession)
 	authRouter.Add(http.MethodDelete, "/sessions", authSvc.ExpireSessions)
 	authRouter.Add(http.MethodGet, "/renew", authSvc.RenewAccessToken)
+	authRouter.Add(http.MethodPost, "/reset-password", authSvc.ResetPassword, authSvc.JWT())
+
 }

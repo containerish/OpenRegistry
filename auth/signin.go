@@ -40,6 +40,7 @@ func (a *auth) SignIn(ctx echo.Context) error {
 		a.logger.Log(ctx, err)
 		return ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error": err.Error(),
+			"msg":   "error while get user",
 		})
 	}
 

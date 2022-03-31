@@ -107,12 +107,30 @@ func (p *pg) GetUser(ctx context.Context, identifier string, withPassword bool) 
 	return &user, nil
 }
 
-func (p *pg) GetUserById(ctx context.Context, userId string) (*types.User, error) {
+func (p *pg) GetUserById(ctx context.Context, userId string, withPassword bool) (*types.User, error) {
 	childCtx, cancel := context.WithTimeout(ctx, time.Millisecond*100)
 	defer cancel()
 
-	row := p.conn.QueryRow(childCtx, queries.GetUserById, userId)
+	if withPassword {
+		row := p.conn.QueryRow(childCtx, queries.GetUserByIdWithPassword, userId)
 
+		var user types.User
+		if err := row.Scan(
+			&user.Id,
+			&user.IsActive,
+			&user.Username,
+			&user.Email,
+			&user.Password,
+			&user.CreatedAt,
+			&user.UpdatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("ERR_GET_USER_BY_ID_PWD_HASH: %w", err)
+		}
+
+		return &user, nil
+	}
+
+	row := p.conn.QueryRow(childCtx, queries.GetUserById, userId)
 	var user types.User
 	err := row.Scan(
 		&user.Id,
@@ -123,7 +141,7 @@ func (p *pg) GetUserById(ctx context.Context, userId string) (*types.User, error
 		&user.UpdatedAt,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("ERR_SESSION_NOT_FOUND: %w", err)
+		return nil, fmt.Errorf("ERR_GET_USER_BY_ID: %w", err)
 	}
 
 	return &user, nil
@@ -153,18 +171,69 @@ func (p *pg) GetUserWithSession(ctx context.Context, sessionId string) (*types.U
 
 // UpdateUser
 //update users set username = $1, email = $2, updated_at = $3 where username = $4
-func (p *pg) UpdateUser(ctx context.Context, identifier string, u *types.User) error {
-	if err := u.Validate(); err != nil {
-		return err
-	}
+func (p *pg) UpdateUser(ctx context.Context, userId string, u *types.User) error {
 	childCtx, cancel := context.WithTimeout(ctx, time.Millisecond*100)
 	defer cancel()
 
 	t := time.Now()
-	_, err := p.conn.Exec(childCtx, queries.UpdateUser, u.Username, u.Email, t, u.IsActive, identifier)
+	_, err := p.conn.Exec(childCtx, queries.UpdateUser, u.IsActive, t, userId)
 	if err != nil {
 		return fmt.Errorf("error updating user: %s", err)
 	}
+	return nil
+}
+
+func (p *pg) UpdateUserPWD(ctx context.Context, identifier string, newPassword string) error {
+	if newPassword == "" {
+		return fmt.Errorf("insufficient feilds for updating user")
+	}
+	childCtx, cancel := context.WithTimeout(ctx, time.Millisecond*100)
+	defer cancel()
+
+	_, err := p.conn.Exec(childCtx, queries.UpdateUserPwd, newPassword, identifier)
+	if err != nil {
+		return fmt.Errorf("error updating user: %s", err)
+	}
+	return nil
+}
+
+func (p *pg) AddVerifyEmail(ctx context.Context, token, userId string) error {
+	childCtx, cancel := context.WithTimeout(ctx, time.Millisecond*100)
+	defer cancel()
+	_, err := p.conn.Exec(childCtx, queries.AddVerifyUser, token, userId)
+	if err != nil {
+		return fmt.Errorf("error adding verify link: %w", err)
+	}
+	return nil
+}
+
+func (p *pg) GetVerifyEmail(ctx context.Context, token string) (string, error) {
+	childCtx, cancel := context.WithTimeout(ctx, time.Millisecond*100)
+	defer cancel()
+
+	row := p.conn.QueryRow(childCtx, queries.GetVerifyUser, token)
+	if row == nil {
+		return "", fmt.Errorf("could not find verify token for userId")
+	}
+
+	var userId string
+	err := row.Scan(&userId)
+	if err != nil {
+		return "", fmt.Errorf("error scanning verify token: %w", err)
+	}
+
+	return userId, nil
+}
+
+func (p *pg) DeleteVerifyEmail(ctx context.Context, token string) error {
+	childCtx, cancel := context.WithTimeout(ctx, time.Millisecond*100)
+	defer cancel()
+
+	_, err := p.conn.Exec(childCtx, queries.DeleteVerifyUser, token)
+	if err != nil {
+		return fmt.Errorf("error deleting verify token: %w", err)
+	}
+
 	return nil
 }
 
@@ -193,49 +262,10 @@ func (p *pg) UserExists(ctx context.Context, id string) bool {
 	childCtx, cancel := context.WithTimeout(ctx, time.Millisecond*100)
 	defer cancel()
 
-	row, err := p.GetUserById(childCtx, id)
+	row, err := p.GetUserById(childCtx, id, false)
 	if err != nil || row == nil {
 		return false
 	}
 
 	return true
-}
-
-func (p *pg) AddVerifyEmail(ctx context.Context, token, userId string) error {
-	childCtx, cancel := context.WithTimeout(ctx, time.Millisecond*100)
-	defer cancel()
-	_, err := p.conn.Exec(childCtx, queries.AddVerifyUser, token, userId)
-	if err != nil {
-		return fmt.Errorf("error adding verify link: %w", err)
-	}
-	return nil
-}
-
-func (p *pg) GetVerifyEmail(ctx context.Context, userId string) (string, error) {
-	childCtx, cancel := context.WithTimeout(ctx, time.Millisecond*100)
-	defer cancel()
-
-	row := p.conn.QueryRow(childCtx, queries.GetVerifyUser, userId)
-	if row == nil {
-		return "", fmt.Errorf("could not find verify token for userId")
-	}
-
-	var token string
-	err := row.Scan(&token)
-	if err != nil {
-		return "", fmt.Errorf("error scanning verify token: %w", err)
-	}
-
-	return token, nil
-}
-
-func (p *pg) DeleteVerifyEmail(ctx context.Context, userId string) error {
-	childCtx, cancel := context.WithTimeout(ctx, time.Millisecond*100)
-	defer cancel()
-
-	_, err := p.conn.Exec(childCtx, queries.DeleteVerifyUser, userId)
-	if err != nil {
-		return fmt.Errorf("error deleting verify token: %w", err)
-	}
-	return nil
 }

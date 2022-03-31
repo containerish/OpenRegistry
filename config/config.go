@@ -71,11 +71,12 @@ type (
 	}
 
 	Email struct {
-		ApiKey               string `mapstructure:"api_key"`
-		SendAs               string `mapstructure:"send_as"`
-		VerifyEmailTemplate  string `mapstructure:"verify_template_id"`
-		WelcomeEmailTemplate string `mapstructure:"welcome_template_id"`
-		Enabled              bool   `mapstructure:"enabled"`
+		Enabled                  bool   `mapstructure:"enabled"`
+		ApiKey                   string `mapstructure:"api_key"`
+		SendAs                   string `mapstructure:"send_as"`
+		VerifyEmailTemplateId    string `mapstructure:"verify_template_id"`
+		ForgotPasswordTemplateId string `mapstructure:"forgot_password_template_id"`
+		WelcomeEmailTemplateId   string `mapstructure:"welcome_template_id"`
 	}
 )
 

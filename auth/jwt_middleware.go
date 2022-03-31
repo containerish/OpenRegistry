@@ -3,18 +3,29 @@ package auth
 import (
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/containerish/OpenRegistry/types"
+	"github.com/fatih/color"
 	"github.com/golang-jwt/jwt"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+)
+
+const (
+	AccessCookieKey = "access"
+	QueryToken      = "token"
 )
 
 // JWT basically uses the default JWT middleware by echo, but has a slightly different skipper func
 func (a *auth) JWT() echo.MiddlewareFunc {
 	return middleware.JWTWithConfig(middleware.JWTConfig{
 		Skipper: func(ctx echo.Context) bool {
+			if strings.HasPrefix(ctx.Request().RequestURI, "/auth") {
+				return false
+			}
+
 			// if JWT_AUTH is not set, we don't need to perform JWT authentication
 			jwtAuth, ok := ctx.Get(JWT_AUTH_KEY).(bool)
 			if !ok {
@@ -33,6 +44,7 @@ func (a *auth) JWT() echo.MiddlewareFunc {
 		ErrorHandlerWithContext: func(err error, ctx echo.Context) error {
 			// ErrorHandlerWithContext only logs the failing requtest
 			ctx.Set(types.HandlerStartTime, time.Now())
+			color.Red(ctx.QueryParam("token"))
 			a.logger.Log(ctx, err)
 			return ctx.JSON(http.StatusUnauthorized, echo.Map{
 				"error":   err.Error(),
@@ -45,6 +57,7 @@ func (a *auth) JWT() echo.MiddlewareFunc {
 		SigningKeys:    map[string]interface{}{},
 		SigningMethod:  jwt.SigningMethodHS256.Name,
 		Claims:         &Claims{},
+		TokenLookup:    fmt.Sprintf("cookie:%s,header:%s", AccessCookieKey, echo.HeaderAuthorization),
 	})
 }
 
@@ -73,7 +86,7 @@ func (a *auth) ACL() echo.MiddlewareFunc {
 
 			username := ctx.Param("username")
 
-			user, err := a.pgStore.GetUserById(ctx.Request().Context(), claims.Id)
+			user, err := a.pgStore.GetUserById(ctx.Request().Context(), claims.Id, false)
 			if err != nil {
 				a.logger.Log(ctx, err)
 				return ctx.NoContent(http.StatusUnauthorized)
