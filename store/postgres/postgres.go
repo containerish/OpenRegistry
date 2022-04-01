@@ -96,3 +96,8 @@ func New(cfg *config.Store) (PersistentStore, error) {
 	color.Green("connection to database successful")
 	return &pg{conn: conn}, nil
 }
+
+const (
+	ErrDuplicateConstraintUsername = "username_key"
+	ErrDuplicateConstraintEmail    = "email_key"
+)

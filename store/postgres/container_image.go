@@ -333,7 +333,7 @@ func (p *pg) GetCatalogDetail(
 	}
 
 	if ns != "" {
-		rows, err = p.conn.Query(childCtx, q, ns+"/%", sortBy, ps, offset)
+		rows, err = p.conn.Query(childCtx, q, ns+"/%", ps, offset)
 		if err != nil {
 			err = fmt.Errorf("ERR_USER_CATALOG: %w", err)
 		}

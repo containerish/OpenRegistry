@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"fmt"
 	"net/http"
 	"time"
 
@@ -61,6 +62,40 @@ func (a *auth) VerifyEmail(ctx echo.Context) error {
 			"msg":   "ERROR_DELETE_VERIFY_EMAIL",
 		})
 	}
+
+	access, err := a.newWebLoginToken(userId, user.Username, "access")
+	if err != nil {
+		a.logger.Log(ctx, err)
+		return ctx.JSON(http.StatusInternalServerError, echo.Map{
+			"error": err.Error(),
+		})
+	}
+	refresh, err := a.newWebLoginToken(userId, user.Username, "refresh")
+	if err != nil {
+		a.logger.Log(ctx, err)
+		return ctx.JSON(http.StatusInternalServerError, echo.Map{
+			"error": err.Error(),
+		})
+	}
+
+	id := uuid.NewString()
+	if err = a.pgStore.AddSession(ctx.Request().Context(), id, refresh, user.Username); err != nil {
+		a.logger.Log(ctx, err)
+		return ctx.JSON(http.StatusBadRequest, echo.Map{
+			"error":   err.Error(),
+			"message": "ERR_CREATING_SESSION",
+		})
+	}
+
+	sessionId := fmt.Sprintf("%s:%s", id, userId)
+	sessionCookie := a.createCookie("session_id", sessionId, false, time.Now().Add(time.Hour*750))
+	accessCookie := a.createCookie("access", access, true, time.Now().Add(time.Hour))
+	refreshCookie := a.createCookie("refresh", refresh, true, time.Now().Add(time.Hour*750))
+
+	a.logger.Log(ctx, err)
+	ctx.SetCookie(accessCookie)
+	ctx.SetCookie(refreshCookie)
+	ctx.SetCookie(sessionCookie)
 
 	return ctx.JSON(http.StatusOK, echo.Map{
 		"message": "user profile activated successfully",

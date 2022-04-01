@@ -13,9 +13,8 @@ func (e *email) WelcomeEmail(list []string) error {
 	m := mail.NewV3Mail()
 
 	m.SetTemplateID(e.config.WelcomeEmailTemplateId)
-	mailReq.Name = "OpenRegistry"
 	mailReq.Subject = "Welcome to OpenRegistry"
-	mailReq.Data.Link = fmt.Sprintf("%s/send-email/welcome", e.backendEndpoint)
+	mailReq.Data.Link = fmt.Sprintf("%s/send-email/welcome", e.baseURL)
 
 	email := mail.NewEmail(mailReq.Name, e.config.SendAs)
 	m.SetFrom(email)
@@ -25,8 +24,10 @@ func (e *email) WelcomeEmail(list []string) error {
 	for _, v := range list {
 		tos = append(tos, mail.NewEmail(v, v))
 	}
+
 	p.AddTos(tos...)
 	m.AddPersonalizations(p)
+	p.Subject = mailReq.Subject
 
 	resp, err := e.client.Send(m)
 	if err != nil && resp.StatusCode != http.StatusAccepted {

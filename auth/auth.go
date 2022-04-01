@@ -30,6 +30,7 @@ type Authentication interface {
 	RenewAccessToken(ctx echo.Context) error
 	VerifyEmail(ctx echo.Context) error
 	ResetPassword(ctx echo.Context) error
+	ForgotPassword(ctx echo.Context) error
 	Invites(ctx echo.Context) error
 }
 
@@ -48,7 +49,7 @@ func New(
 	}
 
 	ghClient := gh.NewClient(nil)
-	emailClient := email.New(c.Email, c.Endpoint())
+	emailClient := email.New(c.Email, c.WebAppEndpoint)
 
 	a := &auth{
 		c:               c,

@@ -39,7 +39,7 @@ var (
 	// be very careful using this one
 	GetCatalogDetailWithPagination     = `select namespace,created_at::timestamptz,updated_at::timestamptz from image_manifest order by %s limit $1 offset $2;`
 	GetUserCatalogDetailWithPagination = `select namespace,created_at::timestamptz,updated_at::timestamptz from 
-		image_manifest where namespace like $1 order by %s limit $3 offset $4;`
+		image_manifest where namespace like $1 order by %s limit $2 offset $3;`
 	GetRepoDetailWithPagination = `select reference, digest, sky_link, (select sum(size) from layer where digest = 
 		ANY(layers)) as size, created_at::timestamptz, updated_at::timestamptz from config where namespace=$1 
 		limit $2 offset $3;`

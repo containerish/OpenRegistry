@@ -11,6 +11,7 @@ import (
 
 	"github.com/containerish/OpenRegistry/config"
 	"github.com/containerish/OpenRegistry/services/email"
+	"github.com/containerish/OpenRegistry/store/postgres"
 	"github.com/containerish/OpenRegistry/types"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
@@ -39,8 +40,9 @@ func (a *auth) SignUp(ctx echo.Context) error {
 
 	if err := verifyPassword(u.Password); err != nil {
 		a.logger.Log(ctx, err)
+		// err.Error() is already user friendly
 		return ctx.JSON(http.StatusBadRequest, echo.Map{
-			"error": err.Error(),
+			"message": err.Error(),
 		})
 	}
 
@@ -48,7 +50,8 @@ func (a *auth) SignUp(ctx echo.Context) error {
 	if err != nil {
 		a.logger.Log(ctx, err)
 		return ctx.JSON(http.StatusInternalServerError, echo.Map{
-			"error": err.Error(),
+			"error":   err.Error(),
+			"message": "internal server error: could not hash the password",
 		})
 	}
 	u.Password = passwordHash
@@ -60,6 +63,9 @@ func (a *auth) SignUp(ctx echo.Context) error {
 		Id:       uuid.NewString(),
 	}
 
+	newUser.Hireable = false
+	newUser.HTMLURL = ""
+
 	if a.c.Environment == config.CI {
 		newUser.IsActive = true
 	}
@@ -67,8 +73,23 @@ func (a *auth) SignUp(ctx echo.Context) error {
 	err = a.pgStore.AddUser(ctx.Request().Context(), newUser)
 	if err != nil {
 		a.logger.Log(ctx, err)
+		if strings.Contains(err.Error(), postgres.ErrDuplicateConstraintUsername) {
+			return ctx.JSON(http.StatusInternalServerError, echo.Map{
+				"error":   err.Error(),
+				"message": "username already exists",
+			})
+		}
+
+		if strings.Contains(err.Error(), postgres.ErrDuplicateConstraintEmail) {
+			return ctx.JSON(http.StatusInternalServerError, echo.Map{
+				"error":   err.Error(),
+				"message": "this email already taken, try sign in?",
+			})
+		}
+
 		return ctx.JSON(http.StatusInternalServerError, echo.Map{
-			"error": err.Error(),
+			"error":   err.Error(),
+			"message": "could not persist the user",
 		})
 	}
 
@@ -93,7 +114,8 @@ func (a *auth) SignUp(ctx echo.Context) error {
 	if err = a.emailClient.SendEmail(newUser, token, email.VerifyEmailKind); err != nil {
 		ctx.Set(types.HttpEndpointErrorKey, err.Error())
 		return ctx.JSON(http.StatusInternalServerError, echo.Map{
-			"error": err.Error(),
+			"error":   err.Error(),
+			"message": "could not send verify link, please reach out to OpenRegistry Team",
 		})
 	}
 
@@ -173,5 +195,6 @@ func verifyPassword(password string) error {
 	if len(errorString) != 0 {
 		return fmt.Errorf(errorString)
 	}
+
 	return nil
 }

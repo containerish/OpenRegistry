@@ -234,7 +234,7 @@ claims format
 
 func (a *auth) createClaims(id, tokenType string, acl AccessList) Claims {
 
-	var tokenLife int64
+	tokenLife := time.Now().Add(time.Minute * 10).Unix()
 	switch tokenType {
 	case "access":
 		tokenLife = time.Now().Add(time.Hour).Unix()
@@ -242,6 +242,8 @@ func (a *auth) createClaims(id, tokenType string, acl AccessList) Claims {
 		tokenLife = time.Now().Add(time.Hour * 750).Unix()
 	case "service":
 		tokenLife = time.Now().Add(time.Hour * 750).Unix()
+	case "short-lived":
+		tokenLife = time.Now().Add(time.Minute * 30).Unix()
 	}
 
 	claims := Claims{
