@@ -16,7 +16,7 @@ func (e *email) WelcomeEmail(list []string) error {
 	mailReq.Subject = "Welcome to OpenRegistry"
 	mailReq.Data.Link = fmt.Sprintf("%s/send-email/welcome", e.baseURL)
 
-	email := mail.NewEmail(mailReq.Name, e.config.SendAs)
+	email := mail.NewEmail("Team OpenRegistry", e.config.SendAs)
 	m.SetFrom(email)
 	p := mail.NewPersonalization()
 

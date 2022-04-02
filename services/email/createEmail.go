@@ -14,21 +14,15 @@ func (e *email) CreateEmail(u *types.User, kind EmailKind, token string) (*mail.
 	mailReq.To = append(mailReq.To, u.Email)
 	mailReq.Data.Username = u.Username
 
-	name := u.Username
-	if u.Name != "" {
-		name = u.Name
-	}
-
+	mailReq.Name = "Team OpenRegistry"
 	switch kind {
 	case VerifyEmailKind:
 		m.SetTemplateID(e.config.VerifyEmailTemplateId)
-		mailReq.Name = name
 		mailReq.Subject = "Verify Email"
 		mailReq.Data.Link = fmt.Sprintf("%s/auth/verify?token=%s", e.baseURL, token)
 
 	case ResetPasswordEmailKind:
 		m.SetTemplateID(e.config.ForgotPasswordTemplateId)
-		mailReq.Name = name
 		mailReq.Subject = "Forgot Password"
 		mailReq.Data.Link = fmt.Sprintf("%s/auth/forgot-password?token=%s", e.baseURL, token)
 
@@ -41,7 +35,7 @@ func (e *email) CreateEmail(u *types.User, kind EmailKind, token string) (*mail.
 	p := mail.NewPersonalization()
 
 	tos := []*mail.Email{
-		mail.NewEmail(mailReq.Name, mailReq.To[0]),
+		mail.NewEmail(u.Username, mailReq.To[0]),
 	}
 
 	p.AddTos(tos...)

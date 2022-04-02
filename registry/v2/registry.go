@@ -146,7 +146,8 @@ func (r *registry) Catalog(ctx echo.Context) error {
 			"error": err.Error(),
 		})
 	}
-	total, err := r.store.GetCatalogCount(ctx.Request().Context())
+	// empty namespace to pull the full catalog list
+	total, err := r.store.GetCatalogCount(ctx.Request().Context(), "")
 	if err != nil {
 		r.logger.Log(ctx, err)
 		return ctx.JSON(http.StatusInternalServerError, echo.Map{
@@ -852,7 +853,8 @@ func (r *registry) GetImageNamespace(ctx echo.Context) error {
 		})
 	}
 
-	total, err := r.store.GetCatalogCount(ctx.Request().Context())
+	// empty namespace to pull full catalog list
+	total, err := r.store.GetCatalogCount(ctx.Request().Context(), "")
 	if err != nil {
 		return ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error":   err.Error(),

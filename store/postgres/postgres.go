@@ -57,7 +57,7 @@ type RegistryStore interface {
 		ctx context.Context, namespace string, pageSize int64, offset int64, sortBy string,
 	) ([]*types.ImageManifestV2, error)
 	GetRepoDetail(ctx context.Context, namespace string, pageSize int64, offset int64) (*types.Repository, error)
-	GetCatalogCount(ctx context.Context) (int64, error)
+	GetCatalogCount(ctx context.Context, ns string) (int64, error)
 	GetImageNamespace(ctx context.Context, search string) ([]*types.ImageManifestV2, error)
 	DeleteLayerV2(ctx context.Context, txn pgx.Tx, digest string) error
 	DeleteBlobV2(ctx context.Context, txn pgx.Tx, digest string) error

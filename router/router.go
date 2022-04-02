@@ -61,7 +61,7 @@ func Register(
 
 	RegisterNSRoutes(nsRouter, reg)
 	RegisterAuthRoutes(authRouter, authSvc)
-	Extensions(v2Router, reg, ext)
+	Extensions(v2Router, reg, ext, authSvc.JWT())
 }
 
 // RegisterNSRoutes is one of the helper functions to Register
@@ -118,13 +118,13 @@ func RegisterNSRoutes(nsRouter *echo.Group, reg registry.Registry) {
 }
 
 // Extensions for teh OCI dist spec
-func Extensions(group *echo.Group, reg registry.Registry, ext extensions.Extenion) {
+func Extensions(group *echo.Group, reg registry.Registry, ext extensions.Extenion, middlewares ...echo.MiddlewareFunc) {
 
 	// GET /v2/_catalog
 	group.Add(http.MethodGet, Catalog, reg.Catalog)
 	// Auto-complete image search
 	group.Add(http.MethodGet, Search, reg.GetImageNamespace)
-	group.Add(http.MethodGet, CatalogDetail, ext.CatalogDetail)
-	group.Add(http.MethodGet, RepositoryDetail, ext.RepositoryDetail)
+	group.Add(http.MethodGet, CatalogDetail, ext.CatalogDetail, middlewares...)
+	group.Add(http.MethodGet, RepositoryDetail, ext.RepositoryDetail, middlewares...)
 
 }

@@ -95,18 +95,19 @@ func (a *auth) SignIn(ctx echo.Context) error {
 			"message": "ERR_CREATING_SESSION",
 		})
 	}
+
 	sessionId := fmt.Sprintf("%s:%s", id, userFromDb.Id)
 	sessionCookie := a.createCookie("session_id", sessionId, false, time.Now().Add(time.Hour*750))
-	accessCookie := a.createCookie("access", access, true, time.Now().Add(time.Hour))
+	accessCookie := a.createCookie("access", access, true, time.Now().Add(time.Hour*750))
 	refreshCookie := a.createCookie("refresh", refresh, true, time.Now().Add(time.Hour*750))
-
-	a.logger.Log(ctx, err)
 
 	ctx.SetCookie(accessCookie)
 	ctx.SetCookie(refreshCookie)
 	ctx.SetCookie(sessionCookie)
-	return ctx.JSON(http.StatusOK, echo.Map{
+	err = ctx.JSON(http.StatusOK, echo.Map{
 		"token":   access,
 		"refresh": refresh,
 	})
+	a.logger.Log(ctx, err)
+	return err
 }

@@ -101,12 +101,23 @@ func (c *Client) AddImage(ns string, mf, l map[string][]byte) (string, error) {
 }
 
 func (c *Client) Metadata(skylink string) (*skynet.Metadata, error) {
-	metadata, err := c.skynet.Metadata(skylink, skynet.DefaultMetadataOptions)
-	if err != nil {
-		return nil, fmt.Errorf("SKYNET_METADATA_ERR: %w", err)
+	retryCounter := 3
+
+	var err error
+	var metadata *skynet.Metadata
+	for i := retryCounter; retryCounter != 0; i-- {
+		metadata, err = c.skynet.Metadata(skylink, skynet.DefaultMetadataOptions)
+		if err != nil {
+			err = fmt.Errorf("SKYNET_METADATA_ERR: %w", err)
+			retryCounter--
+			// cool off
+			time.Sleep(time.Second * 2)
+			continue
+		}
+		break
 	}
 
-	return metadata, nil
+	return metadata, err
 }
 
 func NewHttpClientForSkynet() *http.Client {

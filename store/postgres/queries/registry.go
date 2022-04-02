@@ -29,7 +29,8 @@ var (
 	GetImageTags                 = `select reference from config where namespace=$1;`
 	GetManifestByRef             = `select * from config where namespace=$1 and reference=$2;`
 	GetManifestByDig             = `select * from config where namespace=$1 and digest=$2;`
-	GetCatalogCount              = `select count(*) from image_manifest;`
+	GetCatalogCount              = `select count(namespace) from image_manifest;`
+	GetUserCatalogCount          = `select count(namespace) from image_manifest where namespace like $1;`
 	GetCatalog                   = `select namespace from image_manifest;`
 	GetCatalogWithPagination     = `select namespace from image_manifest limit $1 offset $2;`
 	GetUserCatalogWithPagination = `select namespace from image_manifest where namespace like $1 limit $2 offset $3;`

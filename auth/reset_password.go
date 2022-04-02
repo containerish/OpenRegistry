@@ -48,18 +48,28 @@ func (a *auth) ResetPassword(ctx echo.Context) error {
 	if err != nil {
 		a.logger.Log(ctx, err)
 		return ctx.JSON(http.StatusBadRequest, echo.Map{
-			"error": err.Error(),
-			"msg":   "request body could not be decoded",
+			"error":   err.Error(),
+			"message": "request body could not be decoded",
 		})
 	}
 	_ = ctx.Request().Body.Close()
+
+	if err = verifyPassword(pwd.NewPassword); err != nil {
+		a.logger.Log(ctx, err)
+		return ctx.JSON(http.StatusBadRequest, echo.Map{
+			"error": err.Error(),
+			"message": `password must be alphanumeric, at least 8 chars long, must have at least one special character 
+and an uppercase letter`,
+		})
+	}
 
 	if kind == "forgot_password_callback" {
 		hashPassword, err := a.hashPassword(pwd.NewPassword)
 		if err != nil {
 			a.logger.Log(ctx, err)
 			return ctx.JSON(http.StatusInternalServerError, echo.Map{
-				"error": err.Error(),
+				"error":   err.Error(),
+				"message": "ERR_HASH_NEW_PASSWORD",
 			})
 		}
 
@@ -75,7 +85,8 @@ func (a *auth) ResetPassword(ctx echo.Context) error {
 		if err = a.pgStore.UpdateUserPWD(ctx.Request().Context(), userId, hashPassword); err != nil {
 			a.logger.Log(ctx, err)
 			return ctx.JSON(http.StatusInternalServerError, echo.Map{
-				"error": err.Error(),
+				"error":   err.Error(),
+				"message": "error updating new password",
 			})
 		}
 
@@ -84,19 +95,11 @@ func (a *auth) ResetPassword(ctx echo.Context) error {
 		})
 	}
 
-	if !a.verifyPassword(user.Password, pwd.OldPassword) {
-		err = fmt.Errorf("passwords do not match")
-		a.logger.Log(ctx, err)
-		return ctx.JSON(http.StatusBadRequest, echo.Map{
-			"error": err.Error(),
-		})
-	}
-
 	if pwd.OldPassword == pwd.NewPassword {
 		err = fmt.Errorf("new password can not be same as old password")
 		a.logger.Log(ctx, err)
 		return ctx.JSON(http.StatusBadRequest, echo.Map{
-			"error": err.Error(),
+			"message": err.Error(),
 		})
 	}
 
@@ -104,21 +107,22 @@ func (a *auth) ResetPassword(ctx echo.Context) error {
 	if err != nil {
 		a.logger.Log(ctx, err)
 		return ctx.JSON(http.StatusInternalServerError, echo.Map{
-			"error": err.Error(),
+			"error":   err.Error(),
+			"message": "ERR_HASH_NEW_PASSWORD",
 		})
 	}
 
 	if err = a.pgStore.UpdateUserPWD(ctx.Request().Context(), userId, newHashedPwd); err != nil {
 		a.logger.Log(ctx, err)
 		return ctx.JSON(http.StatusInternalServerError, echo.Map{
-			"error": err.Error(),
-			"msg":   "error updating user in db",
+			"error":   err.Error(),
+			"message": "error updating new password",
 		})
 	}
 
 	a.logger.Log(ctx, nil)
 	return ctx.JSON(http.StatusAccepted, echo.Map{
-		"msg": "success",
+		"message": "password changed successfully",
 	})
 }
 
@@ -152,7 +156,7 @@ func (a *auth) ForgotPassword(ctx echo.Context) error {
 		})
 	}
 
-	token, err := a.newWebLoginToken(user.Id, user.Username, "service")
+	token, err := a.newWebLoginToken(user.Id, user.Username, "short-lived")
 	if err != nil {
 		return ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error":   err.Error(),
