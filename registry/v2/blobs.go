@@ -39,28 +39,32 @@ func (b *blobs) HEAD(ctx echo.Context) error {
 	layerRef, err := b.registry.store.GetLayer(ctx.Request().Context(), digest)
 	if err != nil {
 		details := echo.Map{
-			"skynet": "layer not found",
+			"error":   err.Error(),
+			"message": "skynet: layer not found",
 		}
 		errMsg := b.errorResponse(RegistryErrorCodeManifestBlobUnknown, err.Error(), details)
+		err = ctx.JSONBlob(http.StatusNotFound, errMsg)
 		b.registry.logger.Log(ctx, fmt.Errorf("%s", errMsg))
-		return ctx.JSONBlob(http.StatusNotFound, errMsg)
+		return err
 	}
 
 	metadata, err := b.registry.skynet.Metadata(layerRef.SkynetLink)
 	if err != nil {
 		details := echo.Map{
-			"skynet": "skynet link not found",
-			"error":  err.Error(),
+			"error":   err.Error(),
+			"message": "skynet link not found",
 		}
 		errMsg := b.errorResponse(RegistryErrorCodeManifestBlobUnknown, "Manifest does not exist", details)
+		echoErr := ctx.JSONBlob(http.StatusNotFound, errMsg)
 		b.registry.logger.Log(ctx, fmt.Errorf("%s", errMsg))
-		return ctx.JSONBlob(http.StatusNotFound, errMsg)
+		return echoErr
 	}
 
 	ctx.Response().Header().Set("Content-Length", fmt.Sprintf("%d", metadata.ContentLength))
 	ctx.Response().Header().Set("Docker-Content-Digest", digest)
+	err = ctx.String(http.StatusOK, "OK")
 	b.registry.logger.Log(ctx, nil)
-	return ctx.String(http.StatusOK, "OK")
+	return err
 }
 
 /*
@@ -83,17 +87,19 @@ func (b *blobs) UploadBlob(ctx echo.Context) error {
 				"stream upload after first write are not allowed",
 				nil,
 			)
+			echoErr := ctx.JSONBlob(http.StatusBadRequest, errMsg)
 			b.registry.logger.Log(ctx, fmt.Errorf("%s", errMsg))
-			return ctx.JSONBlob(http.StatusBadRequest, errMsg)
+			return echoErr
 		}
 
 		buf := &bytes.Buffer{}
 		if _, err := io.Copy(buf, ctx.Request().Body); err != nil {
-			b.registry.logger.Log(ctx, err)
-			return ctx.JSON(http.StatusBadRequest, echo.Map{
+			echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 				"error":   err.Error(),
 				"message": "error copying request body in upload blob",
 			})
+			b.registry.logger.Log(ctx, err)
+			return echoErr
 		}
 
 		_ = ctx.Request().Body.Close()
@@ -105,33 +111,38 @@ func (b *blobs) UploadBlob(ctx echo.Context) error {
 				err.Error(),
 				nil,
 			)
+			echoErr := ctx.JSONBlob(http.StatusBadRequest, errMsg)
 			b.registry.logger.Log(ctx, fmt.Errorf("%s", errMsg))
-			return ctx.JSONBlob(http.StatusBadRequest, errMsg)
+			return echoErr
 		}
 
 		locationHeader := fmt.Sprintf("/v2/%s/blobs/uploads/%s", namespace, uuid)
 		ctx.Response().Header().Set("Location", locationHeader)
 		ctx.Response().Header().Set("Range", fmt.Sprintf("0-%d", len(buf.Bytes())-1))
+		err := ctx.NoContent(http.StatusAccepted)
 		b.registry.logger.Log(ctx, nil)
-		return ctx.NoContent(http.StatusAccepted)
+		return err
 	}
 
 	start, end := 0, 0
 	// 0-90
 	if _, err := fmt.Sscanf(contentRange, "%d-%d", &start, &end); err != nil {
 		details := map[string]interface{}{
-			"error":        "content range is invalid",
+			"error":        err.Error(),
+			"message":      "content range is invalid",
 			"contentRange": contentRange,
 		}
 		errMsg := b.errorResponse(RegistryErrorCodeBlobUploadUnknown, err.Error(), details)
+		echoErr := ctx.JSONBlob(http.StatusRequestedRangeNotSatisfiable, errMsg)
 		b.registry.logger.Log(ctx, fmt.Errorf("%s", errMsg))
-		return ctx.JSONBlob(http.StatusRequestedRangeNotSatisfiable, errMsg)
+		return echoErr
 	}
 
 	if start != len(b.uploads[uuid]) {
 		errMsg := b.errorResponse(RegistryErrorCodeBlobUploadUnknown, "content range mismatch", nil)
+		echoErr := ctx.JSONBlob(http.StatusRequestedRangeNotSatisfiable, errMsg)
 		b.registry.logger.Log(ctx, fmt.Errorf("%s", errMsg))
-		return ctx.JSONBlob(http.StatusRequestedRangeNotSatisfiable, errMsg)
+		return echoErr
 	}
 
 	buf := bytes.NewBuffer(b.uploads[uuid]) // 90
@@ -142,8 +153,9 @@ func (b *blobs) UploadBlob(ctx echo.Context) error {
 			"error while creating new buffer from existing blobs",
 			nil,
 		)
+		echoErr := ctx.JSONBlob(http.StatusInternalServerError, errMsg)
 		b.registry.logger.Log(ctx, fmt.Errorf("%s", errMsg))
-		return ctx.JSONBlob(http.StatusInternalServerError, errMsg)
+		return echoErr
 	} // 10
 	ctx.Request().Body.Close()
 
@@ -154,14 +166,16 @@ func (b *blobs) UploadBlob(ctx echo.Context) error {
 			err.Error(),
 			nil,
 		)
+		echoErr := ctx.JSONBlob(http.StatusBadRequest, errMsg)
 		b.registry.logger.Log(ctx, fmt.Errorf("%s", errMsg))
-		return ctx.JSONBlob(http.StatusBadRequest, errMsg)
+		return echoErr
 	}
 	locationHeader := fmt.Sprintf("/v2/%s/blobs/uploads/%s", namespace, uuid)
 	ctx.Response().Header().Set("Location", locationHeader)
 	ctx.Response().Header().Set("Range", fmt.Sprintf("0-%d", buf.Len()-1))
+	echoErr := ctx.NoContent(http.StatusAccepted)
 	b.registry.logger.Log(ctx, nil)
-	return ctx.NoContent(http.StatusAccepted)
+	return echoErr
 }
 
 func (b *blobs) blobTransaction(ctx echo.Context, bz []byte, uuid string) error {

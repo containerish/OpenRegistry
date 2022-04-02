@@ -22,37 +22,42 @@ func (a *auth) SignUp(ctx echo.Context) error {
 
 	var u types.User
 	if err := json.NewDecoder(ctx.Request().Body).Decode(&u); err != nil {
-		a.logger.Log(ctx, err)
-		return ctx.JSON(http.StatusBadRequest, echo.Map{
+		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error":   err.Error(),
 			"message": "error decoding request body in sign-up",
 		})
+		a.logger.Log(ctx, err)
+		return echoErr
 	}
 	_ = ctx.Request().Body.Close()
 
 	if err := u.Validate(); err != nil {
-		a.logger.Log(ctx, err)
-		return ctx.JSON(http.StatusBadRequest, echo.Map{
+		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error":   err.Error(),
 			"message": "invalid request for user sign up",
 		})
+		a.logger.Log(ctx, err)
+		return echoErr
 	}
 
 	if err := verifyPassword(u.Password); err != nil {
-		a.logger.Log(ctx, err)
 		// err.Error() is already user friendly
-		return ctx.JSON(http.StatusBadRequest, echo.Map{
+		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
+			"error":   err.Error(),
 			"message": err.Error(),
 		})
+		a.logger.Log(ctx, err)
+		return echoErr
 	}
 
 	passwordHash, err := a.hashPassword(u.Password)
 	if err != nil {
-		a.logger.Log(ctx, err)
-		return ctx.JSON(http.StatusInternalServerError, echo.Map{
+		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error":   err.Error(),
 			"message": "internal server error: could not hash the password",
 		})
+		a.logger.Log(ctx, err)
+		return echoErr
 	}
 	u.Password = passwordHash
 
@@ -72,57 +77,67 @@ func (a *auth) SignUp(ctx echo.Context) error {
 
 	err = a.pgStore.AddUser(ctx.Request().Context(), newUser)
 	if err != nil {
-		a.logger.Log(ctx, err)
 		if strings.Contains(err.Error(), postgres.ErrDuplicateConstraintUsername) {
-			return ctx.JSON(http.StatusInternalServerError, echo.Map{
+			echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 				"error":   err.Error(),
 				"message": "username already exists",
 			})
+			a.logger.Log(ctx, err)
+			return echoErr
 		}
 
 		if strings.Contains(err.Error(), postgres.ErrDuplicateConstraintEmail) {
-			return ctx.JSON(http.StatusInternalServerError, echo.Map{
+			echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 				"error":   err.Error(),
 				"message": "this email already taken, try sign in?",
 			})
+			a.logger.Log(ctx, err)
+			return echoErr
 		}
 
-		return ctx.JSON(http.StatusInternalServerError, echo.Map{
+		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error":   err.Error(),
 			"message": "could not persist the user",
 		})
+		a.logger.Log(ctx, err)
+		return echoErr
 	}
 
 	// in case of CI setup, no need to send verification emails
 	if a.c.Environment == config.CI {
-		a.logger.Log(ctx, err)
-		return ctx.JSON(http.StatusCreated, echo.Map{
-			"message": "user successfully created",
+		msg := fmt.Errorf("user successfully created")
+		echoErr := ctx.JSON(http.StatusCreated, echo.Map{
+			"message": msg,
 		})
+		a.logger.Log(ctx, msg)
+		return echoErr
 	}
 
 	token := uuid.NewString()
 	err = a.pgStore.AddVerifyEmail(ctx.Request().Context(), token, newUser.Id)
 	if err != nil {
-		ctx.Set(types.HttpEndpointErrorKey, err.Error())
-		return ctx.JSON(http.StatusInternalServerError, echo.Map{
+		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error":   err.Error(),
-			"message": "ERR_ADDING_VERIFY_EMAIL",
+			"message": "error adding verify email",
 		})
+		a.logger.Log(ctx, err)
+		return echoErr
 	}
 
 	if err = a.emailClient.SendEmail(newUser, token, email.VerifyEmailKind); err != nil {
-		ctx.Set(types.HttpEndpointErrorKey, err.Error())
-		return ctx.JSON(http.StatusInternalServerError, echo.Map{
+		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error":   err.Error(),
 			"message": "could not send verify link, please reach out to OpenRegistry Team",
 		})
+		a.logger.Log(ctx, err)
+		return echoErr
 	}
 
-	a.logger.Log(ctx, err)
-	return ctx.JSON(http.StatusCreated, echo.Map{
+	echoErr := ctx.JSON(http.StatusCreated, echo.Map{
 		"message": "signup was successful, please check your email to activate your account",
 	})
+	a.logger.Log(ctx, echoErr)
+	return echoErr
 }
 
 // nolint

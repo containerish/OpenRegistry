@@ -23,24 +23,27 @@ func (l logger) consoleWriter(ctx echo.Context, errMsg error) {
 
 	req := ctx.Request()
 	res := ctx.Response()
-
-	status := res.Status
-	level := zerolog.InfoLevel
-	switch {
-	case status >= 500:
-		level = zerolog.ErrorLevel
-	case status >= 400:
-		level = zerolog.WarnLevel
-	case status >= 300:
-		level = zerolog.ErrorLevel
-	}
-
 	var e error
 
 	_, err := buf.WriteString(req.Method + " ")
 	e = multierror.Append(e, err)
 
-	_, err = buf.WriteString(color.GreenString("%d ", res.Status))
+	status := res.Status
+	level := zerolog.InfoLevel
+	switch {
+	case status >= 500:
+		_, err = buf.WriteString(color.RedString("%d ", res.Status))
+		level = zerolog.ErrorLevel
+	case status >= 400:
+		_, err = buf.WriteString(color.RedString("%d ", res.Status))
+		level = zerolog.WarnLevel
+	case status >= 300:
+		_, err = buf.WriteString(color.YellowString("%d ", res.Status))
+		level = zerolog.ErrorLevel
+	default:
+		_, err = buf.WriteString(color.GreenString("%d ", res.Status))
+	}
+
 	e = multierror.Append(e, err)
 
 	if level == zerolog.ErrorLevel {

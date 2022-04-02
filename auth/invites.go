@@ -18,42 +18,50 @@ func (a *auth) Invites(ctx echo.Context) error {
 	var list List
 	err := json.NewDecoder(ctx.Request().Body).Decode(&list)
 	if err != nil {
-		a.logger.Log(ctx, err)
-		return ctx.JSON(http.StatusBadRequest, echo.Map{
+		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error": err.Error(),
 			"msg":   "error decode body, expecting and array of emails",
 		})
+		a.logger.Log(ctx, err)
+		return echoErr
 	}
 
 	if list.Emails == "" {
-		a.logger.Log(ctx, err)
-		return ctx.JSON(http.StatusBadRequest, echo.Map{
-			"error": "cannot send empty list",
+		err := fmt.Errorf("ERR_EMPTY_LIST")
+		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
+			"error":   err,
+			"message": "cannot send empty list",
 		})
+		a.logger.Log(ctx, err)
+		return echoErr
 	}
 
 	emails := strings.Split(list.Emails, ",")
 
 	if err = a.validateEmailList(emails); err != nil {
-		a.logger.Log(ctx, err)
-		return ctx.JSON(http.StatusBadRequest, echo.Map{
-			"error": err.Error(),
+		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
+			"error":   err.Error(),
+			"message": "error validating email list",
 		})
+		a.logger.Log(ctx, err)
+		return echoErr
 	}
 
 	err = a.emailClient.WelcomeEmail(emails)
 	if err != nil {
-		a.logger.Log(ctx, err)
-		return ctx.JSON(http.StatusInternalServerError, echo.Map{
-			"error": err.Error(),
-			"msg":   "err sending invites",
+		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
+			"error":   err.Error(),
+			"message": "err sending invites",
 		})
+		a.logger.Log(ctx, err)
+		return echoErr
 	}
 
-	a.logger.Log(ctx, err)
-	return ctx.JSON(http.StatusAccepted, echo.Map{
-		"msg": "success",
+	err = ctx.JSON(http.StatusAccepted, echo.Map{
+		"message": "invites sent successfully",
 	})
+	a.logger.Log(ctx, err)
+	return err
 }
 
 func (a *auth) validateEmailList(emails []string) error {

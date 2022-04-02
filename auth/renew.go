@@ -16,17 +16,19 @@ func (a *auth) RenewAccessToken(ctx echo.Context) error {
 	c, err := ctx.Cookie("refresh")
 	if err != nil {
 		if err == http.ErrNoCookie {
-			a.logger.Log(ctx, err)
-			return ctx.JSON(http.StatusUnauthorized, echo.Map{
+			echoErr := ctx.JSON(http.StatusUnauthorized, echo.Map{
 				"error":   err.Error(),
 				"message": "Unauthorised",
 			})
+			a.logger.Log(ctx, err)
+			return echoErr
 		}
-		a.logger.Log(ctx, err)
-		return ctx.JSON(http.StatusBadRequest, echo.Map{
+		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error":   err.Error(),
 			"message": "error getting refresh cookie",
 		})
+		a.logger.Log(ctx, err)
+		return echoErr
 	}
 	refreshCookie := c.Value
 	var claims Claims
@@ -35,45 +37,56 @@ func (a *auth) RenewAccessToken(ctx echo.Context) error {
 	})
 	if err != nil {
 		if err == jwt.ErrSignatureInvalid {
-			a.logger.Log(ctx, err)
-			return ctx.JSON(http.StatusUnauthorized, echo.Map{
+			echoErr := ctx.JSON(http.StatusUnauthorized, echo.Map{
 				"error":   err.Error(),
-				"message": "Signature error, unauthorised",
+				"message": "signature error, unauthorised",
 			})
+			a.logger.Log(ctx, err)
+			return echoErr
 		}
-		a.logger.Log(ctx, err)
-		return ctx.JSON(http.StatusBadRequest, echo.Map{
-			"error": err.Error(),
+
+		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
+			"error":   err.Error(),
+			"message": "error parsing claims",
 		})
+		a.logger.Log(ctx, err)
+		return echoErr
 	}
 
 	if !tkn.Valid {
-		a.logger.Log(ctx, fmt.Errorf("invalid token, Unauthorised"))
-		return ctx.JSON(http.StatusUnauthorized, echo.Map{
-			"error": "invalid token, unauthorised",
+		err := fmt.Errorf("invalid token, Unauthorised")
+		echoErr := ctx.JSON(http.StatusUnauthorized, echo.Map{
+			"error":   err.Error(),
+			"message": "invalid token, unauthorised",
 		})
+		a.logger.Log(ctx, err)
+		return echoErr
 	}
 
 	userId := claims.Id
 	user, err := a.pgStore.GetUserById(ctx.Request().Context(), userId, false)
 	if err != nil {
-		a.logger.Log(ctx, err)
-		return ctx.JSON(http.StatusUnauthorized, echo.Map{
+		echoErr := ctx.JSON(http.StatusUnauthorized, echo.Map{
 			"error":   err.Error(),
 			"message": "user not found in database, unauthorised",
 		})
+		a.logger.Log(ctx, err)
+		return echoErr
 	}
 
 	tokenString, err := a.newWebLoginToken(userId, user.Username, "access")
 	if err != nil {
-		a.logger.Log(ctx, err)
-		return ctx.JSON(http.StatusInternalServerError, echo.Map{
+		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error":   err.Error(),
 			"message": "error creating new web token",
 		})
+		a.logger.Log(ctx, err)
+		return echoErr
 	}
 
 	accessCookie := a.createCookie("access", tokenString, true, time.Now().Add(time.Hour))
 	ctx.SetCookie(accessCookie)
-	return ctx.NoContent(http.StatusNoContent)
+	err = ctx.NoContent(http.StatusNoContent)
+	a.logger.Log(ctx, err)
+	return err
 }

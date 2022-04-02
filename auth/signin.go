@@ -18,20 +18,23 @@ func (a *auth) SignIn(ctx echo.Context) error {
 	var user types.User
 
 	if err := json.NewDecoder(ctx.Request().Body).Decode(&user); err != nil {
-		a.logger.Log(ctx, err)
-		return ctx.JSON(http.StatusBadRequest, echo.Map{
+		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error":   err.Error(),
 			"message": "invalid JSON object",
 		})
+		a.logger.Log(ctx, err)
+		return echoErr
 	}
 
-	if err := user.Validate(); err != nil {
-		a.logger.Log(ctx, err)
-		return ctx.JSON(http.StatusBadRequest, echo.Map{
+	err := user.Validate()
+	if err != nil {
+		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error":   err.Error(),
 			"message": "invalid data provided for user login",
 			"code":    "INVALID_CREDENTIALS",
 		})
+		a.logger.Log(ctx, err)
+		return echoErr
 	}
 
 	key := user.Email
@@ -41,59 +44,72 @@ func (a *auth) SignIn(ctx echo.Context) error {
 
 	userFromDb, err := a.pgStore.GetUser(ctx.Request().Context(), key, true)
 	if err != nil {
-		a.logger.Log(ctx, err)
 
 		if errors.Unwrap(err) == pgx.ErrNoRows {
-			return ctx.JSON(http.StatusBadRequest, echo.Map{
+			echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 				"error":   err.Error(),
 				"message": "user not found",
 			})
+			a.logger.Log(ctx, err)
+			return echoErr
 		}
 
-		return ctx.JSON(http.StatusBadRequest, echo.Map{
-			"message": err.Error(),
+		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
+			"error":   err.Error(),
+			"message": "database error, failed to get user",
 		})
+		a.logger.Log(ctx, err)
+		return echoErr
 	}
 
 	if !userFromDb.IsActive {
-		return ctx.JSON(http.StatusUnauthorized, echo.Map{
-			"message": "account is inactive, please check your email and verify your account",
+		err = fmt.Errorf("account is inactive, please check your email and verify your account")
+		echoErr := ctx.JSON(http.StatusUnauthorized, echo.Map{
+			"error":   "ERR_USER_INACTIVE",
+			"message": err.Error(),
 		})
+		a.logger.Log(ctx, err)
+		return echoErr
 	}
 
 	if !a.verifyPassword(userFromDb.Password, user.Password) {
-		err = fmt.Errorf("password is wrong")
-		a.logger.Log(ctx, err)
-		return ctx.JSON(http.StatusUnauthorized, echo.Map{
+		err = fmt.Errorf("password is incorrect")
+		echoErr := ctx.JSON(http.StatusUnauthorized, echo.Map{
+			"error":   "ERR_INCORRECT_PASSWORD",
 			"message": err.Error(),
 		})
+		a.logger.Log(ctx, err)
+		return echoErr
 	}
 
 	access, err := a.newWebLoginToken(userFromDb.Id, userFromDb.Username, "access")
 	if err != nil {
-		a.logger.Log(ctx, err)
-		return ctx.JSON(http.StatusInternalServerError, echo.Map{
+		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error":   err.Error(),
-			"message": "ERR_WEB_LOGIN_TOKEN",
+			"message": "error creating web login token",
 		})
+		a.logger.Log(ctx, err)
+		return echoErr
 	}
 
 	refresh, err := a.newWebLoginToken(userFromDb.Id, userFromDb.Username, "refresh")
 	if err != nil {
-		a.logger.Log(ctx, err)
-		return ctx.JSON(http.StatusInternalServerError, echo.Map{
+		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error":   err.Error(),
-			"message": "ERR_WEB_LOGIN_REFRESH_TOKEN",
+			"message": "error creating refresh token",
 		})
+		a.logger.Log(ctx, err)
+		return echoErr
 	}
 
 	id := uuid.NewString()
 	if err = a.pgStore.AddSession(ctx.Request().Context(), id, refresh, userFromDb.Username); err != nil {
-		a.logger.Log(ctx, err)
-		return ctx.JSON(http.StatusBadRequest, echo.Map{
+		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error":   err.Error(),
-			"message": "ERR_CREATING_SESSION",
+			"message": "error creating session",
 		})
+		a.logger.Log(ctx, err)
+		return echoErr
 	}
 
 	sessionId := fmt.Sprintf("%s:%s", id, userFromDb.Id)

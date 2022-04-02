@@ -62,6 +62,11 @@ func Register(
 	RegisterNSRoutes(nsRouter, reg)
 	RegisterAuthRoutes(authRouter, authSvc)
 	Extensions(v2Router, reg, ext, authSvc.JWT())
+
+	//catch-all will redirect user back to web interface
+	e.Add(http.MethodGet, "/", func(ctx echo.Context) error {
+		return ctx.Redirect(http.StatusTemporaryRedirect, cfg.WebAppEndpoint)
+	})
 }
 
 // RegisterNSRoutes is one of the helper functions to Register
