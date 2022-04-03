@@ -16,11 +16,11 @@ type (
 		LogConfig         *Log      `mapstructure:"log_service"`
 		SkynetConfig      *Skynet   `mapstructure:"skynet"`
 		OAuth             *OAuth    `mapstructure:"oauth"`
+		Email             *Email    `mapstructure:"email"`
 		Environment       string    `mapstructure:"environment"`
 		WebAppEndpoint    string    `mapstructure:"web_app_url"`
 		WebAppRedirectURL string    `mapstructure:"web_app_redirect_url"`
 		Debug             bool      `mapstructure:"debug"`
-		Email             *Email    `mapstructure:"email"`
 	}
 
 	Registry struct {
@@ -71,12 +71,12 @@ type (
 	}
 
 	Email struct {
-		Enabled                  bool   `mapstructure:"enabled"`
 		ApiKey                   string `mapstructure:"api_key"`
 		SendAs                   string `mapstructure:"send_as"`
 		VerifyEmailTemplateId    string `mapstructure:"verify_template_id"`
 		ForgotPasswordTemplateId string `mapstructure:"forgot_password_template_id"`
 		WelcomeEmailTemplateId   string `mapstructure:"welcome_template_id"`
+		Enabled                  bool   `mapstructure:"enabled"`
 	}
 )
 

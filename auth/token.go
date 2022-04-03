@@ -23,54 +23,64 @@ func (a *auth) Token(ctx echo.Context) error {
 	if authHeader != "" {
 		username, password, err := a.getCredsFromHeader(ctx.Request())
 		if err != nil {
+			echoErr := ctx.NoContent(http.StatusUnauthorized)
 			a.logger.Log(ctx, err)
-			return ctx.NoContent(http.StatusUnauthorized)
+			return echoErr
 		}
 
 		if strings.HasPrefix(password, "gho_") || strings.HasPrefix(password, "ghp_") {
 			user, err := a.getUserWithGithubOauthToken(ctx.Request().Context(), password)
 			if err != nil {
-				a.logger.Log(ctx, err)
-				return ctx.JSON(http.StatusUnauthorized, echo.Map{
-					"error": err.Error(),
+				echoErr := ctx.JSON(http.StatusUnauthorized, echo.Map{
+					"error":   err.Error(),
+					"message": "invalid github token",
 				})
+				a.logger.Log(ctx, err)
+				return echoErr
 			}
 
 			token, err := a.newServiceToken(*user)
 			if err != nil {
-				a.logger.Log(ctx, err)
-				return ctx.JSON(http.StatusInternalServerError, echo.Map{
+				echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 					"error":   err.Error(),
 					"message": "failed to get new service token",
 				})
+				a.logger.Log(ctx, err)
+				return echoErr
 			}
-			a.logger.Log(ctx, nil)
-			return ctx.JSON(http.StatusOK, echo.Map{
+
+			err = ctx.JSON(http.StatusOK, echo.Map{
 				"token":      token,
 				"expires_in": time.Now().Add(time.Hour).Unix(), // look at auth/jwt.go:251
 				"issued_at":  time.Now(),
 			})
+			a.logger.Log(ctx, err)
+			return err
 		}
 
 		creds, err := a.validateUser(username, password)
 		if err != nil {
-			a.logger.Log(ctx, err)
-			return ctx.JSON(http.StatusUnauthorized, echo.Map{
-				"error": err.Error(),
+			echoErr := ctx.JSON(http.StatusUnauthorized, echo.Map{
+				"error":   err.Error(),
+				"message": "error validating user, unauthorised",
 			})
+			a.logger.Log(ctx, err)
+			return echoErr
 		}
 
-		return ctx.JSON(http.StatusOK, creds)
+		err = ctx.JSON(http.StatusOK, creds)
+		a.logger.Log(ctx, err)
+		return err
 	}
 
 	scope, err := a.getScopeFromQueryParams(ctx.QueryParam("scope"))
 	if err != nil {
-		errMsg := echo.Map{
-			"error": err.Error(),
-			"msg":   "invalid scope provided",
-		}
-		a.logger.Log(ctx, fmt.Errorf("%s", errMsg))
-		return ctx.JSON(http.StatusBadRequest, errMsg)
+		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
+			"error":   err.Error(),
+			"message": "invalid scope provided",
+		})
+		a.logger.Log(ctx, err)
+		return echoErr
 	}
 
 	// issue a free-public token to pull any repository
@@ -78,16 +88,21 @@ func (a *auth) Token(ctx echo.Context) error {
 	if len(scope.Actions) == 1 && scope.Actions["pull"] {
 		token, err := a.newPublicPullToken()
 		if err != nil {
+			echoErr := ctx.NoContent(http.StatusInternalServerError)
 			a.logger.Log(ctx, err)
-			return ctx.NoContent(http.StatusInternalServerError)
+			return echoErr
 		}
 
-		return ctx.JSON(http.StatusOK, echo.Map{
+		echoErr := ctx.JSON(http.StatusOK, echo.Map{
 			"token": token,
 		})
+		a.logger.Log(ctx, err)
+		return echoErr
 	}
 
-	return ctx.NoContent(http.StatusUnauthorized)
+	err = ctx.NoContent(http.StatusUnauthorized)
+	a.logger.Log(ctx, err)
+	return err
 }
 
 func (a *auth) getCredsFromHeader(r *http.Request) (string, string, error) {

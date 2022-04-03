@@ -15,6 +15,7 @@ import (
 
 const (
 	AccessCookieKey = "access"
+	RefreshCookKey  = "refresh"
 	QueryToken      = "token"
 )
 

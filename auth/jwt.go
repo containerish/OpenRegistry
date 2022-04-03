@@ -156,7 +156,7 @@ func (a *auth) createOAuthClaims(u types.User, token *oauth2.Token) PlatformClai
 		OauthPayload: token,
 		StandardClaims: jwt.StandardClaims{
 			Audience:  a.c.Endpoint(),
-			ExpiresAt: time.Now().Add(time.Hour).Unix(),
+			ExpiresAt: time.Now().Add(time.Hour * 750).Unix(),
 			Id:        u.Id,
 			IssuedAt:  time.Now().Unix(),
 			Issuer:    a.c.Endpoint(),
@@ -234,14 +234,18 @@ claims format
 
 func (a *auth) createClaims(id, tokenType string, acl AccessList) Claims {
 
-	var tokenLife int64
+	tokenLife := time.Now().Add(time.Minute * 10).Unix()
 	switch tokenType {
 	case "access":
-		tokenLife = time.Now().Add(time.Hour).Unix()
+		// TODO (jay-dee7)
+		// token can live for month now, but must be addressed when we implement PASETO
+		tokenLife = time.Now().Add(time.Hour * 750).Unix()
 	case "refresh":
 		tokenLife = time.Now().Add(time.Hour * 750).Unix()
 	case "service":
 		tokenLife = time.Now().Add(time.Hour * 750).Unix()
+	case "short-lived":
+		tokenLife = time.Now().Add(time.Minute * 30).Unix()
 	}
 
 	claims := Claims{

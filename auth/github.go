@@ -30,10 +30,13 @@ func (a *auth) GithubLoginCallbackHandler(ctx echo.Context) error {
 	stateToken := ctx.FormValue("state")
 	_, ok := a.oauthStateStore[stateToken]
 	if !ok {
-		a.logger.Log(ctx, fmt.Errorf("missing or invalid state token"))
-		return ctx.JSON(http.StatusBadRequest, echo.Map{
-			"error": "missing or invalid state token",
+		err := fmt.Errorf("INVALID_STATE_TOKEN")
+		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
+			"error":   err.Error(),
+			"message": "missing or invalid state token",
 		})
+		a.logger.Log(ctx, err)
+		return echoErr
 	}
 	// no need to compare the stateToken from QueryParam \w stateToken from a.oauthStateStore
 	// the key is the actual token :p
@@ -42,31 +45,37 @@ func (a *auth) GithubLoginCallbackHandler(ctx echo.Context) error {
 	code := ctx.FormValue("code")
 	token, err := a.github.Exchange(context.Background(), code)
 	if err != nil {
-		a.logger.Log(ctx, err)
-		return ctx.JSON(http.StatusBadRequest, echo.Map{
-			"error": err.Error(),
-			"code":  "GITHUB_EXCHANGE_ERR",
+		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
+			"error":   err.Error(),
+			"message": "github exchange error",
+			"code":    "GITHUB_EXCHANGE_ERR",
 		})
+		a.logger.Log(ctx, err)
+		return echoErr
 	}
 
 	req, err := a.ghClient.NewRequest(http.MethodGet, "/user", nil)
 	if err != nil {
-		a.logger.Log(ctx, err)
-		return ctx.JSON(http.StatusPreconditionFailed, echo.Map{
-			"error": err.Error(),
-			"code":  "GH_CLIENT_REQ_FAILED",
+		echoErr := ctx.JSON(http.StatusPreconditionFailed, echo.Map{
+			"error":   err.Error(),
+			"message": "github client request failed",
+			"code":    "GH_CLIENT_REQ_FAILED",
 		})
+		a.logger.Log(ctx, err)
+		return echoErr
 	}
 
 	req.Header.Set("Authorization", "token "+token.AccessToken)
 	var oauthUser types.User
 	_, err = a.ghClient.Do(ctx.Request().Context(), req, &oauthUser)
 	if err != nil {
-		a.logger.Log(ctx, err)
-		return ctx.JSON(http.StatusInternalServerError, echo.Map{
-			"error": err.Error(),
-			"code":  "GH_CLIENT_REQ_EXEC_FAILED",
+		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
+			"error":   err.Error(),
+			"message": "github client request execution failed",
+			"code":    "GH_CLIENT_REQ_EXEC_FAILED",
 		})
+		a.logger.Log(ctx, err)
+		return echoErr
 	}
 
 	oauthUser.Username = oauthUser.Login
@@ -74,41 +83,46 @@ func (a *auth) GithubLoginCallbackHandler(ctx echo.Context) error {
 
 	accessToken, refreshToken, err := a.SignOAuthToken(oauthUser, token)
 	if err != nil {
-		a.logger.Log(ctx, err)
-		return ctx.JSON(http.StatusInternalServerError, echo.Map{
+		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error": err.Error(),
 			"cause": "JWT_SIGNING",
 		})
+		a.logger.Log(ctx, err)
+		return echoErr
 	}
 
 	oauthUser.Password = refreshToken
 	if err = a.pgStore.AddOAuthUser(ctx.Request().Context(), &oauthUser); err != nil {
-		a.logger.Log(ctx, err)
-		return ctx.JSON(http.StatusInternalServerError, echo.Map{
+		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error": err.Error(),
 			"code":  "GH_OAUTH_STORE_OAUTH_USER",
 		})
+		a.logger.Log(ctx, err)
+		return echoErr
 	}
 
 	sessionId := uuid.NewString()
 	if err = a.pgStore.AddSession(ctx.Request().Context(), sessionId, refreshToken, oauthUser.Username); err != nil {
-		a.logger.Log(ctx, err)
-		return ctx.JSON(http.StatusBadRequest, echo.Map{
+		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error":   err.Error(),
 			"message": "ERR_CREATING_SESSION",
 		})
+		a.logger.Log(ctx, err)
+		return echoErr
 	}
 	val := fmt.Sprintf("%s:%s", sessionId, oauthUser.Id)
 
 	sessionCookie := a.createCookie("session_id", val, false, time.Now().Add(time.Hour*750))
-	accessCookie := a.createCookie("access", accessToken, true, time.Now().Add(time.Hour))
+	accessCookie := a.createCookie("access", accessToken, true, time.Now().Add(time.Hour*750))
 	refreshCookie := a.createCookie("refresh", refreshToken, true, time.Now().Add(time.Hour*750))
 
 	ctx.SetCookie(accessCookie)
 	ctx.SetCookie(refreshCookie)
 	ctx.SetCookie(sessionCookie)
+
+	err = ctx.Redirect(http.StatusTemporaryRedirect, a.c.WebAppRedirectURL)
 	a.logger.Log(ctx, nil)
-	return ctx.Redirect(http.StatusTemporaryRedirect, a.c.WebAppRedirectURL)
+	return err
 }
 
 const (

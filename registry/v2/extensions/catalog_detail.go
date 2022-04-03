@@ -61,7 +61,7 @@ func (ext *extension) CatalogDetail(ctx echo.Context) error {
 		offset = o
 	}
 
-	total, err := ext.store.GetCatalogCount(ctx.Request().Context())
+	total, err := ext.store.GetCatalogCount(ctx.Request().Context(), namespace)
 	if err != nil {
 		ext.logger.Log(ctx, err)
 		return ctx.JSON(http.StatusInternalServerError, echo.Map{"error": err.Error()})
@@ -90,6 +90,7 @@ func (ext *extension) CatalogDetail(ctx echo.Context) error {
 		})
 	}
 
+	ext.logger.Log(ctx, err)
 	return ctx.JSON(http.StatusOK, echo.Map{
 		"repositories": catalogWithDetail,
 		"total":        total,

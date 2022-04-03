@@ -22,7 +22,20 @@ func (p *pg) AddUser(ctx context.Context, u *types.User) error {
 	if u.Id == "" {
 		u.Id = uuid.New().String()
 	}
-	_, err := p.conn.Exec(childCtx, queries.AddUser, u.Id, u.IsActive, u.Username, u.Name, u.Email, u.Password, t, t)
+	_, err := p.conn.Exec(
+		childCtx,
+		queries.AddUser,
+		u.Id,
+		u.IsActive,
+		u.Username,
+		u.Name,
+		u.Email,
+		u.Password,
+		u.Hireable,
+		u.HTMLURL,
+		t,
+		t,
+	)
 	if err != nil {
 		return fmt.Errorf("error adding user to database: %w", err)
 	}
@@ -47,6 +60,7 @@ func (p *pg) AddOAuthUser(ctx context.Context, u *types.User) error {
 		id.String(),
 		u.Username,
 		u.Email,
+		u.HTMLURL,
 		t,
 		t,
 		u.Bio,
@@ -160,6 +174,8 @@ func (p *pg) GetUserWithSession(ctx context.Context, sessionId string) (*types.U
 		&user.Name,
 		&user.Username,
 		&user.Email,
+		&user.Hireable,
+		&user.HTMLURL,
 		&user.CreatedAt,
 		&user.UpdatedAt,
 	); err != nil {
