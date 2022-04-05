@@ -3,7 +3,6 @@ package auth
 import (
 	"context"
 	"fmt"
-	"net"
 	"net/http"
 	"time"
 
@@ -38,6 +37,7 @@ func (a *auth) GithubLoginCallbackHandler(ctx echo.Context) error {
 		a.logger.Log(ctx, err)
 		return echoErr
 	}
+
 	// no need to compare the stateToken from QueryParam \w stateToken from a.oauthStateStore
 	// the key is the actual token :p
 	delete(a.oauthStateStore, stateToken)
@@ -93,16 +93,15 @@ func (a *auth) GithubLoginCallbackHandler(ctx echo.Context) error {
 
 	oauthUser.Password = refreshToken
 	if err = a.pgStore.AddOAuthUser(ctx.Request().Context(), &oauthUser); err != nil {
-		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
-			"error": err.Error(),
-			"code":  "GH_OAUTH_STORE_OAUTH_USER",
-		})
+		redirectPath := fmt.Sprintf("%s/%s?error=%s", a.c.WebAppEndpoint, a.c.WebAppErrorRedirectPath, err.Error())
+		echoErr := ctx.Redirect(http.StatusTemporaryRedirect, redirectPath)
 		a.logger.Log(ctx, err)
 		return echoErr
 	}
 
 	sessionId := uuid.NewString()
 	if err = a.pgStore.AddSession(ctx.Request().Context(), sessionId, refreshToken, oauthUser.Username); err != nil {
+		ctx.Redirect(http.StatusTemporaryRedirect, a.c.WebAppErrorRedirectURL)
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error":   err.Error(),
 			"message": "ERR_CREATING_SESSION",
@@ -134,23 +133,18 @@ func (a *auth) createCookie(name string, value string, httpOnly bool, expiresAt 
 
 	secure := true
 	sameSite := http.SameSiteStrictMode
+	domain := a.c.Registry.FQDN
 	if a.c.Environment == config.Local {
 		secure = false
 		sameSite = http.SameSiteLaxMode
+		domain = "localhost"
 	}
 
-	webappEndpoint := a.c.WebAppEndpoint
-	if a.c.Environment == config.Local {
-		host, _, err := net.SplitHostPort(webappEndpoint)
-		if err != nil {
-			webappEndpoint = host
-		}
-	}
 	cookie := &http.Cookie{
 		Name:     name,
 		Value:    value,
 		Path:     "/",
-		Domain:   webappEndpoint,
+		Domain:   domain,
 		Expires:  expiresAt,
 		Secure:   secure,
 		SameSite: sameSite,

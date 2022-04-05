@@ -46,13 +46,23 @@ func main() {
 		e.Logger.Errorf("error creating new container registry: %s", err)
 		return
 	}
+
 	ext, err := extensions.New(pgStore, logger)
 	if err != nil {
 		e.Logger.Errorf("error creating new container registry extensions api: %s", err)
 		return
 	}
 
-	color.Green("Service Endpoint: %s\n", cfg.Endpoint())
 	router.Register(cfg, e, reg, authSvc, ext)
-	color.Red("error initialising OpenRegistry Server: %s", e.Start(cfg.Registry.Address()))
+	color.Red("error initialising OpenRegistry Server: %s", buildHTTPServer(cfg, e))
+}
+
+func buildHTTPServer(cfg *config.OpenRegistryConfig, e *echo.Echo) error {
+	color.Green("Environment: %s", cfg.Environment)
+	color.Green("Service Endpoint: %s\n", cfg.Endpoint())
+	if cfg.Environment == config.Prod {
+		return e.StartTLS(cfg.Registry.Address(), cfg.Registry.TLS.PubKey, cfg.Registry.TLS.PrivateKey)
+	}
+
+	return e.Start(cfg.Registry.Address())
 }

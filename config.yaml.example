@@ -2,6 +2,7 @@ environment: local
 debug: true
 web_app_url: "http://localhost:3000"
 web_app_redirect_url: "/"
+web_app_error_redirect_path: "/auth/unhandled"
 registry:
   dns_address: localhost
   version: master

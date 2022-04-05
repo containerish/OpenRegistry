@@ -10,25 +10,33 @@ import (
 
 type (
 	OpenRegistryConfig struct {
-		Registry          *Registry `mapstructure:"registry"`
-		StoreConfig       *Store    `mapstructure:"database"`
-		AuthConfig        *Auth     `mapstructure:"auth"`
-		LogConfig         *Log      `mapstructure:"log_service"`
-		SkynetConfig      *Skynet   `mapstructure:"skynet"`
-		OAuth             *OAuth    `mapstructure:"oauth"`
-		Email             *Email    `mapstructure:"email"`
-		Environment       string    `mapstructure:"environment"`
-		WebAppEndpoint    string    `mapstructure:"web_app_url"`
-		WebAppRedirectURL string    `mapstructure:"web_app_redirect_url"`
-		Debug             bool      `mapstructure:"debug"`
+		Registry                *Registry `mapstructure:"registry"`
+		StoreConfig             *Store    `mapstructure:"database"`
+		AuthConfig              *Auth     `mapstructure:"auth"`
+		LogConfig               *Log      `mapstructure:"log_service"`
+		SkynetConfig            *Skynet   `mapstructure:"skynet"`
+		OAuth                   *OAuth    `mapstructure:"oauth"`
+		Email                   *Email    `mapstructure:"email"`
+		Environment             string    `mapstructure:"environment"`
+		WebAppEndpoint          string    `mapstructure:"web_app_url"`
+		WebAppRedirectURL       string    `mapstructure:"web_app_redirect_url"`
+		WebAppErrorRedirectPath string    `mapstructure:"web_app_error_redirect_path"`
+		Debug                   bool      `mapstructure:"debug"`
 	}
 
 	Registry struct {
+		TLS           TLS      `mapstructure:"tls"`
 		DNSAddress    string   `mapstructure:"dns_address"`
+		FQDN          string   `mapstructure:"fqdn"`
 		SigningSecret string   `mapstructure:"jwt_signing_secret"`
 		Host          string   `mapstructure:"host"`
 		Services      []string `mapstructure:"services"`
 		Port          uint     `mapstructure:"port"`
+	}
+
+	TLS struct {
+		PrivateKey string `mapstructure:"priv_key"`
+		PubKey     string `mapstructure:"pub_key"`
 	}
 
 	Auth struct {
