@@ -101,11 +101,7 @@ func (a *auth) GithubLoginCallbackHandler(ctx echo.Context) error {
 
 	sessionId := uuid.NewString()
 	if err = a.pgStore.AddSession(ctx.Request().Context(), sessionId, refreshToken, oauthUser.Username); err != nil {
-		ctx.Redirect(http.StatusTemporaryRedirect, a.c.WebAppErrorRedirectURL)
-		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
-			"error":   err.Error(),
-			"message": "ERR_CREATING_SESSION",
-		})
+		echoErr := ctx.Redirect(http.StatusTemporaryRedirect, a.c.WebAppErrorRedirectPath)
 		a.logger.Log(ctx, err)
 		return echoErr
 	}

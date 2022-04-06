@@ -20,10 +20,10 @@ require (
 	golang.org/x/crypto v0.0.0-20210817164053-32db794688a5
 )
 
-require github.com/sendgrid/rest v2.6.9+incompatible // indirect
 
 require (
 	github.com/beorn7/perks v1.0.1 // indirect
+	github.com/sendgrid/rest v2.6.9+incompatible // indirect
 	github.com/cespare/xxhash/v2 v2.1.1 // indirect
 	github.com/fsnotify/fsnotify v1.4.9 // indirect
 	github.com/go-playground/locales v0.14.0 // indirect

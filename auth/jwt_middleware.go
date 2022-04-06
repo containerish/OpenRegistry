@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/containerish/OpenRegistry/types"
-	"github.com/fatih/color"
 	"github.com/golang-jwt/jwt"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -45,7 +44,6 @@ func (a *auth) JWT() echo.MiddlewareFunc {
 		ErrorHandlerWithContext: func(err error, ctx echo.Context) error {
 			// ErrorHandlerWithContext only logs the failing requtest
 			ctx.Set(types.HandlerStartTime, time.Now())
-			color.Red(ctx.QueryParam("token"))
 			a.logger.Log(ctx, err)
 			return ctx.JSON(http.StatusUnauthorized, echo.Map{
 				"error":   err.Error(),
