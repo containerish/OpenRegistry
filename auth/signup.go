@@ -40,7 +40,7 @@ func (a *auth) SignUp(ctx echo.Context) error {
 		return echoErr
 	}
 
-	if err := verifyPassword(u.Password); err != nil {
+	if err := validatePassword(u.Password); err != nil {
 		// err.Error() is already user friendly
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error":   err.Error(),
@@ -155,7 +155,7 @@ func verifyEmail(email string) error {
 	return nil
 }
 
-func verifyPassword(password string) error {
+func validatePassword(password string) error {
 	var uppercasePresent bool
 	var lowercasePresent bool
 	var numberPresent bool

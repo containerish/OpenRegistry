@@ -13,6 +13,100 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
+func (a *auth) ResetForgottenPassword(ctx echo.Context) error {
+	token, ok := ctx.Get("user").(*jwt.Token)
+	if !ok {
+		err := fmt.Errorf("ERR_EMPTY_TOKEN")
+		echoErr := ctx.JSON(http.StatusUnauthorized, echo.Map{
+			"error":   err.Error(),
+			"message": "JWT token can not be empty",
+		})
+		a.logger.Log(ctx, err)
+		return echoErr
+	}
+
+	c, ok := token.Claims.(*Claims)
+	if !ok {
+		err := fmt.Errorf("ERR_INVALID_CLAIMS")
+		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
+			"error":   err.Error(),
+			"message": "invalid claims in JWT",
+		})
+		a.logger.Log(ctx, err)
+		return echoErr
+	}
+
+	var pwd *types.Password
+	err := json.NewDecoder(ctx.Request().Body).Decode(&pwd)
+	if err != nil {
+		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
+			"error":   err.Error(),
+			"message": "request body could not be decoded",
+		})
+		a.logger.Log(ctx, err)
+		return echoErr
+	}
+	_ = ctx.Request().Body.Close()
+
+	userId := c.Id
+	user, err := a.pgStore.GetUserById(ctx.Request().Context(), userId, true)
+	if err != nil {
+		echoErr := ctx.JSON(http.StatusNotFound, echo.Map{
+			"error":   err.Error(),
+			"message": "error getting user by ID from DB",
+		})
+		a.logger.Log(ctx, err)
+		return echoErr
+	}
+
+	if err = validatePassword(pwd.NewPassword); err != nil {
+		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
+			"error": err.Error(),
+			"message": `password must be alphanumeric, at least 8 chars long, must have at least one special character 
+and an uppercase letter`,
+		})
+		a.logger.Log(ctx, err)
+		return echoErr
+	}
+
+	if a.verifyPassword(user.Password, pwd.NewPassword) {
+
+		err = fmt.Errorf("new password can not be same as old password")
+		// error is already user friendly
+		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
+			"error":   err.Error(),
+			"message": err.Error(),
+		})
+		a.logger.Log(ctx, err)
+		return echoErr
+	}
+
+	hashPassword, err := a.hashPassword(pwd.NewPassword)
+	if err != nil {
+		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
+			"error":   err.Error(),
+			"message": "ERR_HASH_NEW_PASSWORD",
+		})
+		a.logger.Log(ctx, err)
+		return echoErr
+	}
+
+	if err = a.pgStore.UpdateUserPWD(ctx.Request().Context(), userId, hashPassword); err != nil {
+		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
+			"error":   err.Error(),
+			"message": "error updating new password",
+		})
+		a.logger.Log(ctx, err)
+		return echoErr
+	}
+
+	err = ctx.JSON(http.StatusAccepted, echo.Map{
+		"message": "password changed successfully",
+	})
+	a.logger.Log(ctx, err)
+	return err
+}
+
 func (a *auth) ResetPassword(ctx echo.Context) error {
 	token, ok := ctx.Get("user").(*jwt.Token)
 	if !ok {
@@ -36,6 +130,18 @@ func (a *auth) ResetPassword(ctx echo.Context) error {
 		return echoErr
 	}
 
+	var pwd *types.Password
+	err := json.NewDecoder(ctx.Request().Body).Decode(&pwd)
+	if err != nil {
+		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
+			"error":   err.Error(),
+			"message": "request body could not be decoded",
+		})
+		a.logger.Log(ctx, err)
+		return echoErr
+	}
+	_ = ctx.Request().Body.Close()
+
 	userId := c.Id
 	user, err := a.pgStore.GetUserById(ctx.Request().Context(), userId, true)
 	if err != nil {
@@ -47,79 +153,18 @@ func (a *auth) ResetPassword(ctx echo.Context) error {
 		return echoErr
 	}
 
-	var pwd *types.Password
-	kind := ctx.QueryParam("kind")
-
-	err = json.NewDecoder(ctx.Request().Body).Decode(&pwd)
-	if err != nil {
+	// compare the current password with password hash from DB
+	if !a.verifyPassword(user.Password, pwd.OldPassword) {
+		err = fmt.Errorf("ERR_WRONG_PASSWORD")
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error":   err.Error(),
-			"message": "request body could not be decoded",
-		})
-		a.logger.Log(ctx, err)
-		return echoErr
-	}
-	_ = ctx.Request().Body.Close()
-
-	if err = verifyPassword(pwd.NewPassword); err != nil {
-		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
-			"error": err.Error(),
-			"message": `password must be alphanumeric, at least 8 chars long, must have at least one special character 
-and an uppercase letter`,
+			"message": "password is wrong",
 		})
 		a.logger.Log(ctx, err)
 		return echoErr
 	}
 
-	if kind == "forgot_password_callback" {
-		hashPassword, err := a.hashPassword(pwd.NewPassword)
-		if err != nil {
-			echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
-				"error":   err.Error(),
-				"message": "ERR_HASH_NEW_PASSWORD",
-			})
-			a.logger.Log(ctx, err)
-			return echoErr
-		}
-
-		if user.Password == hashPassword {
-			err = fmt.Errorf("new password can not be same as old password")
-			// error is already user friendly
-			echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
-				"error":   err.Error(),
-				"message": err.Error(),
-			})
-			a.logger.Log(ctx, err)
-			return echoErr
-		}
-
-		if err = a.pgStore.UpdateUserPWD(ctx.Request().Context(), userId, hashPassword); err != nil {
-			echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
-				"error":   err.Error(),
-				"message": "error updating new password",
-			})
-			a.logger.Log(ctx, err)
-			return echoErr
-		}
-
-		err = ctx.JSON(http.StatusAccepted, echo.Map{
-			"message": "password changed successfully",
-		})
-		a.logger.Log(ctx, err)
-		return err
-	}
-
-	if pwd.OldPassword == pwd.NewPassword {
-		err = fmt.Errorf("OLD_NEW_PWD_SAME")
-		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
-			"error":   err.Error(),
-			"message": "new password can not be same as old password",
-		})
-		a.logger.Log(ctx, err)
-		return echoErr
-	}
-
-	newHashedPwd, err := a.hashPassword(pwd.NewPassword)
+	hashPassword, err := a.hashPassword(pwd.NewPassword)
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error":   err.Error(),
@@ -129,7 +174,28 @@ and an uppercase letter`,
 		return echoErr
 	}
 
-	if err = a.pgStore.UpdateUserPWD(ctx.Request().Context(), userId, newHashedPwd); err != nil {
+	if user.Password == hashPassword {
+		err = fmt.Errorf("new password can not be same as old password")
+		// error is already user friendly
+		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
+			"error":   err.Error(),
+			"message": err.Error(),
+		})
+		a.logger.Log(ctx, err)
+		return echoErr
+	}
+
+	if err = validatePassword(pwd.NewPassword); err != nil {
+		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
+			"error": err.Error(),
+			"message": `password must be alphanumeric, at least 8 chars long, must have at least one special character 
+and an uppercase letter`,
+		})
+		a.logger.Log(ctx, err)
+		return echoErr
+	}
+
+	if err = a.pgStore.UpdateUserPWD(ctx.Request().Context(), userId, hashPassword); err != nil {
 		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error":   err.Error(),
 			"message": "error updating new password",
