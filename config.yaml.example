@@ -21,8 +21,9 @@ oauth:
     client_id: dummy-gh-client-id
     client_secret: dummy-gh-client-secret
 skynet:
-  portal_url: https://siasky.dev
+  portal_url: https://skynetpro.net
   api_key: skynet-key
+  custom_cookie: skynet_cookie_hack
 database:
   kind: postgres
   host: 0.0.0.0

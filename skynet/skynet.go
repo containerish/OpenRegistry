@@ -19,15 +19,14 @@ func NewClient(oc *config.OpenRegistryConfig) *Client {
 		CustomUserAgent: oc.SkynetConfig.CustomUserAgent,
 		APIKey:          oc.SkynetConfig.ApiKey,
 		CustomCookie:    oc.SkynetConfig.ApiKey,
+		HttpClient:      newHttpClientForSkynet(),
 	}
 
 	color.Green("Skynet Portal: %s", oc.SkynetConfig.SkynetPortalURL)
 	skynetClient := skynet.NewCustom(oc.SkynetConfig.SkynetPortalURL, opts)
-	httpClient := NewHttpClientForSkynet()
 
 	return &Client{
 		skynet:     &skynetClient,
-		httpClient: httpClient,
 		isRemote:   false,
 		host:       oc.Registry.Host,
 		gatewayURL: oc.SkynetConfig.SkynetPortalURL,
@@ -111,7 +110,7 @@ func (c *Client) Metadata(skylink string) (*skynet.Metadata, error) {
 			err = fmt.Errorf("SKYNET_METADATA_ERR: %w", err)
 			retryCounter--
 			// cool off
-			time.Sleep(time.Second * 2)
+			time.Sleep(time.Second * 3)
 			continue
 		}
 		break
@@ -120,7 +119,7 @@ func (c *Client) Metadata(skylink string) (*skynet.Metadata, error) {
 	return metadata, err
 }
 
-func NewHttpClientForSkynet() *http.Client {
+func newHttpClientForSkynet() *http.Client {
 	t := http.DefaultTransport.(*http.Transport).Clone()
 	t.MaxIdleConns = 100
 	t.MaxConnsPerHost = 100

@@ -20,10 +20,8 @@ require (
 	golang.org/x/crypto v0.0.0-20210817164053-32db794688a5
 )
 
-
 require (
 	github.com/beorn7/perks v1.0.1 // indirect
-	github.com/sendgrid/rest v2.6.9+incompatible // indirect
 	github.com/cespare/xxhash/v2 v2.1.1 // indirect
 	github.com/fsnotify/fsnotify v1.4.9 // indirect
 	github.com/go-playground/locales v0.14.0 // indirect
@@ -53,6 +51,7 @@ require (
 	github.com/prometheus/client_model v0.2.0 // indirect
 	github.com/prometheus/common v0.25.0 // indirect
 	github.com/prometheus/procfs v0.6.0 // indirect
+	github.com/sendgrid/rest v2.6.9+incompatible // indirect
 	github.com/spf13/afero v1.6.0 // indirect
 	github.com/spf13/cast v1.3.1 // indirect
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
@@ -71,4 +70,4 @@ require (
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
 
-replace github.com/SkynetLabs/go-skynet/v2 => github.com/containerish/go-skynet/v2 v2.0.2-0.20220319175248-c0c090653812
+replace github.com/SkynetLabs/go-skynet/v2 => github.com/containerish/go-skynet/v2 v2.0.2-0.20220411175612-3c3d850b3a0c

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
-	"net/http"
 
 	skynet "github.com/SkynetLabs/go-skynet/v2"
 	"github.com/containerish/OpenRegistry/config"
@@ -13,11 +12,10 @@ import (
 type (
 	Client struct {
 		skynet     *skynet.SkynetClient
-		httpClient *http.Client
+		config     *config.OpenRegistryConfig
 		host       string
 		gatewayURL string
 		isRemote   bool
-		config     *config.OpenRegistryConfig
 	}
 	Config struct {
 		Host       string
