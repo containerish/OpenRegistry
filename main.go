@@ -26,7 +26,7 @@ func main() {
 
 	pgStore, err := postgres.New(cfg.StoreConfig)
 	if err != nil {
-		color.Red("error here: %s", err.Error())
+		color.Red("ERR_PG_CONN: %s", err.Error())
 		return
 	}
 	defer pgStore.Close()
@@ -60,9 +60,10 @@ func main() {
 func buildHTTPServer(cfg *config.OpenRegistryConfig, e *echo.Echo) error {
 	color.Green("Environment: %s", cfg.Environment)
 	color.Green("Service Endpoint: %s\n", cfg.Endpoint())
-	if cfg.Environment == config.Prod {
-		return e.StartTLS(cfg.Registry.Address(), cfg.Registry.TLS.PubKey, cfg.Registry.TLS.PrivateKey)
-	}
+	// for this to work, we need a custom http serve
+	// if cfg.Environment == config.Prod {
+	// 	return e.StartTLS(cfg.Registry.Address(), cfg.Registry.TLS.PubKey, cfg.Registry.TLS.PrivateKey)
+	// }
 
 	return e.Start(cfg.Registry.Address())
 }

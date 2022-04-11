@@ -15,7 +15,7 @@ func (a *auth) ReadUserWithSession(ctx echo.Context) error {
 
 	session, err := ctx.Cookie("session_id")
 	if err != nil {
-		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
+		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error":   err.Error(),
 			"message": "error getting session id",
 		})
@@ -23,7 +23,7 @@ func (a *auth) ReadUserWithSession(ctx echo.Context) error {
 		return echoErr
 	}
 	if session.Value == "" {
-		err := fmt.Errorf("ERR_GETTING_COOKIE")
+		err = fmt.Errorf("ERR_GETTING_COOKIE")
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error":   err.Error(),
 			"message": "error getting cookie",
@@ -34,7 +34,7 @@ func (a *auth) ReadUserWithSession(ctx echo.Context) error {
 
 	parts := strings.Split(session.Value, ":")
 	if len(parts) != 2 {
-		err := fmt.Errorf("INVALID_SESSION_ID")
+		err = fmt.Errorf("INVALID_SESSION_ID")
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error":   err.Error(),
 			"message": "invalid session id",

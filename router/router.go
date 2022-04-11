@@ -2,6 +2,7 @@ package router
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/containerish/OpenRegistry/auth"
 	"github.com/containerish/OpenRegistry/config"
@@ -24,9 +25,7 @@ func Register(
 ) {
 	e.Use(middleware.Recover())
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
-		AllowOrigins: []string{
-			cfg.WebAppEndpoint,
-		},
+		AllowOrigins:     strings.Split(cfg.WebAppEndpoint, ","),
 		AllowMethods:     middleware.DefaultCORSConfig.AllowMethods,
 		AllowHeaders:     middleware.DefaultCORSConfig.AllowHeaders,
 		AllowCredentials: true,

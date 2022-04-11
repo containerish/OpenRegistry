@@ -55,15 +55,13 @@ func (a *auth) newPublicPullToken() (string, error) {
 	return sign, nil
 }
 
-func (a *auth) SignOAuthToken(u types.User, payload *oauth2.Token) (string, string, error) {
-	u.StripForToken()
-
-	return a.newOAuthToken(u, payload)
+func (a *auth) SignOAuthToken(userId string, payload *oauth2.Token) (string, string, error) {
+	return a.newOAuthToken(userId, payload)
 }
 
-func (a *auth) newOAuthToken(u types.User, payload *oauth2.Token) (string, string, error) {
-	accessClaims := a.createOAuthClaims(u, payload)
-	refreshClaims := a.createRefreshClaims(u.Id)
+func (a *auth) newOAuthToken(userId string, payload *oauth2.Token) (string, string, error) {
+	accessClaims := a.createOAuthClaims(userId, payload)
+	refreshClaims := a.createRefreshClaims(userId)
 
 	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, &accessClaims)
 	accessSign, err := accessToken.SignedString([]byte(a.c.Registry.SigningSecret))
@@ -151,17 +149,17 @@ func (a *auth) createServiceClaims(u types.User) ServiceClaims {
 // 	NodeID:   u.NodeID,
 // 	OAuthID:  u.OAuthID,
 // },
-func (a *auth) createOAuthClaims(u types.User, token *oauth2.Token) PlatformClaims {
+func (a *auth) createOAuthClaims(userId string, token *oauth2.Token) PlatformClaims {
 	claims := PlatformClaims{
 		OauthPayload: token,
 		StandardClaims: jwt.StandardClaims{
 			Audience:  a.c.Endpoint(),
 			ExpiresAt: time.Now().Add(time.Hour * 750).Unix(),
-			Id:        u.Id,
+			Id:        userId,
 			IssuedAt:  time.Now().Unix(),
 			Issuer:    a.c.Endpoint(),
 			NotBefore: time.Now().Unix(),
-			Subject:   u.Id,
+			Subject:   userId,
 		},
 	}
 
