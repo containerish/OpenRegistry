@@ -81,7 +81,7 @@ func (a *auth) GithubLoginCallbackHandler(ctx echo.Context) error {
 	oauthUser.Username = oauthUser.Login
 	oauthUser.Id = uuid.NewString()
 
-	accessToken, refreshToken, err := a.SignOAuthToken(oauthUser, token)
+	accessToken, refreshToken, err := a.SignOAuthToken(oauthUser.Id, token)
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error": err.Error(),
@@ -128,7 +128,7 @@ const (
 func (a *auth) createCookie(name string, value string, httpOnly bool, expiresAt time.Time) *http.Cookie {
 
 	secure := true
-	sameSite := http.SameSiteStrictMode
+	sameSite := http.SameSiteNoneMode
 	domain := a.c.Registry.FQDN
 	if a.c.Environment == config.Local {
 		secure = false
