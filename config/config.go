@@ -10,81 +10,81 @@ import (
 
 type (
 	OpenRegistryConfig struct {
-		Registry                *Registry `mapstructure:"registry"`
-		StoreConfig             *Store    `mapstructure:"database"`
-		AuthConfig              *Auth     `mapstructure:"auth"`
-		LogConfig               *Log      `mapstructure:"log_service"`
-		SkynetConfig            *Skynet   `mapstructure:"skynet"`
-		OAuth                   *OAuth    `mapstructure:"oauth"`
-		Email                   *Email    `mapstructure:"email"`
-		Environment             string    `mapstructure:"environment"`
-		WebAppEndpoint          string    `mapstructure:"web_app_url"`
-		WebAppRedirectURL       string    `mapstructure:"web_app_redirect_url"`
-		WebAppErrorRedirectPath string    `mapstructure:"web_app_error_redirect_path"`
-		Debug                   bool      `mapstructure:"debug"`
+		Registry                *Registry `yaml:"registry" mapstructure:"registry"`
+		StoreConfig             *Store    `yaml:"database" mapstructure:"database"`
+		AuthConfig              *Auth     `yaml:"auth" mapstructure:"auth"`
+		LogConfig               *Log      `yaml:"log_service" mapstructure:"log_service"`
+		SkynetConfig            *Skynet   `yaml:"skynet" mapstructure:"skynet"`
+		OAuth                   *OAuth    `yaml:"oauth" mapstructure:"oauth"`
+		Email                   *Email    `yaml:"email" mapstructure:"email"`
+		Environment             string    `yaml:"environment" mapstructure:"environment"`
+		WebAppEndpoint          string    `yaml:"web_app_url" mapstructure:"web_app_url"`
+		WebAppRedirectURL       string    `yaml:"web_app_redirect_url" mapstructure:"web_app_redirect_url"`
+		WebAppErrorRedirectPath string    `yaml:"web_app_error_redirect_path" mapstructure:"web_app_error_redirect_path"`
+		Debug                   bool      `yaml:"debug" mapstructure:"debug"`
 	}
 
 	Registry struct {
-		TLS           TLS      `mapstructure:"tls"`
-		DNSAddress    string   `mapstructure:"dns_address"`
-		FQDN          string   `mapstructure:"fqdn"`
-		SigningSecret string   `mapstructure:"jwt_signing_secret"`
-		Host          string   `mapstructure:"host"`
-		Services      []string `mapstructure:"services"`
-		Port          uint     `mapstructure:"port"`
+		TLS           TLS      `yaml:"tls" mapstructure:"tls"`
+		DNSAddress    string   `yaml:"dns_address" mapstructure:"dns_address"`
+		FQDN          string   `yaml:"fqdn" mapstructure:"fqdn"`
+		SigningSecret string   `yaml:"jwt_signing_secret" mapstructure:"jwt_signing_secret"`
+		Host          string   `yaml:"host" mapstructure:"host"`
+		Services      []string `yaml:"services" mapstructure:"services"`
+		Port          uint     `yaml:"port" mapstructure:"port"`
 	}
 
 	TLS struct {
-		PrivateKey string `mapstructure:"priv_key"`
-		PubKey     string `mapstructure:"pub_key"`
+		PrivateKey string `yaml:"priv_key" mapstructure:"priv_key"`
+		PubKey     string `yaml:"pub_key" mapstructure:"pub_key"`
 	}
 
 	Auth struct {
-		SupportedServices map[string]bool `mapstructure:"supported_services"`
+		SupportedServices map[string]bool `yaml:"supported_services" mapstructure:"supported_services"`
 	}
 
 	Skynet struct {
-		SkynetPortalURL string `mapstructure:"portal_url"`
-		EndpointPath    string `mapstructure:"endpoint_path"`
-		ApiKey          string `mapstructure:"api_key"`
-		CustomUserAgent string `mapstructure:"custom_user_agent"`
-		CustomCookie    string `mapstructure:"custom_cookie"`
+		SkynetPortalURL string `yaml:"portal_url" mapstructure:"portal_url"`
+		EndpointPath    string `yaml:"endpoint_path" mapstructure:"endpoint_path"`
+		ApiKey          string `yaml:"api_key" mapstructure:"api_key"`
+		CustomUserAgent string `yaml:"custom_user_agent" mapstructure:"custom_user_agent"`
+		CustomCookie    string `yaml:"custom_cookie" mapstructure:"custom_cookie"`
 	}
 
 	Log struct {
-		Service    string `mapstructure:"name"`
-		Endpoint   string `mapstructure:"endpoint"`
-		AuthMethod string `mapstructure:"auth_method"`
-		Username   string `mapstructure:"username"`
-		Password   string `mapstructure:"password"`
+		Service    string `yaml:"name" mapstructure:"name"`
+		Endpoint   string `yaml:"endpoint" mapstructure:"endpoint"`
+		AuthMethod string `yaml:"auth_method" mapstructure:"auth_method"`
+		Username   string `yaml:"username" mapstructure:"username"`
+		Password   string `yaml:"password" mapstructure:"password"`
 	}
 
 	Store struct {
-		Kind     string `mapstructure:"kind"`
-		User     string `mapstructure:"username"`
-		Host     string `mapstructure:"host"`
-		Password string `mapstructure:"password"`
-		Database string `mapstructure:"name"`
-		Port     int    `mapstructure:"port"`
+		Kind     string `yaml:"kind" mapstructure:"kind"`
+		User     string `yaml:"username" mapstructure:"username"`
+		Host     string `yaml:"host" mapstructure:"host"`
+		Password string `yaml:"password" mapstructure:"password"`
+		Database string `yaml:"name" mapstructure:"name"`
+		Port     int    `yaml:"port" mapstructure:"port"`
 	}
 
 	GithubOAuth struct {
-		Provider     string `mapstructure:"provider"`
-		ClientID     string `mapstructure:"client_id"`
-		ClientSecret string `mapstructure:"client_secret"`
+		Provider     string `yaml:"provider" mapstructure:"provider"`
+		ClientID     string `yaml:"client_id" mapstructure:"client_id"`
+		ClientSecret string `yaml:"client_secret" mapstructure:"client_secret"`
 	}
 
 	OAuth struct {
-		Github GithubOAuth `mapstructure:"github"`
+		Github GithubOAuth `yaml:"github" mapstructure:"github"`
 	}
 
 	Email struct {
-		ApiKey                   string `mapstructure:"api_key"`
-		SendAs                   string `mapstructure:"send_as"`
-		VerifyEmailTemplateId    string `mapstructure:"verify_template_id"`
-		ForgotPasswordTemplateId string `mapstructure:"forgot_password_template_id"`
-		WelcomeEmailTemplateId   string `mapstructure:"welcome_template_id"`
-		Enabled                  bool   `mapstructure:"enabled"`
+		ApiKey                   string `yaml:"api_key" mapstructure:"api_key"`
+		SendAs                   string `yaml:"send_as" mapstructure:"send_as"`
+		VerifyEmailTemplateId    string `yaml:"verify_template_id" mapstructure:"verify_template_id"`
+		ForgotPasswordTemplateId string `yaml:"forgot_password_template_id" mapstructure:"forgot_password_template_id"`
+		WelcomeEmailTemplateId   string `yaml:"welcome_template_id" mapstructure:"welcome_template_id"`
+		Enabled                  bool   `yaml:"enabled" mapstructure:"enabled"`
 	}
 )
 
