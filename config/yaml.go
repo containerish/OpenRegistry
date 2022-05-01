@@ -22,6 +22,9 @@ func ReadYamlConfig() (*OpenRegistryConfig, error) {
 			return nil, err
 		}
 
+		if err = registryConfig.Validate(); err != nil {
+			return nil, err
+		}
 		color.Green("read configuration from environment variable")
 		return &registryConfig, nil
 	}
@@ -31,6 +34,10 @@ func ReadYamlConfig() (*OpenRegistryConfig, error) {
 	}
 
 	if err := viper.Unmarshal(&registryConfig); err != nil {
+		return nil, err
+	}
+
+	if err := registryConfig.Validate(); err != nil {
 		return nil, err
 	}
 
