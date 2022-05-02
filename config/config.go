@@ -5,33 +5,38 @@ import (
 	"log"
 	"os"
 
+	"github.com/go-playground/locales/en"
+	ut "github.com/go-playground/universal-translator"
+	"github.com/go-playground/validator/v10"
+	enTranslations "github.com/go-playground/validator/v10/translations/en"
+	"github.com/hashicorp/go-multierror"
 	"github.com/spf13/viper"
 )
 
 type (
 	OpenRegistryConfig struct {
-		Registry                *Registry `yaml:"registry" mapstructure:"registry"`
-		StoreConfig             *Store    `yaml:"database" mapstructure:"database"`
-		AuthConfig              *Auth     `yaml:"auth" mapstructure:"auth"`
-		LogConfig               *Log      `yaml:"log_service" mapstructure:"log_service"`
-		SkynetConfig            *Skynet   `yaml:"skynet" mapstructure:"skynet"`
-		OAuth                   *OAuth    `yaml:"oauth" mapstructure:"oauth"`
-		Email                   *Email    `yaml:"email" mapstructure:"email"`
-		Environment             string    `yaml:"environment" mapstructure:"environment"`
-		WebAppEndpoint          string    `yaml:"web_app_url" mapstructure:"web_app_url"`
-		WebAppRedirectURL       string    `yaml:"web_app_redirect_url" mapstructure:"web_app_redirect_url"`
-		WebAppErrorRedirectPath string    `yaml:"web_app_error_redirect_path" mapstructure:"web_app_error_redirect_path"`
-		Debug                   bool      `yaml:"debug" mapstructure:"debug"`
+		Registry       *Registry `yaml:"registry" mapstructure:"registry" validate:"required"`
+		StoreConfig    *Store    `yaml:"database" mapstructure:"database" validate:"required"`
+		LogConfig      *Log      `yaml:"log_service" mapstructure:"log_service"`
+		SkynetConfig   *Skynet   `yaml:"skynet" mapstructure:"skynet" validate:"required"`
+		OAuth          *OAuth    `yaml:"oauth" mapstructure:"oauth"`
+		Email          *Email    `yaml:"email" mapstructure:"email" validate:"required"`
+		Environment    string    `yaml:"environment" mapstructure:"environment" validate:"required"`
+		WebAppEndpoint string    `yaml:"web_app_url" mapstructure:"web_app_url" validate:"required"`
+		//nolint
+		WebAppRedirectURL       string `yaml:"web_app_redirect_url" mapstructure:"web_app_redirect_url" validate:"required"`
+		WebAppErrorRedirectPath string `yaml:"web_app_error_redirect_path" mapstructure:"web_app_error_redirect_path"`
+		Debug                   bool   `yaml:"debug" mapstructure:"debug"`
 	}
 
 	Registry struct {
-		TLS           TLS      `yaml:"tls" mapstructure:"tls"`
-		DNSAddress    string   `yaml:"dns_address" mapstructure:"dns_address"`
-		FQDN          string   `yaml:"fqdn" mapstructure:"fqdn"`
-		SigningSecret string   `yaml:"jwt_signing_secret" mapstructure:"jwt_signing_secret"`
-		Host          string   `yaml:"host" mapstructure:"host"`
-		Services      []string `yaml:"services" mapstructure:"services"`
-		Port          uint     `yaml:"port" mapstructure:"port"`
+		TLS           TLS      `yaml:"tls" mapstructure:"tls" validate:"-"`
+		DNSAddress    string   `yaml:"dns_address" mapstructure:"dns_address" validate:"required"`
+		FQDN          string   `yaml:"fqdn" mapstructure:"fqdn" validate:"required"`
+		SigningSecret string   `yaml:"jwt_signing_secret" mapstructure:"jwt_signing_secret" validate:"required"`
+		Host          string   `yaml:"host" mapstructure:"host" validate:"required"`
+		Services      []string `yaml:"services" mapstructure:"services" validate:"-"`
+		Port          uint     `yaml:"port" mapstructure:"port" validate:"required"`
 	}
 
 	TLS struct {
@@ -39,12 +44,8 @@ type (
 		PubKey     string `yaml:"pub_key" mapstructure:"pub_key"`
 	}
 
-	Auth struct {
-		SupportedServices map[string]bool `yaml:"supported_services" mapstructure:"supported_services"`
-	}
-
 	Skynet struct {
-		SkynetPortalURL string `yaml:"portal_url" mapstructure:"portal_url"`
+		SkynetPortalURL string `yaml:"portal_url" mapstructure:"portal_url" validate:"required"`
 		EndpointPath    string `yaml:"endpoint_path" mapstructure:"endpoint_path"`
 		ApiKey          string `yaml:"api_key" mapstructure:"api_key"`
 		CustomUserAgent string `yaml:"custom_user_agent" mapstructure:"custom_user_agent"`
@@ -60,18 +61,17 @@ type (
 	}
 
 	Store struct {
-		Kind     string `yaml:"kind" mapstructure:"kind"`
-		User     string `yaml:"username" mapstructure:"username"`
-		Host     string `yaml:"host" mapstructure:"host"`
-		Password string `yaml:"password" mapstructure:"password"`
-		Database string `yaml:"name" mapstructure:"name"`
-		Port     int    `yaml:"port" mapstructure:"port"`
+		Kind     string `yaml:"kind" mapstructure:"kind" validate:"required"`
+		User     string `yaml:"username" mapstructure:"username" validate:"required"`
+		Host     string `yaml:"host" mapstructure:"host" validate:"required"`
+		Password string `yaml:"password" mapstructure:"password" validate:"required"`
+		Database string `yaml:"name" mapstructure:"name" validate:"required"`
+		Port     int    `yaml:"port" mapstructure:"port" validate:"required"`
 	}
 
 	GithubOAuth struct {
-		Provider     string `yaml:"provider" mapstructure:"provider"`
-		ClientID     string `yaml:"client_id" mapstructure:"client_id"`
-		ClientSecret string `yaml:"client_secret" mapstructure:"client_secret"`
+		ClientID     string `yaml:"client_id" mapstructure:"client_id" validate:"required"`
+		ClientSecret string `yaml:"client_secret" mapstructure:"client_secret" validate:"required"`
 	}
 
 	OAuth struct {
@@ -79,12 +79,12 @@ type (
 	}
 
 	Email struct {
-		ApiKey                   string `yaml:"api_key" mapstructure:"api_key"`
-		SendAs                   string `yaml:"send_as" mapstructure:"send_as"`
-		VerifyEmailTemplateId    string `yaml:"verify_template_id" mapstructure:"verify_template_id"`
-		ForgotPasswordTemplateId string `yaml:"forgot_password_template_id" mapstructure:"forgot_password_template_id"`
-		WelcomeEmailTemplateId   string `yaml:"welcome_template_id" mapstructure:"welcome_template_id"`
-		Enabled                  bool   `yaml:"enabled" mapstructure:"enabled"`
+		ApiKey                string `yaml:"api_key" mapstructure:"api_key" validate:"required"`
+		SendAs                string `yaml:"send_as" mapstructure:"send_as" validate:"required"`
+		VerifyEmailTemplateId string `yaml:"verify_template_id" mapstructure:"verify_template_id" validate:"required"`
+		//nolint
+		ForgotPasswordTemplateId string `yaml:"forgot_password_template_id" mapstructure:"forgot_password_template_id" validate:"required"`
+		WelcomeEmailTemplateId   string `yaml:"welcome_template_id" mapstructure:"welcome_template_id" validate:"required"`
 	}
 )
 
@@ -105,6 +105,49 @@ func NewStoreConfig() (*Store, error) {
 	}
 
 	return storeConfig, nil
+}
+
+func (oc *OpenRegistryConfig) Validate() error {
+	if oc == nil {
+		return fmt.Errorf("invalid config, cannot be nil")
+	}
+	v := validator.New()
+
+	english := en.New()
+	uni := ut.New(english, english)
+	trans, ok := uni.GetTranslator("en")
+	if !ok {
+		return fmt.Errorf("translation not available for the given language")
+	}
+	if err := enTranslations.RegisterDefaultTranslations(v, trans); err != nil {
+		return err
+	}
+
+	var e error
+	e = multierror.Append(e, translateError(v.Struct(oc), trans))
+
+	merr := e.(*multierror.Error)
+	if merr.ErrorOrNil() != nil {
+		return merr
+	}
+	return nil
+}
+
+func translateError(err error, trans ut.Translator) error {
+	if err != nil {
+		var translatedErr error
+		validatorErrs, ok := err.(validator.ValidationErrors)
+		if !ok {
+			return err
+		}
+		for _, e := range validatorErrs {
+			translatedErr = multierror.Append(translatedErr, fmt.Errorf(e.Translate(trans)))
+		}
+
+		return translatedErr
+	}
+
+	return nil
 }
 
 func (sc *Store) Endpoint() string {

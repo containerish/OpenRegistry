@@ -6,6 +6,7 @@ web_app_error_redirect_path: "/auth/unhandled"
 registry:
   dns_address: localhost
   version: master
+  fqdn: localhost
   jwt_signing_secret: super-secret
   host: 0.0.0.0
   port: 5000
@@ -40,6 +41,7 @@ log_service:
 email:
   enabled: true
   api_key: <sendgrid-api-key>
-  send_as: admin@openregistry.dev
-  verify_template_id: <verify_template_id>
-  forgot_password_template_id: <forgot_password_template_id>
+  send_as: admin@openregistry.dev
+  verify_template_id: <verify_template_id>
+  welcome_template_id: <welcome_template_id>
+  forgot_password_template_id: <forgot_password_template_id>
