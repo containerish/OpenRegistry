@@ -93,7 +93,7 @@ func (a *auth) GithubLoginCallbackHandler(ctx echo.Context) error {
 
 	oauthUser.Password = refreshToken
 	if err = a.pgStore.AddOAuthUser(ctx.Request().Context(), &oauthUser); err != nil {
-		redirectPath := fmt.Sprintf("%s/%s?error=%s", a.c.WebAppEndpoint, a.c.WebAppErrorRedirectPath, err.Error())
+		redirectPath := fmt.Sprintf("%s%s?error=%s", a.c.WebAppEndpoint, a.c.WebAppErrorRedirectPath, err.Error())
 		echoErr := ctx.Redirect(http.StatusTemporaryRedirect, redirectPath)
 		a.logger.Log(ctx, err)
 		return echoErr
