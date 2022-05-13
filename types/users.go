@@ -7,6 +7,7 @@ import (
 	"time"
 	"unicode"
 
+	"github.com/duo-labs/webauthn/webauthn"
 	"github.com/go-playground/validator/v10"
 )
 
@@ -35,6 +36,7 @@ type (
 		OAuthID           int       `json:"id,omitempty"`
 		IsActive          bool      `json:"is_active,omitempty" validate:"-"`
 		Hireable          bool      `json:"hireable,omitempty"`
+		credentials       []webauthn.Credential
 	}
 
 	OAuthUser struct {
@@ -146,21 +148,27 @@ func (u *User) Bytes() ([]byte, error) {
 	return json.Marshal(u)
 }
 
-func (u *User) StripForToken() *User {
-	u.CreatedAt = time.Time{}
-	u.UpdatedAt = time.Time{}
-	u.Password = ""
-	u.URL = ""
-	u.Company = ""
-	u.ReceivedEventsURL = ""
-	u.Bio = ""
-	u.GravatarID = ""
-	u.TwitterUsername = ""
-	u.HTMLURL = ""
-	u.Location = ""
-	u.OrganizationsURL = ""
-	u.AvatarURL = ""
-	u.Hireable = false
+// WebAuthnID - User ID according to the Relying Party
+func (u *User) WebAuthnID() []byte {
+	return []byte(u.Id)
+}
 
-	return u
+// WebAuthnName - User Name according to the Relying Party
+func (u *User) WebAuthnName() string {
+	return u.Username
+}
+
+// WebAuthnDisplayName - Display Name of the user
+func (u *User) WebAuthnDisplayName() string {
+	return u.Username
+}
+
+// WebAuthnIcon - User's icon url
+func (u *User) WebAuthnIcon() string {
+	return u.AvatarURL
+}
+
+// WebAuthnCredentials - Credentials owned by the user
+func (u *User) WebAuthnCredentials() []webauthn.Credential {
+	return u.credentials
 }

@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"github.com/duo-labs/webauthn/webauthn"
 	"time"
 
 	"github.com/containerish/OpenRegistry/config"
@@ -15,6 +16,7 @@ type PersistentStore interface {
 	UserStore
 	RegistryStore
 	SessionStore
+	WebAuthN
 	Close()
 }
 
@@ -69,6 +71,13 @@ type SessionStore interface {
 	GetSession(ctx context.Context, sessionId string) (*types.Session, error)
 	DeleteSession(ctx context.Context, sessionId, userId string) error
 	DeleteAllSessions(ctx context.Context, userId string) error
+}
+
+type WebAuthN interface {
+	GetWebAuthNCredentials(ctx context.Context, id string) (*webauthn.Credential, error)
+	AddWebAuthNCredentials(ctx context.Context, credential *webauthn.Credential) error
+	GetWebAuthNSessionData(ctx context.Context, userId string) (*webauthn.SessionData, error)
+	AddWebAuthSessionData(ctx context.Context, sessionData *webauthn.SessionData) error
 }
 
 type pg struct {
