@@ -3,6 +3,7 @@ package router
 import (
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/containerish/OpenRegistry/auth"
 	"github.com/containerish/OpenRegistry/config"
@@ -35,7 +36,10 @@ func Register(
 
 	e.Use(middleware.RequestIDWithConfig(middleware.RequestIDConfig{
 		Generator: func() string {
-			requestId := uuid.New()
+			requestId, err := uuid.NewRandom()
+			if err != nil {
+				time.Now().Format(time.RFC3339Nano)
+			}
 			return requestId.String()
 		},
 	}))

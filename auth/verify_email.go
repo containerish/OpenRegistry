@@ -94,8 +94,16 @@ func (a *auth) VerifyEmail(ctx echo.Context) error {
 		return echoErr
 	}
 
-	id := uuid.NewString()
-	if err = a.pgStore.AddSession(ctx.Request().Context(), id, refresh, user.Username); err != nil {
+	id, err := uuid.NewRandom()
+	if err != nil {
+		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
+			"error": err.Error(),
+			"cause": "error creating random id for session",
+		})
+		a.logger.Log(ctx, err)
+		return echoErr
+	}
+	if err = a.pgStore.AddSession(ctx.Request().Context(), id.String(), refresh, user.Username); err != nil {
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error":   err.Error(),
 			"message": "error creating session",

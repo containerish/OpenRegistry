@@ -436,11 +436,20 @@ func (r *registry) StartUpload(ctx echo.Context) error {
 			return echoErr
 		}
 
+		id, err := uuid.NewRandom()
+		if err != nil {
+			echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
+				"error": err.Error(),
+				"cause": "error creating random id for layer",
+			})
+			r.logger.Log(ctx, err)
+			return echoErr
+		}
 		layerV2 := &types.LayerV2{
 			MediaType:   ctx.Request().Header.Get("content-type"),
 			Digest:      dig,
 			SkynetLink:  skylink,
-			UUID:        uuid.NewString(),
+			UUID:        id.String(),
 			BlobDigests: nil,
 			Size:        buf.Len(),
 			CreatedAt:   time.Now(),
@@ -475,7 +484,15 @@ func (r *registry) StartUpload(ctx echo.Context) error {
 		return echoErr
 	}
 
-	id := uuid.New()
+	id, err := uuid.NewRandom()
+	if err != nil {
+		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
+			"error":   err.Error(),
+			"message": "error creating random id for blob",
+		})
+		r.logger.Log(ctx, err)
+		return echoErr
+	}
 	locationHeader := fmt.Sprintf("/v2/%s/blobs/uploads/%s", namespace, id.String())
 	txn, err := r.store.NewTxn(ctx.Request().Context())
 	if err != nil {
@@ -701,7 +718,15 @@ func (r *registry) PushManifest(ctx echo.Context) error {
 		layerIDs = append(layerIDs, layer.Digest)
 	}
 
-	id := uuid.New()
+	id, err := uuid.NewRandom()
+	if err != nil {
+		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
+			"error": err.Error(),
+			"cause": "error creating random id for config",
+		})
+		r.logger.Log(ctx, err)
+		return echoErr
+	}
 	mfc := types.ConfigV2{
 		UUID:      id.String(),
 		Namespace: namespace,
@@ -715,8 +740,17 @@ func (r *registry) PushManifest(ctx echo.Context) error {
 		UpdatedAt: time.Now(),
 	}
 
+	id, err = uuid.NewRandom()
+	if err != nil {
+		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
+			"error": err.Error(),
+			"cause": "error creating random id for image manifest",
+		})
+		r.logger.Log(ctx, err)
+		return echoErr
+	}
 	val := &types.ImageManifestV2{
-		Uuid:          uuid.NewString(),
+		Uuid:          id.String(),
 		Namespace:     namespace,
 		MediaType:     "",
 		SchemaVersion: 2,
@@ -788,7 +822,15 @@ func (r *registry) PushLayer(ctx echo.Context) error {
 		return echoErr
 	}
 
-	id := uuid.New()
+	id, err := uuid.NewRandom()
+	if err != nil {
+		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
+			"error":   err.Error(),
+			"message": "error creating random id for push layer",
+		})
+		r.logger.Log(ctx, err)
+		return echoErr
+	}
 	p := path.Join(elem[1 : len(elem)-2]...)
 	locationHeader := fmt.Sprintf("/v2/%s/blobs/uploads/%s", p, id.String())
 	ctx.Response().Header().Set("Location", locationHeader)

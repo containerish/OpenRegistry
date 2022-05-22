@@ -20,7 +20,11 @@ func (p *pg) AddUser(ctx context.Context, u *types.User) error {
 
 	t := time.Now()
 	if u.Id == "" {
-		u.Id = uuid.New().String()
+		id, err := uuid.NewRandom()
+		if err != nil {
+			return fmt.Errorf("error creating id for add user: %w", err)
+		}
+		u.Id = id.String()
 	}
 	_, err := p.conn.Exec(
 		childCtx,
@@ -52,9 +56,12 @@ func (p *pg) AddOAuthUser(ctx context.Context, u *types.User) error {
 	defer cancel()
 
 	t := time.Now()
-	id := uuid.New()
+	id, err := uuid.NewRandom()
+	if err != nil {
+		return fmt.Errorf("error creating id for oauth user")
+	}
 
-	_, err := p.conn.Exec(
+	_, err = p.conn.Exec(
 		childCtx,
 		queries.AddOAuthUser,
 		id.String(),

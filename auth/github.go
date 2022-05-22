@@ -16,9 +16,17 @@ import (
 
 func (a *auth) LoginWithGithub(ctx echo.Context) error {
 	ctx.Set(types.HandlerStartTime, time.Now())
-	state := uuid.NewString()
-	a.oauthStateStore[state] = time.Now().Add(time.Minute * 10)
-	url := a.github.AuthCodeURL(state, oauth2.AccessTypeOffline)
+	state, err := uuid.NewRandom()
+	if err != nil {
+		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
+			"error":   err.Error(),
+			"message": "error generating random id for github login",
+		})
+		a.logger.Log(ctx, err)
+		return echoErr
+	}
+	a.oauthStateStore[state.String()] = time.Now().Add(time.Minute * 10)
+	url := a.github.AuthCodeURL(state.String(), oauth2.AccessTypeOffline)
 	a.logger.Log(ctx, nil)
 	return ctx.Redirect(http.StatusTemporaryRedirect, url)
 }
@@ -79,7 +87,16 @@ func (a *auth) GithubLoginCallbackHandler(ctx echo.Context) error {
 	}
 
 	oauthUser.Username = oauthUser.Login
-	oauthUser.Id = uuid.NewString()
+	id, err := uuid.NewRandom()
+	if err != nil {
+		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
+			"error":   err.Error(),
+			"message": "error creating oauth user id",
+		})
+		a.logger.Log(ctx, err)
+		return echoErr
+	}
+	oauthUser.Id = id.String()
 
 	accessToken, refreshToken, err := a.SignOAuthToken(oauthUser.Id, token)
 	if err != nil {
@@ -99,8 +116,16 @@ func (a *auth) GithubLoginCallbackHandler(ctx echo.Context) error {
 		return echoErr
 	}
 
-	sessionId := uuid.NewString()
-	if err = a.pgStore.AddSession(ctx.Request().Context(), sessionId, refreshToken, oauthUser.Username); err != nil {
+	sessionId, err := uuid.NewRandom()
+	if err != nil {
+		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
+			"error": err.Error(),
+			"cause": "error creating session id",
+		})
+		a.logger.Log(ctx, err)
+		return echoErr
+	}
+	if err = a.pgStore.AddSession(ctx.Request().Context(), sessionId.String(), refreshToken, oauthUser.Username); err != nil {
 		echoErr := ctx.Redirect(http.StatusTemporaryRedirect, a.c.WebAppErrorRedirectPath)
 		a.logger.Log(ctx, err)
 		return echoErr
