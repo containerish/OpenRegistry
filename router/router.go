@@ -38,7 +38,7 @@ func Register(
 		Generator: func() string {
 			requestId, err := uuid.NewRandom()
 			if err != nil {
-				time.Now().Format(time.RFC3339Nano)
+				return time.Now().Format(time.RFC3339Nano)
 			}
 			return requestId.String()
 		},

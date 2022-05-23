@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/containerish/OpenRegistry/config"
-
 	"github.com/containerish/OpenRegistry/types"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
@@ -125,7 +124,8 @@ func (a *auth) GithubLoginCallbackHandler(ctx echo.Context) error {
 		a.logger.Log(ctx, err)
 		return echoErr
 	}
-	if err = a.pgStore.AddSession(ctx.Request().Context(), sessionId.String(), refreshToken, oauthUser.Username); err != nil {
+	err = a.pgStore.AddSession(ctx.Request().Context(), sessionId.String(), refreshToken, oauthUser.Username)
+	if err != nil {
 		echoErr := ctx.Redirect(http.StatusTemporaryRedirect, a.c.WebAppErrorRedirectPath)
 		a.logger.Log(ctx, err)
 		return echoErr
