@@ -15,7 +15,7 @@ type (
 	User struct {
 		CreatedAt         time.Time `json:"created_at,omitempty" validate:"-"`
 		UpdatedAt         time.Time `json:"updated_at,omitempty" validate:"-"`
-		Id                string    `json:"uuid,omitempty" validate:"-"`
+		TwitterUsername   string    `json:"twitter_username,omitempty"`
 		Password          string    `json:"password,omitempty"`
 		Username          string    `json:"username,omitempty" validate:"-"`
 		Email             string    `json:"email,omitempty" validate:"email"`
@@ -25,7 +25,7 @@ type (
 		Bio               string    `json:"bio,omitempty"`
 		Type              string    `json:"type,omitempty"`
 		GravatarID        string    `json:"gravatar_id,omitempty"`
-		TwitterUsername   string    `json:"twitter_username,omitempty"`
+		Id                string    `json:"uuid,omitempty" validate:"-"`
 		HTMLURL           string    `json:"html_url,omitempty"`
 		Location          string    `json:"location,omitempty"`
 		Login             string    `json:"login,omitempty"`
@@ -33,10 +33,10 @@ type (
 		NodeID            string    `json:"node_id,omitempty"`
 		OrganizationsURL  string    `json:"organizations_url,omitempty"`
 		AvatarURL         string    `json:"avatar_url,omitempty"`
-		OAuthID           int       `json:"id,omitempty"`
-		IsActive          bool      `json:"is_active,omitempty" validate:"-"`
-		Hireable          bool      `json:"hireable,omitempty"`
 		credentials       []webauthn.Credential
+		OAuthID           int  `json:"id,omitempty"`
+		IsActive          bool `json:"is_active,omitempty" validate:"-"`
+		Hireable          bool `json:"hireable,omitempty"`
 	}
 
 	OAuthUser struct {
@@ -171,4 +171,8 @@ func (u *User) WebAuthnIcon() string {
 // WebAuthnCredentials - Credentials owned by the user
 func (u *User) WebAuthnCredentials() []webauthn.Credential {
 	return u.credentials
+}
+
+func (u *User) AddWebAuthNCredential(creds *webauthn.Credential) {
+	u.credentials = append(u.credentials, *creds)
 }

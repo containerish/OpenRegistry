@@ -29,4 +29,6 @@ func RegisterAuthRoutes(authRouter *echo.Group, authSvc auth.Authentication) {
 	webAuthnRouter := authRouter.Group("/webauthn")
 	webAuthnRouter.Add(http.MethodPost, "/begin-registration", authSvc.BeginRegistration)
 	webAuthnRouter.Add(http.MethodPost, "/finish-registration", authSvc.FinishRegistration)
+	webAuthnRouter.Add(http.MethodGet, "/begin-login", authSvc.BeginLogin)
+	webAuthnRouter.Add(http.MethodPost, "/finish-login", authSvc.FinishLogin)
 }

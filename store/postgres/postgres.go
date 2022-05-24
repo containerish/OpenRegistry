@@ -2,8 +2,9 @@ package postgres
 
 import (
 	"context"
-	"github.com/duo-labs/webauthn/webauthn"
 	"time"
+
+	"github.com/duo-labs/webauthn/webauthn"
 
 	"github.com/containerish/OpenRegistry/config"
 	"github.com/containerish/OpenRegistry/types"
@@ -74,10 +75,10 @@ type SessionStore interface {
 }
 
 type WebAuthN interface {
-	GetWebAuthNCredentials(ctx context.Context, id string) (*webauthn.Credential, error)
-	AddWebAuthNCredentials(ctx context.Context, credential *webauthn.Credential) error
-	GetWebAuthNSessionData(ctx context.Context, userId string) (*webauthn.SessionData, error)
-	AddWebAuthSessionData(ctx context.Context, sessionData *webauthn.SessionData) error
+	GetWebAuthNSessionData(ctx context.Context, userId string, sessionType string) (*webauthn.SessionData, error)
+	AddWebAuthSessionData(ctx context.Context, userId string, sessionData *webauthn.SessionData, sessionType string) error
+	GetWebAuthNCredentials(ctx context.Context, userId string) (*webauthn.Credential, error)
+	AddWebAuthNCredentials(ctx context.Context, userId string, credential *webauthn.Credential) error
 }
 
 type pg struct {

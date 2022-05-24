@@ -142,8 +142,8 @@ func (a *auth) SignUp(ctx echo.Context) error {
 		return echoErr
 	}
 
-	echoErr := ctx.JSON(http.StatusCreated, echo.Map{
-		"message": "sign up was successful, please check your email to activate your account",
+	echoErr := ctx.JSON(http.StatusOK, echo.Map{
+		"message": "signup was successful, please check your email to activate your account",
 	})
 	a.logger.Log(ctx, echoErr)
 	return echoErr
