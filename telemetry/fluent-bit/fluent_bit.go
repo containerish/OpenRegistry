@@ -83,9 +83,15 @@ func (fb *fluentBit) Send(logBytes []byte) {
 }
 
 func (fb *fluentBit) queueForRetry(logBytes []byte) {
-	id := uuid.New()
+	var msgID string
+	id, err := uuid.NewRandom()
+	if err != nil {
+		msgID = time.Now().Format(time.RFC3339Nano)
+	} else {
+		msgID = id.String()
+	}
 
-	fb.retryMessages[id.String()] = retryLogMsg{
+	fb.retryMessages[msgID] = retryLogMsg{
 		content: logBytes,
 		count:   0,
 		done:    false,

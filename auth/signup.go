@@ -60,12 +60,20 @@ func (a *auth) SignUp(ctx echo.Context) error {
 		return echoErr
 	}
 	u.Password = passwordHash
-
+	id, err := uuid.NewRandom()
+	if err != nil {
+		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
+			"error":   err.Error(),
+			"message": "error creating random id for user sign-up",
+		})
+		a.logger.Log(ctx, err)
+		return echoErr
+	}
 	newUser := &types.User{
 		Email:    u.Email,
 		Username: u.Username,
 		Password: u.Password,
-		Id:       uuid.NewString(),
+		Id:       id.String(),
 	}
 
 	newUser.Hireable = false
@@ -113,8 +121,17 @@ func (a *auth) SignUp(ctx echo.Context) error {
 		return echoErr
 	}
 
-	token := uuid.NewString()
-	err = a.pgStore.AddVerifyEmail(ctx.Request().Context(), token, newUser.Id)
+	token, err := uuid.NewRandom()
+	if err != nil {
+		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
+			"error":   err.Error(),
+			"message": "error creating random id for token",
+		})
+		a.logger.Log(ctx, err)
+		return echoErr
+
+	}
+	err = a.pgStore.AddVerifyEmail(ctx.Request().Context(), token.String(), newUser.Id)
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error":   err.Error(),
@@ -124,7 +141,7 @@ func (a *auth) SignUp(ctx echo.Context) error {
 		return echoErr
 	}
 
-	if err = a.emailClient.SendEmail(newUser, token, email.VerifyEmailKind); err != nil {
+	if err = a.emailClient.SendEmail(newUser, token.String(), email.VerifyEmailKind); err != nil {
 		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error":   err.Error(),
 			"message": "could not send verify link, please reach out to OpenRegistry Team",

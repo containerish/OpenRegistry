@@ -102,8 +102,15 @@ func (a *auth) SignIn(ctx echo.Context) error {
 		return echoErr
 	}
 
-	id := uuid.NewString()
-	if err = a.pgStore.AddSession(ctx.Request().Context(), id, refresh, userFromDb.Username); err != nil {
+	id, err := uuid.NewRandom()
+	if err != nil {
+		a.logger.Log(ctx, err)
+		return ctx.JSON(http.StatusInternalServerError, echo.Map{
+			"error":   err.Error(),
+			"message": "error creating session id",
+		})
+	}
+	if err = a.pgStore.AddSession(ctx.Request().Context(), id.String(), refresh, userFromDb.Username); err != nil {
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error":   err.Error(),
 			"message": "error creating session",
