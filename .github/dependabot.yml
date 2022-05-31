@@ -1,0 +1,25 @@
+version: 2
+enable-beta-ecosystems: true
+updates:
+  - package-ecosystem: "gomod"
+    directory: "/"
+    schedule:
+      interval: "daily"
+    commit-message:
+      prefix: "go.mod:"
+    open-pull-requests-limit: 25
+    labels:
+      - "go.mod"
+      - "dependencies"
+    pull-request-branch-name:
+      separator: "-"
+    assignees:
+      - "guacamole"
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: ".github:"
+    assignees:
+      - "guacamole"
