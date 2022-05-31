@@ -15,12 +15,12 @@ require (
 	github.com/jackc/pgx/v4 v4.13.0
 	github.com/labstack/echo-contrib v0.11.0
 	github.com/labstack/echo/v4 v4.5.0
-	github.com/rs/zerolog v1.24.0
+	github.com/rs/zerolog v1.26.1
 	github.com/sendgrid/sendgrid-go v3.11.1+incompatible
 	github.com/spf13/viper v1.8.1
 	github.com/valyala/fasttemplate v1.2.1
 	github.com/whyrusleeping/tar-utils v0.0.0-20201201191210-20a61371de5b
-	golang.org/x/crypto v0.0.0-20211215153901-e495a2d5b3d3
+	golang.org/x/crypto v0.0.0-20211215165025-cf75a172585e
 	golang.org/x/oauth2 v0.0.0-20211104180415-d3ed0bb246c8
 	gopkg.in/yaml.v2 v2.4.0
 )
@@ -62,7 +62,7 @@ require (
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	gitlab.com/NebulousLabs/errors v0.0.0-20171229012116-7ead97ef90b8 // indirect
 	golang.org/x/net v0.0.0-20211112202133-69e39bad7dc2 // indirect
-	golang.org/x/sys v0.0.0-20210806184541-e5e7981a1069 // indirect
+	golang.org/x/sys v0.0.0-20210809222454-d867a43fc93e // indirect
 	golang.org/x/text v0.3.7 // indirect
 	golang.org/x/time v0.0.0-20201208040808-7e3f01d25324 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
