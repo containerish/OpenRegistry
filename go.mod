@@ -15,7 +15,7 @@ require (
 	github.com/jackc/pgx/v4 v4.16.1
 	github.com/labstack/echo-contrib v0.12.0
 	github.com/labstack/echo/v4 v4.7.2
-	github.com/rs/zerolog v1.26.1
+	github.com/rs/zerolog v1.27.0
 	github.com/sendgrid/sendgrid-go v3.11.1+incompatible
 	github.com/spf13/viper v1.12.0
 	github.com/valyala/fasttemplate v1.2.1
