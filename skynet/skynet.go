@@ -17,8 +17,7 @@ func NewClient(oc *config.OpenRegistryConfig) *Client {
 
 	opts := skynet.Options{
 		CustomUserAgent: oc.SkynetConfig.CustomUserAgent,
-		APIKey:          oc.SkynetConfig.ApiKey,
-		CustomCookie:    oc.SkynetConfig.ApiKey,
+		SkynetAPIKey:    oc.SkynetConfig.ApiKey,
 		HttpClient:      newHttpClientForSkynet(),
 	}
 
