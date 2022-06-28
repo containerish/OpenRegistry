@@ -51,7 +51,6 @@ jobs:
           yq e -i '.environment = "ci"' config.yaml
           IP=$IP yq e -i '.database.host = env(IP)' config.yaml
           SKYNET_API_KEY=${{ secrets.SKYNET_API_KEY }} yq e -i '.skynet.api_key = env(SKYNET_API_KEY)' config.yaml
-          SKYNET_API_KEY=${{ secrets.SKYNET_API_KEY }} yq e -i '.skynet.custom_cookie = env(SKYNET_API_KEY)' config.yaml
           docker build -f ./Dockerfile -t "${DISTRIBUTION_REF}" .
           docker run --rm -p 5000:5000 --env="CI_SYS_ADDR=$IP:5000" -d "${DISTRIBUTION_REF}"
           sleep 5

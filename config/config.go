@@ -49,7 +49,6 @@ type (
 		EndpointPath    string `yaml:"endpoint_path" mapstructure:"endpoint_path"`
 		ApiKey          string `yaml:"api_key" mapstructure:"api_key"`
 		CustomUserAgent string `yaml:"custom_user_agent" mapstructure:"custom_user_agent"`
-		CustomCookie    string `yaml:"custom_cookie" mapstructure:"custom_cookie"`
 	}
 
 	Log struct {
