@@ -35,7 +35,7 @@ func NewClient(oc *config.OpenRegistryConfig) *Client {
 
 func (c *Client) Upload(namespace, digest string, content []byte, pin bool) (string, error) {
 	opts := skynet.DefaultUploadOptions
-	opts.APIKey = c.skynet.Options.APIKey
+	opts.SkynetAPIKey = c.skynet.Options.SkynetAPIKey
 	opts.CustomDirname = namespace
 
 	data := make(skynet.UploadData)
