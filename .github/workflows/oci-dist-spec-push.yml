@@ -1,6 +1,12 @@
 name: OCI Distribution Spec
 
 on:
+  workflow_dispatch:
+    inputs:
+      debug_enabled:
+        description: "Run the build with tmate for debugging"
+        required: false
+        default: false
   pull_request:
 
 concurrency:
@@ -40,6 +46,11 @@ jobs:
            PGDATABASE: open_registry
            PGPASSWORD: Qwerty@123
            PGUSER: postgres
+      - name: Setup Tmate in Debug Mode
+        uses: mxschmitt/action-tmate@v3
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.debug_enabled }}
+        with:
+          limit-access-to-actor: true
       - name: start distribution server
         run: |
           wget https://github.com/mikefarah/yq/releases/download/v4.16.2/yq_linux_amd64 -O /usr/bin/yq && chmod +x /usr/bin/yq
