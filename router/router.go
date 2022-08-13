@@ -1,6 +1,8 @@
 package router
 
 import (
+	"encoding/json"
+	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -9,6 +11,8 @@ import (
 	"github.com/containerish/OpenRegistry/config"
 	"github.com/containerish/OpenRegistry/registry/v2"
 	"github.com/containerish/OpenRegistry/registry/v2/extensions"
+	"github.com/fatih/color"
+	"github.com/google/go-github/v42/github"
 	"github.com/google/uuid"
 	"github.com/labstack/echo-contrib/prometheus"
 	"github.com/labstack/echo/v4"
@@ -49,6 +53,18 @@ func Register(
 	p := prometheus.NewPrometheus("OpenRegistry", nil)
 	p.Use(e)
 
+	e.Add(http.MethodPost ,"/github/connect/setup", func(ctx echo.Context) error {
+		bz, _ := io.ReadAll(ctx.Request().Body)
+		color.Red("output: %s",bz)
+		prEvent := github.PullRequestEvent{}
+		err := json.NewDecoder(ctx.Request().Body).Decode(&prEvent)
+		if err != nil {
+			
+		}
+		prEvent.GetPullRequest()
+
+		return nil
+})
 	v2Router := e.Group(V2, authSvc.BasicAuth(), authSvc.JWT())
 	nsRouter := v2Router.Group(Namespace, authSvc.ACL())
 
