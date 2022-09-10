@@ -27,6 +27,7 @@ type (
 		WebAuthnConfig WebAuthnConfig `yaml:"web_authn_config" mapstructure:"web_authn_config"`
 		Environment    Environment    `yaml:"environment" mapstructure:"environment" validate:"required"`
 		Debug          bool           `yaml:"debug" mapstructure:"debug"`
+		Integrations   Integrations   `yaml:"integrations" mapstructure:"integrations"`
 	}
 
 	WebAppConfig struct {
@@ -51,6 +52,9 @@ type (
 		MinChunkSize    uint64 `yaml:"min_chunk_size" mapstructure:"min_chunk_size"`
 		Enabled         bool   `yaml:"enabled" mapstructure:"enabled"`
 	}
+
+	// just so that we can retrieve values easily
+	Integrations []*Integation
 
 	Registry struct {
 		TLS        TLS      `yaml:"tls" mapstructure:"tls" validate:"-"`
@@ -119,6 +123,14 @@ type (
 		RPOrigins     []string      `yaml:"rp_origins" mapstructure:"rp_origins"`
 		Enabled       bool          `yaml:"enabled" mapstructure:"enabled"`
 		Timeout       time.Duration `yaml:"timeout" mapstructure:"timeout"`
+	}
+	Integation struct {
+		Name         string `yaml:"name" mapstructure:"name"`
+		ClientSecret string `yaml:"client_secret" mapstructure:"client_secret"`
+		ClientID     string `yaml:"client_id" mapstructure:"client_id"`
+		PublicLink   string `yaml:"public_link" mapstructure:"public_link"`
+		AppID        int64  `yaml:"app_id" mapstructure:"app_id"`
+		Enabled      bool   `yaml:"enabled" mapstructure:"enabled"`
 	}
 )
 
@@ -215,6 +227,16 @@ func (oc *OpenRegistryConfig) Endpoint() string {
 	default:
 		return fmt.Sprintf("https://%s:%d", oc.Registry.Host, oc.Registry.Port)
 	}
+}
+
+func (itg Integrations) GetGithubConfig() *Integation {
+	for _, cfg := range itg {
+		if cfg.Name == "github" && cfg.Enabled {
+			return cfg
+		}
+	}
+
+	return nil
 }
 
 type Environment int

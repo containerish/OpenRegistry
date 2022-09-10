@@ -307,6 +307,33 @@ func (p *pg) UpdateUserPWD(ctx context.Context, identifier string, newPassword s
 	return nil
 }
 
+func (p *pg) UpdateInstallationID(ctx context.Context, id, githubUsername string) error {
+	childCtx, cancel := context.WithTimeout(ctx, time.Millisecond*100)
+	defer cancel()
+
+	_, err := p.conn.Exec(childCtx, queries.UpdateUserInstallationID, id, githubUsername)
+	if err != nil {
+		return fmt.Errorf("error updating github app installation id: %w", err)
+	}
+
+	return nil
+}
+
+func (p *pg) GetInstallationID(ctx context.Context, githubUsername string) (string, error) {
+	childCtx, cancel := context.WithTimeout(ctx, time.Millisecond*100)
+	defer cancel()
+
+	row := p.conn.QueryRow(childCtx, queries.GetUserInstallationID, githubUsername)
+
+	var installationID string
+	if err := row.Scan(&installationID); err != nil {
+		return "", fmt.Errorf("error getting github app installation id: %w", err)
+	}
+
+	return installationID, nil
+
+}
+
 func (p *pg) AddVerifyEmail(ctx context.Context, token, userId string) error {
 	childCtx, cancel := context.WithTimeout(ctx, time.Millisecond*100)
 	defer cancel()

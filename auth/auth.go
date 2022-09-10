@@ -7,7 +7,7 @@ import (
 	"github.com/containerish/OpenRegistry/services/email"
 	"github.com/containerish/OpenRegistry/store/postgres"
 	"github.com/containerish/OpenRegistry/telemetry"
-	gh "github.com/google/go-github/v42/github"
+	gh "github.com/google/go-github/v46/github"
 	"github.com/labstack/echo/v4"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/github"

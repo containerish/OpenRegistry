@@ -13,6 +13,7 @@ import (
 	"github.com/containerish/OpenRegistry/store/postgres"
 	"github.com/containerish/OpenRegistry/telemetry"
 	fluentbit "github.com/containerish/OpenRegistry/telemetry/fluent-bit"
+	"github.com/containerish/OpenRegistry/vcs/github"
 	"github.com/fatih/color"
 	"github.com/labstack/echo/v4"
 )
@@ -56,6 +57,13 @@ func main() {
 	}
 
 	router.Register(cfg, e, reg, authSvc, webauthnServer, ext)
+	ghApp, err := github.NewGithubApp(cfg.Integrations.GetGithubConfig(), pgStore)
+	if err != nil {
+		e.Logger.Errorf("error initializing Github App Service: %s", err)
+		return
+	}
+
+	ghApp.RegisterRoutes(e.Group("/github"))
 	color.Red("error initialising OpenRegistry Server: %s", buildHTTPServer(cfg, e))
 }
 

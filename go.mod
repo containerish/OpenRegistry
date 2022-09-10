@@ -8,6 +8,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/config v1.18.19
 	github.com/aws/aws-sdk-go-v2/credentials v1.13.18
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.31.0
+	github.com/bradleyfalzon/ghinstallation/v2 v2.2.0
 	github.com/fatih/color v1.15.0
 	github.com/go-playground/locales v0.14.1
 	github.com/go-playground/universal-translator v0.18.1
@@ -15,7 +16,7 @@ require (
 	github.com/go-webauthn/webauthn v0.8.2
 	github.com/golang-jwt/jwt v3.2.2+incompatible
 	github.com/golang-jwt/jwt/v4 v4.5.0
-	github.com/google/go-github/v42 v42.0.0
+	github.com/google/go-github/v46 v46.0.0
 	github.com/google/uuid v1.3.0
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/jackc/pgconn v1.14.0
@@ -55,6 +56,7 @@ require (
 	github.com/fxamacker/cbor/v2 v2.4.0 // indirect
 	github.com/go-webauthn/revoke v0.1.9 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
+	github.com/google/go-github/v50 v50.1.0 // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/google/go-tpm v0.3.3 // indirect
 	github.com/hashicorp/errwrap v1.0.0 // indirect

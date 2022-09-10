@@ -55,15 +55,15 @@ func Register(
 	nsRouter := v2Router.Group(Namespace, authSvc.ACL())
 
 	authRouter := e.Group(Auth)
-	githubRouter := authRouter.Group("/github")
 	webauthnRouter := e.Group(Webauthn)
+	authGithubRouter := authRouter.Group("/github")
 
 	v2Router.Add(http.MethodGet, Root, reg.ApiVersion)
 
 	e.Add(http.MethodGet, TokenAuth, authSvc.Token)
 
-	githubRouter.Add(http.MethodGet, "/callback", authSvc.GithubLoginCallbackHandler)
-	githubRouter.Add(http.MethodGet, "/login", authSvc.LoginWithGithub)
+	authGithubRouter.Add(http.MethodGet, "/callback", authSvc.GithubLoginCallbackHandler)
+	authGithubRouter.Add(http.MethodGet, "/login", authSvc.LoginWithGithub)
 
 	RegisterNSRoutes(nsRouter, reg)
 	RegisterAuthRoutes(authRouter, authSvc)
