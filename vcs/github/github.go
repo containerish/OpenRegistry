@@ -3,8 +3,8 @@ package github
 import (
 	"context"
 	"fmt"
-	"io"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -12,7 +12,6 @@ import (
 	"github.com/bradleyfalzon/ghinstallation/v2"
 	"github.com/containerish/OpenRegistry/config"
 	"github.com/containerish/OpenRegistry/vcs"
-	"github.com/fatih/color"
 	"github.com/google/go-github/v46/github"
 	"github.com/labstack/echo/v4"
 )
@@ -52,7 +51,6 @@ func (gh *ghAppService) RegisterRoutes(r *echo.Group) {
 					"error": err.Error(),
 				})
 			}
-			color.Red("sessionid in mdw: %s", sessionID)
 			userID := strings.Split(sessionID.Value, ":")[1]
 			user, err := gh.store.GetUserById(c.Request().Context(), userID, false, nil)
 			if err != nil {
@@ -72,26 +70,20 @@ func (gh *ghAppService) RegisterRoutes(r *echo.Group) {
 }
 
 func (gh *ghAppService) HandleGithubAppFinish(ctx echo.Context) error {
-	qpms := ctx.QueryParams()
-	color.Red("qpms: %s", qpms)
 	ghAppInstallationID := ctx.QueryParam("installation_id")
 	username := ctx.Get("username").(string)
 
-	color.Magenta("username: %s - id: %s", username, ghAppInstallationID)
 	if err := gh.store.UpdateInstallationID(ctx.Request().Context(), ghAppInstallationID, username); err != nil {
 		return ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error": err.Error(),
 		})
 	}
 
-	color.Magenta("ghAppInstallationID: %s", ghAppInstallationID)
 	return ctx.Redirect(http.StatusTemporaryRedirect, "http://localhost:3000/apps/github/connect/select-repo")
 }
 
 // HandleSetupCallback implements vcs.VCS
 func (gh *ghAppService) HandleSetupCallback(ctx echo.Context) error {
-	qpms := ctx.QueryParams()
-	color.Red("qpms: %s", qpms)
 	ghAppInstallationID := ctx.QueryParam("installation_id")
 
 	if err := gh.store.UpdateInstallationID(ctx.Request().Context(), ghAppInstallationID, ""); err != nil {
@@ -100,19 +92,11 @@ func (gh *ghAppService) HandleSetupCallback(ctx echo.Context) error {
 		})
 	}
 
-	color.Magenta("ghAppInstallationID: %s", ghAppInstallationID)
 	return ctx.Redirect(http.StatusTemporaryRedirect, "http://localhost:3000/apps/github/connect/select-repo")
 }
 
 // HandleWebhookEvents implements vcs.VCS
 func (gh *ghAppService) HandleWebhookEvents(ctx echo.Context) error {
-	color.Red("its webhook")
-	qParams := ctx.QueryParams()
-	color.Green("qParams: %s", qParams)
-
-	bz, _ := io.ReadAll(ctx.Request().Body)
-	color.Yellow("wh body: %s", bz)
-
 	return ctx.NoContent(http.StatusNoContent)
 }
 
@@ -132,7 +116,6 @@ func (gh *ghAppService) ListAuthorisedRepositories(ctx echo.Context) error {
 			"error": err.Error(),
 		})
 	}
-	color.Blue("installationID from db: %s", installationID)
 
 	id, err := strconv.ParseInt(installationID, 10, 64)
 	if err != nil {
@@ -163,12 +146,15 @@ func (gh *ghAppService) ListAuthorisedRepositories(ctx echo.Context) error {
 			})
 		}
 
+		sort.Slice(b, func(i, j int) bool {
+			return b[i].GetName() == repo.GetDefaultBranch()
+		})
+
 		repoList = append(repoList, &AuthorizedRepository{
 			Repository: repo,
 			Branches:   b,
 		})
 	}
-	color.Red("repolist custommade: %s", repoList)
 
 	return ctx.JSON(http.StatusOK, repoList)
 }
