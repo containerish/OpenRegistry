@@ -3,7 +3,6 @@ package registry
 import (
 	"encoding/json"
 	"fmt"
-	"strings"
 
 	"github.com/fatih/color"
 )
@@ -23,11 +22,6 @@ func (r *registry) errorResponse(code, msg string, detail map[string]interface{}
 	}
 
 	return bz
-}
-
-func (r *registry) getHttpUrlFromSkylink(s string) string {
-	link := strings.TrimPrefix(s, "sia://")
-	return fmt.Sprintf("https://siasky.net/%s", link)
 }
 
 func (r *registry) getDownloadableURLFromDFSLink(s string) string {

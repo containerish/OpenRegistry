@@ -59,7 +59,7 @@ func (a *auth) ResetForgottenPassword(ctx echo.Context) error {
 		return echoErr
 	}
 
-	if err = validatePassword(pwd.NewPassword); err != nil {
+	if err = types.ValidatePassword(pwd.NewPassword); err != nil {
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error": err.Error(),
 			"message": `password must be alphanumeric, at least 8 chars long, must have at least one special character 
@@ -185,7 +185,7 @@ func (a *auth) ResetPassword(ctx echo.Context) error {
 		return echoErr
 	}
 
-	if err = validatePassword(pwd.NewPassword); err != nil {
+	if err = types.ValidatePassword(pwd.NewPassword); err != nil {
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error": err.Error(),
 			"message": `password must be alphanumeric, at least 8 chars long, must have at least one special character 

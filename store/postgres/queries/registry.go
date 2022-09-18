@@ -1,4 +1,3 @@
-//nolint
 package queries
 
 // insert queries
@@ -53,23 +52,3 @@ var (
 	DeleteManifestByRef = `delete from config where reference=$1;`
 	DeleteManifestByDig = `delete from config where digest=$1;`
 )
-
-//type Query interface {
-//	Where()string
-//	Select(q string)string
-//}
-//
-//type query string
-//
-//func (q query) Select(qu string) string {
-//	//TODO implement me
-//	panic("implement me")
-//}
-//
-//func (q query) Where(clause ...string) string {
-//	return fmt.Sprintf("%s %s",q, clause)
-//}
-//
-//func NewQuery() Query {
-//	return q
-//}
