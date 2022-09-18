@@ -1,3 +1,4 @@
+//nolint
 package queries
 
 // insert queries
@@ -11,8 +12,8 @@ var (
 	SetBlob = `insert into blob (uuid, digest, sky_link, start_range, end_range, created_at)
 	values ($1, $2, $3, $4, $5, $6) on conflict (digest) do nothing;`
 
-	SetConfig = `insert into config (uuid, namespace, reference, digest, sky_link, media_type, layers, size, created_at, updated_at) 
-	values ($1, $2, $3, $4, $5, $6,$7, $8, $9, $10) on conflict (namespace,reference) 
+	SetConfig = `insert into config (uuid, namespace, reference, digest, sky_link, media_type, layers, size,
+	created_at, updated_at) values ($1, $2, $3, $4, $5, $6,$7, $8, $9, $10) on conflict (namespace,reference) 
 	do update set digest=$4, sky_link=$5,layers=$7,updated_at=$10;`
 )
 
@@ -37,7 +38,8 @@ var (
 		image_manifest where substr(namespace, 1, 50) like $1;`
 
 	// be very careful using this one
-	GetCatalogDetailWithPagination     = `select namespace,created_at::timestamptz,updated_at::timestamptz from image_manifest order by %s limit $1 offset $2;`
+	GetCatalogDetailWithPagination     = `select namespace,created_at::timestamptz,updated_at::timestamptz from
+	image_manifest order by %s limit $1 offset $2;`
 	GetUserCatalogDetailWithPagination = `select namespace,created_at::timestamptz,updated_at::timestamptz from 
 		image_manifest where namespace like $1 order by %s limit $2 offset $3;`
 	GetRepoDetailWithPagination = `select reference, digest, sky_link, (select sum(size) from layer where digest = 

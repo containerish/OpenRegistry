@@ -1,14 +1,16 @@
 run:
   timeout: 2m
 
+skip-dirs:
+  - .go-skynet
+
 linters-settings:
   cyclop:
     max-complexity: 16
-    package-average: 0.5
-  lll:
-    line-length: 120
-    tab-width: 1
 
+lll:
+  line-length: 120
+  tab-width: 1
 
 linters:
   enable:
@@ -21,16 +23,3 @@ linters:
     - nilerr
     - noctx
     - sqlclosecheck
-  presets:
-    - bugs
-    - comment
-    - complexity
-    - error
-    - format
-    - import
-    - module
-    - performance
-    - sql
-    - style
-    - unused
-  fast: true
