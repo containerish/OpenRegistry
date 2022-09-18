@@ -61,7 +61,10 @@ jobs:
           cp config.yaml.example config.yaml
           yq e -i '.environment = "ci"' config.yaml
           IP=$IP yq e -i '.database.host = env(IP)' config.yaml
-          SKYNET_API_KEY=${{ secrets.SKYNET_API_KEY }} yq e -i '.skynet.api_key = env(SKYNET_API_KEY)' config.yaml
+          FILEBASE_KEY=${{ secrets.FILEBASE_KEY }} yq e -i '.dfs.s3_any.access_key = env(FILEBASE_KEY)' config.yaml
+          FILEBASE_SECRET=${{ secrets.FILEBASE_SECRET }} yq e -i '.dfs.s3_any.secret_key = env(FILEBASE_SECRET)' config.yaml
+          FILEBASE_BUCKET=${{ secrets.FILEBASE_KEY }} yq e -i '.dfs.s3_any.bucket_name = env(FILEBASE_BUCKET)' config.yaml
+          FILEBASE_ENDPOINT=${{ secrets.FILEBASE_ENDPOINT }} yq e -i '.dfs.s3_any.endpoint = env(FILEBASE_ENDPOINT)' config.yaml
           docker build -f ./Dockerfile -t "${DISTRIBUTION_REF}" .
           docker run --rm -p 5000:5000 --env="CI_SYS_ADDR=$IP:5000" -d "${DISTRIBUTION_REF}"
           sleep 5
