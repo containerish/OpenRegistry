@@ -1,8 +1,11 @@
 package registry
 
 import (
+	"sync"
 	"time"
 
+	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
+	dfsImpl "github.com/containerish/OpenRegistry/dfs"
 	"github.com/containerish/OpenRegistry/skynet"
 	"github.com/containerish/OpenRegistry/store/postgres"
 	"github.com/containerish/OpenRegistry/telemetry"
@@ -54,7 +57,7 @@ type RegistryErrors struct {
 type RegistryError struct {
 	Detail  map[string]interface{} `json:"detail,omitempty"`
 	Code    string                 `json:"code"`
-	Message string                 `json:"message"`
+	Message string                 `json:"message,omitempty"`
 }
 
 // OCI - Distribution Spec compliant Headers
@@ -85,11 +88,13 @@ const (
 
 type (
 	registry struct {
+		b      blobs
 		logger telemetry.Logger
 		store  postgres.PersistentStore
+		dfs    dfsImpl.DFS
 		skynet *skynet.Client
 		txnMap map[string]TxnStore
-		b      blobs
+		mu     *sync.RWMutex
 		debug  bool
 	}
 
@@ -100,10 +105,14 @@ type (
 	}
 
 	blobs struct {
-		contents map[string][]byte
-		uploads  map[string][]byte
-		layers   map[string][]string
-		registry *registry
+		mu                 *sync.RWMutex
+		contents           map[string][]byte
+		uploads            map[string][]byte
+		layers             map[string][]string
+		registry           *registry
+		blobCounter        map[string]int64
+		layerLengthCounter map[string]int64
+		layerParts         map[string][]s3types.CompletedPart
 	}
 
 	ManifestList struct {
@@ -266,4 +275,7 @@ type Registry interface {
 	//The list of available repositories is made available through the catalog
 	Catalog(ctx echo.Context) error
 	GetImageNamespace(ctx echo.Context) error
+
+	// MonolithicPut is used as the second operation for MonolithicUpload with POST + Put
+	MonolithicPut(ctx echo.Context) error
 }

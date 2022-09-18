@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"strings"
 
 	"github.com/fatih/color"
 	"github.com/spf13/viper"
@@ -33,8 +34,16 @@ func ReadYamlConfig() (*OpenRegistryConfig, error) {
 		return nil, err
 	}
 
+	// just a hack for enum typed Environment
+	env := strings.ToUpper(viper.GetString("environment"))
+	viper.Set("environment", environmentFromString(env))
+
 	if err := viper.Unmarshal(&registryConfig); err != nil {
 		return nil, err
+	}
+
+	if registryConfig.DFS.S3Any != nil && registryConfig.DFS.S3Any.ChunkSize == 0 {
+		registryConfig.DFS.S3Any.ChunkSize = 1024 * 1024 * 20
 	}
 
 	if err := registryConfig.Validate(); err != nil {

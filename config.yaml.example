@@ -21,6 +21,12 @@ oauth:
   github:
     client_id: dummy-gh-client-id
     client_secret: dummy-gh-client-secret
+
+dfs:
+  s3_any:
+    access_key: <access-key>
+    secret_key: <access-secret-key>
+    endpoint: <s3-compatible-api-endpoint>
 skynet:
   portal_url: https://skynetpro.net
   api_key: skynet-key

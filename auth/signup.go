@@ -79,7 +79,8 @@ func (a *auth) SignUp(ctx echo.Context) error {
 	newUser.Hireable = false
 	newUser.HTMLURL = ""
 
-	if a.c.Environment == config.CI {
+	// no need to do email verification in local mode
+	if a.c.Environment == config.Local || a.c.Environment == config.CI {
 		newUser.IsActive = true
 	}
 
@@ -141,13 +142,17 @@ func (a *auth) SignUp(ctx echo.Context) error {
 		return echoErr
 	}
 
-	if err = a.emailClient.SendEmail(newUser, token.String(), email.VerifyEmailKind); err != nil {
-		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
-			"error":   err.Error(),
-			"message": "could not send verify link, please reach out to OpenRegistry Team",
-		})
-		a.logger.Log(ctx, err)
-		return echoErr
+	sendEmails := a.c.Environment == config.Production || a.c.Environment == config.Staging
+	if sendEmails {
+		err = a.emailClient.SendEmail(newUser, token.String(), email.VerifyEmailKind)
+		if err != nil {
+			echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
+				"error":   err.Error(),
+				"message": "could not send verify link, please reach out to OpenRegistry Team",
+			})
+			a.logger.Log(ctx, err)
+			return echoErr
+		}
 	}
 
 	echoErr := ctx.JSON(http.StatusCreated, echo.Map{

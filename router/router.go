@@ -89,6 +89,8 @@ func RegisterNSRoutes(nsRouter *echo.Group, reg registry.Registry) {
 	// PUT /v2/<name>/blobs/uploads/<uuid>?digest=<digest>
 	nsRouter.Add(http.MethodPut, BlobsUploadsUUID, reg.CompleteUpload)
 
+	nsRouter.Add(http.MethodPut, BlobsMonolithicPut, reg.MonolithicPut)
+
 	// PUT /v2/<name>/manifests/<reference>
 	nsRouter.Add(http.MethodPut, ManifestsReference, reg.PushManifest)
 

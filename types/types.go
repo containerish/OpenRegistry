@@ -51,7 +51,7 @@ type (
 		UpdatedAt   time.Time `json:"updated_at,omitempty"`
 		MediaType   string    `json:"mediaType"`
 		Digest      string    `json:"digest"`
-		SkynetLink  string    `json:"skynetLink"`
+		DFSLink     string    `json:"skynetLink"`
 		UUID        string    `json:"uuid"`
 		BlobDigests []string  `json:"blobs"`
 		Size        int       `json:"size"`
@@ -75,7 +75,7 @@ type (
 		UpdatedAt time.Time `json:"updated_at"`
 		UUID      string    `json:"uuid,omitempty"`
 		Namespace string    `json:"namespace,omitempty"`
-		Skylink   string    `json:"sky_link,omitempty"`
+		DFSLink   string    `json:"sky_link,omitempty"`
 		MediaType string    `json:"media_type,omitempty"`
 		Reference string    `json:"reference"`
 		Digest    string    `json:"digest"`

@@ -5,6 +5,7 @@ import (
 
 	"github.com/containerish/OpenRegistry/auth"
 	"github.com/containerish/OpenRegistry/config"
+	"github.com/containerish/OpenRegistry/dfs/filebase"
 	"github.com/containerish/OpenRegistry/registry/v2"
 	"github.com/containerish/OpenRegistry/registry/v2/extensions"
 	"github.com/containerish/OpenRegistry/router"
@@ -41,7 +42,8 @@ func main() {
 	authSvc := auth.New(cfg, pgStore, logger)
 	skynetClient := skynet.NewClient(cfg)
 
-	reg, err := registry.NewRegistry(skynetClient, logger, pgStore)
+	filebase := filebase.New(cfg.DFS.S3Any)
+	reg, err := registry.NewRegistry(skynetClient, logger, pgStore, filebase)
 	if err != nil {
 		e.Logger.Errorf("error creating new container registry: %s", err)
 		return

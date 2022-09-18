@@ -34,6 +34,9 @@ const (
 	//by the methods : StartUpload and CompleteUpload
 	BlobsUploads = "/blobs/uploads/"
 
+	// Blobs Upload an image monolithically with a POST+PUT Operation
+	BlobsMonolithicPut = "/blobs/monolithic/upload/:uuid"
+
 	//BlobsUploadsUUID serves similar functionality within an upload
 	// i.e. layered and chunked uploads by methods: PushLayer, ChunkedUpload, CompleteUpload
 	// UploadProgress
