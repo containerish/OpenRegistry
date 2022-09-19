@@ -77,7 +77,7 @@ func (r *registry) ManifestExists(ctx echo.Context) error {
 	if err != nil {
 		details := echo.Map{
 			"error":   err.Error(),
-			"message": "skynet - manifest not found",
+			"message": "DFS - manifest not found",
 		}
 
 		errMsg := r.errorResponse(RegistryErrorCodeManifestBlobUnknown, err.Error(), details)
@@ -663,7 +663,7 @@ func (r *registry) CompleteUpload(ctx echo.Context) error {
 
 	if err != nil {
 		errMsg := r.errorResponse(RegistryErrorCodeBlobUploadInvalid, err.Error(), echo.Map{
-			"reason": "ERR_DFS_UPLOAD",
+			"reason": "ERR_DFS_COMPLETE_MULTI_PART_UPLOAD",
 			"error":  err.Error(),
 		})
 
@@ -681,13 +681,25 @@ func (r *registry) CompleteUpload(ctx echo.Context) error {
 		return echoErr
 	}
 
+	metadata, err := r.dfs.Metadata(GetLayerIdentifier(layerKey))
+	if err != nil {
+		errMsg := r.errorResponse(RegistryErrorCodeBlobUploadInvalid, err.Error(), echo.Map{
+			"reason": "ERR_DFS_FETCH_METADATA",
+			"error":  err.Error(),
+		})
+
+		echoErr := ctx.JSONBlob(http.StatusRequestedRangeNotSatisfiable, errMsg)
+		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
+		return echoErr
+	}
+
 	layer := &types.LayerV2{
 		MediaType:   ctx.Request().Header.Get("content-type"),
 		Digest:      dig,
 		DFSLink:     dfsLink,
 		UUID:        layerKey,
 		BlobDigests: txnOp.blobDigests,
-		Size:        buf.Len(),
+		Size:        metadata.ContentLength,
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
 	}
