@@ -56,7 +56,7 @@ func (fb *filebase) UploadPart(
 	content io.ReadSeeker,
 	contentLength int64,
 ) (s3types.CompletedPart, error) {
-	ctx, cancel := context.WithTimeout(ctx, time.Minute*20)
+	ctx, cancel := context.WithTimeout(ctx, time.Minute*10)
 	defer cancel()
 
 	partInput := &s3.UploadPartInput{
@@ -110,15 +110,6 @@ func (fb *filebase) CompleteMultipartUploadInput(
 		return "", fmt.Errorf("ERR_COMPLETE_UPLOAD: %w", err)
 	}
 
-	// fb.client.PutObjectTagging(ctx, &s3.PutObjectTaggingInput{
-	// 	Bucket: &fb.bucket,
-	// 	Key:    aws.String("layers/" + layerKey),
-	// 	Tagging: &s3types.Tagging{
-	// 		TagSet: []s3types.Tag{
-	// 			{Key: aws.String("digest"), Value: aws.String(finalDigest)},
-	// 		},
-	// 	},
-	// })
 	resp, err := fb.client.HeadObject(ctx, &s3.HeadObjectInput{
 		Bucket:       &fb.bucket,
 		Key:          &layerKey,
@@ -132,7 +123,7 @@ func (fb *filebase) CompleteMultipartUploadInput(
 }
 
 func (fb *filebase) Upload(ctx context.Context, namespace, digest string, content []byte) (string, error) {
-	ctx, cancel := context.WithTimeout(ctx, time.Minute*20)
+	ctx, cancel := context.WithTimeout(ctx, time.Minute*10)
 	defer cancel()
 
 	_, err := fb.client.PutObject(ctx, &s3.PutObjectInput{
@@ -167,7 +158,7 @@ func (fb *filebase) Download(ctx context.Context, path string) (io.ReadCloser, e
 		Key:          &path,
 		ChecksumMode: s3types.ChecksumModeEnabled,
 	}
-	ctx, cancel := context.WithTimeout(ctx, time.Minute*20)
+	ctx, cancel := context.WithTimeout(ctx, time.Minute*10)
 	defer cancel()
 
 	resp, err := fb.client.GetObject(ctx, input)

@@ -93,8 +93,9 @@ func (r *registry) ManifestExists(ctx echo.Context) error {
 		}
 
 		errMsg := r.errorResponse(RegistryErrorCodeManifestBlobUnknown, "Manifest does not exist", detail)
+		echoErr := ctx.JSONBlob(http.StatusNotFound, errMsg)
 		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
-		return ctx.NoContent(http.StatusNotFound)
+		return echoErr
 	}
 
 	if manifest.Reference != ref && manifest.Digest != ref {
@@ -103,15 +104,18 @@ func (r *registry) ManifestExists(ctx echo.Context) error {
 			"clientDigest": ref,
 		}
 		errMsg := r.errorResponse(RegistryErrorCodeManifestInvalid, "manifest digest does not match", details)
+		echoErr := ctx.JSONBlob(http.StatusBadRequest, errMsg)
 		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
-		return ctx.NoContent(http.StatusBadRequest)
+		return echoErr
 	}
 
 	ctx.Response().Header().Set("Content-Type", "application/json")
 	ctx.Response().Header().Set("Content-Length", fmt.Sprintf("%d", metadata.ContentLength))
 	ctx.Response().Header().Set("Docker-Content-Digest", manifest.Digest)
+	ctx.Response().WriteHeader(http.StatusOK)
 	r.logger.Log(ctx, nil)
-	return ctx.NoContent(http.StatusOK)
+	// nil is okay here since all the required information has been set above
+	return nil
 }
 
 // Catalog - The list of available repositories is made available through the catalog.

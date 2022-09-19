@@ -71,7 +71,7 @@ func (a *auth) SignUp(ctx echo.Context) error {
 
 	// no need to do email verification in local mode
 	isEnvironemtElevated := a.c.Environment == config.Staging || a.c.Environment == config.Production
-	if isEnvironemtElevated {
+	if !isEnvironemtElevated {
 		newUser.IsActive = true
 	}
 
