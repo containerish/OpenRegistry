@@ -49,7 +49,7 @@ func (c *Client) Upload(namespace, digest string, content []byte, pin bool) (str
 	}
 
 	// enable pinning only in Prod Environment
-	if pin && c.config.Environment == config.Prod {
+	if pin && c.config.Environment == config.Production {
 		return c.skynet.PinSkylink(skylink)
 	}
 
@@ -99,15 +99,12 @@ func (c *Client) AddImage(ns string, mf, l map[string][]byte) (string, error) {
 }
 
 func (c *Client) Metadata(skylink string) (*skynet.Metadata, error) {
-	retryCounter := 3
-
 	var err error
 	var metadata *skynet.Metadata
-	for i := retryCounter; retryCounter != 0; i-- {
+	for i := 3; i != 0; i-- {
 		metadata, err = c.skynet.Metadata(skylink, skynet.DefaultMetadataOptions)
 		if err != nil {
 			err = fmt.Errorf("SKYNET_METADATA_ERR: %w", err)
-			retryCounter--
 			// cool off
 			time.Sleep(time.Second * 3)
 			continue

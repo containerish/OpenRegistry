@@ -5,10 +5,10 @@ import (
 
 	"github.com/containerish/OpenRegistry/auth"
 	"github.com/containerish/OpenRegistry/config"
+	"github.com/containerish/OpenRegistry/dfs/filebase"
 	"github.com/containerish/OpenRegistry/registry/v2"
 	"github.com/containerish/OpenRegistry/registry/v2/extensions"
 	"github.com/containerish/OpenRegistry/router"
-	"github.com/containerish/OpenRegistry/skynet"
 	"github.com/containerish/OpenRegistry/store/postgres"
 	"github.com/containerish/OpenRegistry/telemetry"
 	fluentbit "github.com/containerish/OpenRegistry/telemetry/fluent-bit"
@@ -39,9 +39,9 @@ func main() {
 
 	logger := telemetry.ZLogger(fluentBitCollector, cfg.Environment)
 	authSvc := auth.New(cfg, pgStore, logger)
-	skynetClient := skynet.NewClient(cfg)
 
-	reg, err := registry.NewRegistry(skynetClient, logger, pgStore)
+	filebase := filebase.New(cfg.DFS.S3Any)
+	reg, err := registry.NewRegistry(pgStore, filebase, logger, cfg)
 	if err != nil {
 		e.Logger.Errorf("error creating new container registry: %s", err)
 		return

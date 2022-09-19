@@ -22,11 +22,11 @@ type Logger interface {
 	Log(ctx echo.Context, err error)
 }
 
-func SetupLogger(env string) zerolog.Logger {
+func SetupLogger(env config.Environment) zerolog.Logger {
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
 	l := zerolog.New(os.Stdout)
 	l = l.With().Caller().Logger()
-	if env != config.Prod {
+	if env != config.Production {
 		zerolog.SetGlobalLevel(zerolog.TraceLevel)
 		consoleWriter := zerolog.ConsoleWriter{
 			Out:        os.Stdout,
@@ -46,10 +46,10 @@ type logger struct {
 	pool      *sync.Pool
 	template  *fasttemplate.Template
 	zlog      zerolog.Logger
-	env       string
+	env       config.Environment
 }
 
-func ZLogger(fluentbitClient fluentbit.FluentBit, env string) Logger {
+func ZLogger(fluentbitClient fluentbit.FluentBit, env config.Environment) Logger {
 	pool := &sync.Pool{
 		New: func() interface{} {
 			return bytes.NewBuffer(make([]byte, 256))
@@ -74,8 +74,7 @@ func ZLogger(fluentbitClient fluentbit.FluentBit, env string) Logger {
 
 //nolint:cyclop // insane amount of complexity because of templating
 func (l logger) Log(ctx echo.Context, errMsg error) {
-
-	if l.env != config.Prod {
+	if l.env != config.Production {
 		l.consoleWriter(ctx, errMsg)
 		return
 	}
@@ -84,7 +83,6 @@ func (l logger) Log(ctx echo.Context, errMsg error) {
 	if !ok {
 		start = time.Now()
 	}
-
 	stop := time.Now()
 
 	buf := l.pool.Get().(*bytes.Buffer)

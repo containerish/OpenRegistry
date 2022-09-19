@@ -19,14 +19,29 @@ type (
 		StoreConfig    *Store    `yaml:"database" mapstructure:"database" validate:"required"`
 		LogConfig      *Log      `yaml:"log_service" mapstructure:"log_service"`
 		SkynetConfig   *Skynet   `yaml:"skynet" mapstructure:"skynet" validate:"required"`
+		DFS            *DFS      `yaml:"dfs" mapstructure:"dfs"`
 		OAuth          *OAuth    `yaml:"oauth" mapstructure:"oauth"`
 		Email          *Email    `yaml:"email" mapstructure:"email" validate:"required"`
-		Environment    string    `yaml:"environment" mapstructure:"environment" validate:"required"`
 		WebAppEndpoint string    `yaml:"web_app_url" mapstructure:"web_app_url" validate:"required"`
 		//nolint
-		WebAppRedirectURL       string `yaml:"web_app_redirect_url" mapstructure:"web_app_redirect_url" validate:"required"`
-		WebAppErrorRedirectPath string `yaml:"web_app_error_redirect_path" mapstructure:"web_app_error_redirect_path"`
-		Debug                   bool   `yaml:"debug" mapstructure:"debug"`
+		WebAppRedirectURL       string      `yaml:"web_app_redirect_url" mapstructure:"web_app_redirect_url" validate:"required"`
+		WebAppErrorRedirectPath string      `yaml:"web_app_error_redirect_path" mapstructure:"web_app_error_redirect_path"`
+		Environment             Environment `yaml:"environment" mapstructure:"environment" validate:"required"`
+		Debug                   bool        `yaml:"debug" mapstructure:"debug"`
+	}
+
+	DFS struct {
+		Skynet *Skynet          `yaml:"skynet" mapstructure:"skynet"`
+		S3Any  *S3CompatibleDFS `yaml:"s3_any" mapstructure:"s3_any"`
+	}
+
+	S3CompatibleDFS struct {
+		AccessKey       string `yaml:"access_key" mapstructure:"access_key"`
+		SecretKey       string `yaml:"secret_key" mapstructure:"secret_key"`
+		Endpoint        string `yaml:"endpoint" mapstructure:"endpoint"`
+		BucketName      string `yaml:"bucket_name" mapstructure:"bucket_name"`
+		DFSLinkResolver string `yaml:"dfs_link_resolver" mapstructure:"dfs_link_resolver"`
+		ChunkSize       int    `yaml:"chunk_size" mapstructure:"chunk_size"`
 	}
 
 	Registry struct {
@@ -158,7 +173,7 @@ func (oc *OpenRegistryConfig) Endpoint() string {
 	switch oc.Environment {
 	case Local:
 		return fmt.Sprintf("http://%s:%d", oc.Registry.Host, oc.Registry.Port)
-	case Prod, Stage:
+	case Production, Staging:
 		return fmt.Sprintf("https://%s", oc.Registry.DNSAddress)
 	case CI:
 		ciSysAddr := os.Getenv("CI_SYS_ADDR")
@@ -172,9 +187,41 @@ func (oc *OpenRegistryConfig) Endpoint() string {
 	}
 }
 
+type Environment int
+
 const (
-	Prod  = "production"
-	Stage = "stage"
-	Local = "local"
-	CI    = "ci"
+	Production Environment = iota
+	Staging
+	Local
+	CI
 )
+
+func environmentFromString(env string) Environment {
+	switch env {
+	case Production.String():
+		return Production
+	case Staging.String():
+		return Staging
+	case Local.String():
+		return Local
+	case CI.String():
+		return CI
+	default:
+		panic("deployment environment is invalid, allowed values are: PRODUCTION, STAGING, LOCAL, and CI")
+	}
+}
+
+func (e Environment) String() string {
+	switch e {
+	case Production:
+		return "PRODUCTION"
+	case Staging:
+		return "STAGING"
+	case Local:
+		return "LOCAL"
+	case CI:
+		return "CI"
+	default:
+		panic("deployment environment is invalid, allowed values are: PRODUCTION, STAGING, LOCAL, and CI")
+	}
+}

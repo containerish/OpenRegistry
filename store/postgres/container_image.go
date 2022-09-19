@@ -24,7 +24,7 @@ func (p *pg) GetLayer(ctx context.Context, digest string) (*types.LayerV2, error
 		&layer.Digest,
 		&layer.BlobDigests,
 		&layer.MediaType,
-		&layer.SkynetLink,
+		&layer.DFSLink,
 		&layer.Size,
 		&layer.CreatedAt,
 		&layer.UpdatedAt,
@@ -58,7 +58,7 @@ func (p *pg) SetLayer(ctx context.Context, txn pgx.Tx, l *types.LayerV2) error {
 		queries.SetLayer,
 		l.MediaType,
 		l.Digest,
-		l.SkynetLink,
+		l.DFSLink,
 		l.UUID,
 		l.BlobDigests,
 		l.Size,
@@ -103,7 +103,7 @@ func (p *pg) GetManifestByReference(ctx context.Context, namespace string, ref s
 		&im.Namespace,
 		&im.Reference,
 		&im.Digest,
-		&im.Skylink,
+		&im.DFSLink,
 		&im.MediaType,
 		&im.Layers,
 		&im.Size,
@@ -192,7 +192,7 @@ func (p *pg) GetConfig(ctx context.Context, namespace string) ([]*types.ConfigV2
 			&cfg.Namespace,
 			&cfg.Reference,
 			&cfg.Digest,
-			&cfg.Skylink,
+			&cfg.DFSLink,
 			&cfg.MediaType,
 			&cfg.Layers,
 			&cfg.Size,
@@ -241,7 +241,7 @@ func (p *pg) SetConfig(ctx context.Context, txn pgx.Tx, cfg types.ConfigV2) erro
 		cfg.Namespace,
 		cfg.Reference,
 		cfg.Digest,
-		cfg.Skylink,
+		cfg.DFSLink,
 		cfg.MediaType,
 		cfg.Layers,
 		cfg.Size,
@@ -401,7 +401,7 @@ func (p *pg) GetRepoDetail(ctx context.Context, ns string, pageSize, offset int6
 		if err := rows.Scan(
 			&tag.Reference,
 			&tag.Digest,
-			&tag.Skylink,
+			&tag.DFSLink,
 			&tag.Size,
 			&tag.CreatedAt,
 			&tag.UpdatedAt,
@@ -451,21 +451,21 @@ func (p *pg) DeleteManifestOrTag(ctx context.Context, txn pgx.Tx, reference stri
 }
 
 func (p *pg) NewTxn(ctx context.Context) (pgx.Tx, error) {
-	childCtx, cancel := context.WithTimeout(context.Background(), time.Minute*30)
+	childCtx, cancel := context.WithTimeout(context.Background(), time.Minute*10)
 	defer cancel()
 
 	return p.conn.Begin(childCtx)
 }
 
 func (p *pg) Abort(ctx context.Context, txn pgx.Tx) error {
-	childCtx, cancel := context.WithTimeout(context.Background(), time.Minute*30)
+	childCtx, cancel := context.WithTimeout(context.Background(), time.Minute*10)
 	defer cancel()
 
 	return txn.Rollback(childCtx)
 }
 
 func (p *pg) Commit(ctx context.Context, txn pgx.Tx) error {
-	childCtx, cancel := context.WithTimeout(context.Background(), time.Minute*30)
+	childCtx, cancel := context.WithTimeout(context.Background(), time.Minute*10)
 	defer cancel()
 
 	return txn.Commit(childCtx)

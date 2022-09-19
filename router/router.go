@@ -86,33 +86,38 @@ func RegisterNSRoutes(nsRouter *echo.Group, reg registry.Registry) {
 	nsRouter.Add(http.MethodHead, ManifestsReference, reg.ManifestExists)
 
 	// ALL THE PUT METHODS
+
 	// PUT /v2/<name>/blobs/uploads/<uuid>?digest=<digest>
 	nsRouter.Add(http.MethodPut, BlobsUploadsUUID, reg.CompleteUpload)
+
+	nsRouter.Add(http.MethodPut, BlobsMonolithicPut, reg.MonolithicPut)
 
 	// PUT /v2/<name>/manifests/<reference>
 	nsRouter.Add(http.MethodPut, ManifestsReference, reg.PushManifest)
 
 	// POST METHODS
+
 	// POST /v2/<name>/blobs/uploads/
 	nsRouter.Add(http.MethodPost, BlobsUploads, reg.StartUpload)
 
 	// POST /v2/<name>/blobs/uploads/<uuid>
 	nsRouter.Add(http.MethodPost, BlobsUploadsUUID, reg.PushLayer)
 
-	// PATCH
+	// PATCH METHODS
 
 	// PATCH /v2/<name>/blobs/uploads/<uuid>
 	nsRouter.Add(http.MethodPatch, BlobsUploadsUUID, reg.ChunkedUpload)
 	// router.Add(http.MethodPatch, "/blobs/uploads/", reg.ChunkedUpload)
 
-	// GET
+	// GET METHODS
+
 	// GET /v2/<name>/manifests/<reference>
 	nsRouter.Add(http.MethodGet, ManifestsReference, reg.PullManifest)
 
 	// GET /v2/<name>/blobs/<digest>
 	nsRouter.Add(http.MethodGet, BlobsDigest, reg.PullLayer)
 
-	// GET GET /v2/<name>/blobs/uploads/<uuid>
+	// GET /v2/<name>/blobs/uploads/<uuid>
 	nsRouter.Add(http.MethodGet, BlobsUploadsUUID, reg.UploadProgress)
 
 	// router.Add(http.MethodGet, "/blobs/:digest", reg.DownloadBlob)

@@ -10,28 +10,39 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
-	"github.com/containerish/OpenRegistry/skynet"
+	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
+	"github.com/containerish/OpenRegistry/config"
+	dfsImpl "github.com/containerish/OpenRegistry/dfs"
 	"github.com/containerish/OpenRegistry/store/postgres"
 	"github.com/containerish/OpenRegistry/telemetry"
 	"github.com/containerish/OpenRegistry/types"
-	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
+	"github.com/opencontainers/go-digest"
 )
 
 func NewRegistry(
-	skynetClient *skynet.Client,
-	logger telemetry.Logger,
 	pgStore postgres.PersistentStore,
+	dfs dfsImpl.DFS,
+	logger telemetry.Logger,
+	config *config.OpenRegistryConfig,
 ) (Registry, error) {
+	mu := &sync.RWMutex{}
 	r := &registry{
 		debug:  true,
-		skynet: skynetClient,
+		dfs:    dfs,
+		mu:     mu,
+		config: config,
 		b: blobs{
-			contents: map[string][]byte{},
-			uploads:  map[string][]byte{},
-			layers:   map[string][]string{},
+			contents:           make(map[string][]byte),
+			uploads:            make(map[string][]byte),
+			layers:             make(map[string][]string),
+			blobCounter:        make(map[string]int64),
+			layerLengthCounter: make(map[string]int64),
+			layerParts:         make(map[string][]s3types.CompletedPart),
+			mu:                 mu,
 		},
 		logger: logger,
 		store:  pgStore,
@@ -63,7 +74,6 @@ func (r *registry) ManifestExists(ctx echo.Context) error {
 	ref := ctx.Param("reference") // ref can be either tag or digest
 
 	manifest, err := r.store.GetManifestByReference(ctx.Request().Context(), namespace, ref)
-
 	if err != nil {
 		details := echo.Map{
 			"error":   err.Error(),
@@ -71,16 +81,15 @@ func (r *registry) ManifestExists(ctx echo.Context) error {
 		}
 
 		errMsg := r.errorResponse(RegistryErrorCodeManifestBlobUnknown, err.Error(), details)
-		echoErr := ctx.JSONBlob(http.StatusNotFound, errMsg)
 		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
-		return echoErr
+		return ctx.NoContent(http.StatusNotFound)
 	}
 
-	metadata, err := r.skynet.Metadata(manifest.Skylink)
+	metadata, err := r.dfs.Metadata(GetManifestIdentifier(namespace, manifest.Reference))
 	if err != nil {
 		detail := map[string]interface{}{
 			"error":   err.Error(),
-			"skylink": manifest.Skylink,
+			"dfsLink": manifest.DFSLink,
 		}
 
 		errMsg := r.errorResponse(RegistryErrorCodeManifestBlobUnknown, "Manifest does not exist", detail)
@@ -91,7 +100,7 @@ func (r *registry) ManifestExists(ctx echo.Context) error {
 
 	if manifest.Reference != ref && manifest.Digest != ref {
 		details := map[string]interface{}{
-			"foundDigest":  manifest.Digest,
+			"storedDigest": manifest.Digest,
 			"clientDigest": ref,
 		}
 		errMsg := r.errorResponse(RegistryErrorCodeManifestInvalid, "manifest digest does not match", details)
@@ -103,9 +112,10 @@ func (r *registry) ManifestExists(ctx echo.Context) error {
 	ctx.Response().Header().Set("Content-Type", "application/json")
 	ctx.Response().Header().Set("Content-Length", fmt.Sprintf("%d", metadata.ContentLength))
 	ctx.Response().Header().Set("Docker-Content-Digest", manifest.Digest)
-	echoErr := ctx.NoContent(http.StatusOK)
+	ctx.Response().WriteHeader(http.StatusOK)
 	r.logger.Log(ctx, nil)
-	return echoErr
+	// nil is okay here since all the required information has been set above
+	return nil
 }
 
 // Catalog - The list of available repositories is made available through the catalog.
@@ -210,7 +220,7 @@ func (r *registry) ListTags(ctx echo.Context) error {
 	return echoErr
 }
 func (r *registry) List(ctx echo.Context) error {
-	return fmt.Errorf("error")
+	return fmt.Errorf("not implemented")
 }
 
 // PullManifest
@@ -229,7 +239,7 @@ func (r *registry) PullManifest(ctx echo.Context) error {
 		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
 		return echoErr
 	}
-	resp, err := r.skynet.Download(manifest.Skylink)
+	resp, err := r.dfs.Download(ctx.Request().Context(), GetManifestIdentifier(namespace, manifest.Reference))
 	if err != nil {
 		errMsg := r.errorResponse(RegistryErrorCodeManifestInvalid, err.Error(), nil)
 		echoErr := ctx.JSONBlob(http.StatusNotFound, errMsg)
@@ -246,7 +256,7 @@ func (r *registry) PullManifest(ctx echo.Context) error {
 	}
 	_ = resp.Close()
 	ctx.Response().Header().Set("Docker-Content-Digest", manifest.Digest)
-	ctx.Response().Header().Set("X-Docker-Content-ID", manifest.Skylink)
+	ctx.Response().Header().Set("X-Docker-Content-ID", manifest.DFSLink)
 	ctx.Response().Header().Set("Content-Type", manifest.MediaType)
 	ctx.Response().Header().Set("Content-Length", fmt.Sprintf("%d", len(bz)))
 	echoErr := ctx.JSONBlob(http.StatusOK, bz)
@@ -258,11 +268,9 @@ func (r *registry) PullManifest(ctx echo.Context) error {
 // GET /v2/<name>/blobs/<digest>
 // OK, error: binary output can mess your system ...
 func (r *registry) PullLayer(ctx echo.Context) error {
-	//namespace := ctx.Param("username") + "/" + ctx.Param("imagename")
 	ctx.Set(types.HandlerStartTime, time.Now())
 
 	clientDigest := ctx.Param("digest")
-
 	layer, err := r.store.GetLayer(ctx.Request().Context(), clientDigest)
 	if err != nil {
 		errMsg := r.errorResponse(RegistryErrorCodeBlobUnknown, err.Error(), nil)
@@ -271,58 +279,35 @@ func (r *registry) PullLayer(ctx echo.Context) error {
 		return echoErr
 	}
 
-	if layer.SkynetLink == "" {
+	if layer.DFSLink == "" {
 		detail := map[string]interface{}{
-			"error": "skylink is empty",
+			"error": "DFSLink is empty",
 		}
-		e := fmt.Errorf("skylink is empty").Error()
-		errMsg := r.errorResponse(RegistryErrorCodeBlobUnknown, e, detail)
+		errMsg := r.errorResponse(RegistryErrorCodeBlobUnknown, "", detail)
 		echoErr := ctx.JSONBlob(http.StatusNotFound, errMsg)
 		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
 		return echoErr
 	}
 
-	resp, err := r.skynet.Download(layer.SkynetLink)
+	size, err := r.dfs.Metadata(GetLayerIdentifier(layer.UUID))
 	if err != nil {
 		detail := map[string]interface{}{
-			"error":   err.Error(),
-			"skylink": layer.SkynetLink,
+			"error":          err.Error(),
+			"operationError": "metadata service failed",
 		}
 		errMsg := r.errorResponse(RegistryErrorCodeBlobUnknown, err.Error(), detail)
-		echoErr := ctx.JSONBlob(http.StatusNotFound, errMsg)
+		ctx.Set(types.HttpEndpointErrorKey, errMsg)
 		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
-		return echoErr
-	}
-	buf := &bytes.Buffer{}
-	if _, err := io.Copy(buf, resp); err != nil {
-		errMsg := r.errorResponse(RegistryErrorCodeBlobUploadInvalid, err.Error(), nil)
-		echoErr := ctx.JSONBlob(http.StatusInternalServerError, errMsg)
-		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
-		return echoErr
-	}
-	_ = resp.Close()
-
-	dig := digest(buf.Bytes())
-	if dig != clientDigest {
-		details := map[string]interface{}{
-			"clientDigest":   clientDigest,
-			"computedDigest": dig,
-		}
-		errMsg := r.errorResponse(
-			RegistryErrorCodeBlobUploadUnknown,
-			"client digest is different than computed digest",
-			details,
-		)
-		echoErr := ctx.JSONBlob(http.StatusNotFound, errMsg)
-		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
-		return echoErr
+		return ctx.JSONBlob(http.StatusNotFound, errMsg)
 	}
 
-	ctx.Response().Header().Set("Content-Length", fmt.Sprintf("%d", len(buf.Bytes())))
-	ctx.Response().Header().Set("Docker-Content-Digest", dig)
-	echoErr := ctx.Blob(http.StatusOK, "application/octet-stream", buf.Bytes())
+	ctx.Response().Header().Set("Content-Length", fmt.Sprintf("%d", size.ContentLength))
+	ctx.Response().Header().Set("Docker-Content-Digest", layer.Digest)
+	ctx.Response().Header().Set("status", "307")
+
+	url := r.getDownloadableURLFromDFSLink(layer.DFSLink)
 	r.logger.Log(ctx, nil)
-	return echoErr
+	return ctx.Redirect(http.StatusTemporaryRedirect, url)
 }
 
 // MonolithicUpload
@@ -330,47 +315,83 @@ func (r *registry) PullLayer(ctx echo.Context) error {
 func (r *registry) MonolithicUpload(ctx echo.Context) error {
 	ctx.Set(types.HandlerStartTime, time.Now())
 
-	namespace := ctx.Param("username") + "/" + ctx.Param("imagename")
-	uuid := ctx.Param("uuid")
-
-	if _, ok := r.b.uploads[uuid]; ok {
-		errMsg := r.b.errorResponse(
-			RegistryErrorCodeBlobUploadInvalid,
-			"error in monolithic upload",
-			nil,
-		)
-		echoErr := ctx.JSONBlob(http.StatusBadRequest, errMsg)
-		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
-		return echoErr
-	}
-
+	imageDigest := ctx.QueryParam("digest")
 	buf := &bytes.Buffer{}
 	if _, err := io.Copy(buf, ctx.Request().Body); err != nil {
-		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
-			"error":   err.Error(),
-			"message": "error copying request body in monolithic upload blob",
-		})
-		r.logger.Log(ctx, err)
+		errMsg := r.errorResponse(RegistryErrorCodeBlobUploadInvalid, "error while reading request body", nil)
+		echoErr := ctx.JSONBlob(http.StatusNotFound, errMsg)
+		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
+		return echoErr
+	}
+	_ = ctx.Request().Body.Close() // why defer? body is already read :)
+	computedDigest := digest.FromBytes(buf.Bytes())
+
+	if computedDigest.String() != imageDigest {
+		details := map[string]interface{}{
+			"clientDigest":   imageDigest,
+			"computedDigest": computedDigest.String(),
+		}
+		errMsg := r.errorResponse(
+			RegistryErrorCodeDigestInvalid,
+			"client digest does not meet computed digest",
+			details,
+		)
+		echoErr := ctx.JSONBlob(http.StatusBadRequest, errMsg)
+		r.logger.Log(ctx, fmt.Errorf("%s", fmt.Errorf("%s", errMsg)))
 		return echoErr
 	}
 
-	_ = ctx.Request().Body.Close()
-	r.b.uploads[uuid] = buf.Bytes()
+	uuid, err := CreateIdentifier()
+	if err != nil {
+		errMsg := r.errorResponse(RegistryErrorCodeUnknown, err.Error(), nil)
+		echoErr := ctx.JSONBlob(http.StatusRequestedRangeNotSatisfiable, errMsg)
+		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
+		return echoErr
+	}
 
-	if err := r.b.blobTransaction(ctx, buf.Bytes(), uuid); err != nil {
-		errMsg := r.b.errorResponse(
-			RegistryErrorCodeBlobUploadInvalid,
-			err.Error(),
-			nil,
-		)
+	dfsLink, err := r.dfs.Upload(ctx.Request().Context(), GetLayerIdentifier(uuid), imageDigest, buf.Bytes())
+	if err != nil {
+		errMsg := r.errorResponse(RegistryErrorCodeBlobUploadInvalid, err.Error(), nil)
+		echoErr := ctx.JSONBlob(http.StatusRequestedRangeNotSatisfiable, errMsg)
+		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
+		return echoErr
+	}
+
+	layerV2 := &types.LayerV2{
+		MediaType:   ctx.Request().Header.Get("content-type"),
+		Digest:      imageDigest,
+		DFSLink:     dfsLink,
+		UUID:        uuid,
+		BlobDigests: nil,
+		Size:        buf.Len(),
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
+	}
+
+	txnOp, err := r.store.NewTxn(ctx.Request().Context())
+	if err != nil {
+		errMsg := r.errorResponse(RegistryErrorCodeUnknown, err.Error(), nil)
+		echoErr := ctx.JSONBlob(http.StatusInternalServerError, errMsg)
+		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
+		return echoErr
+	}
+
+	if err := r.store.SetLayer(ctx.Request().Context(), txnOp, layerV2); err != nil {
+		errMsg := r.errorResponse(RegistryErrorCodeBlobUploadInvalid, err.Error(), nil)
 		echoErr := ctx.JSONBlob(http.StatusBadRequest, errMsg)
 		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
 		return echoErr
 	}
 
-	locationHeader := fmt.Sprintf("/v2/%s/blobs/uploads/%s", namespace, uuid)
+	if err := r.store.Commit(ctx.Request().Context(), txnOp); err != nil {
+		errMsg := r.errorResponse(RegistryErrorCodeBlobUploadInvalid, err.Error(), nil)
+		echoErr := ctx.JSONBlob(http.StatusBadRequest, errMsg)
+		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
+		return echoErr
+	}
 
-	ctx.Response().Header().Set("Location", locationHeader)
+	link := r.getDownloadableURLFromDFSLink(dfsLink)
+	ctx.Response().Header().Set("Location", link)
 	echoErr := ctx.NoContent(http.StatusCreated)
 	r.logger.Log(ctx, nil)
 	return echoErr
@@ -392,99 +413,15 @@ func (r *registry) StartUpload(ctx echo.Context) error {
 	ctx.Set(types.HandlerStartTime, time.Now())
 
 	namespace := ctx.Param("username") + "/" + ctx.Param("imagename")
-	clientDigest := ctx.QueryParam("digest")
+	imageDigest := ctx.QueryParam("digest")
 
-	if clientDigest != "" {
-		buf := &bytes.Buffer{}
-		if _, err := io.Copy(buf, ctx.Request().Body); err != nil {
-			details := map[string]interface{}{
-				"clientDigest": clientDigest,
-				"namespace":    namespace,
-			}
-			errMsg := r.errorResponse(
-				RegistryErrorCodeBlobUploadInvalid,
-				"error while reading request body",
-				details,
-			)
-			echoErr := ctx.JSONBlob(http.StatusNotFound, errMsg)
-			r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
-			return echoErr
-		}
-		_ = ctx.Request().Body.Close() // why defer? body is already read :)
-		dig := digest(buf.Bytes())
-
-		if dig != clientDigest {
-			details := map[string]interface{}{
-				"clientDigest":   clientDigest,
-				"computedDigest": dig,
-			}
-			errMsg := r.errorResponse(
-				RegistryErrorCodeDigestInvalid,
-				"client digest does not meet computed digest",
-				details,
-			)
-			echoErr := ctx.JSONBlob(http.StatusBadRequest, errMsg)
-			r.logger.Log(ctx, fmt.Errorf("%s", fmt.Errorf("%s", errMsg)))
-			return echoErr
-		}
-
-		skylink, err := r.skynet.Upload(namespace, dig, buf.Bytes(), true)
-		if err != nil {
-			errMsg := r.errorResponse(RegistryErrorCodeBlobUploadInvalid, err.Error(), nil)
-			echoErr := ctx.JSONBlob(http.StatusRequestedRangeNotSatisfiable, errMsg)
-			r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
-			return echoErr
-		}
-
-		id, err := uuid.NewRandom()
-		if err != nil {
-			echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
-				"error": err.Error(),
-				"cause": "error creating random id for layer",
-			})
-			r.logger.Log(ctx, err)
-			return echoErr
-		}
-		layerV2 := &types.LayerV2{
-			MediaType:   ctx.Request().Header.Get("content-type"),
-			Digest:      dig,
-			SkynetLink:  skylink,
-			UUID:        id.String(),
-			BlobDigests: nil,
-			Size:        buf.Len(),
-			CreatedAt:   time.Now(),
-			UpdatedAt:   time.Now(),
-		}
-
-		txnOp, err := r.store.NewTxn(ctx.Request().Context())
-		if err != nil {
-			errMsg := r.errorResponse(RegistryErrorCodeUnknown, err.Error(), nil)
-			echoErr := ctx.JSONBlob(http.StatusInternalServerError, errMsg)
-			r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
-			return echoErr
-		}
-
-		if err := r.store.SetLayer(ctx.Request().Context(), txnOp, layerV2); err != nil {
-			errMsg := r.errorResponse(RegistryErrorCodeBlobUploadInvalid, err.Error(), nil)
-			echoErr := ctx.JSONBlob(http.StatusBadRequest, errMsg)
-			r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
-			return echoErr
-		}
-		if err := r.store.Commit(ctx.Request().Context(), txnOp); err != nil {
-			errMsg := r.errorResponse(RegistryErrorCodeBlobUploadInvalid, err.Error(), nil)
-			echoErr := ctx.JSONBlob(http.StatusBadRequest, errMsg)
-			r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
-			return echoErr
-		}
-
-		link := r.getHttpUrlFromSkylink(skylink)
-		ctx.Response().Header().Set("Location", link)
-		echoErr := ctx.NoContent(http.StatusCreated)
-		r.logger.Log(ctx, nil)
-		return echoErr
+	// Do a Single POST monolithic upload if the digest is present
+	// reference: https://github.com/opencontainers/distribution-spec/blob/main/spec.md#single-post
+	if imageDigest != "" {
+		return r.MonolithicUpload(ctx)
 	}
 
-	id, err := uuid.NewRandom()
+	layerIdentifier, err := CreateIdentifier()
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error":   err.Error(),
@@ -493,7 +430,15 @@ func (r *registry) StartUpload(ctx echo.Context) error {
 		r.logger.Log(ctx, err)
 		return echoErr
 	}
-	locationHeader := fmt.Sprintf("/v2/%s/blobs/uploads/%s", namespace, id.String())
+
+	uploadId, err := r.dfs.CreateMultipartUpload(GetLayerIdentifier(layerIdentifier))
+	if err != nil {
+		errMsg := r.errorResponse(RegistryErrorCodeBlobUploadUnknown, err.Error(), nil)
+		echoErr := ctx.JSONBlob(http.StatusBadRequest, errMsg)
+		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
+		return echoErr
+	}
+
 	txn, err := r.store.NewTxn(ctx.Request().Context())
 	if err != nil {
 		errMsg := r.errorResponse(
@@ -505,44 +450,36 @@ func (r *registry) StartUpload(ctx echo.Context) error {
 		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
 		return echoErr
 	}
-	r.txnMap[id.String()] = TxnStore{
+
+	r.mu.Lock()
+	r.txnMap[uploadId] = TxnStore{
 		txn:         txn,
 		blobDigests: []string{},
-		timeout:     time.Minute * 30,
+		timeout:     time.Minute * 10,
 	}
+	r.mu.Unlock()
+
+	uploadTrackingID := CreateUploadTrackingIdentifier(uploadId, layerIdentifier)
+	locationHeader := fmt.Sprintf("/v2/%s/blobs/uploads/%s", namespace, uploadTrackingID)
 	ctx.Response().Header().Set("Location", locationHeader)
 	ctx.Response().Header().Set("Content-Length", "0")
-	ctx.Response().Header().Set("Docker-Upload-UUID", id.String())
-	ctx.Response().Header().Set("Range", fmt.Sprintf("0-%d", 0))
+	ctx.Response().Header().Set("Docker-Upload-UUID", uploadTrackingID)
+	ctx.Response().Header().Set("Range", "0-0")
 	echoErr := ctx.NoContent(http.StatusAccepted)
 	r.logger.Log(ctx, nil)
 	return echoErr
 }
 
-//UploadProgress TODO
+// UploadProgress TODO
 func (r *registry) UploadProgress(ctx echo.Context) error {
 	ctx.Set(types.HandlerStartTime, time.Now())
 
 	namespace := ctx.Param("username") + "/" + ctx.Param("imagename")
 	uuid := ctx.Param("uuid")
+	layerkey := GetLayerIdentifierFromTrakcingID(uuid)
+	uploadID := GetUploadIDFromTrakcingID(uuid)
 
-	skylink, err := r.store.GetContentHashById(ctx.Request().Context(), uuid)
-	if err != nil {
-		errMsg := r.errorResponse(RegistryErrorCodeBlobUnknown, err.Error(), nil)
-		echoErr := ctx.JSONBlob(http.StatusNotFound, errMsg)
-		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
-		return echoErr
-	}
-
-	if skylink == "" {
-		err = fmt.Errorf("skylink is empty")
-		errMsg := r.errorResponse(RegistryErrorCodeBlobUnknown, err.Error(), nil)
-		echoErr := ctx.JSONBlob(http.StatusNotFound, errMsg)
-		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
-		return echoErr
-	}
-
-	metadata, err := r.skynet.Metadata(skylink)
+	metadata, err := r.dfs.GetUploadProgress(GetLayerIdentifier(layerkey), uploadID)
 	if err != nil {
 		locationHeader := fmt.Sprintf("/v2/%s/blobs/uploads/%s", namespace, uuid)
 		ctx.Response().Header().Set("Location", locationHeader)
@@ -562,19 +499,13 @@ func (r *registry) UploadProgress(ctx echo.Context) error {
 	return echoErr
 }
 
-// CompleteUpload
-/*PUT /v2/<name>/blobs/uploads/<uuid>?digest=<digest>
-for postgres:
-this is where we insert into the layer after all the blobs have been accumulated
-and inserted in the blob table
-thus committing the txn
-*/
-func (r *registry) CompleteUpload(ctx echo.Context) error {
+func (r *registry) MonolithicPut(ctx echo.Context) error {
 	ctx.Set(types.HandlerStartTime, time.Now())
 
 	dig := ctx.QueryParam("digest")
-	namespace := ctx.Param("username") + "/" + ctx.Param("imagename")
-	id := ctx.Param("uuid")
+	identifier := ctx.Param("uuid")
+	layerKey := GetLayerIdentifierFromTrakcingID(identifier)
+	uploadID := GetUploadIDFromTrakcingID(identifier)
 
 	buf := &bytes.Buffer{}
 	if _, err := io.Copy(buf, ctx.Request().Body); err != nil {
@@ -584,58 +515,33 @@ func (r *registry) CompleteUpload(ctx echo.Context) error {
 		return echoErr
 	}
 	_ = ctx.Request().Body.Close()
-	// insert if bz is not nil
-	ubuf := bytes.NewBuffer(r.b.uploads[id])
-	ubuf.Write(buf.Bytes())
-	ourHash := digest(ubuf.Bytes())
-	delete(r.b.uploads, id)
+	ourHash := digest.FromBytes(buf.Bytes())
 
-	if ourHash != dig {
-		details := map[string]interface{}{
-			"headerDigest": dig, "serverSideDigest": ourHash, "bodyDigest": digest(buf.Bytes()),
-		}
-		errMsg := r.errorResponse(RegistryErrorCodeDigestInvalid, "digest mismatch", details)
+	dfsLink, err := r.dfs.Upload(ctx.Request().Context(), GetLayerIdentifier(layerKey), ourHash.String(), buf.Bytes())
+	if err != nil {
+		errMsg := r.errorResponse(RegistryErrorCodeDigestInvalid, err.Error(), nil)
 		echoErr := ctx.JSONBlob(http.StatusBadRequest, errMsg)
 		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
 		return echoErr
 	}
 
-	blobNamespace := fmt.Sprintf("%s/blobs", namespace)
-	skylink, err := r.skynet.Upload(blobNamespace, dig, ubuf.Bytes(), true)
-	if err != nil {
-		errMsg := r.errorResponse(RegistryErrorCodeBlobUploadInvalid, err.Error(), echo.Map{
-			"reason": "ERR_SKYNET_UPLOAD",
-			"error":  err.Error(),
-		})
-
-		echoErr := ctx.JSONBlob(http.StatusRequestedRangeNotSatisfiable, errMsg)
-		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
-		return echoErr
-	}
-
-	txnOp, ok := r.txnMap[id]
+	txnOp, ok := r.txnMap[uploadID]
 	if !ok {
-		errMsg := r.errorResponse(RegistryErrorCodeUnknown, "transaction does not exist for uuid -"+id, nil)
+		errMsg := r.errorResponse(RegistryErrorCodeUnknown, "transaction does not exist for uuid -"+identifier, nil)
 		echoErr := ctx.JSONBlob(http.StatusBadRequest, errMsg)
 		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
 		return echoErr
 	}
 
 	layer := &types.LayerV2{
-		MediaType:   "",
+		MediaType:   ctx.Request().Header.Get("content-type"),
 		Digest:      dig,
-		SkynetLink:  skylink,
-		UUID:        id,
+		DFSLink:     dfsLink,
+		UUID:        layerKey,
 		BlobDigests: txnOp.blobDigests,
-		Size:        ubuf.Len(),
+		Size:        buf.Len(),
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
-	}
-	if !ok {
-		errMsg := r.errorResponse(RegistryErrorCodeUnknown, "transaction does not exist for uuid -"+id, nil)
-		echoErr := ctx.JSONBlob(http.StatusBadRequest, errMsg)
-		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
-		return echoErr
 	}
 
 	if err := r.store.SetLayer(ctx.Request().Context(), txnOp.txn, layer); err != nil {
@@ -655,23 +561,135 @@ func (r *registry) CompleteUpload(ctx echo.Context) error {
 		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
 		return echoErr
 	}
-	delete(r.txnMap, id)
+
+	downlaodableLink := r.getDownloadableURLFromDFSLink(dfsLink)
+	ctx.Response().Header().Set("Docker-Content-Digest", ourHash.String())
+	ctx.Response().Header().Set("Location", downlaodableLink)
+	echoErr := ctx.NoContent(http.StatusCreated)
+	r.logger.Log(ctx, nil)
+	return echoErr
+}
+
+// CompleteUpload
+// PUT /v2/<name>/blobs/uploads/<uuid>?digest=<digest>
+// for postgres:
+// this is where we insert into the layer after all the blobs have been accumulated
+// and inserted in the blob table
+// thus committing the txn
+//
+// NOTE - This API can also optionally receive the final blob for the upload
+func (r *registry) CompleteUpload(ctx echo.Context) error {
+	ctx.Set(types.HandlerStartTime, time.Now())
+
+	dig := ctx.QueryParam("digest")
+	namespace := ctx.Param("username") + "/" + ctx.Param("imagename")
+	identifier := ctx.Param("uuid")
+	layerKey := GetLayerIdentifierFromTrakcingID(identifier)
+	uploadID := GetUploadIDFromTrakcingID(identifier)
+
+	if r.b.blobCounter[uploadID] == 0 {
+		return r.MonolithicPut(ctx)
+	}
+
+	buf := &bytes.Buffer{}
+	if _, err := io.Copy(buf, ctx.Request().Body); err != nil {
+		errMsg := r.errorResponse(RegistryErrorCodeDigestInvalid, err.Error(), nil)
+		echoErr := ctx.JSONBlob(http.StatusBadRequest, errMsg)
+		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
+		return echoErr
+	}
+	_ = ctx.Request().Body.Close()
+	ourHash := digest.FromBytes(buf.Bytes())
+
+	if buf.Len() > 0 {
+		part, err := r.dfs.UploadPart(
+			ctx.Request().Context(),
+			uploadID,
+			GetLayerIdentifier(layerKey),
+			ourHash.String(),
+			r.b.blobCounter[uploadID],
+			bytes.NewReader(buf.Bytes()),
+			int64(buf.Len()),
+		)
+		if err != nil {
+			errMsg := r.errorResponse(RegistryErrorCodeBlobUnknown, err.Error(), nil)
+			echoErr := ctx.JSONBlob(http.StatusBadRequest, errMsg)
+			r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
+			return echoErr
+		}
+		r.b.layerParts[uploadID] = append(r.b.layerParts[uploadID], part)
+	}
+
+	dfsLink, err := r.dfs.CompleteMultipartUploadInput(
+		ctx.Request().Context(),
+		uploadID,
+		GetLayerIdentifier(layerKey),
+		dig,
+		r.b.layerParts[uploadID],
+	)
+	if err != nil {
+		errMsg := r.errorResponse(RegistryErrorCodeBlobUploadInvalid, err.Error(), echo.Map{
+			"reason": "ERR_SKYNET_UPLOAD",
+			"error":  err.Error(),
+		})
+
+		echoErr := ctx.JSONBlob(http.StatusRequestedRangeNotSatisfiable, errMsg)
+		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
+		return echoErr
+	}
+
+	txnOp, ok := r.txnMap[uploadID]
+	if !ok {
+		errMsg := r.errorResponse(RegistryErrorCodeUnknown, "transaction does not exist for uuid -"+identifier, nil)
+		echoErr := ctx.JSONBlob(http.StatusBadRequest, errMsg)
+		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
+		return echoErr
+	}
+
+	layer := &types.LayerV2{
+		MediaType:   ctx.Request().Header.Get("content-type"),
+		Digest:      dig,
+		DFSLink:     dfsLink,
+		UUID:        layerKey,
+		BlobDigests: txnOp.blobDigests,
+		Size:        buf.Len(),
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
+	}
+
+	if err := r.store.SetLayer(ctx.Request().Context(), txnOp.txn, layer); err != nil {
+		errMsg := r.errorResponse(RegistryErrorCodeUnknown, err.Error(), echo.Map{
+			"error_detail": "set layer issues",
+		})
+		echoErr := ctx.JSONBlob(http.StatusBadRequest, errMsg)
+		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
+		return echoErr
+	}
+
+	if err := r.store.Commit(ctx.Request().Context(), txnOp.txn); err != nil {
+		errMsg := r.errorResponse(RegistryErrorCodeUnknown, err.Error(), echo.Map{
+			"error_detail": "commitment issue",
+		})
+		echoErr := ctx.JSONBlob(http.StatusBadRequest, errMsg)
+		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
+		return echoErr
+	}
 
 	locationHeader := fmt.Sprintf("/v2/%s/blobs/%s", namespace, ourHash)
 	ctx.Response().Header().Set("Content-Length", "0")
-	ctx.Response().Header().Set("Docker-Content-Digest", ourHash)
+	ctx.Response().Header().Set("Docker-Content-Digest", ourHash.String())
 	ctx.Response().Header().Set("Location", locationHeader)
 	echoErr := ctx.NoContent(http.StatusCreated)
 	r.logger.Log(ctx, nil)
 	return echoErr
 }
 
-//BlobMount to be implemented by guacamole at a later stage
+// BlobMount to be implemented by guacamole at a later stage
 func (r *registry) BlobMount(ctx echo.Context) error {
 	return nil
 }
 
-//PushImage is already implemented through StartUpload and ChunkedUpload
+// PushImage is already implemented through StartUpload and ChunkedUpload
 func (r *registry) PushImage(ctx echo.Context) error {
 	return nil
 }
@@ -684,7 +702,6 @@ func (r *registry) PushManifest(ctx echo.Context) error {
 	contentType := ctx.Request().Header.Get("Content-Type")
 
 	var manifest ImageManifest
-
 	buf := &bytes.Buffer{}
 	_, err := io.Copy(buf, ctx.Request().Body)
 	if err != nil {
@@ -702,10 +719,9 @@ func (r *registry) PushManifest(ctx echo.Context) error {
 		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
 		return echoErr
 	}
-	dig := digest(buf.Bytes())
 
-	mfNamespace := fmt.Sprintf("%s/manifests", namespace)
-	skylink, err := r.skynet.Upload(mfNamespace, dig, buf.Bytes(), true)
+	dig := digest.FromBytes(buf.Bytes())
+	dfsLink, err := r.dfs.Upload(ctx.Request().Context(), GetManifestIdentifier(namespace, ref), dig.String(), buf.Bytes())
 	if err != nil {
 		errMsg := r.errorResponse(RegistryErrorCodeManifestBlobUnknown, err.Error(), nil)
 		echoErr := ctx.JSONBlob(http.StatusNotFound, errMsg)
@@ -718,7 +734,7 @@ func (r *registry) PushManifest(ctx echo.Context) error {
 		layerIDs = append(layerIDs, layer.Digest)
 	}
 
-	id, err := uuid.NewRandom()
+	uuid, err := CreateIdentifier()
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error": err.Error(),
@@ -727,12 +743,13 @@ func (r *registry) PushManifest(ctx echo.Context) error {
 		r.logger.Log(ctx, err)
 		return echoErr
 	}
+
 	mfc := types.ConfigV2{
-		UUID:      id.String(),
+		UUID:      uuid,
 		Namespace: namespace,
 		Reference: ref,
-		Digest:    dig,
-		Skylink:   skylink,
+		Digest:    dig.String(),
+		DFSLink:   dfsLink,
 		MediaType: contentType,
 		Layers:    layerIDs,
 		Size:      0,
@@ -740,19 +757,10 @@ func (r *registry) PushManifest(ctx echo.Context) error {
 		UpdatedAt: time.Now(),
 	}
 
-	id, err = uuid.NewRandom()
-	if err != nil {
-		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
-			"error": err.Error(),
-			"cause": "error creating random id for image manifest",
-		})
-		r.logger.Log(ctx, err)
-		return echoErr
-	}
 	val := &types.ImageManifestV2{
-		Uuid:          id.String(),
+		Uuid:          uuid,
 		Namespace:     namespace,
-		MediaType:     "",
+		MediaType:     contentType,
 		SchemaVersion: 2,
 		CreatedAt:     time.Now(),
 		UpdatedAt:     time.Now(),
@@ -795,10 +803,10 @@ func (r *registry) PushManifest(ctx echo.Context) error {
 		return echoErr
 	}
 
-	locationHeader := r.getHttpUrlFromSkylink(skylink)
+	locationHeader := fmt.Sprintf("https://openregsitry-test.s3.amazonaws.com/%s", dfsLink)
 	ctx.Response().Header().Set("Location", locationHeader)
-	ctx.Response().Header().Set("Docker-Content-Digest", dig)
-	ctx.Response().Header().Set("X-Docker-Content-ID", skylink)
+	ctx.Response().Header().Set("Docker-Content-Digest", dig.String())
+	ctx.Response().Header().Set("X-Docker-Content-ID", dfsLink)
 	echoErr := ctx.String(http.StatusCreated, "Created")
 	r.logger.Log(ctx, nil)
 	return echoErr
@@ -822,7 +830,7 @@ func (r *registry) PushLayer(ctx echo.Context) error {
 		return echoErr
 	}
 
-	id, err := uuid.NewRandom()
+	uuid, err := CreateIdentifier()
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error":   err.Error(),
@@ -831,10 +839,11 @@ func (r *registry) PushLayer(ctx echo.Context) error {
 		r.logger.Log(ctx, err)
 		return echoErr
 	}
+
 	p := path.Join(elem[1 : len(elem)-2]...)
-	locationHeader := fmt.Sprintf("/v2/%s/blobs/uploads/%s", p, id.String())
+	locationHeader := fmt.Sprintf("/v2/%s/blobs/uploads/%s", p, uuid)
 	ctx.Response().Header().Set("Location", locationHeader)
-	ctx.Response().Header().Set("Docker-Upload-UUID", id.String())
+	ctx.Response().Header().Set("Docker-Upload-UUID", uuid)
 	ctx.Response().Header().Set("Range", "bytes=0-0")
 	echoErr := ctx.NoContent(http.StatusAccepted)
 	r.logger.Log(ctx, nil)
@@ -883,7 +892,6 @@ func (r *registry) DeleteLayer(ctx echo.Context) error {
 	dig := ctx.Param("digest")
 	layer, err := r.store.GetLayer(ctx.Request().Context(), dig)
 	if err != nil {
-
 		errMsg := r.errorResponse(RegistryErrorCodeBlobUnknown, err.Error(), nil)
 		echoErr := ctx.JSONBlob(http.StatusNotFound, errMsg)
 		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
@@ -894,34 +902,18 @@ func (r *registry) DeleteLayer(ctx echo.Context) error {
 	txnOp, _ := r.store.NewTxn(context.Background())
 	err = r.store.DeleteLayerV2(ctx.Request().Context(), txnOp, dig)
 	if err != nil {
-		logMsg := echo.Map{
-			"error":  err.Error(),
-			"caller": "DeleteLayer",
-		}
-
-		bz, err := json.Marshal(logMsg)
-		if err == nil {
-			r.logger.Log(ctx, err)
-		}
-
-		return ctx.JSONBlob(http.StatusInternalServerError, bz)
+		errMsg := r.errorResponse(RegistryErrorCodeBlobUnknown, err.Error(), nil)
+		echoErr := ctx.JSONBlob(http.StatusInternalServerError, errMsg)
+		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
+		return echoErr
 	}
 
 	for i := range blobs {
 		if err = r.store.DeleteBlobV2(ctx.Request().Context(), txnOp, blobs[i]); err != nil {
-			logMsg := echo.Map{
-				"error":  err.Error(),
-				"caller": "DeleteLayer",
-			}
-
-			r.logger.Log(ctx, fmt.Errorf("%s", logMsg))
-			bz, err := json.Marshal(logMsg)
-			if err != nil {
-				errMsg := r.errorResponse(RegistryErrorCodeUnknown, err.Error(), nil)
-				r.logger.Log(ctx, err)
-				return ctx.JSONBlob(http.StatusBadRequest, errMsg)
-			}
-			return ctx.JSONBlob(http.StatusInternalServerError, bz)
+			errMsg := r.errorResponse(RegistryErrorCodeBlobUnknown, err.Error(), nil)
+			echoErr := ctx.JSONBlob(http.StatusInternalServerError, errMsg)
+			r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
+			return echoErr
 		}
 	}
 	err = r.store.Commit(ctx.Request().Context(), txnOp)
