@@ -27,7 +27,8 @@ dfs:
     access_key: <access-key>
     secret_key: <access-secret-key>
     endpoint: <s3-compatible-api-endpoint>
-    bucket_name: openregistry-ipfs
+    bucket_name: <s3-bucket-name>
+    dfs_link_resolver: <optional-dfs-link-resolver-url>
 skynet:
   portal_url: https://skynetpro.net
   api_key: skynet-key

@@ -220,114 +220,22 @@ func (fb *filebase) Metadata(identifier string) (*skynet.Metadata, error) {
 	}, nil
 }
 
-//func (fb *filebase) buildCopySourceRange(start int64, objectSize int64) string {
-//	end := start + max_part_size - 1
-//	if end > objectSize {
-//		end = objectSize - 1
-//	}
-//	startRange := strconv.FormatInt(start, 10)
-//	stopRange := strconv.FormatInt(end, 10)
-//	return "bytes=" + startRange + "-" + stopRange
-//}
+func (fb *filebase) GetUploadProgress(identifier, uploadID string) (*types.ObjectMetadata, error) {
+	partsResp, err := fb.client.ListParts(context.Background(), &s3.ListPartsInput{
+		Bucket:   &fb.bucket,
+		Key:      &identifier,
+		UploadId: &uploadID,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("ERR_LIST_PARTS_FOR_UPLOAD: %w", err)
+	}
 
-////function that starts, perform each part upload, and completes the copy
-//func (fb *filebase) MultiPartCopy(svc *s3.Client, fileSize int64, sourceKey string, destKey string) error {
-//	ctx, cancelFn := context.WithTimeout(context.TODO(), 10*time.Minute)
-//	defer cancelFn()
+	var uploadedSize int64
+	for _, p := range partsResp.Parts {
+		uploadedSize += p.Size
+	}
 
-//	//struct for starting a multipart upload
-//	startInput := s3.CreateMultipartUploadInput{
-//		Bucket: &destBucket,
-//		Key:    &destKey,
-//	}
-
-//	//send command to start copy and get the upload id as it is needed later
-//	var uploadId string
-//	createOutput, err := svc.CreateMultipartUpload(ctx, &startInput)
-//	if err != nil {
-//		return err
-//	}
-//	if createOutput != nil {
-//		if createOutput.UploadId != nil {
-//			uploadId = *createOutput.UploadId
-//		}
-//	}
-//	if uploadId == "" {
-//		return errors.New("No upload id found in start upload request")
-//	}
-
-//	var i int64
-//	var partNumber int32 = 1
-//	copySource := "/" + fb.bucket + "/" + sourceKey
-
-//	parts := make([]types.CompletedPart, 0)
-
-//	// for i = 0; i < fileSize; i += max_part_size {
-//	copyRange := fb.buildCopySourceRange(i, fileSize)
-//	partInput := &s3.UploadPartInput{
-//		Bucket:               &fb.bucket,
-//		Key:                  &destKey,
-//		PartNumber:           partNumber,
-//		UploadId:             &uploadId,
-//		Body:                 nil,
-//		ChecksumAlgorithm:    "",
-//		ChecksumCRC32:        new(string),
-//		ChecksumCRC32C:       new(string),
-//		ChecksumSHA1:         new(string),
-//		ChecksumSHA256:       new(string),
-//		ContentLength:        0,
-//		ContentMD5:           new(string),
-//		ExpectedBucketOwner:  new(string),
-//		RequestPayer:         "",
-//		SSECustomerAlgorithm: new(string),
-//		SSECustomerKey:       new(string),
-//		SSECustomerKeyMD5:    new(string),
-//	}
-//	fb.client.UploadPart(ctx, partInput)
-//	partResp, err := svc.UploadPartCopy(context.TODO(), &partInput)
-
-//	if err != nil {
-//		abortIn := s3.AbortMultipartUploadInput{
-//			UploadId: &uploadId,
-//		}
-//		//ignoring any errors with aborting the copy
-//		svc.AbortMultipartUpload(context.TODO(), &abortIn)
-//		return fmt.Errorf("Error uploading part %d : %w", partNumber, err)
-//	}
-
-//	//copy etag and part number from response as it is needed for completion
-//	if partResp != nil {
-//		partNum := partNumber
-//		etag := strings.Trim(*partResp.CopyPartResult.ETag, "\"")
-//		cPart := types.CompletedPart{
-//			ETag:       &etag,
-//			PartNumber: partNum,
-//		}
-//		parts = append(parts, cPart)
-//	}
-//	partNumber++
-//	if partNumber%50 == 0 {
-//	}
-//	// }
-
-//	//create struct for completing the upload
-//	mpu := types.CompletedMultipartUpload{
-//		Parts: parts,
-//	}
-
-//	//complete actual upload
-//	//does not actually copy if the complete command is not received
-//	complete := s3.CompleteMultipartUploadInput{
-//		Bucket:          &destBucket,
-//		Key:             &destKey,
-//		UploadId:        &uploadId,
-//		MultipartUpload: &mpu,
-//	}
-//	compOutput, err := svc.CompleteMultipartUpload(context.TODO(), &complete)
-//	if err != nil {
-//		return fmt.Errorf("Error completing upload: %w", err)
-//	}
-//	if compOutput != nil {
-//	}
-//	return nil
-//}
+	return &types.ObjectMetadata{
+		ContentLength: int(uploadedSize),
+	}, nil
+}

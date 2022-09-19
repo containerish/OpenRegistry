@@ -38,8 +38,7 @@ const (
 	BlobsMonolithicPut = "/blobs/monolithic/upload/:uuid"
 
 	//BlobsUploadsUUID serves similar functionality within an upload
-	// i.e. layered and chunked uploads by methods: PushLayer, ChunkedUpload, CompleteUpload
-	// UploadProgress
+	// i.e. layered and chunked uploads by methods: PushLayer, ChunkedUpload, CompleteUpload, UploadProgress
 	BlobsUploadsUUID = BlobsUploads + ":uuid"
 
 	// TagsList endpoint is used to list the tags attached to images, e.g. latest, alpine , etc

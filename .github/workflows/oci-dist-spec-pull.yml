@@ -54,6 +54,7 @@ jobs:
           FILEBASE_SECRET=${{ secrets.FILEBASE_SECRET }} yq e -i '.dfs.s3_any.secret_key = env(FILEBASE_SECRET)' config.yaml
           FILEBASE_BUCKET=${{ secrets.FILEBASE_BUCKET }} yq e -i '.dfs.s3_any.bucket_name = env(FILEBASE_BUCKET)' config.yaml
           FILEBASE_ENDPOINT=${{ secrets.FILEBASE_ENDPOINT }} yq e -i '.dfs.s3_any.endpoint = env(FILEBASE_ENDPOINT)' config.yaml
+          FILEBASE_RESOLVER_URL=${{ secrets.FILEBASE_RESOLVER_URL }} yq e -i '.dfs.s3_any.dfs_link_resolver = env(FILEBASE_RESOLVER_URL)' config.yaml
           docker build -f ./Dockerfile -t "${DISTRIBUTION_REF}" .
           docker run --rm -p 5000:5000 --env="CI_SYS_ADDR=$IP:5000" -d "${DISTRIBUTION_REF}"
           sleep 5

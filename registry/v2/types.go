@@ -5,8 +5,8 @@ import (
 	"time"
 
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
+	"github.com/containerish/OpenRegistry/config"
 	dfsImpl "github.com/containerish/OpenRegistry/dfs"
-	"github.com/containerish/OpenRegistry/skynet"
 	"github.com/containerish/OpenRegistry/store/postgres"
 	"github.com/containerish/OpenRegistry/telemetry"
 	"github.com/jackc/pgx/v4"
@@ -89,10 +89,10 @@ const (
 type (
 	registry struct {
 		b      blobs
+		config *config.OpenRegistryConfig
 		logger telemetry.Logger
 		store  postgres.PersistentStore
 		dfs    dfsImpl.DFS
-		skynet *skynet.Client
 		txnMap map[string]TxnStore
 		mu     *sync.RWMutex
 		debug  bool

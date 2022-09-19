@@ -25,5 +25,5 @@ func (r *registry) errorResponse(code, msg string, detail map[string]interface{}
 }
 
 func (r *registry) getDownloadableURLFromDFSLink(s string) string {
-	return fmt.Sprintf("https://ipfs.filebase.io/ipfs/%s", s)
+	return fmt.Sprintf("%s/%s", r.config.DFS.S3Any.DFSLinkResolver, s)
 }

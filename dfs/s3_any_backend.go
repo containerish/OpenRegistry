@@ -12,7 +12,7 @@ import (
 
 func NewS3Client(endpoint, accessKey, secretKey string) *s3.Client {
 	resolver := aws.EndpointResolverWithOptionsFunc(
-		func(service, region string, options ...interface{}) (aws.Endpoint, error) {
+		func(service, region string, _ ...interface{}) (aws.Endpoint, error) {
 			if service == s3.ServiceID && region == "us-east-1" {
 				return aws.Endpoint{
 					PartitionID:   "aws",

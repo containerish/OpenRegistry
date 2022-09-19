@@ -81,47 +81,17 @@ func (b *blobs) UploadBlob(ctx echo.Context) error {
 	uploadID := GetUploadIDFromTrakcingID(identifier)
 
 	if contentRange == "" {
-		// if _, ok := b.uploads[uuid]; ok {
-		// 	errMsg := b.errorResponse(
-		// 		RegistryErrorCodeBlobUploadInvalid,
-		// 		"stream upload after first write are not allowed",
-		// 		nil,
-		// 	)
-		// 	echoErr := ctx.JSONBlob(http.StatusBadRequest, errMsg)
-		// 	b.registry.logger.Log(ctx, fmt.Errorf("%s", errMsg))
-		// 	return echoErr
-		// }
-
-		// buf := &bytes.Buffer{}
-		// if _, err := io.Copy(buf, ctx.Request().Body); err != nil {
-		// 	echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
-		// 		"error":   err.Error(),
-		// 		"message": "error copying request body in upload blob",
-		// 	})
-		// 	b.registry.logger.Log(ctx, err)
-		// 	return echoErr
-		// }
-
-		// _ = ctx.Request().Body.Close()
-		// b.uploads[uuid] = buf.Bytes()
-
-		// if err := b.blobTransaction(ctx, buf.Bytes(), uuid); err != nil {
-		// 	errMsg := b.errorResponse(
-		// 		RegistryErrorCodeBlobUploadInvalid,
-		// 		err.Error(),
-		// 		nil,
-		// 	)
-		// 	echoErr := ctx.JSONBlob(http.StatusBadRequest, errMsg)
-		// 	b.registry.logger.Log(ctx, fmt.Errorf("%s", errMsg))
-		// 	return echoErr
-		// }
-
 		buf := &bytes.Buffer{}
 		_, err := io.Copy(buf, ctx.Request().Body)
 		if err != nil {
-			fmt.Println(err)
+			echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
+				"error":   err.Error(),
+				"message": "error copying body to buffer",
+			})
+			b.registry.logger.Log(ctx, err)
+			return echoErr
 		}
-		ctx.Request().Body.Close()
+		_ = ctx.Request().Body.Close()
 
 		checksum := digest.FromBytes(buf.Bytes())
 
@@ -143,9 +113,11 @@ func (b *blobs) UploadBlob(ctx echo.Context) error {
 			b.registry.logger.Log(ctx, err)
 			return echoErr
 		}
+
 		b.mu.Lock()
 		b.layerParts[uploadID] = append(b.layerParts[uploadID], part)
 		b.mu.Unlock()
+
 		locationHeader := fmt.Sprintf("/v2/%s/blobs/uploads/%s", namespace, identifier)
 		ctx.Response().Header().Set("Location", locationHeader)
 		b.layerLengthCounter[uploadID] = int64(buf.Len())
@@ -176,24 +148,15 @@ func (b *blobs) UploadBlob(ctx echo.Context) error {
 		return echoErr
 	}
 
-	// buf := bytes.NewBuffer(b.uploads[uuid]) // 90
-	// _, err := io.Copy(buf, ctx.Request().Body)
-	// if err != nil {
-	// 	errMsg := b.errorResponse(
-	// 		RegistryErrorCodeBlobUploadInvalid,
-	// 		"error while creating new buffer from existing blobs",
-	// 		nil,
-	// 	)
-	// 	echoErr := ctx.JSONBlob(http.StatusInternalServerError, errMsg)
-	// 	b.registry.logger.Log(ctx, fmt.Errorf("%s", errMsg))
-	// 	return echoErr
-	// } // 10
-	// ctx.Request().Body.Close()
-
 	buf := &bytes.Buffer{}
 	_, err := io.Copy(buf, ctx.Request().Body)
 	if err != nil {
-		fmt.Println(err)
+		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
+			"error":   err.Error(),
+			"message": "error copying body to buffer",
+		})
+		b.registry.logger.Log(ctx, err)
+		return echoErr
 	}
 
 	checksum := digest.FromBytes(buf.Bytes())
@@ -218,52 +181,16 @@ func (b *blobs) UploadBlob(ctx echo.Context) error {
 		b.registry.logger.Log(ctx, fmt.Errorf("%s", errMsg))
 		return echoErr
 	}
+
 	b.mu.Lock()
 	b.layerParts[uploadID] = append(b.layerParts[uploadID], part)
 	b.layerLengthCounter[uploadID] += int64(buf.Len())
 	b.mu.Unlock()
 
-	// b.uploads[uuid] = buf.Bytes()
-	// if err := b.blobTransaction(ctx, buf.Bytes(), uuid); err != nil {
-	// 	errMsg := b.errorResponse(
-	// 		RegistryErrorCodeBlobUploadInvalid,
-	// 		err.Error(),
-	// 		nil,
-	// 	)
-	// 	echoErr := ctx.JSONBlob(http.StatusBadRequest, errMsg)
-	// 	b.registry.logger.Log(ctx, fmt.Errorf("%s", errMsg))
-	// 	return echoErr
-	// }
 	locationHeader := fmt.Sprintf("/v2/%s/blobs/uploads/%s", namespace, identifier)
 	ctx.Response().Header().Set("Location", locationHeader)
-	// ctx.Response().Header().Set("Range", fmt.Sprintf("0-%d", buf.Len()-1))
 	ctx.Response().Header().Set("Range", fmt.Sprintf("0-%d", b.layerLengthCounter[uploadID]-1))
 	echoErr := ctx.NoContent(http.StatusAccepted)
 	b.registry.logger.Log(ctx, nil)
 	return echoErr
-}
-
-func (b *blobs) blobTransaction(ctx echo.Context, bz []byte, uuid string) error {
-	checksum := digest.FromBytes(bz)
-	blob := &types.Blob{
-		Digest:     checksum.String(),
-		Skylink:    "",
-		UUID:       uuid,
-		RangeStart: 0,
-		RangeEnd:   uint32(len(bz) - 1),
-	}
-
-	txnOp, ok := b.registry.txnMap[uuid]
-	if !ok {
-		return fmt.Errorf("txn has not been initialised for uuid - " + uuid)
-	}
-
-	if err := b.registry.store.SetBlob(ctx.Request().Context(), txnOp.txn, blob); err != nil {
-		color.Red("aborting txn: %s\n", err.Error())
-		return b.registry.store.Abort(ctx.Request().Context(), txnOp.txn)
-	}
-
-	txnOp.blobDigests = append(txnOp.blobDigests, blob.Digest)
-	b.registry.txnMap[uuid] = txnOp
-	return nil
 }

@@ -140,14 +140,6 @@ func (a *auth) createServiceClaims(u types.User) ServiceClaims {
 	return claims
 }
 
-//	User: types.User{
-//		Id:       u.Id,
-//		Username: u.Username,
-//		Email:    u.Email,
-//		Type:     u.Type,
-//		NodeID:   u.NodeID,
-//		OAuthID:  u.OAuthID,
-//	},
 func (a *auth) createOAuthClaims(userId string, token *oauth2.Token) PlatformClaims {
 	claims := PlatformClaims{
 		OauthPayload: token,
@@ -208,27 +200,27 @@ func (a *auth) newToken(u *types.User) (string, error) {
 
 /*
 claims format
-{
-    "iss": "auth.openregistry.dev",
-    "sub": "jlhawn",
-    "aud": "openregistry.dev",
-    "exp": 1415387315,
-    "nbf": 1415387015,
-    "iat": 1415387015,
-    "jti": "tYJCO1c6cnyy7kAn0c7rKPgbV1H1bFws",
-    "access": [
-        {
-            "type": "repository",
-            "name": "samalba/my-app",
-            "actions": [
-                "pull",
-                "push"
-            ]
-        }
-    ]
-}
-*/
 
+	{
+	    "iss": "auth.openregistry.dev",
+	    "sub": "jlhawn",
+	    "aud": "openregistry.dev",
+	    "exp": 1415387315,
+	    "nbf": 1415387015,
+	    "iat": 1415387015,
+	    "jti": "tYJCO1c6cnyy7kAn0c7rKPgbV1H1bFws",
+	    "access": [
+	        {
+	            "type": "repository",
+	            "name": "samalba/my-app",
+	            "actions": [
+	                "pull",
+	                "push"
+	            ]
+	        }
+	    ]
+	}
+*/
 func (a *auth) createClaims(id, tokenType string, acl AccessList) Claims {
 
 	tokenLife := time.Now().Add(time.Minute * 10).Unix()

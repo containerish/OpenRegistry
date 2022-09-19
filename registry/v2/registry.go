@@ -14,28 +14,27 @@ import (
 	"time"
 
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
+	"github.com/containerish/OpenRegistry/config"
 	dfsImpl "github.com/containerish/OpenRegistry/dfs"
-	"github.com/containerish/OpenRegistry/skynet"
 	"github.com/containerish/OpenRegistry/store/postgres"
 	"github.com/containerish/OpenRegistry/telemetry"
 	"github.com/containerish/OpenRegistry/types"
-	"github.com/fatih/color"
 	"github.com/labstack/echo/v4"
 	"github.com/opencontainers/go-digest"
 )
 
 func NewRegistry(
-	skynetClient *skynet.Client,
-	logger telemetry.Logger,
 	pgStore postgres.PersistentStore,
 	dfs dfsImpl.DFS,
+	logger telemetry.Logger,
+	config *config.OpenRegistryConfig,
 ) (Registry, error) {
 	mu := &sync.RWMutex{}
 	r := &registry{
 		debug:  true,
-		skynet: skynetClient,
 		dfs:    dfs,
 		mu:     mu,
+		config: config,
 		b: blobs{
 			contents:           make(map[string][]byte),
 			uploads:            make(map[string][]byte),
@@ -267,7 +266,6 @@ func (r *registry) PullManifest(ctx echo.Context) error {
 func (r *registry) PullLayer(ctx echo.Context) error {
 	ctx.Set(types.HandlerStartTime, time.Now())
 
-	// namespace := ctx.Param("username") + "/" + ctx.Param("imagename")
 	clientDigest := ctx.Param("digest")
 	layer, err := r.store.GetLayer(ctx.Request().Context(), clientDigest)
 	if err != nil {
@@ -313,47 +311,83 @@ func (r *registry) PullLayer(ctx echo.Context) error {
 func (r *registry) MonolithicUpload(ctx echo.Context) error {
 	ctx.Set(types.HandlerStartTime, time.Now())
 
-	namespace := ctx.Param("username") + "/" + ctx.Param("imagename")
-	uuid := ctx.Param("uuid")
-
-	if _, ok := r.b.uploads[uuid]; ok {
-		errMsg := r.b.errorResponse(
-			RegistryErrorCodeBlobUploadInvalid,
-			"error in monolithic upload",
-			nil,
-		)
-		echoErr := ctx.JSONBlob(http.StatusBadRequest, errMsg)
-		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
-		return echoErr
-	}
-
+	imageDigest := ctx.QueryParam("digest")
 	buf := &bytes.Buffer{}
 	if _, err := io.Copy(buf, ctx.Request().Body); err != nil {
-		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
-			"error":   err.Error(),
-			"message": "error copying request body in monolithic upload blob",
-		})
-		r.logger.Log(ctx, err)
+		errMsg := r.errorResponse(RegistryErrorCodeBlobUploadInvalid, "error while reading request body", nil)
+		echoErr := ctx.JSONBlob(http.StatusNotFound, errMsg)
+		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
+		return echoErr
+	}
+	_ = ctx.Request().Body.Close() // why defer? body is already read :)
+	computedDigest := digest.FromBytes(buf.Bytes())
+
+	if computedDigest.String() != imageDigest {
+		details := map[string]interface{}{
+			"clientDigest":   imageDigest,
+			"computedDigest": computedDigest.String(),
+		}
+		errMsg := r.errorResponse(
+			RegistryErrorCodeDigestInvalid,
+			"client digest does not meet computed digest",
+			details,
+		)
+		echoErr := ctx.JSONBlob(http.StatusBadRequest, errMsg)
+		r.logger.Log(ctx, fmt.Errorf("%s", fmt.Errorf("%s", errMsg)))
 		return echoErr
 	}
 
-	_ = ctx.Request().Body.Close()
-	r.b.uploads[uuid] = buf.Bytes()
+	uuid, err := CreateIdentifier()
+	if err != nil {
+		errMsg := r.errorResponse(RegistryErrorCodeUnknown, err.Error(), nil)
+		echoErr := ctx.JSONBlob(http.StatusRequestedRangeNotSatisfiable, errMsg)
+		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
+		return echoErr
+	}
 
-	if err := r.b.blobTransaction(ctx, buf.Bytes(), uuid); err != nil {
-		errMsg := r.b.errorResponse(
-			RegistryErrorCodeBlobUploadInvalid,
-			err.Error(),
-			nil,
-		)
+	dfsLink, err := r.dfs.Upload(ctx.Request().Context(), GetLayerIdentifier(uuid), imageDigest, buf.Bytes())
+	if err != nil {
+		errMsg := r.errorResponse(RegistryErrorCodeBlobUploadInvalid, err.Error(), nil)
+		echoErr := ctx.JSONBlob(http.StatusRequestedRangeNotSatisfiable, errMsg)
+		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
+		return echoErr
+	}
+
+	layerV2 := &types.LayerV2{
+		MediaType:   ctx.Request().Header.Get("content-type"),
+		Digest:      imageDigest,
+		DFSLink:     dfsLink,
+		UUID:        uuid,
+		BlobDigests: nil,
+		Size:        buf.Len(),
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
+	}
+
+	txnOp, err := r.store.NewTxn(ctx.Request().Context())
+	if err != nil {
+		errMsg := r.errorResponse(RegistryErrorCodeUnknown, err.Error(), nil)
+		echoErr := ctx.JSONBlob(http.StatusInternalServerError, errMsg)
+		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
+		return echoErr
+	}
+
+	if err := r.store.SetLayer(ctx.Request().Context(), txnOp, layerV2); err != nil {
+		errMsg := r.errorResponse(RegistryErrorCodeBlobUploadInvalid, err.Error(), nil)
 		echoErr := ctx.JSONBlob(http.StatusBadRequest, errMsg)
 		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
 		return echoErr
 	}
 
-	locationHeader := fmt.Sprintf("/v2/%s/blobs/uploads/%s", namespace, uuid)
+	if err := r.store.Commit(ctx.Request().Context(), txnOp); err != nil {
+		errMsg := r.errorResponse(RegistryErrorCodeBlobUploadInvalid, err.Error(), nil)
+		echoErr := ctx.JSONBlob(http.StatusBadRequest, errMsg)
+		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
+		return echoErr
+	}
 
-	ctx.Response().Header().Set("Location", locationHeader)
+	link := r.getDownloadableURLFromDFSLink(dfsLink)
+	ctx.Response().Header().Set("Location", link)
 	echoErr := ctx.NoContent(http.StatusCreated)
 	r.logger.Log(ctx, nil)
 	return echoErr
@@ -377,93 +411,10 @@ func (r *registry) StartUpload(ctx echo.Context) error {
 	namespace := ctx.Param("username") + "/" + ctx.Param("imagename")
 	imageDigest := ctx.QueryParam("digest")
 
+	// Do a Single POST monolithic upload if the digest is present
+	// reference: https://github.com/opencontainers/distribution-spec/blob/main/spec.md#single-post
 	if imageDigest != "" {
-		buf := &bytes.Buffer{}
-		if _, err := io.Copy(buf, ctx.Request().Body); err != nil {
-			details := map[string]interface{}{
-				"clientDigest": imageDigest,
-				"namespace":    namespace,
-			}
-			errMsg := r.errorResponse(
-				RegistryErrorCodeBlobUploadInvalid,
-				"error while reading request body",
-				details,
-			)
-			echoErr := ctx.JSONBlob(http.StatusNotFound, errMsg)
-			r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
-			return echoErr
-		}
-		_ = ctx.Request().Body.Close() // why defer? body is already read :)
-		computedDigest := digest.FromBytes(buf.Bytes())
-
-		if computedDigest.String() != imageDigest {
-			details := map[string]interface{}{
-				"clientDigest":   imageDigest,
-				"computedDigest": computedDigest.String(),
-			}
-			errMsg := r.errorResponse(
-				RegistryErrorCodeDigestInvalid,
-				"client digest does not meet computed digest",
-				details,
-			)
-			echoErr := ctx.JSONBlob(http.StatusBadRequest, errMsg)
-			r.logger.Log(ctx, fmt.Errorf("%s", fmt.Errorf("%s", errMsg)))
-			return echoErr
-		}
-
-		uuid, err := CreateIdentifier()
-		if err != nil {
-			errMsg := r.errorResponse(RegistryErrorCodeUnknown, err.Error(), nil)
-			echoErr := ctx.JSONBlob(http.StatusRequestedRangeNotSatisfiable, errMsg)
-			r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
-			return echoErr
-		}
-
-		dfsLink, err := r.dfs.Upload(ctx.Request().Context(), GetLayerIdentifier(uuid), imageDigest, buf.Bytes())
-		if err != nil {
-			errMsg := r.errorResponse(RegistryErrorCodeBlobUploadInvalid, err.Error(), nil)
-			echoErr := ctx.JSONBlob(http.StatusRequestedRangeNotSatisfiable, errMsg)
-			r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
-			return echoErr
-		}
-
-		layerV2 := &types.LayerV2{
-			MediaType:   ctx.Request().Header.Get("content-type"),
-			Digest:      imageDigest,
-			DFSLink:     dfsLink,
-			UUID:        uuid,
-			BlobDigests: nil,
-			Size:        buf.Len(),
-			CreatedAt:   time.Now(),
-			UpdatedAt:   time.Now(),
-		}
-
-		txnOp, err := r.store.NewTxn(ctx.Request().Context())
-		if err != nil {
-			errMsg := r.errorResponse(RegistryErrorCodeUnknown, err.Error(), nil)
-			echoErr := ctx.JSONBlob(http.StatusInternalServerError, errMsg)
-			r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
-			return echoErr
-		}
-
-		if err := r.store.SetLayer(ctx.Request().Context(), txnOp, layerV2); err != nil {
-			errMsg := r.errorResponse(RegistryErrorCodeBlobUploadInvalid, err.Error(), nil)
-			echoErr := ctx.JSONBlob(http.StatusBadRequest, errMsg)
-			r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
-			return echoErr
-		}
-		if err := r.store.Commit(ctx.Request().Context(), txnOp); err != nil {
-			errMsg := r.errorResponse(RegistryErrorCodeBlobUploadInvalid, err.Error(), nil)
-			echoErr := ctx.JSONBlob(http.StatusBadRequest, errMsg)
-			r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
-			return echoErr
-		}
-
-		link := r.getDownloadableURLFromDFSLink(dfsLink)
-		ctx.Response().Header().Set("Location", link)
-		echoErr := ctx.NoContent(http.StatusCreated)
-		r.logger.Log(ctx, nil)
-		return echoErr
+		return r.MonolithicUpload(ctx)
 	}
 
 	layerIdentifier, err := CreateIdentifier()
@@ -509,7 +460,7 @@ func (r *registry) StartUpload(ctx echo.Context) error {
 	ctx.Response().Header().Set("Location", locationHeader)
 	ctx.Response().Header().Set("Content-Length", "0")
 	ctx.Response().Header().Set("Docker-Upload-UUID", uploadTrackingID)
-	ctx.Response().Header().Set("Range", fmt.Sprintf("0-%d", 0))
+	ctx.Response().Header().Set("Range", "0-0")
 	echoErr := ctx.NoContent(http.StatusAccepted)
 	r.logger.Log(ctx, nil)
 	return echoErr
@@ -521,24 +472,10 @@ func (r *registry) UploadProgress(ctx echo.Context) error {
 
 	namespace := ctx.Param("username") + "/" + ctx.Param("imagename")
 	uuid := ctx.Param("uuid")
+	layerkey := GetLayerIdentifierFromTrakcingID(uuid)
+	uploadID := GetUploadIDFromTrakcingID(uuid)
 
-	dfsLink, err := r.store.GetContentHashById(ctx.Request().Context(), uuid)
-	if err != nil {
-		errMsg := r.errorResponse(RegistryErrorCodeBlobUnknown, err.Error(), nil)
-		echoErr := ctx.JSONBlob(http.StatusNotFound, errMsg)
-		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
-		return echoErr
-	}
-
-	if dfsLink == "" {
-		err = fmt.Errorf("DFSLink is empty")
-		errMsg := r.errorResponse(RegistryErrorCodeBlobUnknown, err.Error(), nil)
-		echoErr := ctx.JSONBlob(http.StatusNotFound, errMsg)
-		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
-		return echoErr
-	}
-
-	metadata, err := r.skynet.Metadata(dfsLink)
+	metadata, err := r.dfs.GetUploadProgress(GetLayerIdentifier(layerkey), uploadID)
 	if err != nil {
 		locationHeader := fmt.Sprintf("/v2/%s/blobs/uploads/%s", namespace, uuid)
 		ctx.Response().Header().Set("Location", locationHeader)
@@ -560,7 +497,6 @@ func (r *registry) UploadProgress(ctx echo.Context) error {
 
 func (r *registry) MonolithicPut(ctx echo.Context) error {
 	ctx.Set(types.HandlerStartTime, time.Now())
-	color.Red("--------------------------- MonolithicPut -----------------------------")
 
 	dig := ctx.QueryParam("digest")
 	identifier := ctx.Param("uuid")
@@ -648,7 +584,6 @@ func (r *registry) CompleteUpload(ctx echo.Context) error {
 	uploadID := GetUploadIDFromTrakcingID(identifier)
 
 	if r.b.blobCounter[uploadID] == 0 {
-		// return ctx.Redirect(http.StatusTemporaryRedirect, "/v2/blobs/monolithic/upload/"+identifier)
 		return r.MonolithicPut(ctx)
 	}
 
@@ -699,16 +634,6 @@ func (r *registry) CompleteUpload(ctx echo.Context) error {
 		return echoErr
 	}
 
-	// if ourHash.String() != dig {
-	// 	details := map[string]interface{}{
-	// 		"headerDigest": dig, "serverSideDigest": ourHash, "bodyDigest": ourHash.String(),
-	// 	}
-	// 	errMsg := r.errorResponse(RegistryErrorCodeDigestInvalid, "digest mismatch", details)
-	// 	echoErr := ctx.JSONBlob(http.StatusBadRequest, errMsg)
-	// 	r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
-	// 	return echoErr
-	// }
-
 	txnOp, ok := r.txnMap[uploadID]
 	if !ok {
 		errMsg := r.errorResponse(RegistryErrorCodeUnknown, "transaction does not exist for uuid -"+identifier, nil)
@@ -745,7 +670,6 @@ func (r *registry) CompleteUpload(ctx echo.Context) error {
 		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
 		return echoErr
 	}
-	// delete(r.txnMap, id)
 
 	locationHeader := fmt.Sprintf("/v2/%s/blobs/%s", namespace, ourHash)
 	ctx.Response().Header().Set("Content-Length", "0")
@@ -875,7 +799,6 @@ func (r *registry) PushManifest(ctx echo.Context) error {
 		return echoErr
 	}
 
-	// locationHeader := r.getHttpUrlFromSkylink(dfsLink)
 	locationHeader := fmt.Sprintf("https://openregsitry-test.s3.amazonaws.com/%s", dfsLink)
 	ctx.Response().Header().Set("Location", locationHeader)
 	ctx.Response().Header().Set("Docker-Content-Digest", dig.String())

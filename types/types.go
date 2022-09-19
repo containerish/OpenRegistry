@@ -7,6 +7,13 @@ import (
 )
 
 type (
+	ObjectMetadata struct {
+		ContentType   string
+		Etag          string
+		DFSLink       string
+		ContentLength int
+	}
+
 	Metadata struct {
 		Namespace string
 		Manifest  ImageManifest

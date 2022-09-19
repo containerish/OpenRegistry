@@ -37,4 +37,5 @@ type DFS interface {
 	List(path string) ([]*types.Metadata, error)
 	AddImage(ns string, mf, l map[string][]byte) (string, error)
 	Metadata(skylink string) (*skynet.Metadata, error)
+	GetUploadProgress(identifier, uploadID string) (*types.ObjectMetadata, error)
 }

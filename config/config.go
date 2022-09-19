@@ -36,11 +36,12 @@ type (
 	}
 
 	S3CompatibleDFS struct {
-		AccessKey  string `yaml:"access_key" mapstructure:"access_key"`
-		SecretKey  string `yaml:"secret_key" mapstructure:"secret_key"`
-		Endpoint   string `yaml:"endpoint" mapstructure:"endpoint"`
-		BucketName string `yaml:"bucket_name" mapstructure:"bucket_name"`
-		ChunkSize  int    `yaml:"chunk_size" mapstructure:"chunk_size"`
+		AccessKey       string `yaml:"access_key" mapstructure:"access_key"`
+		SecretKey       string `yaml:"secret_key" mapstructure:"secret_key"`
+		Endpoint        string `yaml:"endpoint" mapstructure:"endpoint"`
+		BucketName      string `yaml:"bucket_name" mapstructure:"bucket_name"`
+		DFSLinkResolver string `yaml:"dfs_link_resolver" mapstructure:"dfs_link_resolver"`
+		ChunkSize       int    `yaml:"chunk_size" mapstructure:"chunk_size"`
 	}
 
 	Registry struct {
