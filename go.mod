@@ -18,7 +18,7 @@ require (
 	github.com/hashicorp/go-multierror v1.0.0
 	github.com/jackc/pgx/v4 v4.13.0
 	github.com/labstack/echo-contrib v0.11.0
-	github.com/labstack/echo/v4 v4.5.0
+	github.com/labstack/echo/v4 v4.9.0
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/rs/zerolog v1.24.0
 	github.com/sendgrid/sendgrid-go v3.11.0+incompatible
