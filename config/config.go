@@ -125,12 +125,13 @@ type (
 		Timeout       time.Duration `yaml:"timeout" mapstructure:"timeout"`
 	}
 	Integation struct {
-		Name         string `yaml:"name" mapstructure:"name"`
-		ClientSecret string `yaml:"client_secret" mapstructure:"client_secret"`
-		ClientID     string `yaml:"client_id" mapstructure:"client_id"`
-		PublicLink   string `yaml:"public_link" mapstructure:"public_link"`
-		AppID        int64  `yaml:"app_id" mapstructure:"app_id"`
-		Enabled      bool   `yaml:"enabled" mapstructure:"enabled"`
+		Name          string `yaml:"name" mapstructure:"name"`
+		ClientSecret  string `yaml:"client_secret" mapstructure:"client_secret"`
+		ClientID      string `yaml:"client_id" mapstructure:"client_id"`
+		PublicLink    string `yaml:"public_link" mapstructure:"public_link"`
+		PrivateKeyPem string `yaml:"private_key_pem" mapstructure:"private_key_pem"`
+		AppID         int64  `yaml:"app_id" mapstructure:"app_id"`
+		Enabled       bool   `yaml:"enabled" mapstructure:"enabled"`
 	}
 )
 

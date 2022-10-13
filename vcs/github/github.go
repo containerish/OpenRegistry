@@ -2,6 +2,7 @@ package github
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"sort"
@@ -17,8 +18,9 @@ import (
 )
 
 type ghAppService struct {
-	config *config.Integation
-	store  vcs.VCSStore
+	config           *config.Integation
+	store            vcs.VCSStore
+	workflowFilePath string
 }
 
 type AuthorizedRepository struct {
@@ -28,8 +30,9 @@ type AuthorizedRepository struct {
 
 func NewGithubApp(cfg *config.Integation, store vcs.VCSStore) (vcs.VCS, error) {
 	return &ghAppService{
-		config: cfg,
-		store:  store,
+		config:           cfg,
+		store:            store,
+		workflowFilePath: ".github/workflows/openregistry-build.yml",
 	}, nil
 }
 
@@ -39,6 +42,7 @@ func (gh *ghAppService) ListHandlers() []echo.HandlerFunc {
 		gh.HandleWebhookEvents,
 		gh.ListAuthorisedRepositories,
 		gh.HandleGithubAppFinish,
+		gh.CreateInitialPR,
 	}
 }
 
@@ -67,6 +71,7 @@ func (gh *ghAppService) RegisterRoutes(r *echo.Group) {
 	r.Add(http.MethodGet, "/app/callback", gh.HandleSetupCallback)
 	r.Add(http.MethodPost, "/app/webhooks/listen", gh.HandleWebhookEvents)
 	r.Add(http.MethodPost, "/app/setup/finish", gh.HandleGithubAppFinish)
+	r.Add(http.MethodPost, "/app/workflows/create", gh.CreateInitialPR)
 }
 
 func (gh *ghAppService) HandleGithubAppFinish(ctx echo.Context) error {
@@ -159,11 +164,110 @@ func (gh *ghAppService) ListAuthorisedRepositories(ctx echo.Context) error {
 	return ctx.JSON(http.StatusOK, repoList)
 }
 
+func (gh *ghAppService) CreateInitialPR(ctx echo.Context) error {
+	username := ctx.Get("username").(string)
+	installationID, err := gh.store.GetInstallationID(ctx.Request().Context(), username)
+	if err != nil {
+		return ctx.JSON(http.StatusBadRequest, echo.Map{
+			"error": err.Error(),
+		})
+	}
+
+	id, err := strconv.ParseInt(installationID, 10, 64)
+	if err != nil {
+		return ctx.JSON(http.StatusBadRequest, echo.Map{
+			"error": err.Error(),
+		})
+	}
+
+	transport, _, err := gh.newGHClient()
+	if err != nil {
+		return ctx.JSON(http.StatusBadRequest, echo.Map{
+			"error": err.Error(),
+		})
+	}
+
+	var req vcs.InitialPRRequest
+	if err = json.NewDecoder(ctx.Request().Body).Decode(&req); err != nil {
+		return ctx.JSON(http.StatusBadRequest, echo.Map{
+			"error": err.Error(),
+		})
+	}
+
+	client := gh.refreshGHClient(transport, id)
+	repos, _, err := client.Apps.ListRepos(context.Background(), &github.ListOptions{})
+	if err != nil {
+		return ctx.JSON(http.StatusBadRequest, echo.Map{
+			"error": err.Error(),
+		})
+	}
+
+	var repository github.Repository
+	for _, r := range repos.Repositories {
+		if r.GetName() == req.RepositoryName {
+			repository = *r
+			break
+		}
+	}
+
+	if repository.Name == nil {
+		return ctx.JSON(http.StatusBadRequest, echo.Map{
+			"error": "repository not found in authorized repository list",
+		})
+	}
+
+	workflowExists := gh.doesWorkflowExist(ctx.Request().Context(), client, repository.Owner.GetLogin(), req.RepositoryName, repository.GetDefaultBranch())
+	if workflowExists {
+		return ctx.JSON(http.StatusBadRequest, echo.Map{
+			"code":  "DOES_WORKFLOW_EXIST",
+			"error": "file already exists",
+		})
+	}
+
+	branchName := "openregistry-build"
+	branchExists, err := gh.createBranch(ctx.Request().Context(), client, repository.GetOwner().GetLogin(), req.RepositoryName, repository.GetDefaultBranch(), branchName)
+	if err != nil {
+		return ctx.JSON(http.StatusBadRequest, echo.Map{
+			"code":  "CREATE_BRANCH",
+			"error": err.Error(),
+		})
+	}
+
+	if branchExists {
+		if workflowExists = gh.doesWorkflowExist(ctx.Request().Context(), client, repository.Owner.GetLogin(), req.RepositoryName, branchName); workflowExists {
+			return ctx.JSON(http.StatusBadRequest, echo.Map{
+				"code":  "DOES_WORKFLOW_EXIST",
+				"error": "file already exists",
+			})
+		}
+	}
+
+	if err = gh.createWorkflowFile(ctx.Request().Context(), client, repository.GetOwner().GetLogin(), req.RepositoryName, branchName, repository.GetDefaultBranch()); err != nil {
+		return ctx.JSON(http.StatusBadRequest, echo.Map{
+			"code":  "CREATE_WORKFLOW",
+			"error": err.Error(),
+		})
+	}
+
+	client.PullRequests.Create(ctx.Request().Context(), repository.GetOwner().GetLogin(), req.RepositoryName, &github.NewPullRequest{
+		Title:               github.String("build(ci): OpenRegistry build and push"),
+		Base:                github.String(repository.GetDefaultBranch()),
+		Head:                github.String(branchName),
+		Body:                github.String(InitialPRBody),
+		MaintainerCanModify: github.Bool(true),
+	})
+
+	return ctx.JSON(http.StatusCreated, echo.Map{
+		"message": "file was successfully created",
+	})
+
+}
+
 func (gh *ghAppService) newGHClient() (*ghinstallation.AppsTransport, *github.Client, error) {
 	transport, err := ghinstallation.NewAppsTransportKeyFromFile(
 		http.DefaultTransport,
 		gh.config.AppID,
-		"github-app.pem",
+		gh.config.PrivateKeyPem,
 	)
 	if err != nil {
 		return nil, nil, fmt.Errorf("ERR_CREATE_NEW_TRANSPORT: %w", err)

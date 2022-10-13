@@ -16,6 +16,7 @@ type VCS interface {
 	ListHandlers() []echo.HandlerFunc
 	RegisterRoutes(subRouter *echo.Group)
 	HandleGithubAppFinish(ctx echo.Context) error
+	CreateInitialPR(ctx echo.Context) error
 }
 
 type VCSStore interface {
@@ -27,4 +28,9 @@ type VCSStore interface {
 type Repository struct {
 	Owner string
 	Name  string
+}
+
+type InitialPRRequest struct {
+	DockerfilePath string `json:"dockerfile_path"`
+	RepositoryName string `json:"repository_name"`
 }
