@@ -19,7 +19,7 @@ func (a *auth) ReadUserWithSession(ctx echo.Context) error {
 			"error":   err.Error(),
 			"message": "error getting session id",
 		})
-		a.logger.Log(ctx, err)
+		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 	if session.Value == "" {
@@ -28,7 +28,7 @@ func (a *auth) ReadUserWithSession(ctx echo.Context) error {
 			"error":   err.Error(),
 			"message": "error getting cookie",
 		})
-		a.logger.Log(ctx, err)
+		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 
@@ -39,7 +39,7 @@ func (a *auth) ReadUserWithSession(ctx echo.Context) error {
 			"error":   err.Error(),
 			"message": "invalid session id",
 		})
-		a.logger.Log(ctx, err)
+		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 
@@ -50,11 +50,11 @@ func (a *auth) ReadUserWithSession(ctx echo.Context) error {
 			"error":   err.Error(),
 			"message": "error getting user with session",
 		})
-		a.logger.Log(ctx, err)
+		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 
 	err = ctx.JSON(http.StatusOK, user)
-	a.logger.Log(ctx, err)
+	a.logger.Log(ctx, err).Send()
 	return err
 }

@@ -21,14 +21,14 @@ func (a *auth) RenewAccessToken(ctx echo.Context) error {
 				"error":   err.Error(),
 				"message": "Unauthorised",
 			})
-			a.logger.Log(ctx, err)
+			a.logger.Log(ctx, err).Send()
 			return echoErr
 		}
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error":   err.Error(),
 			"message": "error getting refresh cookie",
 		})
-		a.logger.Log(ctx, err)
+		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 
@@ -53,7 +53,7 @@ func (a *auth) RenewAccessToken(ctx echo.Context) error {
 				"error":   err.Error(),
 				"message": "signature error, unauthorised",
 			})
-			a.logger.Log(ctx, err)
+			a.logger.Log(ctx, err).Send()
 			return echoErr
 		}
 
@@ -61,7 +61,7 @@ func (a *auth) RenewAccessToken(ctx echo.Context) error {
 			"error":   err.Error(),
 			"message": "error parsing claims",
 		})
-		a.logger.Log(ctx, err)
+		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 
@@ -71,7 +71,7 @@ func (a *auth) RenewAccessToken(ctx echo.Context) error {
 			"error":   err.Error(),
 			"message": "invalid token, unauthorised",
 		})
-		a.logger.Log(ctx, err)
+		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 
@@ -82,7 +82,7 @@ func (a *auth) RenewAccessToken(ctx echo.Context) error {
 			"error":   err.Error(),
 			"message": "user not found in database, unauthorised",
 		})
-		a.logger.Log(ctx, err)
+		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 
@@ -100,13 +100,13 @@ func (a *auth) RenewAccessToken(ctx echo.Context) error {
 			"error":   err.Error(),
 			"message": "error creating new web token",
 		})
-		a.logger.Log(ctx, err)
+		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 
 	accessCookie := a.createCookie("access_token", tokenString, true, time.Now().Add(time.Hour))
 	ctx.SetCookie(accessCookie)
 	err = ctx.NoContent(http.StatusNoContent)
-	a.logger.Log(ctx, err)
+	a.logger.Log(ctx, err).Send()
 	return err
 }

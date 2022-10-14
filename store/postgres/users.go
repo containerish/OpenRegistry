@@ -307,7 +307,7 @@ func (p *pg) UpdateUserPWD(ctx context.Context, identifier string, newPassword s
 	return nil
 }
 
-func (p *pg) UpdateInstallationID(ctx context.Context, id, githubUsername string) error {
+func (p *pg) UpdateInstallationID(ctx context.Context, id int64, githubUsername string) error {
 	childCtx, cancel := context.WithTimeout(ctx, time.Millisecond*100)
 	defer cancel()
 
@@ -319,15 +319,15 @@ func (p *pg) UpdateInstallationID(ctx context.Context, id, githubUsername string
 	return nil
 }
 
-func (p *pg) GetInstallationID(ctx context.Context, githubUsername string) (string, error) {
+func (p *pg) GetInstallationID(ctx context.Context, githubUsername string) (int64, error) {
 	childCtx, cancel := context.WithTimeout(ctx, time.Millisecond*100)
 	defer cancel()
 
 	row := p.conn.QueryRow(childCtx, queries.GetUserInstallationID, githubUsername)
 
-	var installationID string
+	var installationID int64
 	if err := row.Scan(&installationID); err != nil {
-		return "", fmt.Errorf("error getting github app installation id: %w", err)
+		return 0, fmt.Errorf("error getting github app installation id: %w", err)
 	}
 
 	return installationID, nil

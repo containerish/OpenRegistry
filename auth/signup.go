@@ -25,7 +25,7 @@ func (a *auth) SignUp(ctx echo.Context) error {
 			"error":   err.Error(),
 			"message": "error decoding request body in sign-up",
 		})
-		a.logger.Log(ctx, err)
+		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 	_ = ctx.Request().Body.Close()
@@ -35,7 +35,7 @@ func (a *auth) SignUp(ctx echo.Context) error {
 			"error":   err.Error(),
 			"message": "invalid request for user sign up",
 		})
-		a.logger.Log(ctx, err)
+		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 
@@ -45,7 +45,7 @@ func (a *auth) SignUp(ctx echo.Context) error {
 			"error":   err.Error(),
 			"message": "internal server error: could not hash the password",
 		})
-		a.logger.Log(ctx, err)
+		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 
@@ -56,7 +56,7 @@ func (a *auth) SignUp(ctx echo.Context) error {
 			"error":   err.Error(),
 			"message": "error creating random id for user sign-up",
 		})
-		a.logger.Log(ctx, err)
+		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 	newUser := &types.User{
@@ -82,7 +82,7 @@ func (a *auth) SignUp(ctx echo.Context) error {
 				"error":   err.Error(),
 				"message": "username already exists",
 			})
-			a.logger.Log(ctx, err)
+			a.logger.Log(ctx, err).Send()
 			return echoErr
 		}
 
@@ -91,7 +91,7 @@ func (a *auth) SignUp(ctx echo.Context) error {
 				"error":   err.Error(),
 				"message": "this email already taken, try sign in?",
 			})
-			a.logger.Log(ctx, err)
+			a.logger.Log(ctx, err).Send()
 			return echoErr
 		}
 
@@ -99,7 +99,7 @@ func (a *auth) SignUp(ctx echo.Context) error {
 			"error":   err.Error(),
 			"message": "could not persist the user",
 		})
-		a.logger.Log(ctx, err)
+		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 
@@ -108,7 +108,7 @@ func (a *auth) SignUp(ctx echo.Context) error {
 		echoErr := ctx.JSON(http.StatusCreated, echo.Map{
 			"message": "user successfully created",
 		})
-		a.logger.Log(ctx, echoErr)
+		a.logger.Log(ctx, nil).Send()
 		return echoErr
 	}
 
@@ -118,7 +118,7 @@ func (a *auth) SignUp(ctx echo.Context) error {
 			"error":   err.Error(),
 			"message": "error creating random id for token",
 		})
-		a.logger.Log(ctx, err)
+		a.logger.Log(ctx, err).Send()
 		return echoErr
 
 	}
@@ -128,7 +128,7 @@ func (a *auth) SignUp(ctx echo.Context) error {
 			"error":   err.Error(),
 			"message": "error adding verify email",
 		})
-		a.logger.Log(ctx, err)
+		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 
@@ -138,14 +138,14 @@ func (a *auth) SignUp(ctx echo.Context) error {
 			"error":   err.Error(),
 			"message": "could not send verify link, please reach out to OpenRegistry Team",
 		})
-		a.logger.Log(ctx, err)
+		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 
 	echoErr := ctx.JSON(http.StatusOK, echo.Map{
 		"message": "signup was successful, please check your email to activate your account",
 	})
-	a.logger.Log(ctx, echoErr)
+	a.logger.Log(ctx, echoErr).Send()
 	return echoErr
 }
 

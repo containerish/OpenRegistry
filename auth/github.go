@@ -26,13 +26,13 @@ func (a *auth) LoginWithGithub(ctx echo.Context) error {
 			"error":   err.Error(),
 			"message": "error generating random id for github login",
 		})
-		a.logger.Log(ctx, err)
+		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 
 	a.oauthStateStore[state.String()] = time.Now().Add(time.Minute * 10)
 	url := a.github.AuthCodeURL(state.String(), oauth2.AccessTypeOffline)
-	a.logger.Log(ctx, nil)
+	a.logger.Log(ctx, nil).Send()
 	return ctx.Redirect(http.StatusTemporaryRedirect, url)
 }
 

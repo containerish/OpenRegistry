@@ -11,22 +11,41 @@ import (
 	"github.com/google/go-github/v46/github"
 )
 
-func (gh *ghAppService) doesWorkflowExist(ctx context.Context, client *github.Client, owner, repo, branch string) bool {
-	ctx, cancel := context.WithTimeout(ctx, time.Second*10)
-	defer cancel()
+func (gh *ghAppService) doesWorkflowExist(
+	ctx context.Context,
+	client *github.Client,
+	owner string,
+	repo string,
+	branches ...string,
+) bool {
+	for _, b := range branches {
+		childCtx, cancel := context.WithTimeout(ctx, time.Second*10)
+		defer cancel()
 
-	opts := &github.RepositoryContentGetOptions{
-		Ref: branch,
+		opts := &github.RepositoryContentGetOptions{
+			Ref: b,
+		}
+		_, _, _, err := client.Repositories.GetContents(childCtx, owner, repo, gh.workflowFilePath, opts)
+		if err == nil {
+			return true
+		}
+
 	}
-	_, _, _, err := client.Repositories.GetContents(ctx, owner, repo, gh.workflowFilePath, opts)
 
-	return err == nil
+	return false
 }
 
-func (gh *ghAppService) createBranch(ctx context.Context, client *github.Client, owner, repo, baseBranch, branch string) (bool, error) {
+func (gh *ghAppService) createBranch(
+	ctx context.Context,
+	client *github.Client,
+	owner,
+	repo,
+	baseBranch string,
+	branch string,
+) error {
 	base, _, err := client.Repositories.GetBranch(ctx, owner, repo, baseBranch, true)
 	if err != nil {
-		return false, fmt.Errorf("ERR_GET_BRANCH: %w", err)
+		return fmt.Errorf("ERR_GET_BRANCH: %w", err)
 	}
 
 	baseBranchSha := base.GetCommit().GetSHA()
@@ -44,17 +63,24 @@ func (gh *ghAppService) createBranch(ctx context.Context, client *github.Client,
 	// if the branch already exists, all is good?
 	if resp.StatusCode == http.StatusUnprocessableEntity {
 		// branch exists
-		return true, nil
+		return nil
 	}
 
 	if err != nil {
-		return false, fmt.Errorf("ERR_CREATE_REF: %w", err)
+		return fmt.Errorf("ERR_CREATE_REF: %w", err)
 	}
 
-	return false, nil
+	return nil
 }
 
-func (gh *ghAppService) createWorkflowFile(ctx context.Context, client *github.Client, owner, repo, branch, mainBranch string) error {
+func (gh *ghAppService) createWorkflowFile(
+	ctx context.Context,
+	client *github.Client,
+	owner string,
+	repo string,
+	branch string,
+	mainBranch string,
+) error {
 	msg := "build(ci): OpenRegistry build and push"
 
 	tpl, err := template.New("github-actions-workflow").Delims("[[", "]]").Parse(buildAndPushTemplate)

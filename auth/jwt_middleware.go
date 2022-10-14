@@ -59,7 +59,7 @@ func (a *auth) JWT() echo.MiddlewareFunc {
 		},
 		ErrorHandler: func(ctx echo.Context, err error) error {
 			ctx.Set(types.HandlerStartTime, time.Now())
-			a.logger.Log(ctx, err)
+			a.logger.Log(ctx, err).Send()
 			return ctx.JSON(http.StatusUnauthorized, echo.Map{
 				"error":   err.Error(),
 				"message": "missing authentication information",
@@ -92,13 +92,13 @@ func (a *auth) ACL() echo.MiddlewareFunc {
 
 			token, ok := ctx.Get("user").(*jwt.Token)
 			if !ok {
-				a.logger.Log(ctx, fmt.Errorf("ACL: unauthorized"))
+				a.logger.Log(ctx, fmt.Errorf("ACL: unauthorized")).Send()
 				return ctx.NoContent(http.StatusUnauthorized)
 			}
 
 			claims, ok := token.Claims.(*Claims)
 			if !ok {
-				a.logger.Log(ctx, fmt.Errorf("ACL: invalid claims"))
+				a.logger.Log(ctx, fmt.Errorf("ACL: invalid claims")).Send()
 				return ctx.NoContent(http.StatusUnauthorized)
 			}
 
@@ -106,7 +106,7 @@ func (a *auth) ACL() echo.MiddlewareFunc {
 
 			user, err := a.pgStore.GetUserById(ctx.Request().Context(), claims.Id, false, nil)
 			if err != nil {
-				a.logger.Log(ctx, err)
+				a.logger.Log(ctx, err).Send()
 				return ctx.NoContent(http.StatusUnauthorized)
 			}
 			if user.Username == username {
@@ -142,7 +142,7 @@ func (a *auth) JWTRest() echo.MiddlewareFunc {
 	return echo_jwt.WithConfig(echo_jwt.Config{
 		ErrorHandler: func(ctx echo.Context, err error) error {
 			ctx.Set(types.HandlerStartTime, time.Now())
-			a.logger.Log(ctx, err)
+			a.logger.Log(ctx, err).Send()
 			return ctx.JSON(http.StatusUnauthorized, echo.Map{
 				"error":   err.Error(),
 				"message": "missing authentication information",

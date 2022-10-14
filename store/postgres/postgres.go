@@ -47,8 +47,8 @@ type UserDeleter interface {
 	DeleteSession(ctx context.Context, sessionId, userId string) error
 	DeleteAllSessions(ctx context.Context, userId string) error
 	DeleteVerifyEmail(ctx context.Context, userId string) error
-	UpdateInstallationID(ctx context.Context, id, githubUsername string) error
-	GetInstallationID(ctx context.Context, githubUsername string) (string, error)
+	UpdateInstallationID(ctx context.Context, id int64, githubUsername string) error
+	GetInstallationID(ctx context.Context, githubUsername string) (int64, error)
 }
 
 type UserReadWriteDeleter interface {

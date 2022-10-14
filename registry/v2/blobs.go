@@ -44,9 +44,8 @@ func (b *blobs) HEAD(ctx echo.Context) error {
 			"message": "DFS: layer not found",
 		}
 		errMsg := b.errorResponse(RegistryErrorCodeBlobUnknown, err.Error(), details)
-		echoErr := ctx.NoContent(http.StatusNotFound)
-		b.registry.logger.Log(ctx, fmt.Errorf("%s", errMsg))
-		return echoErr
+		b.registry.logger.Log(ctx, fmt.Errorf("%s", errMsg)).Send()
+		return ctx.NoContent(http.StatusNotFound)
 	}
 
 	metadata, err := b.registry.dfs.Metadata(GetLayerIdentifier(layerRef.UUID))
@@ -56,15 +55,14 @@ func (b *blobs) HEAD(ctx echo.Context) error {
 			"message": "DFS - Metadata not found for: " + layerRef.DFSLink,
 		}
 		errMsg := b.errorResponse(RegistryErrorCodeManifestBlobUnknown, "Manifest does not exist", details)
-		echoErr := ctx.NoContent(http.StatusNotFound)
-		b.registry.logger.Log(ctx, fmt.Errorf("%s", errMsg))
-		return echoErr
+		b.registry.logger.Log(ctx, fmt.Errorf("%s", errMsg)).Send()
+		return ctx.NoContent(http.StatusNotFound)
 	}
 
 	ctx.Response().Header().Set("Content-Length", fmt.Sprintf("%d", metadata.ContentLength))
 	ctx.Response().Header().Set("Docker-Content-Digest", digest)
 	err = ctx.String(http.StatusOK, "OK")
-	b.registry.logger.Log(ctx, nil)
+	b.registry.logger.Log(ctx, nil).Send()
 	return err
 }
 
@@ -98,7 +96,7 @@ func (b *blobs) UploadBlob(ctx echo.Context) error {
 				"error":   err.Error(),
 				"message": "error copying body to buffer",
 			})
-			b.registry.logger.Log(ctx, err)
+			b.registry.logger.Log(ctx, err).Send()
 			return echoErr
 		}
 		_ = ctx.Request().Body.Close()
@@ -120,7 +118,7 @@ func (b *blobs) UploadBlob(ctx echo.Context) error {
 				"error":   err.Error(),
 				"message": "error uploading blob",
 			})
-			b.registry.logger.Log(ctx, err)
+			b.registry.logger.Log(ctx, err).Send()
 			return echoErr
 		}
 
@@ -133,7 +131,7 @@ func (b *blobs) UploadBlob(ctx echo.Context) error {
 		b.layerLengthCounter[uploadID] = int64(buf.Len())
 		ctx.Response().Header().Set("Range", fmt.Sprintf("0-%d", b.layerLengthCounter[uploadID]-1))
 		err = ctx.NoContent(http.StatusAccepted)
-		b.registry.logger.Log(ctx, nil)
+		b.registry.logger.Log(ctx, nil).Send()
 		return err
 	}
 
@@ -148,14 +146,14 @@ func (b *blobs) UploadBlob(ctx echo.Context) error {
 		}
 		errMsg := b.errorResponse(RegistryErrorCodeBlobUploadUnknown, err.Error(), details)
 		echoErr := ctx.JSONBlob(http.StatusRequestedRangeNotSatisfiable, errMsg)
-		b.registry.logger.Log(ctx, fmt.Errorf("%s", errMsg))
+		b.registry.logger.Log(ctx, fmt.Errorf("%s", errMsg)).Send()
 		return echoErr
 	}
 
 	if start != b.layerLengthCounter[uploadID] {
 		errMsg := b.errorResponse(RegistryErrorCodeBlobUploadUnknown, "content range mismatch", nil)
 		echoErr := ctx.JSONBlob(http.StatusRequestedRangeNotSatisfiable, errMsg)
-		b.registry.logger.Log(ctx, fmt.Errorf("%s", errMsg))
+		b.registry.logger.Log(ctx, fmt.Errorf("%s", errMsg)).Send()
 		return echoErr
 	}
 
@@ -166,7 +164,7 @@ func (b *blobs) UploadBlob(ctx echo.Context) error {
 			"error":   err.Error(),
 			"message": "error copying body to buffer",
 		})
-		b.registry.logger.Log(ctx, err)
+		b.registry.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 	_ = ctx.Request().Body.Close()
@@ -189,7 +187,7 @@ func (b *blobs) UploadBlob(ctx echo.Context) error {
 			nil,
 		)
 		echoErr := ctx.JSONBlob(http.StatusBadRequest, errMsg)
-		b.registry.logger.Log(ctx, fmt.Errorf("%s", errMsg))
+		b.registry.logger.Log(ctx, fmt.Errorf("%s", errMsg)).Send()
 		return echoErr
 	}
 
@@ -201,6 +199,6 @@ func (b *blobs) UploadBlob(ctx echo.Context) error {
 	ctx.Response().Header().Set("Location", locationHeader)
 	ctx.Response().Header().Set("Range", fmt.Sprintf("0-%d", b.layerLengthCounter[uploadID]-1))
 	echoErr := ctx.NoContent(http.StatusAccepted)
-	b.registry.logger.Log(ctx, nil)
+	b.registry.logger.Log(ctx, nil).Send()
 	return echoErr
 }

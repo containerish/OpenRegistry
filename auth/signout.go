@@ -19,7 +19,7 @@ func (a *auth) SignOut(ctx echo.Context) error {
 			"error":   err.Error(),
 			"message": "error getting session ID fro sign-out user",
 		})
-		a.logger.Log(ctx, err)
+		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 	parts := strings.Split(sessionCookie.Value, ":")
@@ -29,7 +29,7 @@ func (a *auth) SignOut(ctx echo.Context) error {
 			"error":   "INVALID_SESSION_ID",
 			"message": err,
 		})
-		a.logger.Log(ctx, err)
+		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 
@@ -41,7 +41,7 @@ func (a *auth) SignOut(ctx echo.Context) error {
 			"error":   err.Error(),
 			"message": "could not delete sessions",
 		})
-		a.logger.Log(ctx, err)
+		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 
@@ -51,6 +51,6 @@ func (a *auth) SignOut(ctx echo.Context) error {
 	err = ctx.JSON(http.StatusAccepted, echo.Map{
 		"message": "session deleted successfully",
 	})
-	a.logger.Log(ctx, err)
+	a.logger.Log(ctx, err).Send()
 	return err
 }

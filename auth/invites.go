@@ -22,17 +22,17 @@ func (a *auth) Invites(ctx echo.Context) error {
 			"error": err.Error(),
 			"msg":   "error decode body, expecting and array of emails",
 		})
-		a.logger.Log(ctx, err)
+		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 
 	if list.Emails == "" {
-		err := fmt.Errorf("ERR_EMPTY_LIST")
+		err = fmt.Errorf("ERR_EMPTY_LIST")
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error":   err,
 			"message": "cannot send empty list",
 		})
-		a.logger.Log(ctx, err)
+		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 
@@ -43,7 +43,7 @@ func (a *auth) Invites(ctx echo.Context) error {
 			"error":   err.Error(),
 			"message": "error validating email list",
 		})
-		a.logger.Log(ctx, err)
+		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 
@@ -53,14 +53,14 @@ func (a *auth) Invites(ctx echo.Context) error {
 			"error":   err.Error(),
 			"message": "err sending invites",
 		})
-		a.logger.Log(ctx, err)
+		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 
 	err = ctx.JSON(http.StatusAccepted, echo.Map{
 		"message": "invites sent successfully",
 	})
-	a.logger.Log(ctx, err)
+	a.logger.Log(ctx, err).Send()
 	return err
 }
 

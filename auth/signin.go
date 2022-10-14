@@ -22,7 +22,7 @@ func (a *auth) SignIn(ctx echo.Context) error {
 			"error":   err.Error(),
 			"message": "invalid JSON object",
 		})
-		a.logger.Log(ctx, err)
+		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 
@@ -33,7 +33,7 @@ func (a *auth) SignIn(ctx echo.Context) error {
 			"message": "invalid data provided for user login",
 			"code":    "INVALID_CREDENTIALS",
 		})
-		a.logger.Log(ctx, err)
+		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 
@@ -50,7 +50,7 @@ func (a *auth) SignIn(ctx echo.Context) error {
 				"error":   err.Error(),
 				"message": "user not found",
 			})
-			a.logger.Log(ctx, err)
+			a.logger.Log(ctx, err).Send()
 			return echoErr
 		}
 
@@ -58,7 +58,7 @@ func (a *auth) SignIn(ctx echo.Context) error {
 			"error":   err.Error(),
 			"message": "database error, failed to get user",
 		})
-		a.logger.Log(ctx, err)
+		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 
@@ -68,7 +68,7 @@ func (a *auth) SignIn(ctx echo.Context) error {
 			"error":   "ERR_USER_INACTIVE",
 			"message": err.Error(),
 		})
-		a.logger.Log(ctx, err)
+		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 
@@ -78,7 +78,7 @@ func (a *auth) SignIn(ctx echo.Context) error {
 			"error":   "ERR_INCORRECT_PASSWORD",
 			"message": err.Error(),
 		})
-		a.logger.Log(ctx, err)
+		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 
@@ -96,7 +96,7 @@ func (a *auth) SignIn(ctx echo.Context) error {
 			"error":   err.Error(),
 			"message": "error creating web login token",
 		})
-		a.logger.Log(ctx, err)
+		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 
@@ -115,13 +115,13 @@ func (a *auth) SignIn(ctx echo.Context) error {
 			"error":   err.Error(),
 			"message": "error creating refresh token",
 		})
-		a.logger.Log(ctx, err)
+		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 
 	id, err := uuid.NewRandom()
 	if err != nil {
-		a.logger.Log(ctx, err)
+		a.logger.Log(ctx, err).Send()
 		return ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error":   err.Error(),
 			"message": "error creating session id",
@@ -132,7 +132,7 @@ func (a *auth) SignIn(ctx echo.Context) error {
 			"error":   err.Error(),
 			"message": "error creating session",
 		})
-		a.logger.Log(ctx, err)
+		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 
@@ -148,6 +148,6 @@ func (a *auth) SignIn(ctx echo.Context) error {
 		"token":   access,
 		"refresh": refresh,
 	})
-	a.logger.Log(ctx, err)
+	a.logger.Log(ctx, err).Send()
 	return err
 }

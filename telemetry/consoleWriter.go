@@ -1,79 +1,32 @@
 package telemetry
 
 import (
-	"bytes"
-	"os"
-	"strings"
-	"time"
+	"fmt"
 
-	"github.com/fatih/color"
-	"github.com/hashicorp/go-multierror"
 	"github.com/labstack/echo/v4"
 	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
 )
 
-func (l logger) consoleWriter(ctx echo.Context, errMsg error) {
-	l.zlog = log.Output(zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.RFC822})
-	l.zlog = l.zlog.With().Logger()
-
-	buf := l.pool.Get().(*bytes.Buffer)
-	buf.Reset()
-	defer l.pool.Put(buf)
-
+func (l logger) consoleWriter(ctx echo.Context, errMsg error) *zerolog.Event {
 	req := ctx.Request()
 	res := ctx.Response()
-	var e error
 
-	_, err := buf.WriteString(req.Method + " ")
-	e = multierror.Append(e, err)
-
-	status := res.Status
 	level := zerolog.InfoLevel
-	switch {
-	case status >= 500:
-		_, err = buf.WriteString(color.RedString("%d ", res.Status))
+	if res.Status > 299 {
 		level = zerolog.ErrorLevel
-	case status >= 400:
-		_, err = buf.WriteString(color.RedString("%d ", res.Status))
-		level = zerolog.WarnLevel
-	case status >= 300:
-		_, err = buf.WriteString(color.YellowString("%d ", res.Status))
-		level = zerolog.ErrorLevel
-	default:
-		_, err = buf.WriteString(color.GreenString("%d ", res.Status))
 	}
 
-	e = multierror.Append(e, err)
+	event := l.zlog.WithLevel(level)
 
-	if level == zerolog.ErrorLevel {
-		e = multierror.Append(e, err)
-	}
-	if level == zerolog.WarnLevel {
-		e = multierror.Append(e, err)
-	}
-
-	_, err = buf.WriteString(req.Host)
-	e = multierror.Append(e, err)
-
-	_, err = buf.WriteString(req.RequestURI + " ")
-	e = multierror.Append(e, err)
-
-	_, err = buf.WriteString(req.Proto + " ")
-	e = multierror.Append(e, err)
-
-	_, err = buf.WriteString(req.UserAgent() + " ")
-	e = multierror.Append(e, err)
-
+	event.Str("agent", req.UserAgent())
+	event.Str("proto", req.Proto)
+	event.Str("host", req.Host)
+	event.Str("method", req.Method)
+	event.Str("status", fmt.Sprintf("%d", res.Status))
+	event.Str("uri", req.RequestURI)
 	if errMsg != nil {
-		_, err = buf.WriteString(color.YellowString(" %s", errMsg))
-		e = multierror.Append(e, err)
+		event.Err(errMsg)
 	}
 
-	merr := e.(*multierror.Error)
-	if merr.ErrorOrNil() != nil {
-		buf.WriteString(strings.TrimSpace(merr.Error()))
-	}
-
-	l.zlog.WithLevel(level).Msg(buf.String())
+	return event
 }
