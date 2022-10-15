@@ -19,14 +19,15 @@ type (
 		OAuth          *OAuth `yaml:"oauth" mapstructure:"oauth"`
 		WebAppEndpoint string `yaml:"web_app_url" mapstructure:"web_app_url" validate:"required"`
 		//nolint
-		WebAppRedirectURL       string      `yaml:"web_app_redirect_url" mapstructure:"web_app_redirect_url" validate:"required"`
-		WebAppErrorRedirectPath string      `yaml:"web_app_error_redirect_path" mapstructure:"web_app_error_redirect_path"`
-		StoreConfig             Store       `yaml:"database" mapstructure:"database" validate:"required"`
-		LogConfig               Log         `yaml:"log_service" mapstructure:"log_service"`
-		Email                   Email       `yaml:"email" mapstructure:"email" validate:"-"`
-		Registry                Registry    `yaml:"registry" mapstructure:"registry" validate:"required"`
-		Environment             Environment `yaml:"environment" mapstructure:"environment" validate:"required"`
-		Debug                   bool        `yaml:"debug" mapstructure:"debug"`
+		WebAppRedirectURL       string          `yaml:"web_app_redirect_url" mapstructure:"web_app_redirect_url" validate:"required"`
+		WebAppErrorRedirectPath string          `yaml:"web_app_error_redirect_path" mapstructure:"web_app_error_redirect_path"`
+		StoreConfig             Store           `yaml:"database" mapstructure:"database" validate:"required"`
+		LogConfig               Log             `yaml:"log_service" mapstructure:"log_service"`
+		Email                   Email           `yaml:"email" mapstructure:"email" validate:"-"`
+		WebAuthnConfig          *WebAuthnConfig `yaml:"web_authn_config" mapstructure:"web_authn_config"`
+		Registry                Registry        `yaml:"registry" mapstructure:"registry" validate:"required"`
+		Environment             Environment     `yaml:"environment" mapstructure:"environment" validate:"required"`
+		Debug                   bool            `yaml:"debug" mapstructure:"debug"`
 	}
 
 	DFS struct {

@@ -27,8 +27,9 @@ func RegisterAuthRoutes(authRouter *echo.Group, authSvc auth.Authentication) {
 	authRouter.Add(http.MethodGet, "/forgot-password", authSvc.ForgotPassword)
 
 	webAuthnRouter := authRouter.Group("/webauthn")
-	webAuthnRouter.Add(http.MethodPost, "/begin-registration", authSvc.BeginRegistration)
-	webAuthnRouter.Add(http.MethodPost, "/finish-registration", authSvc.FinishRegistration)
-	webAuthnRouter.Add(http.MethodGet, "/begin-login", authSvc.BeginLogin)
-	webAuthnRouter.Add(http.MethodPost, "/finish-login", authSvc.FinishLogin)
+	webAuthnRouter.Add(http.MethodPost, "/registration/begin", authSvc.BeginRegistration)
+	webAuthnRouter.Add(http.MethodDelete, "/registration/rollback", authSvc.RollbackRegisteration)
+	webAuthnRouter.Add(http.MethodPost, "/registration/finish", authSvc.FinishRegistration)
+	webAuthnRouter.Add(http.MethodGet, "/login/begin", authSvc.BeginLogin)
+	webAuthnRouter.Add(http.MethodPost, "/login/finish", authSvc.FinishLogin)
 }

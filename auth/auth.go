@@ -1,10 +1,12 @@
 package auth
 
 import (
+	"context"
 	"log"
 	"time"
 
 	"github.com/duo-labs/webauthn/webauthn"
+	"github.com/jackc/pgx"
 
 	"github.com/containerish/OpenRegistry/config"
 	"github.com/containerish/OpenRegistry/services/email"
@@ -37,6 +39,7 @@ type Authentication interface {
 	ForgotPassword(ctx echo.Context) error
 	Invites(ctx echo.Context) error
 	BeginRegistration(ctx echo.Context) error
+	RollbackRegisteration(ctx echo.Context) error
 	FinishRegistration(ctx echo.Context) error
 	BeginLogin(ctx echo.Context) error
 	FinishLogin(ctx echo.Context) error
@@ -48,7 +51,6 @@ func New(
 	pgStore postgres.PersistentStore,
 	logger telemetry.Logger,
 ) Authentication {
-
 	githubOAuth := &oauth2.Config{
 		ClientID:     c.OAuth.Github.ClientID,
 		ClientSecret: c.OAuth.Github.ClientSecret,
@@ -77,9 +79,11 @@ func New(
 		oauthStateStore: make(map[string]time.Time),
 		webAuthN:        webAuthN,
 		emailClient:     emailClient,
+		txnStore:        make(map[string]*webAuthNMeta),
 	}
 
-	go a.StateTokenCleanup()
+	go a.stateTokenCleanup()
+	go a.webAuthNTxnCleanup()
 
 	return a
 }
@@ -94,17 +98,34 @@ type (
 		c               *config.OpenRegistryConfig
 		webAuthN        *webauthn.WebAuthn
 		emailClient     email.MailService
+		txnStore        map[string]*webAuthNMeta
+	}
+
+	webAuthNMeta struct {
+		expiresAt time.Time
+		txn       pgx.Tx
 	}
 )
 
 // @TODO (jay-dee7) maybe a better way to do it?
-func (a *auth) StateTokenCleanup() {
+func (a *auth) stateTokenCleanup() {
 	// tick every 10 minutes, delete ant oauth state tokens which are older than 10 mins
 	// duration = 10mins, because github short lived code is valid for 10 mins
 	for range time.Tick(time.Second * 10) {
 		for key, t := range a.oauthStateStore {
 			if time.Now().Unix() > t.Unix() {
 				delete(a.oauthStateStore, key)
+			}
+		}
+	}
+}
+
+func (a *auth) webAuthNTxnCleanup() {
+	for range time.Tick(time.Second * 10) {
+		for username, meta := range a.txnStore {
+			if meta.expiresAt.Unix() >= time.Now().Unix() {
+				_ = meta.txn.Rollback(context.Background())
+				delete(a.txnStore, username)
 			}
 		}
 	}

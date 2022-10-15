@@ -30,7 +30,7 @@ func (a *auth) SignUp(ctx echo.Context) error {
 	}
 	_ = ctx.Request().Body.Close()
 
-	if err := u.Validate(); err != nil {
+	if err := u.Validate(true); err != nil {
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error":   err.Error(),
 			"message": "invalid request for user sign up",
@@ -75,7 +75,7 @@ func (a *auth) SignUp(ctx echo.Context) error {
 		newUser.IsActive = true
 	}
 
-	err = a.pgStore.AddUser(ctx.Request().Context(), newUser)
+	err = a.pgStore.AddUser(ctx.Request().Context(), newUser, nil)
 	if err != nil {
 		if strings.Contains(err.Error(), postgres.ErrDuplicateConstraintUsername) {
 			echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{

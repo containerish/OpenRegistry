@@ -26,7 +26,7 @@ func (a *auth) SignIn(ctx echo.Context) error {
 		return echoErr
 	}
 
-	err := user.Validate()
+	err := user.Validate(true)
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error":   err.Error(),
@@ -42,7 +42,7 @@ func (a *auth) SignIn(ctx echo.Context) error {
 		key = user.Username
 	}
 
-	userFromDb, err := a.pgStore.GetUser(ctx.Request().Context(), key, true)
+	userFromDb, err := a.pgStore.GetUser(ctx.Request().Context(), key, true, nil)
 	if err != nil {
 
 		if errors.Unwrap(err) == pgx.ErrNoRows {

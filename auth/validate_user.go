@@ -13,7 +13,7 @@ func (a *auth) validateUser(username, password string) (map[string]interface{}, 
 		return nil, fmt.Errorf("Email/Password cannot be empty")
 	}
 
-	userFromDb, err := a.pgStore.GetUser(context.Background(), username, true)
+	userFromDb, err := a.pgStore.GetUser(context.Background(), username, true, nil)
 	if err != nil {
 		return nil, err
 	}

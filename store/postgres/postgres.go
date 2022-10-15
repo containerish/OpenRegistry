@@ -22,11 +22,11 @@ type PersistentStore interface {
 }
 
 type UserStore interface {
-	AddUser(ctx context.Context, u *types.User) error
+	AddUser(ctx context.Context, u *types.User, txn pgx.Tx) error
 	AddOAuthUser(ctx context.Context, u *types.User) error
 	UserExists(ctx context.Context, id string) bool
-	GetUser(ctx context.Context, identifier string, wihtPassword bool) (*types.User, error)
-	GetUserById(ctx context.Context, userId string, wihtPassword bool) (*types.User, error)
+	GetUser(ctx context.Context, identifier string, wihtPassword bool, txn pgx.Tx) (*types.User, error)
+	GetUserById(ctx context.Context, userId string, wihtPassword bool, txn pgx.Tx) (*types.User, error)
 	GetUserWithSession(ctx context.Context, sessionId string) (*types.User, error)
 	UpdateUser(ctx context.Context, identifier string, u *types.User) error
 	UpdateUserPWD(ctx context.Context, identifier string, newPassword string) error

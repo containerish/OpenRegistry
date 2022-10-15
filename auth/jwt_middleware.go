@@ -106,7 +106,7 @@ func (a *auth) ACL() echo.MiddlewareFunc {
 
 			username := ctx.Param("username")
 
-			user, err := a.pgStore.GetUserById(ctx.Request().Context(), claims.Id, false)
+			user, err := a.pgStore.GetUserById(ctx.Request().Context(), claims.Id, false, nil)
 			if err != nil {
 				a.logger.Log(ctx, err)
 				return ctx.NoContent(http.StatusUnauthorized)

@@ -49,7 +49,7 @@ func (a *auth) ResetForgottenPassword(ctx echo.Context) error {
 	_ = ctx.Request().Body.Close()
 
 	userId := c.Id
-	user, err := a.pgStore.GetUserById(ctx.Request().Context(), userId, true)
+	user, err := a.pgStore.GetUserById(ctx.Request().Context(), userId, true, nil)
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusNotFound, echo.Map{
 			"error":   err.Error(),
@@ -143,7 +143,7 @@ func (a *auth) ResetPassword(ctx echo.Context) error {
 	_ = ctx.Request().Body.Close()
 
 	userId := c.Id
-	user, err := a.pgStore.GetUserById(ctx.Request().Context(), userId, true)
+	user, err := a.pgStore.GetUserById(ctx.Request().Context(), userId, true, nil)
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusNotFound, echo.Map{
 			"error":   err.Error(),
@@ -222,7 +222,7 @@ func (a *auth) ForgotPassword(ctx echo.Context) error {
 		return echoErr
 	}
 
-	user, err := a.pgStore.GetUser(ctx.Request().Context(), userEmail, false)
+	user, err := a.pgStore.GetUser(ctx.Request().Context(), userEmail, false, nil)
 	if err != nil {
 		if errors.Unwrap(err) == pgx.ErrNoRows {
 			echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{

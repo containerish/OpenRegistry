@@ -107,7 +107,14 @@ func (a *auth) GithubLoginCallbackHandler(ctx echo.Context) error {
 		return echoErr
 	}
 
-	oauthUser.Password = refreshToken
+	if err = oauthUser.Validate(false); err != nil {
+		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
+			"error": err.Error(),
+		})
+		a.logger.Log(ctx, err)
+		return echoErr
+	}
+
 	if err = a.pgStore.AddOAuthUser(ctx.Request().Context(), &oauthUser); err != nil {
 		redirectPath := fmt.Sprintf("%s%s?error=%s", a.c.WebAppEndpoint, a.c.WebAppErrorRedirectPath, err.Error())
 		echoErr := ctx.Redirect(http.StatusTemporaryRedirect, redirectPath)
@@ -192,7 +199,7 @@ func (a *auth) getUserWithGithubOauthToken(ctx context.Context, token string) (*
 		return nil, fmt.Errorf("GHO_UNAUTHORIZED")
 	}
 
-	user, err := a.pgStore.GetUser(ctx, oauthUser.Email, false)
+	user, err := a.pgStore.GetUser(ctx, oauthUser.Email, false, nil)
 	if err != nil {
 		return nil, fmt.Errorf("PG_GET_USER_ERR: %w", err)
 	}

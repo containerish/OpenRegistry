@@ -43,7 +43,7 @@ func (a *auth) VerifyEmail(ctx echo.Context) error {
 		return echoErr
 	}
 
-	user, err := a.pgStore.GetUserById(ctx.Request().Context(), userId, false)
+	user, err := a.pgStore.GetUserById(ctx.Request().Context(), userId, false, nil)
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error":   err.Error(),

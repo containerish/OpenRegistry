@@ -76,7 +76,7 @@ func (a *auth) RenewAccessToken(ctx echo.Context) error {
 	}
 
 	userId := claims.Id
-	user, err := a.pgStore.GetUserById(ctx.Request().Context(), userId, false)
+	user, err := a.pgStore.GetUserById(ctx.Request().Context(), userId, false, nil)
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusUnauthorized, echo.Map{
 			"error":   err.Error(),
