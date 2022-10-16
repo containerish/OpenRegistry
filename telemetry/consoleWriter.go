@@ -12,7 +12,7 @@ func (l logger) consoleWriter(ctx echo.Context, errMsg error) *zerolog.Event {
 	res := ctx.Response()
 
 	level := zerolog.InfoLevel
-	if res.Status > 299 {
+	if res.Status > 399 {
 		level = zerolog.ErrorLevel
 	}
 

@@ -1,11 +1,15 @@
 package github
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"sort"
 	"strconv"
+	"text/template"
+	"time"
 
 	"github.com/containerish/OpenRegistry/vcs"
 	"github.com/google/go-github/v46/github"
@@ -13,50 +17,54 @@ import (
 )
 
 func (gh *ghAppService) HandleAppFinish(ctx echo.Context) error {
-	username := ctx.Get("username").(string)
+	username := ctx.Get(UsernameContextKey).(string)
 
 	installationID, err := strconv.ParseInt(ctx.QueryParam("installation_id"), 10, 64)
 	if err != nil {
-		err = ctx.JSON(http.StatusBadRequest, echo.Map{
+		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error": err.Error(),
 		})
 		gh.logger.Log(ctx, err).Send()
-		return err
+		return echoErr
 	}
 
-	if err := gh.store.UpdateInstallationID(ctx.Request().Context(), installationID, username); err != nil {
-		err = ctx.JSON(http.StatusBadRequest, echo.Map{
+	if err = gh.store.UpdateInstallationID(ctx.Request().Context(), installationID, username); err != nil {
+		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error": err.Error(),
 		})
 		gh.logger.Log(ctx, err).Send()
-		return err
+		return echoErr
 	}
 
-	return ctx.Redirect(http.StatusTemporaryRedirect, gh.config.AppInstallRedirectURL)
+	echoErr := ctx.Redirect(http.StatusTemporaryRedirect, gh.config.AppInstallRedirectURL)
+	gh.logger.Log(ctx, nil).Send()
+	return echoErr
 }
 
 // HandleSetupCallback implements vcs.VCS
 func (gh *ghAppService) HandleSetupCallback(ctx echo.Context) error {
-	username := ctx.Get("username").(string)
+	username := ctx.Get(UsernameContextKey).(string)
 
 	installationID, err := strconv.ParseInt(ctx.QueryParam("installation_id"), 10, 64)
 	if err != nil {
-		err = ctx.JSON(http.StatusBadRequest, echo.Map{
+		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error": err.Error(),
 		})
 		gh.logger.Log(ctx, err).Send()
-		return err
+		return echoErr
 	}
 
 	if err := gh.store.UpdateInstallationID(ctx.Request().Context(), installationID, username); err != nil {
-		err = ctx.JSON(http.StatusBadRequest, echo.Map{
+		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error": err.Error(),
 		})
 		gh.logger.Log(ctx, err).Send()
-		return err
+		return echoErr
 	}
 
-	return ctx.Redirect(http.StatusTemporaryRedirect, gh.config.AppInstallRedirectURL)
+	echoErr := ctx.Redirect(http.StatusTemporaryRedirect, gh.config.AppInstallRedirectURL)
+	gh.logger.Log(ctx, nil).Send()
+	return echoErr
 }
 
 // HandleWebhookEvents implements vcs.VCS
@@ -66,24 +74,16 @@ func (gh *ghAppService) HandleWebhookEvents(ctx echo.Context) error {
 
 // ListAuthorisedRepositories implements vcs.VCS
 func (gh *ghAppService) ListAuthorisedRepositories(ctx echo.Context) error {
-	username := ctx.Get("username").(string)
-	installationID, err := gh.store.GetInstallationID(ctx.Request().Context(), username)
-	if err != nil {
-		err = ctx.JSON(http.StatusBadRequest, echo.Map{
-			"error": err.Error(),
-		})
-		gh.logger.Log(ctx, err).Send()
-		return err
-	}
+	installationID := ctx.Get(GithubInstallationIDContextKey).(int64)
 
 	client := gh.refreshGHClient(gh.ghAppTransport, installationID)
 	repos, _, err := client.Apps.ListRepos(context.Background(), &github.ListOptions{})
 	if err != nil {
-		err = ctx.JSON(http.StatusBadRequest, echo.Map{
+		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error": err.Error(),
 		})
 		gh.logger.Log(ctx, err).Send()
-		return err
+		return echoErr
 	}
 
 	repoList := make([]*AuthorizedRepository, 0)
@@ -95,11 +95,11 @@ func (gh *ghAppService) ListAuthorisedRepositories(ctx echo.Context) error {
 			&github.BranchListOptions{},
 		)
 		if err != nil {
-			err = ctx.JSON(http.StatusBadRequest, echo.Map{
+			echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 				"error": err.Error(),
 			})
 			gh.logger.Log(ctx, err).Send()
-			return err
+			return echoErr
 		}
 
 		sort.Slice(b, func(i, j int) bool {
@@ -112,38 +112,31 @@ func (gh *ghAppService) ListAuthorisedRepositories(ctx echo.Context) error {
 		})
 	}
 
-	return ctx.JSON(http.StatusOK, repoList)
+	echoErr := ctx.JSON(http.StatusOK, repoList)
+	gh.logger.Log(ctx, nil).Send()
+	return echoErr
 }
 
 func (gh *ghAppService) CreateInitialPR(ctx echo.Context) error {
-	username := ctx.Get("username").(string)
-
-	installationID, err := gh.store.GetInstallationID(ctx.Request().Context(), username)
-	if err != nil {
-		err = ctx.JSON(http.StatusBadRequest, echo.Map{
-			"error": err.Error(),
-		})
-		gh.logger.Log(ctx, err).Send()
-		return err
-	}
+	installationID := ctx.Get(GithubInstallationIDContextKey).(int64)
 
 	var req vcs.InitialPRRequest
-	if err = json.NewDecoder(ctx.Request().Body).Decode(&req); err != nil {
-		err = ctx.JSON(http.StatusBadRequest, echo.Map{
+	if err := json.NewDecoder(ctx.Request().Body).Decode(&req); err != nil {
+		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error": err.Error(),
 		})
 		gh.logger.Log(ctx, err).Send()
-		return err
+		return echoErr
 	}
 
 	client := gh.refreshGHClient(gh.ghAppTransport, installationID)
 	repos, _, err := client.Apps.ListRepos(context.Background(), &github.ListOptions{})
 	if err != nil {
-		err = ctx.JSON(http.StatusBadRequest, echo.Map{
+		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error": err.Error(),
 		})
 		gh.logger.Log(ctx, err).Send()
-		return err
+		return echoErr
 	}
 
 	var repository github.Repository
@@ -155,67 +148,45 @@ func (gh *ghAppService) CreateInitialPR(ctx echo.Context) error {
 	}
 
 	if repository.Name == nil {
-		err = ctx.JSON(http.StatusBadRequest, echo.Map{
+		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error": "repository not found in authorized repository list",
 		})
 		gh.logger.Log(ctx, err).Send()
-		return err
+		return echoErr
 	}
 
-	workflowExists := gh.doesWorkflowExist(
-		ctx.Request().Context(),
-		client,
-		repository.Owner.GetLogin(),
-		req.RepositoryName,
-		repository.GetDefaultBranch(),
-		gh.automationBranchName,
-	)
+	workflowExists := gh.doesWorkflowExist(ctx.Request().Context(), client, &repository)
 	if workflowExists {
-		err = ctx.JSON(http.StatusBadRequest, echo.Map{
-			"code":  "DOES_WORKFLOW_EXIST",
-			"error": "file already exists",
+		echoErr := ctx.JSON(http.StatusNotModified, echo.Map{
+			"error": "workflow file already exists",
 		})
-		gh.logger.Log(ctx, err).Send()
-		return err
+		gh.logger.Log(ctx, nil).Send()
+		return echoErr
 	}
 
-	err = gh.createBranch(
-		ctx.Request().Context(),
-		client,
-		repository.Owner.GetLogin(),
-		req.RepositoryName,
-		repository.GetDefaultBranch(),
-		gh.automationBranchName,
-	)
-	if err != nil {
-		err = ctx.JSON(http.StatusBadRequest, echo.Map{
+	if err = gh.createGitubActionsWorkflow(ctx.Request().Context(), client, &repository); err != nil {
+		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error": err.Error(),
 		})
 		gh.logger.Log(ctx, err).Send()
-		return err
+		return echoErr
 	}
 
-	err = gh.createWorkflowFile(
-		ctx.Request().Context(),
-		client, repository.GetOwner().GetLogin(),
-		req.RepositoryName,
-		gh.automationBranchName,
-		repository.GetDefaultBranch(),
-	)
+	prTemplate, err := gh.populateInitialPRTempplate()
 	if err != nil {
-		err = ctx.JSON(http.StatusBadRequest, echo.Map{
+		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"code":  "CREATE_WORKFLOW",
 			"error": err.Error(),
 		})
 		gh.logger.Log(ctx, err).Send()
-		return err
+		return echoErr
 	}
 
 	opts := &github.NewPullRequest{
 		Title:               github.String("build(ci): OpenRegistry build and push"),
 		Base:                github.String(repository.GetDefaultBranch()),
 		Head:                github.String(gh.automationBranchName),
-		Body:                github.String(InitialPRBody),
+		Body:                github.String(prTemplate),
 		MaintainerCanModify: github.Bool(true),
 	}
 
@@ -226,17 +197,51 @@ func (gh *ghAppService) CreateInitialPR(ctx echo.Context) error {
 		opts,
 	)
 	if err != nil {
-		err = ctx.JSON(http.StatusBadRequest, echo.Map{
+		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"code":  "CREATE_WORKFLOW",
 			"error": err.Error(),
 		})
 		gh.logger.Log(ctx, err).Send()
+		return echoErr
 	}
 
-	err = ctx.JSON(http.StatusCreated, echo.Map{
+	echoErr := ctx.JSON(http.StatusCreated, echo.Map{
 		"message": "Pull request created successfully",
 	})
+	gh.logger.Log(ctx, nil).Send()
+	return echoErr
+}
 
-	gh.logger.Log(ctx, err).Send()
-	return err
+func (gh *ghAppService) populateInitialPRTempplate() (string, error) {
+	tpl, err := template.New("github-pull-request").Parse(InitialPRBody)
+	if err != nil {
+		return "", fmt.Errorf("ERR_TEMPLATE_PARSE: %w", err)
+	}
+
+	buf := &bytes.Buffer{}
+	td := InitialPRTemplateData{
+		WebInterfaceURL: gh.webInterfaceURL,
+	}
+
+	if err = tpl.Execute(buf, td); err != nil {
+		return "", fmt.Errorf("ERR_TEMPLATE_EXEC: %w", err)
+	}
+
+	return buf.String(), nil
+}
+
+func (gh *ghAppService) createGitubActionsWorkflow(
+	ctx context.Context,
+	client *github.Client,
+	repo *github.Repository,
+) error {
+	ctx, cancel := context.WithTimeout(ctx, time.Second*30)
+	defer cancel()
+
+	err := gh.createBranch(ctx, client, repo)
+	if err != nil {
+		return err
+	}
+
+	return gh.createWorkflowFile(ctx, client, repo)
 }

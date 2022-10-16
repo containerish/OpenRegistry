@@ -65,7 +65,12 @@ func main() {
 
 	ghApp.RegisterRoutes(e.Group("/github"))
 	if cfg.Integrations.GetGithubConfig() != nil && cfg.Integrations.GetGithubConfig().Enabled {
-		ghApp, err := github.NewGithubApp(cfg.Integrations.GetGithubConfig(), pgStore, logger)
+		ghApp, err := github.NewGithubApp(
+			cfg.Integrations.GetGithubConfig(),
+			pgStore,
+			logger,
+			cfg.WebAppEndpoint+"/repositories",
+		)
 		if err != nil {
 			e.Logger.Errorf("error initializing Github App Service: %s", err)
 			return

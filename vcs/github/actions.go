@@ -11,21 +11,21 @@ import (
 	"github.com/google/go-github/v46/github"
 )
 
-func (gh *ghAppService) doesWorkflowExist(
-	ctx context.Context,
-	client *github.Client,
-	owner string,
-	repo string,
-	branches ...string,
-) bool {
+func (gh *ghAppService) doesWorkflowExist(ctx context.Context, client *github.Client, r *github.Repository) bool {
+	branches := []string{r.GetDefaultBranch(), gh.automationBranchName}
+
 	for _, b := range branches {
 		childCtx, cancel := context.WithTimeout(ctx, time.Second*10)
-		defer cancel()
 
-		opts := &github.RepositoryContentGetOptions{
-			Ref: b,
-		}
-		_, _, _, err := client.Repositories.GetContents(childCtx, owner, repo, gh.workflowFilePath, opts)
+		opts := &github.RepositoryContentGetOptions{Ref: b}
+		_, _, _, err := client.Repositories.GetContents(
+			childCtx,
+			r.GetOwner().GetLogin(),
+			r.GetName(),
+			gh.workflowFilePath,
+			opts,
+		)
+		cancel()
 		if err == nil {
 			return true
 		}
@@ -35,21 +35,14 @@ func (gh *ghAppService) doesWorkflowExist(
 	return false
 }
 
-func (gh *ghAppService) createBranch(
-	ctx context.Context,
-	client *github.Client,
-	owner,
-	repo,
-	baseBranch string,
-	branch string,
-) error {
-	base, _, err := client.Repositories.GetBranch(ctx, owner, repo, baseBranch, true)
+func (gh *ghAppService) createBranch(ctx context.Context, client *github.Client, r *github.Repository) error {
+	base, _, err := client.Repositories.GetBranch(ctx, r.GetOwner().GetLogin(), r.GetName(), r.GetDefaultBranch(), true)
 	if err != nil {
 		return fmt.Errorf("ERR_GET_BRANCH: %w", err)
 	}
 
 	baseBranchSha := base.GetCommit().GetSHA()
-	newBranchRefName := fmt.Sprintf("refs/heads/%s", branch)
+	newBranchRefName := fmt.Sprintf("refs/heads/%s", gh.automationBranchName)
 
 	ref := &github.Reference{
 		Ref: github.String(newBranchRefName),
@@ -58,7 +51,7 @@ func (gh *ghAppService) createBranch(
 		},
 	}
 
-	_, resp, err := client.Git.CreateRef(ctx, owner, repo, ref)
+	_, resp, err := client.Git.CreateRef(ctx, r.GetOwner().GetLogin(), r.GetName(), ref)
 
 	// if the branch already exists, all is good?
 	if resp.StatusCode == http.StatusUnprocessableEntity {
@@ -73,37 +66,26 @@ func (gh *ghAppService) createBranch(
 	return nil
 }
 
-func (gh *ghAppService) createWorkflowFile(
-	ctx context.Context,
-	client *github.Client,
-	owner string,
-	repo string,
-	branch string,
-	mainBranch string,
-) error {
+func (gh *ghAppService) createWorkflowFile(ctx context.Context, client *github.Client, r *github.Repository) error {
 	msg := "build(ci): OpenRegistry build and push"
 
 	tpl, err := template.New("github-actions-workflow").Delims("[[", "]]").Parse(buildAndPushTemplate)
 	if err != nil {
 		return fmt.Errorf("TEMPLATE_ERR: %w", err)
 	}
-	buf := &bytes.Buffer{}
 
-	if err = tpl.Execute(buf, mainBranch); err != nil {
-		return fmt.Errorf("ERR_EXEC_TEMPLATE: %w", err)
+	buf := &bytes.Buffer{}
+	if err = tpl.Execute(buf, r.GetDefaultBranch()); err != nil {
+		return fmt.Errorf("ERR_EXECUTE_TEMPLATE: %w", err)
 	}
 
-	if _, _, err = client.Repositories.CreateFile(
-		context.Background(),
-		owner,
-		repo,
-		gh.workflowFilePath,
-		&github.RepositoryContentFileOptions{
-			Message: github.String(msg),
-			Content: buf.Bytes(),
-			Branch:  &branch,
-		},
-	); err != nil {
+	opts := &github.RepositoryContentFileOptions{
+		Message: github.String(msg),
+		Content: buf.Bytes(),
+		Branch:  github.String(gh.automationBranchName),
+	}
+	_, _, err = client.Repositories.CreateFile(ctx, r.GetOwner().GetLogin(), r.GetName(), gh.workflowFilePath, opts)
+	if err != nil {
 		return fmt.Errorf("ERR_CREATE_WORKFLPW_FILE: %w", err)
 	}
 

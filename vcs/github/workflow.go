@@ -55,8 +55,21 @@ jobs:
 	InitialPRBody = `
 # Description
 
-> This PR is automatically created by OpenRegistry Github Integration
+🤖 🤖  This PR is automatically created by OpenRegistry Github Integration 🤖 🤖 
 
-Adds GitHub Actions Workflow for building and pushing container images to OpenRegistry
+This pull request includes a **GitHub Actions Workflow** for building and pushing container images to
+[OpenRegistry](https://openregistry.dev). 
+
+This PR assumes that _Dockerfile_ is named **Dockerfile** and present inside the root directory of the
+project. Please review this pull request and make any necessary changes
+(like adding the correct path for _Dockerfile_).
+
+👀 [View your container images]({{ .WebInterfaceURL }})
+
+> **Workflow File Path**: _.github/workflows/openregistry-build-and-push.yml_
 `
 )
+
+type InitialPRTemplateData struct {
+	WebInterfaceURL string
+}
