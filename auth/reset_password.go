@@ -70,7 +70,6 @@ and an uppercase letter`,
 	}
 
 	if a.verifyPassword(user.Password, pwd.NewPassword) {
-
 		err = fmt.Errorf("new password can not be same as old password")
 		// error is already user friendly
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
@@ -207,7 +206,7 @@ and an uppercase letter`,
 	err = ctx.JSON(http.StatusAccepted, echo.Map{
 		"message": "password changed successfully",
 	})
-	a.logger.Log(ctx, nil).Send()
+	a.logger.Log(ctx, err).Send()
 	return err
 }
 

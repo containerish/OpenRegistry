@@ -61,21 +61,15 @@ func (a *auth) BasicAuth() echo.MiddlewareFunc {
 		},
 		Validator: func(username string, password string, ctx echo.Context) (bool, error) {
 			ctx.Set(types.HandlerStartTime, time.Now())
-			printInMiddleware := true
-			defer func() {
-				if printInMiddleware {
-					a.logger.Log(ctx, nil).Send()
-				}
-			}()
 
 			if ctx.Request().URL.Path == "/v2/" {
 				_, err := a.validateUser(username, password)
 				if err != nil {
+					echoErr := ctx.NoContent(http.StatusUnauthorized)
 					a.logger.Log(ctx, err).Send()
-					return false, ctx.NoContent(http.StatusUnauthorized)
+					return false, echoErr
 				}
 
-				printInMiddleware = false
 				return true, nil
 			}
 
@@ -84,20 +78,26 @@ func (a *auth) BasicAuth() echo.MiddlewareFunc {
 				var errMsg registry.RegistryErrors
 				errMsg.Errors = append(errMsg.Errors, registry.RegistryError{
 					Code:    registry.RegistryErrorCodeDenied,
-					Message: "not authorised",
+					Message: "user is not authorised to perform this action",
 					Detail:  nil,
 				})
+				echoErr := ctx.JSON(http.StatusForbidden, errMsg)
 				a.logger.Log(ctx, fmt.Errorf("%s", errMsg)).Send()
-				return false, ctx.JSON(http.StatusForbidden, errMsg)
+				return false, echoErr
 			}
-			resp, err := a.validateUser(username, password)
+			_, err := a.validateUser(username, password)
 			if err != nil {
-				a.logger.Log(ctx, err).Send()
-				return false, err
+				var errMsg registry.RegistryErrors
+				errMsg.Errors = append(errMsg.Errors, registry.RegistryError{
+					Code:    registry.RegistryErrorCodeDenied,
+					Message: err.Error(),
+					Detail:  nil,
+				})
+				echoErr := ctx.JSON(http.StatusUnauthorized, errMsg)
+				a.logger.Log(ctx, fmt.Errorf("%s", errMsg)).Send()
+				return false, echoErr
 			}
 
-			printInMiddleware = false
-			ctx.Set("basic_auth", resp)
 			return true, nil
 		},
 		Realm: fmt.Sprintf("%s/token", a.c.Endpoint()),

@@ -44,8 +44,9 @@ func (b *blobs) HEAD(ctx echo.Context) error {
 			"message": "DFS: layer not found",
 		}
 		errMsg := b.errorResponse(RegistryErrorCodeBlobUnknown, err.Error(), details)
+		echoErr := ctx.NoContent(http.StatusNotFound)
 		b.registry.logger.Log(ctx, fmt.Errorf("%s", errMsg)).Send()
-		return ctx.NoContent(http.StatusNotFound)
+		return echoErr
 	}
 
 	metadata, err := b.registry.dfs.Metadata(GetLayerIdentifier(layerRef.UUID))
@@ -55,14 +56,15 @@ func (b *blobs) HEAD(ctx echo.Context) error {
 			"message": "DFS - Metadata not found for: " + layerRef.DFSLink,
 		}
 		errMsg := b.errorResponse(RegistryErrorCodeManifestBlobUnknown, "Manifest does not exist", details)
+		echoErr := ctx.NoContent(http.StatusNotFound)
 		b.registry.logger.Log(ctx, fmt.Errorf("%s", errMsg)).Send()
-		return ctx.NoContent(http.StatusNotFound)
+		return echoErr
 	}
 
 	ctx.Response().Header().Set("Content-Length", fmt.Sprintf("%d", metadata.ContentLength))
 	ctx.Response().Header().Set("Docker-Content-Digest", digest)
 	err = ctx.String(http.StatusOK, "OK")
-	b.registry.logger.Log(ctx, nil).Send()
+	b.registry.logger.Log(ctx, err).Send()
 	return err
 }
 
@@ -131,7 +133,7 @@ func (b *blobs) UploadBlob(ctx echo.Context) error {
 		b.layerLengthCounter[uploadID] = int64(buf.Len())
 		ctx.Response().Header().Set("Range", fmt.Sprintf("0-%d", b.layerLengthCounter[uploadID]-1))
 		err = ctx.NoContent(http.StatusAccepted)
-		b.registry.logger.Log(ctx, nil).Send()
+		b.registry.logger.Log(ctx, err).Send()
 		return err
 	}
 
@@ -199,6 +201,6 @@ func (b *blobs) UploadBlob(ctx echo.Context) error {
 	ctx.Response().Header().Set("Location", locationHeader)
 	ctx.Response().Header().Set("Range", fmt.Sprintf("0-%d", b.layerLengthCounter[uploadID]-1))
 	echoErr := ctx.NoContent(http.StatusAccepted)
-	b.registry.logger.Log(ctx, nil).Send()
+	b.registry.logger.Log(ctx, echoErr).Send()
 	return echoErr
 }

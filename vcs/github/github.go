@@ -109,7 +109,7 @@ func (gh *ghAppService) getGitubInstallationID(skipRoutes ...string) echo.Middle
 				echoErr := c.JSON(http.StatusNotAcceptable, echo.Map{
 					"error": "username is not present in context",
 				})
-				gh.logger.Log(c, nil).Send()
+				gh.logger.Log(c, echoErr).Send()
 				return echoErr
 			}
 

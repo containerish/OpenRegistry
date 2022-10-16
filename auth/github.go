@@ -32,8 +32,9 @@ func (a *auth) LoginWithGithub(ctx echo.Context) error {
 
 	a.oauthStateStore[state.String()] = time.Now().Add(time.Minute * 10)
 	url := a.github.AuthCodeURL(state.String(), oauth2.AccessTypeOffline)
-	a.logger.Log(ctx, nil).Send()
-	return ctx.Redirect(http.StatusTemporaryRedirect, url)
+	echoErr := ctx.Redirect(http.StatusTemporaryRedirect, url)
+	a.logger.Log(ctx, echoErr).Send()
+	return echoErr
 }
 
 func (a *auth) GithubLoginCallbackHandler(ctx echo.Context) error {

@@ -37,7 +37,7 @@ func (gh *ghAppService) HandleAppFinish(ctx echo.Context) error {
 	}
 
 	echoErr := ctx.Redirect(http.StatusTemporaryRedirect, gh.config.AppInstallRedirectURL)
-	gh.logger.Log(ctx, nil).Send()
+	gh.logger.Log(ctx, echoErr).Send()
 	return echoErr
 }
 
@@ -63,7 +63,7 @@ func (gh *ghAppService) HandleSetupCallback(ctx echo.Context) error {
 	}
 
 	echoErr := ctx.Redirect(http.StatusTemporaryRedirect, gh.config.AppInstallRedirectURL)
-	gh.logger.Log(ctx, nil).Send()
+	gh.logger.Log(ctx, echoErr).Send()
 	return echoErr
 }
 
@@ -112,9 +112,9 @@ func (gh *ghAppService) ListAuthorisedRepositories(ctx echo.Context) error {
 		})
 	}
 
-	echoErr := ctx.JSON(http.StatusOK, repoList)
-	gh.logger.Log(ctx, nil).Send()
-	return echoErr
+	err = ctx.JSON(http.StatusOK, repoList)
+	gh.logger.Log(ctx, err).Send()
+	return err
 }
 
 func (gh *ghAppService) CreateInitialPR(ctx echo.Context) error {
@@ -160,7 +160,7 @@ func (gh *ghAppService) CreateInitialPR(ctx echo.Context) error {
 		echoErr := ctx.JSON(http.StatusNotModified, echo.Map{
 			"error": "workflow file already exists",
 		})
-		gh.logger.Log(ctx, nil).Send()
+		gh.logger.Log(ctx, echoErr).Send()
 		return echoErr
 	}
 
@@ -208,7 +208,7 @@ func (gh *ghAppService) CreateInitialPR(ctx echo.Context) error {
 	echoErr := ctx.JSON(http.StatusCreated, echo.Map{
 		"message": "Pull request created successfully",
 	})
-	gh.logger.Log(ctx, nil).Send()
+	gh.logger.Log(ctx, echoErr).Send()
 	return echoErr
 }
 

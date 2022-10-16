@@ -57,19 +57,12 @@ func main() {
 	}
 
 	router.Register(cfg, e, reg, authSvc, webauthnServer, ext)
-	ghApp, err := github.NewGithubApp(cfg.Integrations.GetGithubConfig(), pgStore, logger)
-	if err != nil {
-		e.Logger.Errorf("error initializing Github App Service: %s", err)
-		return
-	}
-
-	ghApp.RegisterRoutes(e.Group("/github"))
 	if cfg.Integrations.GetGithubConfig() != nil && cfg.Integrations.GetGithubConfig().Enabled {
 		ghApp, err := github.NewGithubApp(
 			cfg.Integrations.GetGithubConfig(),
 			pgStore,
 			logger,
-			cfg.WebAppEndpoint+"/repositories",
+			cfg.WebAppConfig.Endpoint+"/repositories",
 		)
 		if err != nil {
 			e.Logger.Errorf("error initializing Github App Service: %s", err)

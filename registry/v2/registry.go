@@ -174,7 +174,7 @@ func (r *registry) Catalog(ctx echo.Context) error {
 		"repositories": catalogList,
 		"total":        total,
 	})
-	r.logger.Log(ctx, nil).Send()
+	r.logger.Log(ctx, echoErr).Send()
 	return echoErr
 
 }
@@ -216,7 +216,7 @@ func (r *registry) ListTags(ctx echo.Context) error {
 		"name": namespace,
 		"tags": tags,
 	})
-	r.logger.Log(ctx, nil).Send()
+	r.logger.Log(ctx, echoErr).Send()
 	return echoErr
 }
 func (r *registry) List(ctx echo.Context) error {
@@ -265,7 +265,7 @@ func (r *registry) PullManifest(ctx echo.Context) error {
 	ctx.Response().Header().Set("Content-Type", manifest.MediaType)
 	ctx.Response().Header().Set("Content-Length", fmt.Sprintf("%d", buf.Len()))
 	echoErr := ctx.JSONBlob(http.StatusOK, buf.Bytes())
-	r.logger.Log(ctx, nil)
+	r.logger.Log(ctx, nil).Send()
 	return echoErr
 }
 
@@ -411,7 +411,7 @@ func (r *registry) MonolithicUpload(ctx echo.Context) error {
 
 	ctx.Response().Header().Set("Location", downloadableURL)
 	echoErr := ctx.NoContent(http.StatusCreated)
-	r.logger.Log(ctx, nil).Send()
+	r.logger.Log(ctx, echoErr).Send()
 	return echoErr
 }
 
@@ -485,7 +485,7 @@ func (r *registry) StartUpload(ctx echo.Context) error {
 	ctx.Response().Header().Set("OCI-Chunk-Min-Length", fmt.Sprintf("%d", r.dfs.Config().MinChunkSize))
 	ctx.Response().Header().Set("Range", "0-0")
 	echoErr := ctx.NoContent(http.StatusAccepted)
-	r.logger.Log(ctx, nil).Send()
+	r.logger.Log(ctx, echoErr).Send()
 	return echoErr
 }
 
@@ -514,7 +514,7 @@ func (r *registry) UploadProgress(ctx echo.Context) error {
 	ctx.Response().Header().Set("Range", fmt.Sprintf("bytes=0-%d", metadata.ContentLength-1))
 	ctx.Response().Header().Set("Docker-Upload-UUID", uuid)
 	echoErr := ctx.NoContent(http.StatusNoContent)
-	r.logger.Log(ctx, nil).Send()
+	r.logger.Log(ctx, echoErr).Send()
 	return echoErr
 }
 
@@ -591,7 +591,7 @@ func (r *registry) MonolithicPut(ctx echo.Context) error {
 	ctx.Response().Header().Set("Docker-Content-Digest", ourHash.String())
 	ctx.Response().Header().Set("Location", downlaodableURL)
 	echoErr := ctx.NoContent(http.StatusCreated)
-	r.logger.Log(ctx, nil).Send()
+	r.logger.Log(ctx, echoErr).Send()
 	return echoErr
 }
 
@@ -727,7 +727,7 @@ func (r *registry) CompleteUpload(ctx echo.Context) error {
 	ctx.Response().Header().Set("Docker-Content-Digest", checksum.String())
 	ctx.Response().Header().Set("Location", locationHeader)
 	echoErr := ctx.NoContent(http.StatusCreated)
-	r.logger.Log(ctx, nil).Send()
+	r.logger.Log(ctx, echoErr).Send()
 	return echoErr
 }
 
@@ -855,7 +855,7 @@ func (r *registry) PushManifest(ctx echo.Context) error {
 	ctx.Response().Header().Set("Docker-Content-Digest", dig.String())
 	ctx.Response().Header().Set("X-Docker-Content-ID", dfsLink)
 	echoErr := ctx.String(http.StatusCreated, "Created")
-	r.logger.Log(ctx, nil).Send()
+	r.logger.Log(ctx, echoErr).Send()
 	return echoErr
 }
 
@@ -893,7 +893,7 @@ func (r *registry) PushLayer(ctx echo.Context) error {
 	ctx.Response().Header().Set("Docker-Upload-UUID", uuid)
 	ctx.Response().Header().Set("Range", "bytes=0-0")
 	echoErr := ctx.NoContent(http.StatusAccepted)
-	r.logger.Log(ctx, nil).Send()
+	r.logger.Log(ctx, echoErr).Send()
 	return echoErr
 }
 

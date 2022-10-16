@@ -28,7 +28,9 @@ func (a *auth) Token(ctx echo.Context) error {
 			return echoErr
 		}
 
-		if strings.HasPrefix(password, "gho_") || strings.HasPrefix(password, "ghp_") {
+		// Github OAuth Scoped tokens start with "gho" prefix and personal tokens start with "ghp"
+		// more on this here: https://www.infoq.com/news/2021/04/github-new-token-format
+		if strings.HasPrefix(password, "gho") || strings.HasPrefix(password, "ghp") {
 			user, err := a.getUserWithGithubOauthToken(ctx.Request().Context(), password)
 			if err != nil {
 				echoErr := ctx.JSON(http.StatusUnauthorized, echo.Map{
@@ -96,7 +98,7 @@ func (a *auth) Token(ctx echo.Context) error {
 		echoErr := ctx.JSON(http.StatusOK, echo.Map{
 			"token": token,
 		})
-		a.logger.Log(ctx, err).Send()
+		a.logger.Log(ctx, echoErr).Send()
 		return echoErr
 	}
 

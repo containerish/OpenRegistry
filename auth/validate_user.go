@@ -9,8 +9,12 @@ import (
 )
 
 func (a *auth) validateUser(username, password string) (map[string]interface{}, error) {
-	if username == "" || password == "" {
-		return nil, fmt.Errorf("Email/Password cannot be empty")
+	if username == "" {
+		return nil, fmt.Errorf("username cannot be empty")
+	}
+
+	if password == "" {
+		return nil, fmt.Errorf("password cannot be empty")
 	}
 
 	userFromDb, err := a.pgStore.GetUser(context.Background(), username, true, nil)
@@ -19,7 +23,7 @@ func (a *auth) validateUser(username, password string) (map[string]interface{}, 
 	}
 
 	if !a.verifyPassword(userFromDb.Password, password) {
-		return nil, fmt.Errorf("invalid password")
+		return nil, fmt.Errorf("password is incorrect")
 	}
 
 	token, err := a.newToken(userFromDb)

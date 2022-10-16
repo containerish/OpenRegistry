@@ -108,7 +108,7 @@ func (a *auth) SignUp(ctx echo.Context) error {
 		echoErr := ctx.JSON(http.StatusCreated, echo.Map{
 			"message": "user successfully created",
 		})
-		a.logger.Log(ctx, nil).Send()
+		a.logger.Log(ctx, echoErr).Send()
 		return echoErr
 	}
 

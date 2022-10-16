@@ -121,11 +121,12 @@ func (a *auth) SignIn(ctx echo.Context) error {
 
 	id, err := uuid.NewRandom()
 	if err != nil {
-		a.logger.Log(ctx, err).Send()
-		return ctx.JSON(http.StatusInternalServerError, echo.Map{
+		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error":   err.Error(),
 			"message": "error creating session id",
 		})
+		a.logger.Log(ctx, err).Send()
+		return echoErr
 	}
 	if err = a.pgStore.AddSession(ctx.Request().Context(), id.String(), refresh, userFromDb.Username); err != nil {
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
