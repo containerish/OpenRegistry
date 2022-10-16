@@ -8,10 +8,9 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/containerish/OpenRegistry/types"
 	"github.com/duo-labs/webauthn/protocol"
 	"github.com/google/uuid"
-
-	"github.com/containerish/OpenRegistry/types"
 	"github.com/jackc/pgx/v4"
 	"github.com/labstack/echo/v4"
 )
@@ -57,7 +56,7 @@ func (a *auth) BeginRegistration(ctx echo.Context) error {
 	}
 	a.txnStore[user.Username] = &webAuthNMeta{
 		txn:       txn,
-		expiresAt: time.Now().Add(time.Second * 60),
+		expiresAt: time.Now().Add(time.Minute),
 	}
 
 	userFromDb, err := a.pgStore.GetUser(ctx.Request().Context(), key, true, nil)

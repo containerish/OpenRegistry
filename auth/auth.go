@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/duo-labs/webauthn/webauthn"
-	"github.com/jackc/pgx"
+	"github.com/jackc/pgx/v4"
 
 	"github.com/containerish/OpenRegistry/config"
 	"github.com/containerish/OpenRegistry/services/email"
@@ -59,7 +59,7 @@ func New(
 	}
 
 	ghClient := gh.NewClient(nil)
-	emailClient := email.New(c.Email, c.WebAppEndpoint)
+	emailClient := email.New(&c.Email, c.WebAppEndpoint)
 	webAuthN, err := webauthn.New(&webauthn.Config{
 		RPDisplayName: c.WebAuthnConfig.RPDisplayName,
 		RPID:          c.WebAuthnConfig.RPID,
@@ -123,7 +123,7 @@ func (a *auth) stateTokenCleanup() {
 func (a *auth) webAuthNTxnCleanup() {
 	for range time.Tick(time.Second * 10) {
 		for username, meta := range a.txnStore {
-			if meta.expiresAt.Unix() >= time.Now().Unix() {
+			if meta.expiresAt.Unix() <= time.Now().Unix() {
 				_ = meta.txn.Rollback(context.Background())
 				delete(a.txnStore, username)
 			}
