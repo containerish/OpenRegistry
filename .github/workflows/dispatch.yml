@@ -1,0 +1,31 @@
+name: "Dispatch workflows"
+on: push
+concurrency: 
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  call-lint:
+    name: "Lint"
+    uses: ./.github/workflows/golangci-lint.yml
+
+  call-image-push:
+    name: OCI - Push
+    uses: ./.github/workflows/oci-dist-spec-push.yml
+    needs: call-lint
+    secrets: inherit
+  call-image-pull:
+    name: OCI - Pull
+    uses: ./.github/workflows/oci-dist-spec-pull.yml
+    needs: call-lint
+    secrets: inherit
+  call-image-content-discovery:
+    name: OCI - Content Discovery
+    uses: ./.github/workflows/oci-dist-spec-content-discovery.yml
+    needs: call-lint
+    secrets: inherit
+  call-image-content-management:
+    name: OCI - Content Management
+    uses: ./.github/workflows/oci-dist-spec-content-management.yml
+    needs: call-lint
+    secrets: inherit
