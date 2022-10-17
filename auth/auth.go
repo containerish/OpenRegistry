@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"sync"
 	"time"
 
 	"github.com/containerish/OpenRegistry/config"
@@ -58,6 +59,7 @@ func New(
 		github:          githubOAuth,
 		ghClient:        ghClient,
 		oauthStateStore: make(map[string]time.Time),
+		mu:              &sync.RWMutex{},
 		emailClient:     emailClient,
 	}
 
@@ -73,8 +75,9 @@ type (
 		github          *oauth2.Config
 		ghClient        *gh.Client
 		oauthStateStore map[string]time.Time
-		c               *config.OpenRegistryConfig
 		emailClient     email.MailService
+		mu              *sync.RWMutex
+		c               *config.OpenRegistryConfig
 	}
 )
 
@@ -83,10 +86,12 @@ func (a *auth) stateTokenCleanup() {
 	// tick every 10 seconds, delete any oauth state tokens which are older than 10 mins
 	// duration = 10mins, because github short lived code is valid for 10 mins
 	for range time.Tick(time.Second * 10) {
+		a.mu.Lock()
 		for key, t := range a.oauthStateStore {
 			if time.Now().Unix() > t.Unix() {
 				delete(a.oauthStateStore, key)
 			}
 		}
+		a.mu.Unlock()
 	}
 }

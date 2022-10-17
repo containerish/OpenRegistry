@@ -30,7 +30,9 @@ func (a *auth) LoginWithGithub(ctx echo.Context) error {
 		return echoErr
 	}
 
+	a.mu.Lock()
 	a.oauthStateStore[state.String()] = time.Now().Add(time.Minute * 10)
+	a.mu.Unlock()
 	url := a.github.AuthCodeURL(state.String(), oauth2.AccessTypeOffline)
 	echoErr := ctx.Redirect(http.StatusTemporaryRedirect, url)
 	a.logger.Log(ctx, echoErr).Send()
@@ -41,6 +43,7 @@ func (a *auth) GithubLoginCallbackHandler(ctx echo.Context) error {
 	ctx.Set(types.HandlerStartTime, time.Now())
 
 	stateToken := ctx.FormValue("state")
+	a.mu.Lock()
 	_, ok := a.oauthStateStore[stateToken]
 	if !ok {
 		err := fmt.Errorf("missing or invalid state token")
@@ -53,6 +56,7 @@ func (a *auth) GithubLoginCallbackHandler(ctx echo.Context) error {
 	// no need to compare the stateToken from QueryParam \w stateToken from a.oauthStateStore
 	// the key is the actual token :p
 	delete(a.oauthStateStore, stateToken)
+	a.mu.Unlock()
 
 	code := ctx.FormValue("code")
 	token, err := a.github.Exchange(context.Background(), code)

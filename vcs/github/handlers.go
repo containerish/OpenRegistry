@@ -88,27 +88,27 @@ func (gh *ghAppService) ListAuthorisedRepositories(ctx echo.Context) error {
 
 	repoList := make([]*AuthorizedRepository, 0)
 	for _, repo := range repos.Repositories {
-		b, _, err := client.Repositories.ListBranches(
+		branches, _, bErr := client.Repositories.ListBranches(
 			ctx.Request().Context(),
 			repo.GetOwner().GetLogin(),
 			repo.GetName(),
 			&github.BranchListOptions{},
 		)
-		if err != nil {
+		if bErr != nil {
 			echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
-				"error": err.Error(),
+				"error": bErr.Error(),
 			})
-			gh.logger.Log(ctx, err).Send()
+			gh.logger.Log(ctx, bErr).Send()
 			return echoErr
 		}
 
-		sort.Slice(b, func(i, j int) bool {
-			return b[i].GetName() == repo.GetDefaultBranch()
+		sort.Slice(branches, func(i, j int) bool {
+			return branches[i].GetName() == repo.GetDefaultBranch()
 		})
 
 		repoList = append(repoList, &AuthorizedRepository{
 			Repository: repo,
-			Branches:   b,
+			Branches:   branches,
 		})
 	}
 
