@@ -1,17 +1,23 @@
-FROM golang:alpine as build
-LABEL org.opencontainers.image.source = "https://github.com/containerish/OpenRegistry"
+FROM golang:1.19-alpine as builder
 
+ENV CGO_ENABLED=0
 WORKDIR /root/openregistry
 
-COPY Makefile .
-RUN apk add gcc make git curl ca-certificates
+# Helps with caching
+COPY go.mod go.sum ./
+RUN go mod download
 
+## Build the binary
 COPY . .
-RUN go mod download && CGO_ENABLED=0 go build -o openregistry -ldflags="-w -s" main.go
+RUN go build -o openregistry -ldflags="-w -s" -trimpath main.go
 
 FROM alpine:latest
+LABEL org.opencontainers.image.source = "https://github.com/containerish/OpenRegistry"
+RUN adduser runner -D -S -h /home/runner
+WORKDIR /home/runner
 
-COPY --from=build /root/openregistry/openregistry .
-COPY config.yaml .
+COPY --from=builder /root/openregistry/openregistry /bin/openregistry
+
+USER runner
 EXPOSE 5000
-CMD ["./openregistry"]
+ENTRYPOINT ["openregistry"]
