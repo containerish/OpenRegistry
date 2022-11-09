@@ -1,6 +1,6 @@
 module github.com/containerish/OpenRegistry
 
-go 1.17
+go 1.19
 
 require (
 	github.com/SkynetLabs/go-skynet/v2 v2.0.2

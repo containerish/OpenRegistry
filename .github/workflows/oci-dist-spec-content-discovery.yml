@@ -1,7 +1,7 @@
 name: OCI Distribution Spec
 
 on:
-  pull_request:
+  workflow_call:
 
 concurrency:
   group: content-discovery-${{ github.workflow }}-${{ github.head_ref || github.run_id }}
@@ -40,23 +40,25 @@ jobs:
            PGDATABASE: open_registry
            PGPASSWORD: Qwerty@123
            PGUSER: postgres
-      - name: start distribution server
+      - name: Start OpenRegistry server
         run: |
-          wget https://github.com/mikefarah/yq/releases/download/v4.16.2/yq_linux_amd64 -O /usr/bin/yq && chmod +x /usr/bin/yq
-          IP=`hostname -I | awk '{print $1}'`
-          echo "IP=$IP" >> $GITHUB_ENV
-          echo "OCI_ROOT_URL=http://$IP:5000" >> $GITHUB_ENV
-          DISTRIBUTION_REF="local-distribution:v$(date +%Y%m%d%H%M%S)"
+          wget https://github.com/mikefarah/yq/releases/download/v4.28.2/yq_linux_amd64 -O /usr/bin/yq && chmod +x /usr/bin/yq
           cp config.yaml.example config.yaml
           yq e -i '.environment = "ci"' config.yaml
+          IP=`hostname -I | awk '{print $1}'`
           IP=$IP yq e -i '.database.host = env(IP)' config.yaml
           FILEBASE_KEY=${{ secrets.FILEBASE_KEY }} yq e -i '.dfs.s3_any.access_key = env(FILEBASE_KEY)' config.yaml
           FILEBASE_SECRET=${{ secrets.FILEBASE_SECRET }} yq e -i '.dfs.s3_any.secret_key = env(FILEBASE_SECRET)' config.yaml
           FILEBASE_BUCKET=${{ secrets.FILEBASE_BUCKET }} yq e -i '.dfs.s3_any.bucket_name = env(FILEBASE_BUCKET)' config.yaml
           FILEBASE_ENDPOINT=${{ secrets.FILEBASE_ENDPOINT }} yq e -i '.dfs.s3_any.endpoint = env(FILEBASE_ENDPOINT)' config.yaml
           FILEBASE_RESOLVER_URL=${{ secrets.FILEBASE_RESOLVER_URL }} yq e -i '.dfs.s3_any.dfs_link_resolver = env(FILEBASE_RESOLVER_URL)' config.yaml
+          echo "IP=$IP" >> $GITHUB_ENV
+          echo "OCI_ROOT_URL=http://$IP:5000" >> $GITHUB_ENV
+          DISTRIBUTION_REF="local-distribution:v$(date +%Y%m%d%H%M%S)"
           docker build -f ./Dockerfile -t "${DISTRIBUTION_REF}" .
-          docker run --rm -p 5000:5000 --env="CI_SYS_ADDR=$IP:5000" -d "${DISTRIBUTION_REF}"
+          docker run --rm -p 5000:5000 \
+            --mount="type=bind,source=${PWD}/config.yaml,target=/home/runner/.openregistry/config.yaml" \
+            --env="CI_SYS_ADDR=$IP:5000" -d "${DISTRIBUTION_REF}"
           sleep 5
           curl -XPOST -d ${{ secrets.OPENREGISTRY_SIGNUP_PAYLOAD }} "http://${IP}:5000/auth/signup"
       - name: Run OCI Distribution Spec conformance tests
