@@ -29,8 +29,8 @@ func (a *auth) SignIn(ctx echo.Context) error {
 	err := user.Validate(true)
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
-			"error":   err.Error(),
-			"message": "invalid data provided for user login",
+			"error":   "invalid data provided for user login",
+			"message": err.Error(),
 			"code":    "INVALID_CREDENTIALS",
 		})
 		a.logger.Log(ctx, err).Send()
@@ -44,7 +44,6 @@ func (a *auth) SignIn(ctx echo.Context) error {
 
 	userFromDb, err := a.pgStore.GetUser(ctx.Request().Context(), key, true, nil)
 	if err != nil {
-
 		if errors.Unwrap(err) == pgx.ErrNoRows {
 			echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 				"error":   err.Error(),

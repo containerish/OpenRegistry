@@ -3,6 +3,7 @@ package auth
 import (
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -13,7 +14,7 @@ import (
 func (a *auth) SignOut(ctx echo.Context) error {
 	ctx.Set(types.HandlerStartTime, time.Now())
 
-	sessionCookie, err := ctx.Cookie("session_id")
+	cookie, err := ctx.Cookie("session_id")
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error":   err.Error(),
@@ -22,7 +23,17 @@ func (a *auth) SignOut(ctx echo.Context) error {
 		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
-	parts := strings.Split(sessionCookie.Value, ":")
+	sessionCookie, err := url.QueryUnescape(cookie.Value)
+	if err != nil {
+		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
+			"error":   err.Error(),
+			"message": "session cookie format is invalid",
+		})
+		a.logger.Log(ctx, err).Send()
+		return echoErr
+	}
+
+	parts := strings.Split(sessionCookie, ":")
 	if len(parts) != 2 {
 		err = fmt.Errorf("invalid session id")
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{

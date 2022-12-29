@@ -107,7 +107,7 @@ func (gh *ghAppService) getGitubInstallationID(skipRoutes ...string) echo.Middle
 			username, ok := c.Get(UsernameContextKey).(string)
 			if !ok {
 				echoErr := c.JSON(http.StatusNotAcceptable, echo.Map{
-					"error": "username is not present in context",
+					"error": "GH_MDW_ERR: username is not present in context",
 				})
 				gh.logger.Log(c, echoErr).Send()
 				return echoErr
@@ -115,7 +115,7 @@ func (gh *ghAppService) getGitubInstallationID(skipRoutes ...string) echo.Middle
 
 			skip := false
 			for _, r := range skipRoutes {
-				if c.Request().RequestURI == r {
+				if c.Request().URL.Path == "/github"+r {
 					skip = true
 				}
 			}
@@ -127,7 +127,7 @@ func (gh *ghAppService) getGitubInstallationID(skipRoutes ...string) echo.Middle
 			installationID, err := gh.store.GetInstallationID(c.Request().Context(), username)
 			if err != nil {
 				echoErr := c.JSON(http.StatusBadRequest, echo.Map{
-					"error": err.Error(),
+					"error": fmt.Errorf("GH_MDW_ERR: %w", err).Error(),
 				})
 				gh.logger.Log(c, err).Send()
 				return echoErr
