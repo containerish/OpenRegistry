@@ -3,6 +3,7 @@ package auth
 import (
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -20,6 +21,24 @@ const (
 
 // JWT basically uses the default JWT middleware by echo, but has a slightly different skipper func
 func (a *auth) JWT() echo.MiddlewareFunc {
+	privBz, err := os.ReadFile(a.c.Registry.TLS.PrivateKey)
+	if err != nil {
+		panic(err)
+	}
+	privkey, err := jwt.ParseRSAPrivateKeyFromPEM(privBz)
+	if err != nil {
+		panic(err)
+	}
+
+	pubBz, err := os.ReadFile(a.c.Registry.TLS.PubKey)
+	if err != nil {
+		panic(err)
+	}
+	pubKey, err := jwt.ParseRSAPublicKeyFromPEM(pubBz)
+	if err != nil {
+		panic(err)
+	}
+
 	return middleware.JWTWithConfig(middleware.JWTConfig{
 		Skipper: func(ctx echo.Context) bool {
 			if strings.HasPrefix(ctx.Request().RequestURI, "/auth") {
@@ -50,11 +69,13 @@ func (a *auth) JWT() echo.MiddlewareFunc {
 				"message": "missing authentication information",
 			})
 		},
-		KeyFunc:        middleware.DefaultJWTConfig.KeyFunc,
+		KeyFunc: func(t *jwt.Token) (interface{}, error) {
+			return pubKey, nil
+		},
 		ParseTokenFunc: middleware.DefaultJWTConfig.ParseTokenFunc,
-		SigningKey:     []byte(a.c.Registry.SigningSecret),
+		SigningKey:     privkey,
 		SigningKeys:    map[string]interface{}{},
-		SigningMethod:  jwt.SigningMethodHS256.Name,
+		SigningMethod:  jwt.SigningMethodRS256.Name,
 		Claims:         &Claims{},
 		TokenLookup:    fmt.Sprintf("cookie:%s,header:%s", AccessCookieKey, echo.HeaderAuthorization),
 	})
@@ -102,6 +123,24 @@ func (a *auth) ACL() echo.MiddlewareFunc {
 
 // JWT basically uses the default JWT middleware by echo, but has a slightly different skipper func
 func (a *auth) JWTRest() echo.MiddlewareFunc {
+	privBz, err := os.ReadFile(a.c.Registry.TLS.PrivateKey)
+	if err != nil {
+		panic(err)
+	}
+	privkey, err := jwt.ParseRSAPrivateKeyFromPEM(privBz)
+	if err != nil {
+		panic(err)
+	}
+
+	pubBz, err := os.ReadFile(a.c.Registry.TLS.PubKey)
+	if err != nil {
+		panic(err)
+	}
+	pubKey, err := jwt.ParseRSAPublicKeyFromPEM(pubBz)
+	if err != nil {
+		panic(err)
+	}
+
 	return middleware.JWTWithConfig(middleware.JWTConfig{
 		BeforeFunc:     middleware.DefaultJWTConfig.BeforeFunc,
 		SuccessHandler: middleware.DefaultJWTConfig.SuccessHandler,
@@ -115,11 +154,13 @@ func (a *auth) JWTRest() echo.MiddlewareFunc {
 				"message": "missing authentication information",
 			})
 		},
-		KeyFunc:        middleware.DefaultJWTConfig.KeyFunc,
+		KeyFunc: func(t *jwt.Token) (interface{}, error) {
+			return pubKey, nil
+		},
 		ParseTokenFunc: middleware.DefaultJWTConfig.ParseTokenFunc,
-		SigningKey:     []byte(a.c.Registry.SigningSecret),
-		SigningKeys:    map[string]interface{}{},
-		SigningMethod:  jwt.SigningMethodHS256.Name,
+		SigningKey:     privkey,
+		SigningMethod:  jwt.SigningMethodRS256.Name,
 		Claims:         &Claims{},
+		TokenLookup:    fmt.Sprintf("cookie:%s,header:%s", AccessCookieKey, echo.HeaderAuthorization),
 	})
 }

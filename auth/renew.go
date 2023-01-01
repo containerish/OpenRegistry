@@ -3,6 +3,7 @@ package auth
 import (
 	"fmt"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/containerish/OpenRegistry/types"
@@ -30,11 +31,22 @@ func (a *auth) RenewAccessToken(ctx echo.Context) error {
 		a.logger.Log(ctx, err)
 		return echoErr
 	}
+
+	privBz, err := os.ReadFile(a.c.Registry.TLS.PrivateKey)
+	if err != nil {
+		panic(err)
+	}
+	privkey, err := jwt.ParseRSAPrivateKeyFromPEM(privBz)
+	if err != nil {
+		panic(err)
+	}
+
 	refreshCookie := c.Value
 	var claims Claims
 	tkn, err := jwt.ParseWithClaims(refreshCookie, &claims, func(token *jwt.Token) (interface{}, error) {
-		return []byte(a.c.Registry.SigningSecret), nil
+		return privkey, nil
 	})
+
 	if err != nil {
 		if err == jwt.ErrSignatureInvalid {
 			echoErr := ctx.JSON(http.StatusUnauthorized, echo.Map{
@@ -54,7 +66,7 @@ func (a *auth) RenewAccessToken(ctx echo.Context) error {
 	}
 
 	if !tkn.Valid {
-		err := fmt.Errorf("invalid token, Unauthorised")
+		err = fmt.Errorf("invalid token, Unauthorised")
 		echoErr := ctx.JSON(http.StatusUnauthorized, echo.Map{
 			"error":   err.Error(),
 			"message": "invalid token, unauthorised",
