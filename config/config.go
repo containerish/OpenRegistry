@@ -15,24 +15,23 @@ import (
 
 type (
 	OpenRegistryConfig struct {
-		Registry       *Registry `yaml:"registry" mapstructure:"registry" validate:"required"`
-		StoreConfig    *Store    `yaml:"database" mapstructure:"database" validate:"required"`
-		LogConfig      *Log      `yaml:"log_service" mapstructure:"log_service"`
-		SkynetConfig   *Skynet   `yaml:"skynet" mapstructure:"skynet" validate:"required"`
-		DFS            *DFS      `yaml:"dfs" mapstructure:"dfs"`
-		OAuth          *OAuth    `yaml:"oauth" mapstructure:"oauth"`
-		Email          *Email    `yaml:"email" mapstructure:"email" validate:"required"`
-		WebAppEndpoint string    `yaml:"web_app_url" mapstructure:"web_app_url" validate:"required"`
-		//nolint
+		DFS                     DFS         `yaml:"dfs" mapstructure:"dfs"`
+		SkynetConfig            Skynet      `yaml:"skynet" mapstructure:"skynet" validate:"-"`
+		OAuth                   OAuth       `yaml:"oauth" mapstructure:"oauth" validate:"-"`
+		WebAppEndpoint          string      `yaml:"web_app_url" mapstructure:"web_app_url" validate:"required"`
 		WebAppRedirectURL       string      `yaml:"web_app_redirect_url" mapstructure:"web_app_redirect_url" validate:"required"`
 		WebAppErrorRedirectPath string      `yaml:"web_app_error_redirect_path" mapstructure:"web_app_error_redirect_path"`
+		StoreConfig             Store       `yaml:"database" mapstructure:"database" validate:"required"`
+		LogConfig               Log         `yaml:"log_service" mapstructure:"log_service"`
+		Email                   Email       `yaml:"email" mapstructure:"email" validate:"-"`
+		Registry                Registry    `yaml:"registry" mapstructure:"registry" validate:"required"`
 		Environment             Environment `yaml:"environment" mapstructure:"environment" validate:"required"`
 		Debug                   bool        `yaml:"debug" mapstructure:"debug"`
 	}
 
 	DFS struct {
-		Skynet *Skynet          `yaml:"skynet" mapstructure:"skynet"`
-		S3Any  *S3CompatibleDFS `yaml:"s3_any" mapstructure:"s3_any"`
+		Skynet Skynet          `yaml:"skynet" mapstructure:"skynet"`
+		S3Any  S3CompatibleDFS `yaml:"s3_any" mapstructure:"s3_any"`
 	}
 
 	S3CompatibleDFS struct {
@@ -45,22 +44,22 @@ type (
 	}
 
 	Registry struct {
-		TLS           TLS      `yaml:"tls" mapstructure:"tls" validate:"-"`
-		DNSAddress    string   `yaml:"dns_address" mapstructure:"dns_address" validate:"required"`
-		FQDN          string   `yaml:"fqdn" mapstructure:"fqdn" validate:"required"`
-		SigningSecret string   `yaml:"jwt_signing_secret" mapstructure:"jwt_signing_secret" validate:"required"`
-		Host          string   `yaml:"host" mapstructure:"host" validate:"required"`
-		Services      []string `yaml:"services" mapstructure:"services" validate:"-"`
-		Port          uint     `yaml:"port" mapstructure:"port" validate:"required"`
+		TLS        TLS      `yaml:"tls" mapstructure:"tls" validate:"-"`
+		DNSAddress string   `yaml:"dns_address" mapstructure:"dns_address" validate:"required"`
+		FQDN       string   `yaml:"fqdn" mapstructure:"fqdn" validate:"required"`
+		Host       string   `yaml:"host" mapstructure:"host" validate:"required"`
+		Services   []string `yaml:"services" mapstructure:"services" validate:"-"`
+		Port       uint     `yaml:"port" mapstructure:"port" validate:"required"`
 	}
 
 	TLS struct {
 		PrivateKey string `yaml:"priv_key" mapstructure:"priv_key"`
 		PubKey     string `yaml:"pub_key" mapstructure:"pub_key"`
+		Enabled    bool   `yaml:"enabled" mapstructure:"enabled"`
 	}
 
 	Skynet struct {
-		SkynetPortalURL string `yaml:"portal_url" mapstructure:"portal_url" validate:"required"`
+		SkynetPortalURL string `yaml:"portal_url" mapstructure:"portal_url" validate:"-"`
 		EndpointPath    string `yaml:"endpoint_path" mapstructure:"endpoint_path"`
 		ApiKey          string `yaml:"api_key" mapstructure:"api_key"`
 		CustomUserAgent string `yaml:"custom_user_agent" mapstructure:"custom_user_agent"`
@@ -72,6 +71,7 @@ type (
 		AuthMethod string `yaml:"auth_method" mapstructure:"auth_method"`
 		Username   string `yaml:"username" mapstructure:"username"`
 		Password   string `yaml:"password" mapstructure:"password"`
+		Enabled    bool   `yaml:"enabled" mapstructure:"enabled"`
 	}
 
 	Store struct {
@@ -99,6 +99,7 @@ type (
 		//nolint
 		ForgotPasswordTemplateId string `yaml:"forgot_password_template_id" mapstructure:"forgot_password_template_id" validate:"required"`
 		WelcomeEmailTemplateId   string `yaml:"welcome_template_id" mapstructure:"welcome_template_id" validate:"required"`
+		Enabled                  bool   `yaml:"enabled" mapstructure:"enabled"`
 	}
 )
 
@@ -172,7 +173,7 @@ func (sc *Store) Endpoint() string {
 func (oc *OpenRegistryConfig) Endpoint() string {
 	switch oc.Environment {
 	case Local:
-		return fmt.Sprintf("http://%s:%d", oc.Registry.Host, oc.Registry.Port)
+		return fmt.Sprintf("https://%s:%d", oc.Registry.Host, oc.Registry.Port)
 	case Production, Staging:
 		return fmt.Sprintf("https://%s", oc.Registry.DNSAddress)
 	case CI:

@@ -24,7 +24,7 @@ func main() {
 	}
 	e := echo.New()
 
-	pgStore, err := postgres.New(cfg.StoreConfig)
+	pgStore, err := postgres.New(&cfg.StoreConfig)
 	if err != nil {
 		color.Red("ERR_PG_CONN: %s", err.Error())
 		return
@@ -40,7 +40,7 @@ func main() {
 	logger := telemetry.ZLogger(fluentBitCollector, cfg.Environment)
 	authSvc := auth.New(cfg, pgStore, logger)
 
-	filebase := filebase.New(cfg.DFS.S3Any)
+	filebase := filebase.New(&cfg.DFS.S3Any)
 	reg, err := registry.NewRegistry(pgStore, filebase, logger, cfg)
 	if err != nil {
 		e.Logger.Errorf("error creating new container registry: %s", err)
@@ -61,9 +61,9 @@ func buildHTTPServer(cfg *config.OpenRegistryConfig, e *echo.Echo) error {
 	color.Green("Environment: %s", cfg.Environment)
 	color.Green("Service Endpoint: %s\n", cfg.Endpoint())
 	// for this to work, we need a custom http serve
-	// if cfg.Environment == config.Prod {
-	// 	return e.StartTLS(cfg.Registry.Address(), cfg.Registry.TLS.PubKey, cfg.Registry.TLS.PrivateKey)
-	// }
+	if cfg.Registry.TLS.Enabled {
+		return e.StartTLS(cfg.Registry.Address(), cfg.Registry.TLS.PubKey, cfg.Registry.TLS.PrivateKey)
+	}
 
 	return e.Start(cfg.Registry.Address())
 }
