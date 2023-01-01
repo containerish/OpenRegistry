@@ -4,7 +4,7 @@
 
 We recommend using the Git method to clone the repository:
 ```bash
-git clone git@github.com/containerish/OpenRegistry.git
+git clone git@github.com:containerish/OpenRegistry.git
 cd OpenRegistry
 ```
 
@@ -22,33 +22,33 @@ web_app_url: "http://localhost:3000"
 web_app_redirect_url: "/"
 web_app_error_redirect_path: "/auth/unhandled"
 registry:
-  dns_address: registry.local
-  version: master
-  fqdn: registry.local
-  host: registry.local
-  port: 5000
-  tls:
-	enabled: true
-    key: .certs/openregistry.key
-    cert: .certs/openregistry.cert
-  services:
-    - github
-    - token
-    - skynet_homescreen
+    dns_address: registry.local
+    version: master
+    fqdn: registry.local
+    host: registry.local
+    port: 5000
+    tls:
+        enabled: true
+        key: .certs/openregistry.key
+        cert: .certs/openregistry.cert
+    services:
+        - github
+        - token
+        - skynet_homescreen
 dfs:
-  s3_any:
-    access_key: <access-key>
-    secret_key: <access-secret-key>
-    endpoint: <s3-compatible-api-endpoint>
-    bucket_name: <s3-bucket-name>
-    dfs_link_resolver: <optional-dfs-link-resolver-url>
+    s3_any:
+        access_key: <access-key>
+        secret_key: <access-secret-key>
+        endpoint: <s3-compatible-api-endpoint>
+        bucket_name: <s3-bucket-name>
+        dfs_link_resolver: <optional-dfs-link-resolver-url>
 database:
-  kind: postgres
-  host: 0.0.0.0
-  port: 5432
-  username: postgres
-  password: Qwerty@123
-  name: open_registry
+    kind: postgres
+    host: 0.0.0.0
+    port: 5432
+    username: postgres
+    password: Qwerty@123
+    name: open_registry
 ```
 
 If you check the `registry.tls` section, you'll notice that we have enabled the TLS configuration, but we need to
@@ -101,11 +101,6 @@ make migup
 
 ```bash
 Output:
-curl -sSL https://gist.githubusercontent.com/jay-dee7/62fb7f665101a52c9c27dcff5bad03b6/raw/3fc979ead02ecbaba256819d309b2a9768a9d5b8/pg-uuid-v7.sql > /tmp/pg-uuid-v7.sql
-/usr/local/bin/psql -U postgres -d open_registry -f /tmp/pg-uuid-v7.sql
-psql:/tmp/pg-uuid-v7.sql:1: NOTICE:  extension "pgcrypto" already exists, skipping
-CREATE EXTENSION
-CREATE FUNCTION
 migrate -database 'postgres://postgres:postgres@0.0.0.0:5432/open_registry?sslmode=disable' -path db/migrations up
 1/u create_users_table (9.436292ms)
 2/u create_blob_table (17.848625ms)

@@ -15,10 +15,11 @@ import (
 
 type (
 	OpenRegistryConfig struct {
-		DFS                     DFS         `yaml:"dfs" mapstructure:"dfs"`
-		SkynetConfig            Skynet      `yaml:"skynet" mapstructure:"skynet" validate:"-"`
-		OAuth                   OAuth       `yaml:"oauth" mapstructure:"oauth" validate:"-"`
-		WebAppEndpoint          string      `yaml:"web_app_url" mapstructure:"web_app_url" validate:"required"`
+		DFS            DFS    `yaml:"dfs" mapstructure:"dfs"`
+		SkynetConfig   Skynet `yaml:"skynet" mapstructure:"skynet" validate:"-"`
+		OAuth          OAuth  `yaml:"oauth" mapstructure:"oauth" validate:"-"`
+		WebAppEndpoint string `yaml:"web_app_url" mapstructure:"web_app_url" validate:"required"`
+		//nolint
 		WebAppRedirectURL       string      `yaml:"web_app_redirect_url" mapstructure:"web_app_redirect_url" validate:"required"`
 		WebAppErrorRedirectPath string      `yaml:"web_app_error_redirect_path" mapstructure:"web_app_error_redirect_path"`
 		StoreConfig             Store       `yaml:"database" mapstructure:"database" validate:"required"`
