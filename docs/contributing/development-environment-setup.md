@@ -55,9 +55,7 @@ If you check the `registry.tls` section, you'll notice that we have enabled the 
 generate the TLS certificates before we move forward:
 
 ```bash
-mkdir .certs
-openssl req -x509 -newkey rsa:4096 -keyout .certs/registry.local -out .certs/registry.local.crt -sha256 -days 365 \
--subj "/C=US/ST=Oregon/L=Portland/O=Company Name/OU=Org/CN=registry.dist.local" -nodes
+make certs
 ```
 
 ## Database Setup

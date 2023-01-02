@@ -14,3 +14,7 @@ tools:
 	pip3 install ggshield pre-commit
 	pre-commit install
 
+certs:
+	mkdir .certs
+	openssl req -x509 -newkey rsa:4096 -keyout .certs/registry.local -out .certs/registry.local.crt -sha256 -days 365 \
+	-subj "/C=US/ST=Oregon/L=Portland/O=Company Name/OU=Org/CN=registry.dist.local" -nodes
