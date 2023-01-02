@@ -183,7 +183,7 @@ func (oc *OpenRegistryConfig) Endpoint() string {
 			log.Fatalln("missing required environment variable: CI_SYS_ADDR")
 		}
 
-		return fmt.Sprintf("http://%s", ciSysAddr)
+		return fmt.Sprintf("https://%s", ciSysAddr)
 	default:
 		return fmt.Sprintf("https://%s:%d", oc.Registry.Host, oc.Registry.Port)
 	}
