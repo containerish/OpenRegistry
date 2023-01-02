@@ -55,15 +55,13 @@ jobs:
           echo "OCI_ROOT_URL=https://$IP:5000" >> $GITHUB_ENV
           DISTRIBUTION_REF="local-distribution:v$(date +%Y%m%d%H%M%S)"
           docker build -f ./Dockerfile -t "${DISTRIBUTION_REF}" .
-      - name: Setup tmate session
-        uses: mxschmitt/action-tmate@v3
-          # make certs
-          # docker run --rm -p 5000:5000 \
-          #   --mount="type=bind,source=${PWD}/config.yaml,target=/home/runner/.openregistry/config.yaml" \
-          #   -v "$PWD/.certs:/home/runner/.certs" \
-          #   --env="CI_SYS_ADDR=$IP:5000" -i "${DISTRIBUTION_REF}"
-          # sleep 5
-          # curl -XPOST -k -d ${{ secrets.OPENREGISTRY_SIGNUP_PAYLOAD }} "https://${IP}:5000/auth/signup"
+          make certs
+          docker run --rm -p 5000:5000 \
+            --mount="type=bind,source=${PWD}/config.yaml,target=/home/runner/.openregistry/config.yaml" \
+            -v "$PWD/.certs:/home/runner/.certs" \
+            --env="CI_SYS_ADDR=$IP:5000" -d "${DISTRIBUTION_REF}"
+          sleep 5
+          curl -XPOST -k -d ${{ secrets.OPENREGISTRY_SIGNUP_PAYLOAD }} "https://${IP}:5000/auth/signup"
       - name: Run OCI Distribution Spec conformance tests
         uses: opencontainers/distribution-spec@v1.0.1
         env:

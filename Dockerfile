@@ -12,12 +12,21 @@ COPY . .
 RUN go build -o openregistry -ldflags="-w -s" -trimpath main.go
 
 FROM alpine:latest
+
 LABEL org.opencontainers.image.source = "https://github.com/containerish/OpenRegistry"
-RUN adduser runner -D -S -h /home/runner
 WORKDIR /home/runner
 
-COPY --from=builder /root/openregistry/openregistry /bin/openregistry
+ARG USER="runner"
+ARG GROUP=${USER}
+ARG UID=1001
+ARG GID=${UID}
+ARG HOME_DIR="/home/runner"
 
-USER runner
+RUN addgroup --system ${GROUP} --gid ${GID} \
+    && adduser ${USER} --uid ${UID} -G ${GROUP} --system --home ${HOME_DIR} --shell /bin/bash
+COPY --chown=${USER}:${GROUP} --from=builder /root/openregistry/openregistry /bin/openregistry
+
+USER ${USER}
+
 EXPOSE 5000
 ENTRYPOINT ["openregistry"]

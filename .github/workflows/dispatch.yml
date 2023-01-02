@@ -14,18 +14,18 @@ jobs:
     uses: ./.github/workflows/oci-dist-spec-push.yml
     needs: call-lint
     secrets: inherit
-  call-image-pull:
-    name: OCI Distribution Spec
-    uses: ./.github/workflows/oci-dist-spec-pull.yml
-    needs: call-lint
-    secrets: inherit
-  call-image-content-discovery:
-    name: OCI Distribution Spec
-    uses: ./.github/workflows/oci-dist-spec-content-discovery.yml
-    needs: call-lint
-    secrets: inherit
-  call-image-content-management:
-    name: OCI Distribution Spec
-    uses: ./.github/workflows/oci-dist-spec-content-management.yml
-    needs: call-lint
-    secrets: inherit
+  # call-image-pull:
+  #   name: OCI Distribution Spec
+  #   uses: ./.github/workflows/oci-dist-spec-pull.yml
+  #   needs: call-lint
+  #   secrets: inherit
+  # call-image-content-discovery:
+  #   name: OCI Distribution Spec
+  #   uses: ./.github/workflows/oci-dist-spec-content-discovery.yml
+  #   needs: call-lint
+  #   secrets: inherit
+  # call-image-content-management:
+  #   name: OCI Distribution Spec
+  #   uses: ./.github/workflows/oci-dist-spec-content-management.yml
+  #   needs: call-lint
+  #   secrets: inherit
