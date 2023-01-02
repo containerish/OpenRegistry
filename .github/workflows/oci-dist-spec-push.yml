@@ -59,6 +59,7 @@ jobs:
           make certs
           docker run --rm -p 5000:5000 \
             --mount="type=bind,source=${PWD}/config.yaml,target=/home/runner/.openregistry/config.yaml" \
+            --mount="type=bind,source=${PWD}/.certs,target=/home/runner/.openregistry/.certs" \
             --env="CI_SYS_ADDR=$IP:5000" -i "${DISTRIBUTION_REF}"
           sleep 5
           curl -XPOST -k -d ${{ secrets.OPENREGISTRY_SIGNUP_PAYLOAD }} "https://${IP}:5000/auth/signup"
