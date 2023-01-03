@@ -602,6 +602,7 @@ func (r *registry) CompleteUpload(ctx echo.Context) error {
 	ourHash := digest.FromBytes(buf.Bytes())
 
 	if buf.Len() > 0 {
+		r.b.blobCounter[uploadID]++
 		part, err := r.dfs.UploadPart(
 			ctx.Request().Context(),
 			uploadID,
@@ -627,6 +628,7 @@ func (r *registry) CompleteUpload(ctx echo.Context) error {
 		dig,
 		r.b.layerParts[uploadID],
 	)
+	delete(r.b.layerParts, uploadID)
 	if err != nil {
 		errMsg := r.errorResponse(RegistryErrorCodeBlobUploadInvalid, err.Error(), echo.Map{
 			"reason": "ERR_SKYNET_UPLOAD",

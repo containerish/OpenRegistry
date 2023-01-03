@@ -1,7 +1,13 @@
 package auth
 
 import (
+	"bytes"
+	"crypto/sha256"
+	"crypto/x509"
+	"encoding/base32"
 	"fmt"
+	"os"
+	"strings"
 	"time"
 
 	"github.com/containerish/OpenRegistry/types"
@@ -45,13 +51,56 @@ func (a *auth) newPublicPullToken() (string, error) {
 	// TODO (jay-dee7)- handle this properly, check for errors and don't set defaults for actions
 	claims.Access[0].Actions = []string{"pull"}
 
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, &claims)
-	sign, err := token.SignedString([]byte(a.c.Registry.SigningSecret))
+	rawPrivateKey, err := os.ReadFile(a.c.Registry.TLS.PrivateKey)
+	if err != nil {
+		return "", err
+	}
+
+	pv, err := jwt.ParseRSAPrivateKeyFromPEM(rawPrivateKey)
+	if err != nil {
+		panic(err)
+	}
+
+	rawPublicKey, err := os.ReadFile(a.c.Registry.TLS.PubKey)
+	if err != nil {
+		return "", err
+	}
+
+	pb, err := jwt.ParseRSAPublicKeyFromPEM(rawPublicKey)
+	if err != nil {
+		panic(err)
+	}
+
+	pubKeyDerBz, err := x509.MarshalPKIXPublicKey(pb)
+	if err != nil {
+		return "", err
+	}
+
+	hasher := sha256.New()
+	hasher.Write(pubKeyDerBz)
+
+	// token := jwt.NewWithClaims(jwt.SigningMethodHS256, &claims)
+	token := jwt.NewWithClaims(jwt.SigningMethodRS256, &claims)
+	token.Header["kid"] = a.keyIDEncode(hasher.Sum(nil)[:30])
+	sign, err := token.SignedString(pv)
 	if err != nil {
 		return "", err
 	}
 
 	return sign, nil
+}
+
+func (a *auth) keyIDEncode(b []byte) string {
+	s := strings.TrimRight(base32.StdEncoding.EncodeToString(b), "=")
+	var buf bytes.Buffer
+	var i int
+	for i = 0; i < len(s)/4-1; i++ {
+		start := i * 4
+		end := start + 4
+		buf.WriteString(s[start:end] + ":")
+	}
+	buf.WriteString(s[i*4:])
+	return buf.String()
 }
 
 func (a *auth) SignOAuthToken(userId string, payload *oauth2.Token) (string, string, error) {
@@ -62,14 +111,44 @@ func (a *auth) newOAuthToken(userId string, payload *oauth2.Token) (string, stri
 	accessClaims := a.createOAuthClaims(userId, payload)
 	refreshClaims := a.createRefreshClaims(userId)
 
-	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, &accessClaims)
-	accessSign, err := accessToken.SignedString([]byte(a.c.Registry.SigningSecret))
+	rawPrivateKey, err := os.ReadFile(a.c.Registry.TLS.PrivateKey)
+	if err != nil {
+		return "", "", err
+	}
+	pv, err := jwt.ParseRSAPrivateKeyFromPEM(rawPrivateKey)
+	if err != nil {
+		panic(err)
+	}
+
+	rawPublicKey, err := os.ReadFile(a.c.Registry.TLS.PubKey)
+	if err != nil {
+		return "", "", err
+	}
+
+	pb, err := jwt.ParseRSAPublicKeyFromPEM(rawPublicKey)
+	if err != nil {
+		panic(err)
+	}
+
+	pubKeyDerBz, err := x509.MarshalPKIXPublicKey(pb)
+	if err != nil {
+		return "", "", err
+	}
+
+	hasher := sha256.New()
+	hasher.Write(pubKeyDerBz)
+	// accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, &accessClaims)
+	accessToken := jwt.NewWithClaims(jwt.SigningMethodRS256, &accessClaims)
+	accessToken.Header["kid"] = a.keyIDEncode(hasher.Sum(nil)[:30])
+	accessSign, err := accessToken.SignedString(pv)
 	if err != nil {
 		return "", "", fmt.Errorf("ERR_ACCESS_TOKEN_SIGN: %w", err)
 	}
 
-	refreshToken := jwt.NewWithClaims(jwt.SigningMethodHS256, &refreshClaims)
-	refreshSign, err := refreshToken.SignedString([]byte(a.c.Registry.SigningSecret))
+	// refreshToken := jwt.NewWithClaims(jwt.SigningMethodHS256, &refreshClaims)
+	refreshToken := jwt.NewWithClaims(jwt.SigningMethodRS256, &refreshClaims)
+	refreshToken.Header["kid"] = a.keyIDEncode(hasher.Sum(nil)[:30])
+	refreshSign, err := refreshToken.SignedString(pv)
 	if err != nil {
 		return "", "", fmt.Errorf("ERR_REFRESH_TOKEN_SIGN: %w", err)
 	}
@@ -88,9 +167,37 @@ func (a *auth) newServiceToken(u types.User) (string, error) {
 		},
 	}
 	claims := a.createClaims(u.Id, "service", acl)
+	rawPrivateKey, err := os.ReadFile(a.c.Registry.TLS.PrivateKey)
+	if err != nil {
+		return "", err
+	}
 
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	sign, err := token.SignedString([]byte(a.c.Registry.SigningSecret))
+	pv, err := jwt.ParseRSAPrivateKeyFromPEM(rawPrivateKey)
+	if err != nil {
+		panic(err)
+	}
+
+	rawPublicKey, err := os.ReadFile(a.c.Registry.TLS.PubKey)
+	if err != nil {
+		return "", err
+	}
+
+	pb, err := jwt.ParseRSAPublicKeyFromPEM(rawPublicKey)
+	if err != nil {
+		panic(err)
+	}
+
+	pubKeyDerBz, err := x509.MarshalPKIXPublicKey(pb)
+	if err != nil {
+		return "", err
+	}
+
+	hasher := sha256.New()
+	hasher.Write(pubKeyDerBz)
+	// token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
+	token.Header["kid"] = a.keyIDEncode(hasher.Sum(nil)[:30])
+	sign, err := token.SignedString(pv)
 	if err != nil {
 		return "", fmt.Errorf("error signing secret %w", err)
 	}
@@ -107,8 +214,37 @@ func (a *auth) newWebLoginToken(userId, username, tokenType string) (string, err
 		},
 	}
 	claims := a.createClaims(userId, tokenType, acl)
-	raw := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	token, err := raw.SignedString([]byte(a.c.Registry.SigningSecret))
+	rawPrivateKey, err := os.ReadFile(a.c.Registry.TLS.PrivateKey)
+	if err != nil {
+		return "", err
+	}
+
+	pv, err := jwt.ParseRSAPrivateKeyFromPEM(rawPrivateKey)
+	if err != nil {
+		panic(err)
+	}
+
+	rawPublicKey, err := os.ReadFile(a.c.Registry.TLS.PubKey)
+	if err != nil {
+		return "", err
+	}
+
+	pb, err := jwt.ParseRSAPublicKeyFromPEM(rawPublicKey)
+	if err != nil {
+		panic(err)
+	}
+
+	pubKeyDerBz, err := x509.MarshalPKIXPublicKey(pb)
+	if err != nil {
+		return "", err
+	}
+
+	hasher := sha256.New()
+	hasher.Write(pubKeyDerBz)
+	// raw := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	raw := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
+	raw.Header["kid"] = a.keyIDEncode(hasher.Sum(nil)[:30])
+	token, err := raw.SignedString(pv)
 	if err != nil {
 		return "", err
 	}
@@ -124,7 +260,7 @@ func (a *auth) createServiceClaims(u types.User) ServiceClaims {
 			ExpiresAt: time.Now().Add(time.Hour * 750).Unix(),
 			Id:        u.Id,
 			IssuedAt:  time.Now().Unix(),
-			Issuer:    a.c.Endpoint(),
+			Issuer:    "OpenRegistry",
 			NotBefore: time.Now().Unix(),
 			Subject:   u.Id,
 		},
@@ -148,7 +284,7 @@ func (a *auth) createOAuthClaims(userId string, token *oauth2.Token) PlatformCla
 			ExpiresAt: time.Now().Add(time.Hour * 750).Unix(),
 			Id:        userId,
 			IssuedAt:  time.Now().Unix(),
-			Issuer:    a.c.Endpoint(),
+			Issuer:    "OpenRegistry",
 			NotBefore: time.Now().Unix(),
 			Subject:   userId,
 		},
@@ -165,7 +301,7 @@ func (a *auth) createRefreshClaims(userId string) RefreshClaims {
 			ExpiresAt: time.Now().Add(time.Hour * 750).Unix(), // Refresh tokens can live longer
 			Id:        userId,
 			IssuedAt:  time.Now().Unix(),
-			Issuer:    a.c.Endpoint(),
+			Issuer:    "OpenRegistry",
 			NotBefore: time.Now().Unix(),
 			Subject:   userId,
 		},
@@ -185,11 +321,40 @@ func (a *auth) newToken(u *types.User) (string, error) {
 			Actions: []string{"push", "pull"},
 		},
 	}
+	rawPrivateKey, err := os.ReadFile(a.c.Registry.TLS.PrivateKey)
+	if err != nil {
+		return "", err
+	}
+
+	pv, err := jwt.ParseRSAPrivateKeyFromPEM(rawPrivateKey)
+	if err != nil {
+		panic(err)
+	}
 	claims := a.createClaims(u.Id, "access", acl)
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, &claims)
+
+	rawPublicKey, err := os.ReadFile(a.c.Registry.TLS.PubKey)
+	if err != nil {
+		return "", err
+	}
+
+	pb, err := jwt.ParseRSAPublicKeyFromPEM(rawPublicKey)
+	if err != nil {
+		panic(err)
+	}
+
+	pubKeyDerBz, err := x509.MarshalPKIXPublicKey(pb)
+	if err != nil {
+		return "", err
+	}
+
+	hasher := sha256.New()
+	hasher.Write(pubKeyDerBz)
+	// token := jwt.NewWithClaims(jwt.SigningMethodHS256, &claims)
+	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
+	token.Header["kid"] = a.keyIDEncode(hasher.Sum(nil)[:30])
 
 	// Generate encoded token and send it as response.
-	t, err := token.SignedString([]byte(a.c.Registry.SigningSecret))
+	t, err := token.SignedString(pv)
 	if err != nil {
 		return "", err
 
@@ -243,7 +408,7 @@ func (a *auth) createClaims(id, tokenType string, acl AccessList) Claims {
 			ExpiresAt: tokenLife,
 			Id:        id,
 			IssuedAt:  time.Now().Unix(),
-			Issuer:    a.c.Endpoint(),
+			Issuer:    "OpenRegistry",
 			NotBefore: time.Now().Unix(),
 			Subject:   id,
 		},

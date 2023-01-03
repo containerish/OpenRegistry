@@ -36,6 +36,10 @@ type MailService interface {
 }
 
 func New(config *config.Email, baseURL string) MailService {
-	client := sendgrid.NewSendClient(config.ApiKey)
-	return &email{client: client, config: config, baseURL: baseURL}
+	if config.Enabled {
+		client := sendgrid.NewSendClient(config.ApiKey)
+		return &email{client: client, config: config, baseURL: baseURL}
+	}
+
+	return nil
 }

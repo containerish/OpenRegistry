@@ -1,4 +1,3 @@
-certs
 parachute
 OpenRegistry
 .cache
@@ -11,3 +10,5 @@ OpenRegistry.yml
 config.yaml
 config.yml
 .cache_ggshield
+.certs
+certs
