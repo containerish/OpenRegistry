@@ -146,6 +146,7 @@ func (oc *OpenRegistryConfig) Validate() error {
 	if merr.ErrorOrNil() != nil {
 		return merr
 	}
+
 	return nil
 }
 
@@ -167,14 +168,19 @@ func translateError(err error, trans ut.Translator) error {
 }
 
 func (sc *Store) Endpoint() string {
-	return fmt.Sprintf("postgres://%s:%s@%s:%d/%s?pool_max_conns=1000&sslmode=disable",
-		sc.User, sc.Password, sc.Host, sc.Port, sc.Database)
+	return fmt.Sprintf(
+		"postgres://%s:%s@%s:%d/%s?pool_max_conns=1000&sslmode=disable",
+		sc.User, sc.Password, sc.Host, sc.Port, sc.Database,
+	)
 }
 
 func (oc *OpenRegistryConfig) Endpoint() string {
 	switch oc.Environment {
 	case Local:
-		return fmt.Sprintf("https://%s:%d", oc.Registry.Host, oc.Registry.Port)
+		if oc.Registry.TLS.Enabled {
+			return fmt.Sprintf("https://%s:%d", oc.Registry.Host, oc.Registry.Port)
+		}
+		return fmt.Sprintf("http://%s:%d", oc.Registry.Host, oc.Registry.Port)
 	case Production, Staging:
 		return fmt.Sprintf("https://%s", oc.Registry.DNSAddress)
 	case CI:
@@ -183,7 +189,11 @@ func (oc *OpenRegistryConfig) Endpoint() string {
 			log.Fatalln("missing required environment variable: CI_SYS_ADDR")
 		}
 
-		return fmt.Sprintf("https://%s", ciSysAddr)
+		if oc.Registry.TLS.Enabled {
+			return fmt.Sprintf("https://%s", ciSysAddr)
+		}
+
+		return fmt.Sprintf("http://%s", ciSysAddr)
 	default:
 		return fmt.Sprintf("https://%s:%d", oc.Registry.Host, oc.Registry.Port)
 	}

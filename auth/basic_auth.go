@@ -47,13 +47,13 @@ func (a *auth) BasicAuth() echo.MiddlewareFunc {
 				return true
 			}
 
-			if ctx.Request().RequestURI != "/v2/" {
+			if ctx.Request().URL.Path != "/v2/" {
 				if ctx.Request().Method == http.MethodHead || ctx.Request().Method == http.MethodGet {
 					return true
 				}
 			}
 
-			if ctx.Request().RequestURI == "/v2/" {
+			if ctx.Request().URL.Path == "/v2/" {
 				return false
 			}
 
@@ -68,7 +68,7 @@ func (a *auth) BasicAuth() echo.MiddlewareFunc {
 				}
 			}()
 
-			if ctx.Request().RequestURI == "/v2/" {
+			if ctx.Request().URL.Path == "/v2/" {
 				_, err := a.validateUser(username, password)
 				if err != nil {
 					a.logger.Log(ctx, err)

@@ -105,11 +105,10 @@ func (a *auth) SignUp(ctx echo.Context) error {
 
 	// in case of CI setup, no need to send verification emails
 	if !isEnvironemtElevated {
-		msg := fmt.Errorf("user successfully created")
 		echoErr := ctx.JSON(http.StatusCreated, echo.Map{
-			"message": msg,
+			"message": "user successfully created",
 		})
-		a.logger.Log(ctx, msg)
+		a.logger.Log(ctx, echoErr)
 		return echoErr
 	}
 
@@ -144,7 +143,7 @@ func (a *auth) SignUp(ctx echo.Context) error {
 	}
 
 	echoErr := ctx.JSON(http.StatusCreated, echo.Map{
-		"message": "signup was successful, please check your email to activate your account",
+		"message": "sign up was successful, please check your email to activate your account",
 	})
 	a.logger.Log(ctx, echoErr)
 	return echoErr
