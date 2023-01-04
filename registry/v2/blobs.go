@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/containerish/OpenRegistry/types"
@@ -82,7 +83,14 @@ func (b *blobs) UploadBlob(ctx echo.Context) error {
 	layerKey := GetLayerIdentifierFromTrakcingID(identifier)
 	uploadID := GetUploadIDFromTrakcingID(identifier)
 
-	if contentRange == "" {
+	// upload the first chunk for the layer
+	if contentRange == "" || strings.HasPrefix(contentRange, "0-") {
+		if len(b.layerParts[uploadID]) > 0 {
+			errMsg := b.errorResponse(RegistryErrorCodeBlobUploadUnknown, "content range mismatch", nil)
+			echoErr := ctx.JSONBlob(http.StatusRequestedRangeNotSatisfiable, errMsg)
+			b.registry.logger.Log(ctx, fmt.Errorf("%s", errMsg))
+			return echoErr
+		}
 		buf := &bytes.Buffer{}
 		_, err := io.Copy(buf, ctx.Request().Body)
 		if err != nil {
@@ -129,6 +137,7 @@ func (b *blobs) UploadBlob(ctx echo.Context) error {
 		return err
 	}
 
+	// continue with rest of the chunks for the layer
 	var start, end int64
 	// 0-90
 	if _, err := fmt.Sscanf(contentRange, "%d-%d", &start, &end); err != nil {
@@ -160,6 +169,7 @@ func (b *blobs) UploadBlob(ctx echo.Context) error {
 		b.registry.logger.Log(ctx, err)
 		return echoErr
 	}
+	_ = ctx.Request().Body.Close()
 
 	checksum := digest.FromBytes(buf.Bytes())
 	b.blobCounter[uploadID]++
@@ -172,7 +182,6 @@ func (b *blobs) UploadBlob(ctx echo.Context) error {
 		bytes.NewReader(buf.Bytes()),
 		int64(buf.Len()),
 	)
-	defer ctx.Request().Body.Close()
 	if err != nil {
 		errMsg := b.errorResponse(
 			RegistryErrorCodeBlobUploadInvalid,
@@ -188,7 +197,6 @@ func (b *blobs) UploadBlob(ctx echo.Context) error {
 	b.layerParts[uploadID] = append(b.layerParts[uploadID], part)
 	b.layerLengthCounter[uploadID] += int64(buf.Len())
 	b.mu.Unlock()
-
 	locationHeader := fmt.Sprintf("/v2/%s/blobs/uploads/%s", namespace, identifier)
 	ctx.Response().Header().Set("Location", locationHeader)
 	ctx.Response().Header().Set("Range", fmt.Sprintf("0-%d", b.layerLengthCounter[uploadID]-1))

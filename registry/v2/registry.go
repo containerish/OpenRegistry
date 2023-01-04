@@ -592,14 +592,15 @@ func (r *registry) CompleteUpload(ctx echo.Context) error {
 	}
 
 	buf := &bytes.Buffer{}
-	if _, err := io.Copy(buf, ctx.Request().Body); err != nil {
+	_, err := io.Copy(buf, ctx.Request().Body)
+	if err != nil {
 		errMsg := r.errorResponse(RegistryErrorCodeDigestInvalid, err.Error(), nil)
 		echoErr := ctx.JSONBlob(http.StatusBadRequest, errMsg)
 		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
 		return echoErr
 	}
 	_ = ctx.Request().Body.Close()
-	ourHash := digest.FromBytes(buf.Bytes())
+	checksum := digest.FromBytes(buf.Bytes())
 
 	if buf.Len() > 0 {
 		r.b.blobCounter[uploadID]++
@@ -607,7 +608,7 @@ func (r *registry) CompleteUpload(ctx echo.Context) error {
 			ctx.Request().Context(),
 			uploadID,
 			GetLayerIdentifier(layerKey),
-			ourHash.String(),
+			checksum.String(),
 			r.b.blobCounter[uploadID],
 			bytes.NewReader(buf.Bytes()),
 			int64(buf.Len()),
@@ -618,10 +619,13 @@ func (r *registry) CompleteUpload(ctx echo.Context) error {
 			r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
 			return echoErr
 		}
+
+		r.mu.Lock()
 		r.b.layerParts[uploadID] = append(r.b.layerParts[uploadID], part)
+		r.mu.Unlock()
 	}
 
-	dfsLink, err := r.dfs.CompleteMultipartUploadInput(
+	dfsLink, err := r.dfs.CompleteMultipartUpload(
 		ctx.Request().Context(),
 		uploadID,
 		GetLayerIdentifier(layerKey),
@@ -629,12 +633,14 @@ func (r *registry) CompleteUpload(ctx echo.Context) error {
 		r.b.layerParts[uploadID],
 	)
 	delete(r.b.layerParts, uploadID)
+
 	if err != nil {
 		errMsg := r.errorResponse(RegistryErrorCodeBlobUploadInvalid, err.Error(), echo.Map{
-			"reason": "ERR_SKYNET_UPLOAD",
+			"reason": "ERR_DFS_UPLOAD",
 			"error":  err.Error(),
 		})
 
+		_ = r.dfs.AbortMultipartUpload(ctx.Request().Context(), GetLayerIdentifier(layerKey), uploadID)
 		echoErr := ctx.JSONBlob(http.StatusRequestedRangeNotSatisfiable, errMsg)
 		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
 		return echoErr
@@ -677,9 +683,9 @@ func (r *registry) CompleteUpload(ctx echo.Context) error {
 		return echoErr
 	}
 
-	locationHeader := fmt.Sprintf("/v2/%s/blobs/%s", namespace, ourHash)
+	locationHeader := fmt.Sprintf("/v2/%s/blobs/%s", namespace, checksum.String())
 	ctx.Response().Header().Set("Content-Length", "0")
-	ctx.Response().Header().Set("Docker-Content-Digest", ourHash.String())
+	ctx.Response().Header().Set("Docker-Content-Digest", checksum.String())
 	ctx.Response().Header().Set("Location", locationHeader)
 	echoErr := ctx.NoContent(http.StatusCreated)
 	r.logger.Log(ctx, nil)
