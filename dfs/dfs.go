@@ -39,4 +39,5 @@ type DFS interface {
 	Metadata(skylink string) (*skynet.Metadata, error)
 	GetUploadProgress(identifier, uploadID string) (*types.ObjectMetadata, error)
 	AbortMultipartUpload(ctx context.Context, layerKey string, uploadId string) error
+	GeneratePresignedURL(ctx context.Context, key string) (string, error)
 }

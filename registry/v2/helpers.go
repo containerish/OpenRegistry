@@ -1,8 +1,8 @@
 package registry
 
 import (
+	"context"
 	"encoding/json"
-	"fmt"
 
 	"github.com/fatih/color"
 )
@@ -25,5 +25,9 @@ func (r *registry) errorResponse(code, msg string, detail map[string]interface{}
 }
 
 func (r *registry) getDownloadableURLFromDFSLink(s string) string {
-	return fmt.Sprintf("%s/%s", r.config.DFS.S3Any.DFSLinkResolver, s)
+	presignedUrl, err := r.dfs.GeneratePresignedURL(context.Background(), s)
+	// return fmt.Sprintf("%s/%s", r.config.DFS.S3Any.DFSLinkResolver, s)
+
+	color.Red("error in presign: %s", err)
+	return presignedUrl
 }

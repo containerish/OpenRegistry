@@ -12,3 +12,4 @@ config.yml
 .cache_ggshield
 .certs
 certs
+*.pem

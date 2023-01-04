@@ -1,4 +1,4 @@
-package filebase
+package storj
 
 import (
 	"bytes"
@@ -17,7 +17,7 @@ import (
 	"github.com/opencontainers/go-digest"
 )
 
-type filebase struct {
+type storj struct {
 	client    *s3.Client
 	preSigner *s3.PresignClient
 	bucket    string
@@ -26,31 +26,31 @@ type filebase struct {
 func New(cfg *config.S3CompatibleDFS) dfs.DFS {
 	client := dfs.NewS3Client(cfg.Endpoint, cfg.AccessKey, cfg.SecretKey)
 
-	return &filebase{
+	return &storj{
 		client:    client,
 		bucket:    cfg.BucketName,
 		preSigner: s3.NewPresignClient(client),
 	}
 }
 
-func (fb *filebase) CreateMultipartUpload(layerKey string) (string, error) {
+func (sj *storj) CreateMultipartUpload(layerKey string) (string, error) {
 	input := &s3.CreateMultipartUploadInput{
-		Bucket:            &fb.bucket,
+		Bucket:            &sj.bucket,
 		Key:               &layerKey,
 		ACL:               s3types.ObjectCannedACLPublicRead,
 		ChecksumAlgorithm: s3types.ChecksumAlgorithmSha256,
 		ContentEncoding:   aws.String("gzip"),
 		StorageClass:      s3types.StorageClassStandard,
 	}
-	upload, err := fb.client.CreateMultipartUpload(context.Background(), input)
+	upload, err := sj.client.CreateMultipartUpload(context.Background(), input)
 	if err != nil {
-		return "", fmt.Errorf("ERR_FILEBASE_CREATE_MULTIPART_UPLOAD: %w", err)
+		return "", fmt.Errorf("ERR_STORJ_CREATE_MULTIPART_UPLOAD: %w", err)
 	}
 
 	return *upload.UploadId, nil
 }
 
-func (fb *filebase) UploadPart(
+func (sj *storj) UploadPart(
 	ctx context.Context,
 	uploadId string,
 	layerKey string,
@@ -64,7 +64,7 @@ func (fb *filebase) UploadPart(
 
 	partInput := &s3.UploadPartInput{
 		Body:              content,
-		Bucket:            &fb.bucket,
+		Bucket:            &sj.bucket,
 		ChecksumAlgorithm: s3types.ChecksumAlgorithmSha256,
 		ChecksumSHA256:    aws.String(digest),
 		ContentLength:     contentLength,
@@ -73,9 +73,9 @@ func (fb *filebase) UploadPart(
 		UploadId:          &uploadId,
 	}
 
-	resp, err := fb.client.UploadPart(ctx, partInput)
+	resp, err := sj.client.UploadPart(ctx, partInput)
 	if err != nil {
-		return s3types.CompletedPart{}, fmt.Errorf("ERR_FILEBASE_UPLOAD_PART: %w", err)
+		return s3types.CompletedPart{}, fmt.Errorf("ERR_STORJ_UPLOAD_PART: %w", err)
 	}
 
 	return s3types.CompletedPart{
@@ -87,7 +87,7 @@ func (fb *filebase) UploadPart(
 
 // ctx is used for handling any request cancellations.
 // @param uploadId: string is the ID of the layer being uploaded
-func (fb *filebase) CompleteMultipartUpload(
+func (sj *storj) CompleteMultipartUploadInput(
 	ctx context.Context,
 	uploadId string,
 	layerKey string,
@@ -99,44 +99,39 @@ func (fb *filebase) CompleteMultipartUpload(
 
 	dig, err := digest.Parse(layerDigest)
 	if err != nil {
-		return "", fmt.Errorf("ERR_FILEBASE_DIGEST_PARSE: %w", err)
+		return "", fmt.Errorf("ERR_STORJ_DIGEST_PARSE: %w", err)
 	}
 
-	_, err = fb.client.CompleteMultipartUpload(ctx, &s3.CompleteMultipartUploadInput{
+	_, err = sj.client.CompleteMultipartUpload(ctx, &s3.CompleteMultipartUploadInput{
 		Key:             &layerKey,
-		Bucket:          &fb.bucket,
+		Bucket:          &sj.bucket,
 		UploadId:        &uploadId,
 		ChecksumSHA256:  aws.String(dig.Encoded()),
 		MultipartUpload: &s3types.CompletedMultipartUpload{Parts: completedParts},
 	})
 	if err != nil {
-		return "", fmt.Errorf("ERR_FILEBASE_COMPLETE_MULTIPART_UPLOAD: %w", err)
+		return "", fmt.Errorf("ERR_STORJ_COMPLETE_MULTIPART_UPLOAD: %w", err)
 	}
 
-	resp, err := fb.client.HeadObject(ctx, &s3.HeadObjectInput{
-		Bucket:       &fb.bucket,
+	_, err = sj.client.HeadObject(ctx, &s3.HeadObjectInput{
+		Bucket:       &sj.bucket,
 		Key:          &layerKey,
 		ChecksumMode: s3types.ChecksumModeEnabled,
 	})
 	if err != nil {
-		return "", fmt.Errorf("ERR_FILEBASE_COMPLETE_MULTIPART_UPLOAD_HEAD: %w", err)
+		return "", fmt.Errorf("ERR_STORJ_COMPLETE_MULTIPART_UPLOAD_HEAD: %w", err)
 	}
 
-	cid := resp.Metadata["cid"]
-	if cid == "" {
-		return "", fmt.Errorf("ERR_FILEBASE_CID_NOT_FOUND: %w", err)
-	}
-
-	return cid, nil
+	return layerKey, nil
 }
 
-func (fb *filebase) Upload(ctx context.Context, namespace, digest string, content []byte) (string, error) {
+func (sj *storj) Upload(ctx context.Context, identifier, digest string, content []byte) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, time.Minute*10)
 	defer cancel()
 
-	_, err := fb.client.PutObject(ctx, &s3.PutObjectInput{
-		Bucket:            &fb.bucket,
-		Key:               &namespace,
+	_, err := sj.client.PutObject(ctx, &s3.PutObjectInput{
+		Bucket:            &sj.bucket,
+		Key:               &identifier,
 		ACL:               s3types.ObjectCannedACLPublicRead,
 		Body:              bytes.NewBuffer(content),
 		ChecksumAlgorithm: s3types.ChecksumAlgorithmSha256,
@@ -145,62 +140,61 @@ func (fb *filebase) Upload(ctx context.Context, namespace, digest string, conten
 		StorageClass:      s3types.StorageClassStandard,
 	})
 	if err != nil {
-		return "", fmt.Errorf("ERR_FILEBASE_UPLOAD_OBJECT: %w", err)
+		return "", fmt.Errorf("ERR_STORJ_UPLOAD_OBJECT: %w", err)
 	}
 
-	resp, err := fb.client.HeadObject(ctx, &s3.HeadObjectInput{
-		Bucket:       &fb.bucket,
-		Key:          &namespace,
+	_, err = sj.client.HeadObject(ctx, &s3.HeadObjectInput{
+		Bucket:       &sj.bucket,
+		Key:          &identifier,
 		ChecksumMode: s3types.ChecksumModeEnabled,
 	})
 	if err != nil {
-		return "", fmt.Errorf("ERR_FILEBASE_UPLOAD_OBJECT_HEAD: %w", err)
+		return "", fmt.Errorf("ERR_STORJ_UPLOAD_OBJECT_HEAD: %w", err)
 	}
 
-	cid := resp.Metadata["cid"]
-	if cid == "" {
-		return "", fmt.Errorf("ERR_FILEBASE_CID_NOT_FOUND: %w", err)
-	}
-
-	return cid, nil
+	return identifier, nil
 }
 
-func (fb *filebase) Download(ctx context.Context, path string) (io.ReadCloser, error) {
+// Download method returns an io.ReadCloser. The end user/consumer is responsible to close the io.ReadCloser
+func (sj *storj) Download(ctx context.Context, path string) (io.ReadCloser, error) {
 	input := &s3.GetObjectInput{
-		Bucket:       &fb.bucket,
+		Bucket:       &sj.bucket,
 		Key:          &path,
 		ChecksumMode: s3types.ChecksumModeEnabled,
 	}
 	ctx, cancel := context.WithTimeout(ctx, time.Minute*10)
 	defer cancel()
 
-	resp, err := fb.client.GetObject(ctx, input)
+	resp, err := sj.client.GetObject(ctx, input)
 	if err != nil {
-		return nil, fmt.Errorf("ERR_FILEBASE_GET_OBJECT: %w", err)
+		return nil, fmt.Errorf("ERR_STORJ_GET_OBJECT: %w", err)
 	}
 
 	return resp.Body, nil
 }
-func (fb *filebase) DownloadDir(skynetLink, dir string) error {
+
+func (sj *storj) DownloadDir(skynetLink, dir string) error {
 	return nil
 }
-func (fb *filebase) List(path string) ([]*types.Metadata, error) {
+
+func (sj *storj) List(path string) ([]*types.Metadata, error) {
 	return nil, nil
 }
-func (fb *filebase) AddImage(ns string, mf, l map[string][]byte) (string, error) {
+
+func (sj *storj) AddImage(ns string, mf, l map[string][]byte) (string, error) {
 	return "", nil
 }
 
 // Metadata API returns the HEADERS for an object. This object can be a manifest or a layer.
 // This API is usually a little behind when it comes to fetching the details for an uploaded object.
 // This is why we put it in a retry loop and break it as soon as we get the data
-func (fb *filebase) Metadata(identifier string) (*skynet.Metadata, error) {
+func (sj *storj) Metadata(identifier string) (*skynet.Metadata, error) {
 	var resp *s3.HeadObjectOutput
 	var err error
 
 	for i := 3; i > 0; i-- {
-		resp, err = fb.client.HeadObject(context.Background(), &s3.HeadObjectInput{
-			Bucket:       &fb.bucket,
+		resp, err = sj.client.HeadObject(context.Background(), &s3.HeadObjectInput{
+			Bucket:       &sj.bucket,
 			Key:          &identifier,
 			ChecksumMode: s3types.ChecksumModeEnabled,
 		})
@@ -213,30 +207,25 @@ func (fb *filebase) Metadata(identifier string) (*skynet.Metadata, error) {
 		break
 	}
 	if err != nil {
-		return nil, fmt.Errorf("ERR_FILEBASE_METADATA_HEAD: %w", err)
-	}
-
-	cid := resp.Metadata["cid"]
-	if cid == "" {
-		cid = identifier
+		return nil, fmt.Errorf("ERR_STORJ_METADATA_HEAD: %w", err)
 	}
 
 	return &skynet.Metadata{
 		ContentType:   *resp.ContentType,
 		Etag:          *resp.ETag,
-		Skylink:       cid,
+		Skylink:       identifier,
 		ContentLength: int(resp.ContentLength),
 	}, nil
 }
 
-func (fb *filebase) GetUploadProgress(identifier, uploadID string) (*types.ObjectMetadata, error) {
-	partsResp, err := fb.client.ListParts(context.Background(), &s3.ListPartsInput{
-		Bucket:   &fb.bucket,
+func (sj *storj) GetUploadProgress(identifier, uploadID string) (*types.ObjectMetadata, error) {
+	partsResp, err := sj.client.ListParts(context.Background(), &s3.ListPartsInput{
+		Bucket:   &sj.bucket,
 		Key:      &identifier,
 		UploadId: &uploadID,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("ERR_FILEBASE_UPLOAD_PROGRESS: %w", err)
+		return nil, fmt.Errorf("ERR_STORJ_UPLOAD_PROGRESS: %w", err)
 	}
 
 	var uploadedSize int64
@@ -249,32 +238,19 @@ func (fb *filebase) GetUploadProgress(identifier, uploadID string) (*types.Objec
 	}, nil
 }
 
-func (fb *filebase) AbortMultipartUpload(ctx context.Context, layerKey, uploadId string) error {
-	_, err := fb.client.AbortMultipartUpload(ctx, &s3.AbortMultipartUploadInput{
-		Bucket:   &fb.bucket,
-		Key:      &layerKey,
-		UploadId: &uploadId,
-	})
-	if err != nil {
-		return fmt.Errorf("FB_ABORT_MULTI_PART_UPLOAD: %w", err)
-	}
-
-	return nil
-}
-
-func (fb *filebase) GeneratePresignedURL(ctx context.Context, key string) (string, error) {
+func (sj *storj) GeneratePresignedURL(ctx context.Context, key string) (string, error) {
 	opts := &s3.GetObjectInput{
-		Bucket: aws.String(fb.bucket),
-		Key:    aws.String(key),
+		Bucket: &sj.bucket,
+		Key:    &key,
 	}
 
 	duration := func(o *s3.PresignOptions) {
 		o.Expires = time.Minute * 20
 	}
 
-	resp, err := fb.preSigner.PresignGetObject(ctx, opts, duration)
+	resp, err := sj.preSigner.PresignGetObject(ctx, opts, duration)
 	if err != nil {
-		return "", fmt.Errorf("ERR_FILEBASE_GENERATE_PRESIGNED_URL: %w", err)
+		return "", fmt.Errorf("ERR_STORJ_GENERATE_PRESIGNED_URL: %w", err)
 	}
 
 	return resp.URL, nil

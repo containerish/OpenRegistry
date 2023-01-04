@@ -16,8 +16,7 @@ import (
 type (
 	OpenRegistryConfig struct {
 		DFS            DFS    `yaml:"dfs" mapstructure:"dfs"`
-		SkynetConfig   Skynet `yaml:"skynet" mapstructure:"skynet" validate:"-"`
-		OAuth          OAuth  `yaml:"oauth" mapstructure:"oauth" validate:"-"`
+		OAuth          *OAuth `yaml:"oauth" mapstructure:"oauth"`
 		WebAppEndpoint string `yaml:"web_app_url" mapstructure:"web_app_url" validate:"required"`
 		//nolint
 		WebAppRedirectURL       string      `yaml:"web_app_redirect_url" mapstructure:"web_app_redirect_url" validate:"required"`
@@ -31,8 +30,9 @@ type (
 	}
 
 	DFS struct {
-		Skynet Skynet          `yaml:"skynet" mapstructure:"skynet"`
-		S3Any  S3CompatibleDFS `yaml:"s3_any" mapstructure:"s3_any"`
+		S3Any    S3CompatibleDFS `yaml:"s3_any" mapstructure:"s3_any"`
+		Filebase S3CompatibleDFS `yaml:"filebase" mapstructure:"filebase"`
+		Storj    S3CompatibleDFS `yaml:"storj" mapstructure:"storj"`
 	}
 
 	S3CompatibleDFS struct {
@@ -42,6 +42,7 @@ type (
 		BucketName      string `yaml:"bucket_name" mapstructure:"bucket_name"`
 		DFSLinkResolver string `yaml:"dfs_link_resolver" mapstructure:"dfs_link_resolver"`
 		ChunkSize       int    `yaml:"chunk_size" mapstructure:"chunk_size"`
+		Enabled         bool   `yaml:"enabled" mapstructure:"enabled"`
 	}
 
 	Registry struct {
