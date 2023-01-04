@@ -24,6 +24,7 @@ type filebase struct {
 
 func New(cfg *config.S3CompatibleDFS) dfs.DFS {
 	client := dfs.NewS3Client(cfg.Endpoint, cfg.AccessKey, cfg.SecretKey)
+
 	return &filebase{
 		client: client,
 		bucket: cfg.BucketName,
@@ -84,7 +85,7 @@ func (fb *filebase) UploadPart(
 
 // ctx is used for handling any request cancellations.
 // @param uploadId: string is the ID of the layer being uploaded
-func (fb *filebase) CompleteMultipartUploadInput(
+func (fb *filebase) CompleteMultipartUpload(
 	ctx context.Context,
 	uploadId string,
 	layerKey string,
@@ -229,4 +230,17 @@ func (fb *filebase) GetUploadProgress(identifier, uploadID string) (*types.Objec
 	return &types.ObjectMetadata{
 		ContentLength: int(uploadedSize),
 	}, nil
+}
+
+func (fb *filebase) AbortMultipartUpload(ctx context.Context, layerKey, uploadId string) error {
+	_, err := fb.client.AbortMultipartUpload(ctx, &s3.AbortMultipartUploadInput{
+		Bucket:   &fb.bucket,
+		Key:      &layerKey,
+		UploadId: &uploadId,
+	})
+	if err != nil {
+		return fmt.Errorf("FB_ABORT_MULTI_PART_UPLOAD: %w", err)
+	}
+
+	return nil
 }

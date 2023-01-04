@@ -25,7 +25,7 @@ type DFS interface {
 
 	// ctx is used for handling any request cancellations.
 	// @param uploadId: string is the ID of the layer being uploaded
-	CompleteMultipartUploadInput(
+	CompleteMultipartUpload(
 		ctx context.Context,
 		uploadId string,
 		key string,
@@ -38,4 +38,5 @@ type DFS interface {
 	AddImage(ns string, mf, l map[string][]byte) (string, error)
 	Metadata(skylink string) (*skynet.Metadata, error)
 	GetUploadProgress(identifier, uploadID string) (*types.ObjectMetadata, error)
+	AbortMultipartUpload(ctx context.Context, layerKey string, uploadId string) error
 }
