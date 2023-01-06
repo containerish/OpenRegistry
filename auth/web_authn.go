@@ -75,16 +75,6 @@ func (a *auth) BeginRegistration(ctx echo.Context) error {
 
 			// set it here so that we can continue to use userFromDb object
 			userFromDb = &user
-			// credentialCreation, err := a.doWebAuthnRegisteration(ctx.Request().Context(), &user)
-			// if err != nil {
-			//
-			// }
-			// echoErr := ctx.JSON(http.StatusOK, echo.Map{
-			// 	"message": "registration successful",
-			// 	"options": &options,
-			// })
-			// a.logger.Log(ctx, echoErr)
-			// return echoErr
 
 		} else {
 			echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
@@ -95,26 +85,6 @@ func (a *auth) BeginRegistration(ctx echo.Context) error {
 			return echoErr
 		}
 	}
-
-	// options, sessionData, err := a.webAuthN.BeginRegistration(userFromDb)
-	// if err != nil {
-	// 	echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
-	// 		"error":   err.Error(),
-	// 		"message": "error begin registration",
-	// 	})
-	// 	a.logger.Log(ctx, err)
-	// 	return echoErr
-	// }
-	//
-	// // store session data in DB
-	// if err := a.pgStore.AddWebAuthSessionData(ctx.Request().Context(), userFromDb.Id, sessionData, "registration"); err != nil {
-	// 	echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
-	// 		"error":   err.Error(),
-	// 		"message": "failed to add web authn session data for existing user",
-	// 	})
-	// 	a.logger.Log(ctx, err)
-	// 	return echoErr
-	// }
 
 	credentialOpts, err := a.doWebAuthnRegisteration(ctx.Request().Context(), userFromDb)
 	if err != nil {
@@ -299,8 +269,8 @@ func (a *auth) BeginLogin(ctx echo.Context) error {
 	})
 	a.logger.Log(ctx, echoErr)
 	return echoErr
-
 }
+
 func (a *auth) FinishLogin(ctx echo.Context) error {
 	ctx.Set(types.HandlerStartTime, time.Now())
 

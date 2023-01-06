@@ -24,7 +24,7 @@ func (a *auth) SignOut(ctx echo.Context) error {
 	}
 	parts := strings.Split(sessionCookie.Value, ":")
 	if len(parts) != 2 {
-		err := fmt.Errorf("invalid session id")
+		err = fmt.Errorf("invalid session id")
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error":   "INVALID_SESSION_ID",
 			"message": err,
@@ -36,7 +36,7 @@ func (a *auth) SignOut(ctx echo.Context) error {
 	sessionId := parts[0]
 	userId := parts[1]
 
-	if err := a.pgStore.DeleteSession(ctx.Request().Context(), sessionId, userId); err != nil {
+	if err = a.pgStore.DeleteSession(ctx.Request().Context(), sessionId, userId); err != nil {
 		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error":   err.Error(),
 			"message": "could not delete sessions",
