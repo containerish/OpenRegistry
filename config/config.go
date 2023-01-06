@@ -30,7 +30,6 @@ type (
 	}
 
 	DFS struct {
-		S3Any    S3CompatibleDFS `yaml:"s3_any" mapstructure:"s3_any"`
 		Filebase S3CompatibleDFS `yaml:"filebase" mapstructure:"filebase"`
 		Storj    S3CompatibleDFS `yaml:"storj" mapstructure:"storj"`
 	}

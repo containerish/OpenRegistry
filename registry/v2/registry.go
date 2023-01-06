@@ -305,9 +305,15 @@ func (r *registry) PullLayer(ctx echo.Context) error {
 	ctx.Response().Header().Set("Docker-Content-Digest", layer.Digest)
 	ctx.Response().Header().Set("status", "307")
 
-	url := r.getDownloadableURLFromDFSLink(layer.DFSLink)
+	downloadableURL, err := r.getDownloadableURLFromDFSLink(layer.DFSLink)
+	if err != nil {
+		errMsg := r.errorResponse(RegistryErrorCodeBlobUnknown, err.Error(), nil)
+		echoErr := ctx.JSONBlob(http.StatusInternalServerError, errMsg)
+		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
+		return echoErr
+	}
 	r.logger.Log(ctx, nil)
-	return ctx.Redirect(http.StatusTemporaryRedirect, url)
+	return ctx.Redirect(http.StatusTemporaryRedirect, downloadableURL)
 }
 
 // MonolithicUpload
@@ -376,22 +382,29 @@ func (r *registry) MonolithicUpload(ctx echo.Context) error {
 		return echoErr
 	}
 
-	if err := r.store.SetLayer(ctx.Request().Context(), txnOp, layerV2); err != nil {
+	if err = r.store.SetLayer(ctx.Request().Context(), txnOp, layerV2); err != nil {
 		errMsg := r.errorResponse(RegistryErrorCodeBlobUploadInvalid, err.Error(), nil)
 		echoErr := ctx.JSONBlob(http.StatusBadRequest, errMsg)
 		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
 		return echoErr
 	}
 
-	if err := r.store.Commit(ctx.Request().Context(), txnOp); err != nil {
+	if err = r.store.Commit(ctx.Request().Context(), txnOp); err != nil {
 		errMsg := r.errorResponse(RegistryErrorCodeBlobUploadInvalid, err.Error(), nil)
 		echoErr := ctx.JSONBlob(http.StatusBadRequest, errMsg)
 		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
 		return echoErr
 	}
 
-	link := r.getDownloadableURLFromDFSLink(dfsLink)
-	ctx.Response().Header().Set("Location", link)
+	downloadableURL, err := r.getDownloadableURLFromDFSLink(dfsLink)
+	if err != nil {
+		errMsg := r.errorResponse(RegistryErrorCodeBlobUnknown, err.Error(), nil)
+		echoErr := ctx.JSONBlob(http.StatusInternalServerError, errMsg)
+		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
+		return echoErr
+	}
+
+	ctx.Response().Header().Set("Location", downloadableURL)
 	echoErr := ctx.NoContent(http.StatusCreated)
 	r.logger.Log(ctx, nil)
 	return echoErr
@@ -544,7 +557,7 @@ func (r *registry) MonolithicPut(ctx echo.Context) error {
 		UpdatedAt:   time.Now(),
 	}
 
-	if err := r.store.SetLayer(ctx.Request().Context(), txnOp.txn, layer); err != nil {
+	if err = r.store.SetLayer(ctx.Request().Context(), txnOp.txn, layer); err != nil {
 		errMsg := r.errorResponse(RegistryErrorCodeUnknown, err.Error(), echo.Map{
 			"error_detail": "set layer issues",
 		})
@@ -553,7 +566,7 @@ func (r *registry) MonolithicPut(ctx echo.Context) error {
 		return echoErr
 	}
 
-	if err := r.store.Commit(ctx.Request().Context(), txnOp.txn); err != nil {
+	if err = r.store.Commit(ctx.Request().Context(), txnOp.txn); err != nil {
 		errMsg := r.errorResponse(RegistryErrorCodeUnknown, err.Error(), echo.Map{
 			"error_detail": "commitment issue",
 		})
@@ -562,9 +575,15 @@ func (r *registry) MonolithicPut(ctx echo.Context) error {
 		return echoErr
 	}
 
-	downlaodableLink := r.getDownloadableURLFromDFSLink(dfsLink)
+	downlaodableURL, err := r.getDownloadableURLFromDFSLink(dfsLink)
+	if err != nil {
+		errMsg := r.errorResponse(RegistryErrorCodeBlobUnknown, err.Error(), nil)
+		echoErr := ctx.JSONBlob(http.StatusInternalServerError, errMsg)
+		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
+		return echoErr
+	}
 	ctx.Response().Header().Set("Docker-Content-Digest", ourHash.String())
-	ctx.Response().Header().Set("Location", downlaodableLink)
+	ctx.Response().Header().Set("Location", downlaodableURL)
 	echoErr := ctx.NoContent(http.StatusCreated)
 	r.logger.Log(ctx, nil)
 	return echoErr
@@ -632,7 +651,9 @@ func (r *registry) CompleteUpload(ctx echo.Context) error {
 		dig,
 		r.b.layerParts[uploadID],
 	)
+	r.mu.Lock()
 	delete(r.b.layerParts, uploadID)
+	r.mu.Unlock()
 
 	if err != nil {
 		errMsg := r.errorResponse(RegistryErrorCodeBlobUploadInvalid, err.Error(), echo.Map{

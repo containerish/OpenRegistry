@@ -87,7 +87,7 @@ func (sj *storj) UploadPart(
 
 // ctx is used for handling any request cancellations.
 // @param uploadId: string is the ID of the layer being uploaded
-func (sj *storj) CompleteMultipartUploadInput(
+func (sj *storj) CompleteMultipartUpload(
 	ctx context.Context,
 	uploadId string,
 	layerKey string,
@@ -254,4 +254,17 @@ func (sj *storj) GeneratePresignedURL(ctx context.Context, key string) (string, 
 	}
 
 	return resp.URL, nil
+}
+
+func (sj *storj) AbortMultipartUpload(ctx context.Context, layerKey string, uploadId string) error {
+	_, err := sj.client.AbortMultipartUpload(ctx, &s3.AbortMultipartUploadInput{
+		Bucket:   &sj.bucket,
+		Key:      &layerKey,
+		UploadId: &uploadId,
+	})
+	if err != nil {
+		return fmt.Errorf("ERR_STORJ_ABORT_MULTI_PART_UPLOAD: %w", err)
+	}
+
+	return nil
 }

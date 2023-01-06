@@ -5,7 +5,7 @@ import (
 
 	"github.com/containerish/OpenRegistry/auth"
 	"github.com/containerish/OpenRegistry/config"
-	"github.com/containerish/OpenRegistry/dfs/filebase"
+	"github.com/containerish/OpenRegistry/dfs/client"
 	"github.com/containerish/OpenRegistry/registry/v2"
 	"github.com/containerish/OpenRegistry/registry/v2/extensions"
 	"github.com/containerish/OpenRegistry/router"
@@ -40,8 +40,8 @@ func main() {
 	logger := telemetry.ZLogger(fluentBitCollector, cfg.Environment)
 	authSvc := auth.New(cfg, pgStore, logger)
 
-	filebase := filebase.New(&cfg.DFS.S3Any)
-	reg, err := registry.NewRegistry(pgStore, filebase, logger, cfg)
+	dfs := client.NewDFSBackend(&cfg.DFS)
+	reg, err := registry.NewRegistry(pgStore, dfs, logger, cfg)
 	if err != nil {
 		e.Logger.Errorf("error creating new container registry: %s", err)
 		return

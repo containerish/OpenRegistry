@@ -23,7 +23,15 @@ oauth:
         client_id: dummy-gh-client-id
         client_secret: dummy-gh-client-secret
 dfs:
-    s3_any:
+    filebase:
+		enabled: true
+        access_key: <access-key>
+        secret_key: <access-secret-key>
+        endpoint: <s3-compatible-api-endpoint>
+        bucket_name: <s3-bucket-name>
+        dfs_link_resolver: <optional-dfs-link-resolver-url>
+    storj:
+		enabled: true
         access_key: <access-key>
         secret_key: <access-secret-key>
         endpoint: <s3-compatible-api-endpoint>
