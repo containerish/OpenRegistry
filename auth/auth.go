@@ -5,7 +5,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/duo-labs/webauthn/webauthn"
+	"github.com/go-webauthn/webauthn/webauthn"
 	"github.com/jackc/pgx/v4"
 
 	"github.com/containerish/OpenRegistry/config"
@@ -60,10 +60,12 @@ func New(
 
 	ghClient := gh.NewClient(nil)
 	emailClient := email.New(&c.Email, c.WebAppEndpoint)
+
+	// Initialise the Webauthn service
 	webAuthN, err := webauthn.New(&webauthn.Config{
 		RPDisplayName: c.WebAuthnConfig.RPDisplayName,
 		RPID:          c.WebAuthnConfig.RPID,
-		RPOrigin:      c.WebAuthnConfig.RPOrigin,
+		RPOrigins:     c.WebAuthnConfig.RPOrigins,
 		RPIcon:        c.WebAuthnConfig.RPIcon,
 	})
 	if err != nil {

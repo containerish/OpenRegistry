@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/containerish/OpenRegistry/store/postgres/queries"
-	"github.com/duo-labs/webauthn/webauthn"
+	"github.com/go-webauthn/webauthn/webauthn"
 )
 
 func (p *pg) AddWebAuthSessionData(
@@ -57,7 +57,7 @@ func (p *pg) GetWebAuthNSessionData(
 	return &sessionData, nil
 }
 
-func (p *pg) AddWebAuthNCredentials(ctx context.Context, credentialOwnerID string, credential *webauthn.Credential) error {
+func (p *pg) AddWebAuthNCredentials(ctx context.Context, credentialOwnerID string, cred *webauthn.Credential) error {
 	childCtx, cancel := context.WithTimeout(ctx, time.Millisecond*500)
 	defer cancel()
 
@@ -65,12 +65,12 @@ func (p *pg) AddWebAuthNCredentials(ctx context.Context, credentialOwnerID strin
 		childCtx,
 		queries.AddWebAuthNCredentials,
 		credentialOwnerID,
-		credential.ID,
-		credential.PublicKey,
-		credential.AttestationType,
-		credential.Authenticator.AAGUID,
-		credential.Authenticator.SignCount,
-		credential.Authenticator.CloneWarning,
+		cred.ID,
+		cred.PublicKey,
+		cred.AttestationType,
+		cred.Authenticator.AAGUID,
+		cred.Authenticator.SignCount,
+		cred.Authenticator.CloneWarning,
 	)
 
 	if err != nil {

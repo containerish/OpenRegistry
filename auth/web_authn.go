@@ -9,7 +9,8 @@ import (
 	"time"
 
 	"github.com/containerish/OpenRegistry/types"
-	"github.com/duo-labs/webauthn/protocol"
+	"github.com/go-webauthn/webauthn/protocol"
+	"github.com/go-webauthn/webauthn/webauthn"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v4"
 	"github.com/labstack/echo/v4"
@@ -153,7 +154,7 @@ func (a *auth) FinishRegistration(ctx echo.Context) error {
 
 	userFromDB, err := a.pgStore.GetUser(ctx.Request().Context(), username, false, meta.txn)
 	if err != nil {
-		meta.txn.Rollback(ctx.Request().Context())
+		_ = meta.txn.Rollback(ctx.Request().Context())
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error":   err.Error(),
 			"message": "no user found with this username",
@@ -164,7 +165,7 @@ func (a *auth) FinishRegistration(ctx echo.Context) error {
 
 	sessionData, err := a.pgStore.GetWebAuthNSessionData(ctx.Request().Context(), userFromDB.Id, "registration")
 	if err != nil {
-		meta.txn.Rollback(ctx.Request().Context())
+		_ = meta.txn.Rollback(ctx.Request().Context())
 
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error":   err.Error(),
@@ -176,7 +177,7 @@ func (a *auth) FinishRegistration(ctx echo.Context) error {
 
 	parsedResponse, err := protocol.ParseCredentialCreationResponseBody(ctx.Request().Body)
 	if err != nil {
-		meta.txn.Rollback(ctx.Request().Context())
+		_ = meta.txn.Rollback(ctx.Request().Context())
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error":   err.Error(),
 			"message": "error parsing credential creation response body",
@@ -188,7 +189,7 @@ func (a *auth) FinishRegistration(ctx echo.Context) error {
 
 	credentials, err := a.webAuthN.CreateCredential(userFromDB, *sessionData, parsedResponse)
 	if err != nil {
-		meta.txn.Rollback(ctx.Request().Context())
+		_ = meta.txn.Rollback(ctx.Request().Context())
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error":   err.Error(),
 			"message": "error creating webauthn credentials",
@@ -199,8 +200,8 @@ func (a *auth) FinishRegistration(ctx echo.Context) error {
 
 	// append the credential to the User.credentials field
 	userFromDB.AddWebAuthNCredential(credentials)
-	if err := a.pgStore.AddWebAuthNCredentials(ctx.Request().Context(), userFromDB.Id, credentials); err != nil {
-		meta.txn.Rollback(ctx.Request().Context())
+	if err = a.pgStore.AddWebAuthNCredentials(ctx.Request().Context(), userFromDB.Id, credentials); err != nil {
+		_ = meta.txn.Rollback(ctx.Request().Context())
 		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error":   err.Error(),
 			"message": "database error storing webauthn credentials",
@@ -209,7 +210,16 @@ func (a *auth) FinishRegistration(ctx echo.Context) error {
 		return echoErr
 	}
 
-	meta.txn.Commit(ctx.Request().Context())
+	if err = meta.txn.Commit(ctx.Request().Context()); err != nil {
+		_ = meta.txn.Rollback(ctx.Request().Context())
+		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
+			"error":   err.Error(),
+			"message": "error storing the credential info",
+		})
+		a.logger.Log(ctx, err)
+		return echoErr
+	}
+
 	echoErr := ctx.JSON(http.StatusOK, echo.Map{
 		"message": "registration successful",
 	})
@@ -245,7 +255,11 @@ func (a *auth) BeginLogin(ctx echo.Context) error {
 	// these credentials are added here because WebAuthn will try to access then via
 	// user.WebAuthnCredentials method
 	userFromDB.AddWebAuthNCredential(creds)
-	credentialAssertionOpts, sessionData, err := a.webAuthN.BeginLogin(userFromDB)
+
+	credentialAssertionOpts, sessionData, err := a.webAuthN.BeginLogin(
+		userFromDB,
+		webauthn.WithAllowedCredentials(userFromDB.GetExistingPublicKeyCredentials()),
+	)
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error":   err.Error(),
@@ -255,7 +269,8 @@ func (a *auth) BeginLogin(ctx echo.Context) error {
 		return echoErr
 	}
 
-	if err := a.pgStore.AddWebAuthSessionData(ctx.Request().Context(), userFromDB.Id, sessionData, "authentication"); err != nil {
+	err = a.pgStore.AddWebAuthSessionData(ctx.Request().Context(), userFromDB.Id, sessionData, "authentication")
+	if err != nil {
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error":   err.Error(),
 			"message": "database error: storing session data while web authn begin login",
@@ -305,6 +320,7 @@ func (a *auth) FinishLogin(ctx echo.Context) error {
 		return echoErr
 	}
 	defer ctx.Request().Body.Close()
+
 	creds, err := a.pgStore.GetWebAuthNCredentials(ctx.Request().Context(), userFromDb.Id)
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
@@ -380,12 +396,25 @@ func (a *auth) doWebAuthnRegisteration(ctx context.Context, user *types.User) (*
 		return nil, err
 	}
 
+	// User might already have few credentials. They shouldn't be considered when creating a new credential for them.
+	// A user can have multiple credentials
+	excludeList := user.GetExistingPublicKeyCredentials()
+
+	authSelect := &protocol.AuthenticatorSelection{
+		AuthenticatorAttachment: protocol.Platform,
+		RequireResidentKey:      protocol.ResidentKeyRequired(),
+		UserVerification:        protocol.VerificationRequired,
+	}
+
+	conveyancePref := protocol.ConveyancePreference(protocol.PreferNoAttestation)
+
 	user.AddWebAuthNCredentials(creds)
 	credentialCreation, sessionData, err := a.webAuthN.BeginRegistration(
 		user,
-		func(o *protocol.PublicKeyCredentialCreationOptions) {
-			o.CredentialExcludeList = user.GetExistingPublicKeyCredentials()
-		})
+		webauthn.WithExclusions(excludeList),
+		webauthn.WithAuthenticatorSelection(*authSelect),
+		webauthn.WithConveyancePreference(conveyancePref),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("ERR_WEB_AUTHN_BEGIN_REGISTRATION: %w", err)
 	}

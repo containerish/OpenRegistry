@@ -7,8 +7,8 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/duo-labs/webauthn/webauthn"
 	"github.com/go-playground/validator/v10"
+	"github.com/go-webauthn/webauthn/webauthn"
 )
 
 type (

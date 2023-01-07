@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/duo-labs/webauthn/webauthn"
+	"github.com/go-webauthn/webauthn/webauthn"
 
 	"github.com/containerish/OpenRegistry/config"
 	"github.com/containerish/OpenRegistry/types"
