@@ -20,7 +20,7 @@ require (
 	github.com/labstack/echo-contrib v0.13.1
 	github.com/labstack/echo/v4 v4.10.0
 	github.com/opencontainers/go-digest v1.0.0
-	github.com/rs/zerolog v1.28.0
+	github.com/rs/zerolog v1.29.0
 	github.com/sendgrid/sendgrid-go v3.12.0+incompatible
 	github.com/spf13/viper v1.15.0
 	github.com/valyala/fasttemplate v1.2.2
