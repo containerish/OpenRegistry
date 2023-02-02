@@ -6,7 +6,7 @@ require (
 	github.com/SkynetLabs/go-skynet/v2 v2.0.2
 	github.com/aws/aws-sdk-go-v2 v1.17.3
 	github.com/aws/aws-sdk-go-v2/config v1.18.10
-	github.com/aws/aws-sdk-go-v2/credentials v1.13.10
+	github.com/aws/aws-sdk-go-v2/credentials v1.13.11
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.30.1
 	github.com/fatih/color v1.14.1
 	github.com/go-playground/locales v0.14.1
