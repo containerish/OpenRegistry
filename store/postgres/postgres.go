@@ -21,29 +21,45 @@ type PersistentStore interface {
 	Close()
 }
 
-type UserStore interface {
-	AddUser(ctx context.Context, u *types.User, txn pgx.Tx) error
-	AddOAuthUser(ctx context.Context, u *types.User) error
-	UserExists(ctx context.Context, id string) bool
+type UserReader interface {
 	GetUser(ctx context.Context, identifier string, wihtPassword bool, txn pgx.Tx) (*types.User, error)
 	GetUserById(ctx context.Context, userId string, wihtPassword bool, txn pgx.Tx) (*types.User, error)
 	GetUserWithSession(ctx context.Context, sessionId string) (*types.User, error)
+	IsActive(ctx context.Context, identifier string) bool
+	GetVerifyEmail(ctx context.Context, userId string) (string, error)
+	UserExists(ctx context.Context, id string) bool
+}
+
+type UserWriter interface {
+	AddUser(ctx context.Context, u *types.User, txn pgx.Tx) error
+	AddOAuthUser(ctx context.Context, u *types.User) error
 	UpdateUser(ctx context.Context, identifier string, u *types.User) error
 	UpdateUserPWD(ctx context.Context, identifier string, newPassword string) error
-	DeleteUser(ctx context.Context, identifier string) error
-	IsActive(ctx context.Context, identifier string) bool
 	AddSession(ctx context.Context, sessionId, refreshToken, owner string) error
+	AddVerifyEmail(ctx context.Context, userId, token string) error
+}
+
+type UserDeleter interface {
+	DeleteUser(ctx context.Context, identifier string) error
 	DeleteSession(ctx context.Context, sessionId, userId string) error
 	DeleteAllSessions(ctx context.Context, userId string) error
-	AddVerifyEmail(ctx context.Context, userId, token string) error
-	GetVerifyEmail(ctx context.Context, userId string) (string, error)
 	DeleteVerifyEmail(ctx context.Context, userId string) error
 }
 
+type UserReadWriteDeleter interface {
+	PgTxnHandler
+	UserReader
+	UserWriter
+	UserDeleter
+}
+
+type UserStore interface {
+	PgTxnHandler
+	UserReadWriteDeleter
+}
+
 type RegistryStore interface {
-	NewTxn(ctx context.Context) (pgx.Tx, error)
-	Abort(ctx context.Context, txn pgx.Tx) error
-	Commit(ctx context.Context, txn pgx.Tx) error
+	PgTxnHandler
 	SetLayer(ctx context.Context, txn pgx.Tx, l *types.LayerV2) error
 	SetManifest(ctx context.Context, txn pgx.Tx, im *types.ImageManifestV2) error
 	SetBlob(ctx context.Context, txn pgx.Tx, b *types.Blob) error
@@ -74,7 +90,17 @@ type SessionStore interface {
 	DeleteAllSessions(ctx context.Context, userId string) error
 }
 
+type PgTxnHandler interface {
+	NewTxn(ctx context.Context) (pgx.Tx, error)
+	Abort(ctx context.Context, txn pgx.Tx) error
+	Commit(ctx context.Context, txn pgx.Tx) error
+}
+
 type WebAuthN interface {
+	PgTxnHandler
+	UserReader
+	UserWriter
+
 	GetWebAuthNSessionData(ctx context.Context, userId string, sessionType string) (*webauthn.SessionData, error)
 	AddWebAuthSessionData(ctx context.Context, userId string, sessionData *webauthn.SessionData, sessionType string) error
 	GetWebAuthNCredentials(ctx context.Context, userId string) (*webauthn.Credential, error)
