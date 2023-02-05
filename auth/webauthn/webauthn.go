@@ -51,6 +51,7 @@ type (
 )
 
 // Inspired from https://github.com/passwordless-id/webauthn#how-does-it-work
+// nolint
 // More of a permalink: https://camo.githubusercontent.com/56fd16123e9cef7d5ed6994812d0edef43e13c2f4bae12a0f7e06b6b9760fd57/68747470733a2f2f70617373776f72646c6573732e69642f70726f746f636f6c732f776562617574686e2f6f766572766965772e737667
 //
 //		    ┌────────┐                              ┌─────────┐                              ┌────────┐

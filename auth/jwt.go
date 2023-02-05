@@ -46,7 +46,15 @@ func (a *auth) newPublicPullToken() (string, error) {
 		},
 	}
 
-	claims := a.createClaims("public_pull_user", "", acl)
+	opts := &CreateClaimOptions{
+		Audience: a.c.Registry.FQDN,
+		Issuer:   OpenRegistryIssuer,
+		Id:       "public_pull_user",
+		TokeType: "service_token",
+		Acl:      acl,
+	}
+
+	claims := CreateClaims(opts)
 
 	// TODO (jay-dee7)- handle this properly, check for errors and don't set defaults for actions
 	claims.Access[0].Actions = []string{"pull"}
@@ -80,7 +88,7 @@ func (a *auth) newPublicPullToken() (string, error) {
 	hasher.Write(pubKeyDerBz)
 
 	// token := jwt.NewWithClaims(jwt.SigningMethodHS256, &claims)
-	token := jwt.NewWithClaims(jwt.SigningMethodRS256, &claims)
+	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
 	token.Header["kid"] = a.keyIDEncode(hasher.Sum(nil)[:30])
 	sign, err := token.SignedString(pv)
 	if err != nil {
@@ -111,44 +119,28 @@ func (a *auth) newOAuthToken(userId string, payload *oauth2.Token) (string, stri
 	accessClaims := a.createOAuthClaims(userId, payload)
 	refreshClaims := a.createRefreshClaims(userId)
 
-	rawPrivateKey, err := os.ReadFile(a.c.Registry.TLS.PrivateKey)
-	if err != nil {
-		return "", "", err
-	}
-	pv, err := jwt.ParseRSAPrivateKeyFromPEM(rawPrivateKey)
-	if err != nil {
-		panic(err)
-	}
-
-	rawPublicKey, err := os.ReadFile(a.c.Registry.TLS.PubKey)
+	privKey, pubKey, err := ReadRSAKeyPair(a.c.Registry.TLS.PrivateKey, a.c.Registry.TLS.PubKey)
 	if err != nil {
 		return "", "", err
 	}
 
-	pb, err := jwt.ParseRSAPublicKeyFromPEM(rawPublicKey)
-	if err != nil {
-		panic(err)
-	}
-
-	pubKeyDerBz, err := x509.MarshalPKIXPublicKey(pb)
+	pubKeyDerBz, err := x509.MarshalPKIXPublicKey(pubKey)
 	if err != nil {
 		return "", "", err
 	}
 
 	hasher := sha256.New()
 	hasher.Write(pubKeyDerBz)
-	// accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, &accessClaims)
 	accessToken := jwt.NewWithClaims(jwt.SigningMethodRS256, &accessClaims)
 	accessToken.Header["kid"] = a.keyIDEncode(hasher.Sum(nil)[:30])
-	accessSign, err := accessToken.SignedString(pv)
+	accessSign, err := accessToken.SignedString(privKey)
 	if err != nil {
 		return "", "", fmt.Errorf("ERR_ACCESS_TOKEN_SIGN: %w", err)
 	}
 
-	// refreshToken := jwt.NewWithClaims(jwt.SigningMethodHS256, &refreshClaims)
 	refreshToken := jwt.NewWithClaims(jwt.SigningMethodRS256, &refreshClaims)
 	refreshToken.Header["kid"] = a.keyIDEncode(hasher.Sum(nil)[:30])
-	refreshSign, err := refreshToken.SignedString(pv)
+	refreshSign, err := refreshToken.SignedString(privKey)
 	if err != nil {
 		return "", "", fmt.Errorf("ERR_REFRESH_TOKEN_SIGN: %w", err)
 	}
@@ -166,28 +158,21 @@ func (a *auth) newServiceToken(u types.User) (string, error) {
 			Actions: []string{"push", "pull"},
 		},
 	}
-	claims := a.createClaims(u.Id, "service", acl)
-	rawPrivateKey, err := os.ReadFile(a.c.Registry.TLS.PrivateKey)
+	opts := &CreateClaimOptions{
+		Audience: a.c.Registry.FQDN,
+		Issuer:   OpenRegistryIssuer,
+		Id:       u.Id,
+		TokeType: "service_token",
+		Acl:      acl,
+	}
+	claims := CreateClaims(opts)
+
+	privKey, pubKey, err := ReadRSAKeyPair(a.c.Registry.TLS.PrivateKey, a.c.Registry.TLS.PubKey)
 	if err != nil {
 		return "", err
 	}
 
-	pv, err := jwt.ParseRSAPrivateKeyFromPEM(rawPrivateKey)
-	if err != nil {
-		panic(err)
-	}
-
-	rawPublicKey, err := os.ReadFile(a.c.Registry.TLS.PubKey)
-	if err != nil {
-		return "", err
-	}
-
-	pb, err := jwt.ParseRSAPublicKeyFromPEM(rawPublicKey)
-	if err != nil {
-		panic(err)
-	}
-
-	pubKeyDerBz, err := x509.MarshalPKIXPublicKey(pb)
+	pubKeyDerBz, err := x509.MarshalPKIXPublicKey(pubKey)
 	if err != nil {
 		return "", err
 	}
@@ -197,7 +182,7 @@ func (a *auth) newServiceToken(u types.User) (string, error) {
 	// token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
 	token.Header["kid"] = a.keyIDEncode(hasher.Sum(nil)[:30])
-	sign, err := token.SignedString(pv)
+	sign, err := token.SignedString(privKey)
 	if err != nil {
 		return "", fmt.Errorf("error signing secret %w", err)
 	}
@@ -205,52 +190,52 @@ func (a *auth) newServiceToken(u types.User) (string, error) {
 	return sign, nil
 }
 
-func (a *auth) newWebLoginToken(userId, username, tokenType string) (string, error) {
-	acl := AccessList{
-		{
-			Type:    "repository",
-			Name:    fmt.Sprintf("%s/*", username),
-			Actions: []string{"push", "pull"},
-		},
-	}
-	claims := a.createClaims(userId, tokenType, acl)
-	rawPrivateKey, err := os.ReadFile(a.c.Registry.TLS.PrivateKey)
-	if err != nil {
-		return "", err
-	}
-
-	pv, err := jwt.ParseRSAPrivateKeyFromPEM(rawPrivateKey)
-	if err != nil {
-		panic(err)
-	}
-
-	rawPublicKey, err := os.ReadFile(a.c.Registry.TLS.PubKey)
-	if err != nil {
-		return "", err
-	}
-
-	pb, err := jwt.ParseRSAPublicKeyFromPEM(rawPublicKey)
-	if err != nil {
-		panic(err)
-	}
-
-	pubKeyDerBz, err := x509.MarshalPKIXPublicKey(pb)
-	if err != nil {
-		return "", err
-	}
-
-	hasher := sha256.New()
-	hasher.Write(pubKeyDerBz)
-	// raw := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	raw := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
-	raw.Header["kid"] = a.keyIDEncode(hasher.Sum(nil)[:30])
-	token, err := raw.SignedString(pv)
-	if err != nil {
-		return "", err
-	}
-
-	return token, nil
-}
+// func (a *auth) newWebLoginToken(userId, username, tokenType string) (string, error) {
+// 	acl := AccessList{
+// 		{
+// 			Type:    "repository",
+// 			Name:    fmt.Sprintf("%s/*", username),
+// 			Actions: []string{"push", "pull"},
+// 		},
+// 	}
+// 	claims := a.createClaims(userId, tokenType, acl)
+// 	rawPrivateKey, err := os.ReadFile(a.c.Registry.TLS.PrivateKey)
+// 	if err != nil {
+// 		return "", err
+// 	}
+//
+// 	pv, err := jwt.ParseRSAPrivateKeyFromPEM(rawPrivateKey)
+// 	if err != nil {
+// 		panic(err)
+// 	}
+//
+// 	rawPublicKey, err := os.ReadFile(a.c.Registry.TLS.PubKey)
+// 	if err != nil {
+// 		return "", err
+// 	}
+//
+// 	pb, err := jwt.ParseRSAPublicKeyFromPEM(rawPublicKey)
+// 	if err != nil {
+// 		panic(err)
+// 	}
+//
+// 	pubKeyDerBz, err := x509.MarshalPKIXPublicKey(pb)
+// 	if err != nil {
+// 		return "", err
+// 	}
+//
+// 	hasher := sha256.New()
+// 	hasher.Write(pubKeyDerBz)
+// 	// raw := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+// 	raw := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
+// 	raw.Header["kid"] = a.keyIDEncode(hasher.Sum(nil)[:30])
+// 	token, err := raw.SignedString(pv)
+// 	if err != nil {
+// 		return "", err
+// 	}
+//
+// 	return token, nil
+// }
 
 // nolint
 func (a *auth) createServiceClaims(u types.User) ServiceClaims {
@@ -321,31 +306,25 @@ func (a *auth) newToken(u *types.User) (string, error) {
 			Actions: []string{"push", "pull"},
 		},
 	}
-	rawPrivateKey, err := os.ReadFile(a.c.Registry.TLS.PrivateKey)
+
+	privKey, pubKey, err := ReadRSAKeyPair(a.c.Registry.TLS.PrivateKey, a.c.Registry.TLS.PubKey)
 	if err != nil {
 		return "", err
 	}
 
-	pv, err := jwt.ParseRSAPrivateKeyFromPEM(rawPrivateKey)
-	if err != nil {
-		panic(err)
-	}
-	claims := a.createClaims(u.Id, "access", acl)
-
-	rawPublicKey, err := os.ReadFile(a.c.Registry.TLS.PubKey)
+	pubKeyDerBz, err := x509.MarshalPKIXPublicKey(pubKey)
 	if err != nil {
 		return "", err
 	}
 
-	pb, err := jwt.ParseRSAPublicKeyFromPEM(rawPublicKey)
-	if err != nil {
-		panic(err)
+	opts := &CreateClaimOptions{
+		Audience: a.c.Registry.FQDN,
+		Issuer:   OpenRegistryIssuer,
+		Id:       u.Id,
+		TokeType: "access_token",
+		Acl:      acl,
 	}
-
-	pubKeyDerBz, err := x509.MarshalPKIXPublicKey(pb)
-	if err != nil {
-		return "", err
-	}
+	claims := CreateClaims(opts)
 
 	hasher := sha256.New()
 	hasher.Write(pubKeyDerBz)
@@ -354,7 +333,7 @@ func (a *auth) newToken(u *types.User) (string, error) {
 	token.Header["kid"] = a.keyIDEncode(hasher.Sum(nil)[:30])
 
 	// Generate encoded token and send it as response.
-	t, err := token.SignedString(pv)
+	t, err := token.SignedString(privKey)
 	if err != nil {
 		return "", err
 
@@ -386,38 +365,38 @@ claims format
 	    ]
 	}
 */
-func (a *auth) createClaims(id, tokenType string, acl AccessList) Claims {
-
-	tokenLife := time.Now().Add(time.Minute * 10).Unix()
-	switch tokenType {
-	case "access":
-		// TODO (jay-dee7)
-		// token can live for month now, but must be addressed when we implement PASETO
-		tokenLife = time.Now().Add(time.Hour * 750).Unix()
-	case "refresh":
-		tokenLife = time.Now().Add(time.Hour * 750).Unix()
-	case "service":
-		tokenLife = time.Now().Add(time.Hour * 750).Unix()
-	case "short-lived":
-		tokenLife = time.Now().Add(time.Minute * 30).Unix()
-	}
-
-	claims := Claims{
-		StandardClaims: jwt.StandardClaims{
-			Audience:  a.c.Endpoint(),
-			ExpiresAt: tokenLife,
-			Id:        id,
-			IssuedAt:  time.Now().Unix(),
-			Issuer:    "OpenRegistry",
-			NotBefore: time.Now().Unix(),
-			Subject:   id,
-		},
-		Access: acl,
-		Type:   tokenType,
-	}
-	return claims
-}
-
+// func (a *auth) createClaims(id, tokenType string, acl AccessList) Claims {
+//
+// 	tokenLife := time.Now().Add(time.Minute * 10).Unix()
+// 	switch tokenType {
+// 	case "access":
+// 		// TODO (jay-dee7)
+// 		// token can live for month now, but must be addressed when we implement PASETO
+// 		tokenLife = time.Now().Add(time.Hour * 750).Unix()
+// 	case "refresh":
+// 		tokenLife = time.Now().Add(time.Hour * 750).Unix()
+// 	case "service":
+// 		tokenLife = time.Now().Add(time.Hour * 750).Unix()
+// 	case "short-lived":
+// 		tokenLife = time.Now().Add(time.Minute * 30).Unix()
+// 	}
+//
+// 	claims := Claims{
+// 		StandardClaims: jwt.StandardClaims{
+// 			Audience:  a.c.Endpoint(),
+// 			ExpiresAt: tokenLife,
+// 			Id:        id,
+// 			IssuedAt:  time.Now().Unix(),
+// 			Issuer:    "OpenRegistry",
+// 			NotBefore: time.Now().Unix(),
+// 			Subject:   id,
+// 		},
+// 		Access: acl,
+// 		Type:   tokenType,
+// 	}
+// 	return claims
+// }
+//
 type AccessList []struct {
 	Type    string   `json:"type"`
 	Name    string   `json:"name"`

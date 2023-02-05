@@ -86,7 +86,15 @@ func (a *auth) RenewAccessToken(ctx echo.Context) error {
 		return echoErr
 	}
 
-	tokenString, err := a.newWebLoginToken(userId, user.Username, "access")
+	opts := &WebLoginJWTOptions{
+		Id:        userId,
+		Username:  user.Username,
+		TokenType: "access_token",
+		Audience:  a.c.Registry.FQDN,
+		Privkey:   a.c.Registry.TLS.PrivateKey,
+		Pubkey:    a.c.Registry.TLS.PubKey,
+	}
+	tokenString, err := NewWebLoginToken(opts)
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error":   err.Error(),

@@ -82,7 +82,15 @@ func (a *auth) SignIn(ctx echo.Context) error {
 		return echoErr
 	}
 
-	access, err := a.newWebLoginToken(userFromDb.Id, userFromDb.Username, "access")
+	accessTokenOpts := &WebLoginJWTOptions{
+		Id:        userFromDb.Id,
+		Username:  userFromDb.Username,
+		TokenType: "access_token",
+		Audience:  a.c.Registry.FQDN,
+		Privkey:   a.c.Registry.TLS.PrivateKey,
+		Pubkey:    a.c.Registry.TLS.PubKey,
+	}
+	access, err := NewWebLoginToken(accessTokenOpts)
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error":   err.Error(),
@@ -92,7 +100,16 @@ func (a *auth) SignIn(ctx echo.Context) error {
 		return echoErr
 	}
 
-	refresh, err := a.newWebLoginToken(userFromDb.Id, userFromDb.Username, "refresh")
+	refreshTokenOpts := &WebLoginJWTOptions{
+		Id:        userFromDb.Id,
+		Username:  userFromDb.Username,
+		TokenType: "refresh_token",
+		Audience:  a.c.Registry.FQDN,
+		Privkey:   a.c.Registry.TLS.PrivateKey,
+		Pubkey:    a.c.Registry.TLS.PubKey,
+	}
+
+	refresh, err := NewWebLoginToken(refreshTokenOpts)
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error":   err.Error(),

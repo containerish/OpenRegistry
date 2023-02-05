@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/containerish/OpenRegistry/auth"
 	"github.com/containerish/OpenRegistry/auth/webauthn"
 	"github.com/containerish/OpenRegistry/config"
 	"github.com/containerish/OpenRegistry/store/postgres"
@@ -41,7 +42,11 @@ type (
 	}
 )
 
-func NewWebauthnServer(cfg *config.OpenRegistryConfig, store postgres.PersistentStore, logger telemetry.Logger) WebauthnServer {
+func NewWebauthnServer(
+	cfg *config.OpenRegistryConfig,
+	store postgres.PersistentStore,
+	logger telemetry.Logger,
+) WebauthnServer {
 	webauthnService := webauthn.New(&cfg.WebAuthnConfig, store)
 
 	server := &webauthn_server{
@@ -323,7 +328,25 @@ func (wa *webauthn_server) FinishLogin(ctx echo.Context) error {
 	}
 	defer ctx.Request().Body.Close()
 
-	access, err := wa.newWebLoginToken(user.Id, user.Username, "access")
+	accessTokenOpts := &auth.WebLoginJWTOptions{
+		Id:        user.Id,
+		Username:  username,
+		TokenType: "access_token",
+		Audience:  wa.cfg.Registry.FQDN,
+		Privkey:   wa.cfg.Registry.TLS.PrivateKey,
+		Pubkey:    wa.cfg.Registry.TLS.PubKey,
+	}
+
+	refreshTokenOpts := &auth.WebLoginJWTOptions{
+		Id:        user.Id,
+		Username:  username,
+		TokenType: "refresh_token",
+		Audience:  wa.cfg.Registry.FQDN,
+		Privkey:   wa.cfg.Registry.TLS.PrivateKey,
+		Pubkey:    wa.cfg.Registry.TLS.PubKey,
+	}
+
+	accessToken, err := auth.NewWebLoginToken(accessTokenOpts)
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error":   err.Error(),
@@ -333,7 +356,7 @@ func (wa *webauthn_server) FinishLogin(ctx echo.Context) error {
 		return echoErr
 	}
 
-	refresh, err := wa.newWebLoginToken(user.Id, user.Username, "refresh")
+	refreshToken, err := auth.NewWebLoginToken(refreshTokenOpts)
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error":   err.Error(),
@@ -345,7 +368,7 @@ func (wa *webauthn_server) FinishLogin(ctx echo.Context) error {
 	id := uuid.NewString()
 	sessionId := fmt.Sprintf("%s:%s", id, user.Id)
 
-	if err = wa.store.AddSession(ctx.Request().Context(), id, refresh, user.Username); err != nil {
+	if err = wa.store.AddSession(ctx.Request().Context(), id, refreshToken, user.Username); err != nil {
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error":   err.Error(),
 			"message": "error creating session",
@@ -354,12 +377,36 @@ func (wa *webauthn_server) FinishLogin(ctx echo.Context) error {
 		return echoErr
 	}
 
-	sessionCookie := wa.createCookie("session_id", sessionId, false, time.Now().Add(time.Hour*750))
-	accessCookie := wa.createCookie("access", access, true, time.Now().Add(time.Hour*750))
-	refreshCookie := wa.createCookie("refresh", refresh, true, time.Now().Add(time.Hour*750))
-	ctx.SetCookie(accessCookie)
-	ctx.SetCookie(refreshCookie)
-	ctx.SetCookie(sessionCookie)
+	sessionIdCookie := auth.CreateCookie(&auth.CreateCookieOptions{
+		ExpiresAt:   time.Now().Add(time.Hour), //one month
+		Name:        "session_id",
+		Value:       sessionId,
+		FQDN:        wa.cfg.Registry.FQDN,
+		Environment: wa.cfg.Environment,
+		HTTPOnly:    true,
+	})
+
+	accessTokenCookie := auth.CreateCookie(&auth.CreateCookieOptions{
+		ExpiresAt:   time.Now().Add(time.Minute * 10),
+		Name:        "access_token",
+		Value:       accessToken,
+		FQDN:        wa.cfg.Registry.FQDN,
+		Environment: wa.cfg.Environment,
+		HTTPOnly:    true,
+	})
+
+	refreshTokenCookie := auth.CreateCookie(&auth.CreateCookieOptions{
+		ExpiresAt:   time.Now().Add(time.Hour * 750), //one month
+		Name:        "refresh_token",
+		Value:       sessionId,
+		FQDN:        wa.cfg.Registry.FQDN,
+		Environment: wa.cfg.Environment,
+		HTTPOnly:    true,
+	})
+
+	ctx.SetCookie(accessTokenCookie)
+	ctx.SetCookie(refreshTokenCookie)
+	ctx.SetCookie(sessionIdCookie)
 
 	echoErr := ctx.JSON(http.StatusOK, echo.Map{
 		"message": "Login Success",

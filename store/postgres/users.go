@@ -104,6 +104,11 @@ func (p *pg) AddOAuthUser(ctx context.Context, u *types.User) error {
 	return nil
 }
 
+// GetUser returns a types.User. Any of the following parameters can be used to querying the user:
+// - user id
+// - user email
+// - user's username
+// It also takes an optional txn field, which can be helpful to query this information from uncommited txns
 func (p *pg) GetUser(ctx context.Context, identifier string, withPassword bool, txn pgx.Tx) (*types.User, error) {
 	childCtx, cancel := context.WithTimeout(ctx, time.Millisecond*100)
 	defer cancel()
@@ -149,6 +154,8 @@ func (p *pg) GetUser(ctx context.Context, identifier string, withPassword bool, 
 	return &user, nil
 }
 
+// GetUserById returns a types.User. The parameter used to query the user is userID.
+// It also takes an optional txn field, which can be helpful to query this information from uncommited txns
 func (p *pg) GetUserById(ctx context.Context, userId string, withPassword bool, txn pgx.Tx) (*types.User, error) {
 	childCtx, cancel := context.WithTimeout(ctx, time.Millisecond*100)
 	defer cancel()

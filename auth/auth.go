@@ -33,12 +33,6 @@ type Authentication interface {
 	ResetForgottenPassword(ctx echo.Context) error
 	ForgotPassword(ctx echo.Context) error
 	Invites(ctx echo.Context) error
-
-	// BeginRegistration(ctx echo.Context) error
-	// RollbackRegisteration(ctx echo.Context) error
-	// FinishRegistration(ctx echo.Context) error
-	// BeginLogin(ctx echo.Context) error
-	// FinishLogin(ctx echo.Context) error
 }
 
 // New is the constructor function returns an Authentication implementation
