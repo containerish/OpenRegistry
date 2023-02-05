@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/containerish/OpenRegistry/auth"
+	auth_server "github.com/containerish/OpenRegistry/auth/server"
 	"github.com/containerish/OpenRegistry/config"
 	"github.com/containerish/OpenRegistry/registry/v2"
 	"github.com/containerish/OpenRegistry/registry/v2/extensions"
@@ -22,6 +23,7 @@ func Register(
 	e *echo.Echo,
 	reg registry.Registry,
 	authSvc auth.Authentication,
+	webauthnServer auth_server.WebauthnServer,
 	ext extensions.Extenion,
 ) {
 	e.Use(middleware.Recover())
@@ -54,6 +56,7 @@ func Register(
 
 	authRouter := e.Group(Auth)
 	githubRouter := authRouter.Group("/github")
+	webauthnRouter := e.Group(Webauthn)
 
 	v2Router.Add(http.MethodGet, Root, reg.ApiVersion)
 
@@ -65,6 +68,7 @@ func Register(
 	RegisterNSRoutes(nsRouter, reg)
 	RegisterAuthRoutes(authRouter, authSvc)
 	Extensions(v2Router, reg, ext, authSvc.JWT())
+	RegisterWebauthnRoutes(webauthnRouter, webauthnServer)
 
 	//catch-all will redirect user back to web interface
 	e.Add(http.MethodGet, "/", func(ctx echo.Context) error {

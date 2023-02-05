@@ -162,8 +162,8 @@ github.com/go-playground/validator/v10 v10.12.0/go.mod h1:hCAPuzYvKdP33pxWa+2+6A
 github.com/go-stack/stack v1.8.0/go.mod h1:v0f6uXyyMGvRgIKkXu+yp6POWl0qKG85gN/melR3HDY=
 github.com/go-webauthn/revoke v0.1.6 h1:3tv+itza9WpX5tryRQx4GwxCCBrCIiJ8GIkOhxiAmmU=
 github.com/go-webauthn/revoke v0.1.6/go.mod h1:TB4wuW4tPlwgF3znujA96F70/YSQXHPPWl7vgY09Iy8=
-github.com/go-webauthn/webauthn v0.6.0 h1:uLInMApSvBfP+vEFasNE0rnVPG++fjp7lmAIvNhe+UU=
-github.com/go-webauthn/webauthn v0.6.0/go.mod h1:7edMRZXwuM6JIVjN68G24Bzt+bPCvTmjiL0j+cAmXtY=
+github.com/go-webauthn/webauthn v0.7.0 h1:Tk2evkiZGtmbgGoYUbNw2BbPyI8e65tfi8HY9mSluWA=
+github.com/go-webauthn/webauthn v0.7.0/go.mod h1:FrFAvvr9oP+tXr1WeDpRz/rYJi5GRG0/EVFfpN7YhKA=
 github.com/godbus/dbus/v5 v5.0.4/go.mod h1:xhWf0FNVPg57R7Z0UbKHbJfkEywrmjJnf7w5xrFpKfA=
 github.com/gofrs/uuid v4.0.0+incompatible h1:1SD/1F5pU8p29ybwgQSwpQk+mwdRrXCYuPhW6m+TnJw=
 github.com/gofrs/uuid v4.0.0+incompatible/go.mod h1:b2aQJv3Z4Fp6yNu3cdSllBxTCLRxnplIgP/c0N/04lM=

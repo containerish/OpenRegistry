@@ -8,11 +8,8 @@ import (
 )
 
 // These are helper functions to Register depending on the usability
-
 // RegisterAuthRoutes includes all the auth related endpoints
 func RegisterAuthRoutes(authRouter *echo.Group, authSvc auth.Authentication) {
-
-	//send-email/welcome
 	authRouter.Add(http.MethodPost, "/signup", authSvc.SignUp)
 	authRouter.Add(http.MethodPost, "/send-email/welcome", authSvc.Invites)
 	authRouter.Add(http.MethodGet, "/signup/verify", authSvc.VerifyEmail)
@@ -25,11 +22,4 @@ func RegisterAuthRoutes(authRouter *echo.Group, authSvc auth.Authentication) {
 	authRouter.Add(http.MethodPost, "/reset-password", authSvc.ResetPassword, authSvc.JWT())
 	authRouter.Add(http.MethodPost, "/reset-forgotten-password", authSvc.ResetForgottenPassword, authSvc.JWT())
 	authRouter.Add(http.MethodGet, "/forgot-password", authSvc.ForgotPassword)
-
-	webAuthnRouter := authRouter.Group("/webauthn")
-	webAuthnRouter.Add(http.MethodPost, "/registration/begin", authSvc.BeginRegistration)
-	webAuthnRouter.Add(http.MethodDelete, "/registration/rollback", authSvc.RollbackRegisteration)
-	webAuthnRouter.Add(http.MethodPost, "/registration/finish", authSvc.FinishRegistration)
-	webAuthnRouter.Add(http.MethodGet, "/login/begin", authSvc.BeginLogin)
-	webAuthnRouter.Add(http.MethodPost, "/login/finish", authSvc.FinishLogin)
 }

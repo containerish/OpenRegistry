@@ -12,7 +12,7 @@ require (
 	github.com/go-playground/locales v0.14.1
 	github.com/go-playground/universal-translator v0.18.1
 	github.com/go-playground/validator/v10 v10.12.0
-	github.com/go-webauthn/webauthn v0.6.0
+	github.com/go-webauthn/webauthn v0.7.0
 	github.com/golang-jwt/jwt v3.2.2+incompatible
 	github.com/google/go-github/v42 v42.0.0
 	github.com/google/uuid v1.3.0
