@@ -10,7 +10,6 @@ import (
 
 	"github.com/containerish/OpenRegistry/config"
 	"github.com/containerish/OpenRegistry/store/postgres"
-	"github.com/containerish/OpenRegistry/types"
 	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/go-webauthn/webauthn/webauthn"
 	"github.com/jackc/pgx/v4"
@@ -298,7 +297,7 @@ func (wa *webAuthnService) FinishLogin(ctx context.Context, opts *FinishLoginOpt
 
 func (wa *webAuthnService) doWebAuthnRegisteration(
 	ctx context.Context,
-	user *types.User,
+	user *WebAuthnUser,
 ) (*protocol.CredentialCreation, error) {
 	creds, err := wa.store.GetWebAuthNCredentials(ctx, user.Id)
 	if err != nil && errors.Unwrap(err) != pgx.ErrNoRows {
