@@ -36,7 +36,7 @@ func (gh *ghAppService) HandleAppFinish(ctx echo.Context) error {
 		return echoErr
 	}
 
-	echoErr := ctx.Redirect(http.StatusTemporaryRedirect, gh.config.AppInstallRedirectURL)
+	echoErr := ctx.NoContent(http.StatusAccepted)
 	gh.logger.Log(ctx, echoErr).Send()
 	return echoErr
 }

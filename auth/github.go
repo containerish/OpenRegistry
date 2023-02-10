@@ -165,7 +165,7 @@ func (a *auth) createCookie(name string, value string, httpOnly bool, expiresAt 
 	if a.c.Environment == config.Local {
 		secure = false
 		sameSite = http.SameSiteLaxMode
-		url, err := url.Parse(a.c.WebAppEndpoint)
+		url, err := url.Parse(a.c.WebAppConfig.Endpoint)
 		if err != nil {
 			domain = "localhost"
 		} else {
