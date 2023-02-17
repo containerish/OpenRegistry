@@ -97,14 +97,11 @@ type PgTxnHandler interface {
 }
 
 type WebAuthN interface {
-	PgTxnHandler
-	UserReader
-	UserWriter
-
 	GetWebAuthNSessionData(ctx context.Context, userId string, sessionType string) (*webauthn.SessionData, error)
-	AddWebAuthSessionData(ctx context.Context, userId string, sessionData *webauthn.SessionData, sessionType string) error
 	GetWebAuthNCredentials(ctx context.Context, userId string) (*webauthn.Credential, error)
+	AddWebAuthSessionData(ctx context.Context, userId string, sessionData *webauthn.SessionData, sessionType string) error
 	AddWebAuthNCredentials(ctx context.Context, userId string, credential *webauthn.Credential) error
+	RemoveWebAuthSessionData(ctx context.Context, credentialOwnerID string) error
 }
 
 type pg struct {

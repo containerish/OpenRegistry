@@ -17,3 +17,4 @@ certs
 *.backup
 config.yaml.bak
 config.yml.bak
+*.pem

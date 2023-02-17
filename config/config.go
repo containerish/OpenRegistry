@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
 	"github.com/go-playground/locales/en"
 	ut "github.com/go-playground/universal-translator"
@@ -106,11 +107,13 @@ type (
 	}
 
 	WebAuthnConfig struct {
-		RPDisplayName string   `yaml:"rp_display_name" mapstructure:"rp_display_name"`
-		RPID          string   `yaml:"rp_id" mapstructure:"rp_id"`
-		RPIcon        string   `yaml:"rp_icon" mapstructure:"rp_icon"`
-		RPOrigins     []string `yaml:"rp_origins" mapstructure:"rp_origins"`
-		Enabled       bool     `yaml:"enabled" mapstructure:"enabled"`
+		RPDisplayName string        `yaml:"rp_display_name" mapstructure:"rp_display_name"`
+		RPID          string        `yaml:"rp_id" mapstructure:"rp_id"`
+		RPIcon        string        `yaml:"rp_icon" mapstructure:"rp_icon"`
+		RPOrigin      string        `yaml:"rp_origin" mapstructure:"rp_origin"`
+		RPOrigins     []string      `yaml:"rp_origins" mapstructure:"rp_origins"`
+		Enabled       bool          `yaml:"enabled" mapstructure:"enabled"`
+		Timeout       time.Duration `yaml:"timeout" mapstructure:"timeout"`
 	}
 )
 

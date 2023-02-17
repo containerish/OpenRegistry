@@ -24,7 +24,7 @@ type (
 		store    postgres.PersistentStore
 		logger   telemetry.Logger
 		cfg      *config.OpenRegistryConfig
-		webAuthN webauthn.WebAuthnService
+		webauthn webauthn.WebAuthnService
 		txnStore map[string]*webAuthNMeta
 	}
 
@@ -35,7 +35,7 @@ type (
 
 	WebauthnServer interface {
 		BeginRegistration(ctx echo.Context) error
-		RollbackRegisteration(ctx echo.Context) error
+		RollbackRegistration(ctx echo.Context) error
 		FinishRegistration(ctx echo.Context) error
 		BeginLogin(ctx echo.Context) error
 		FinishLogin(ctx echo.Context) error
@@ -53,7 +53,7 @@ func NewWebauthnServer(
 		store:    store,
 		logger:   logger,
 		cfg:      cfg,
-		webAuthN: webauthnService,
+		webauthn: webauthnService,
 		txnStore: make(map[string]*webAuthNMeta),
 	}
 
@@ -145,11 +145,32 @@ func (wa *webauthn_server) BeginRegistration(ctx echo.Context) error {
 	}
 
 	webauthnUser := &webauthn.WebAuthnUser{User: existingUser}
-	credentialOpts, err := wa.webAuthN.BeginRegistration(ctx.Request().Context(), webauthnUser)
+	credentialOpts, err := wa.webauthn.BeginRegistration(ctx.Request().Context(), webauthnUser)
 	if err != nil {
+		// If we encounter an error here, we need to do the following:
+		// 1. Rollback the session data (since this session data is irrelevant from this point onwards)
+		// 2. Rollback the webauthn user store txn
+		if werr := wa.webauthn.RemoveSessionData(ctx.Request().Context(), existingUser.Id); werr != nil {
+			echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
+				"error":   werr.Error(),
+				"message": "failed to rollback stale session data",
+			})
+			wa.logger.Log(ctx, err)
+			return echoErr
+		}
+
+		if rollbackErr := txn.Rollback(ctx.Request().Context()); rollbackErr != nil {
+			echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
+				"error":   rollbackErr.Error(),
+				"message": "failed to rollback webauthn user txn",
+			})
+			wa.logger.Log(ctx, err)
+			return echoErr
+		}
+
 		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error":   err.Error(),
-			"message": "failed to add web authn session data for existing user",
+			"message": "failed to add webauthn session data for existing user",
 		})
 		wa.logger.Log(ctx, err)
 		return echoErr
@@ -164,12 +185,12 @@ func (wa *webauthn_server) BeginRegistration(ctx echo.Context) error {
 	return echoErr
 }
 
-func (wa *webauthn_server) RollbackRegisteration(ctx echo.Context) error {
+func (wa *webauthn_server) RollbackRegistration(ctx echo.Context) error {
 	username := ctx.QueryParam("username")
 	meta, ok := wa.txnStore[username]
 	if !ok {
 		echoErr := ctx.JSON(http.StatusOK, echo.Map{
-			"message": "user txn does not exist",
+			"message": "user transaction does not exist",
 		})
 
 		wa.logger.Log(ctx, echoErr)
@@ -178,9 +199,9 @@ func (wa *webauthn_server) RollbackRegisteration(ctx echo.Context) error {
 
 	err := meta.txn.Rollback(ctx.Request().Context())
 	if err != nil {
-		echoErr := ctx.JSON(http.StatusOK, echo.Map{
+		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error":   err.Error(),
-			"message": "user txn does not exist",
+			"message": "failed to rollback transaction",
 		})
 
 		wa.logger.Log(ctx, echoErr)
@@ -188,7 +209,7 @@ func (wa *webauthn_server) RollbackRegisteration(ctx echo.Context) error {
 	}
 
 	echoErr := ctx.JSON(http.StatusOK, echo.Map{
-		"message": "txn rolled back successfully",
+		"message": "transaction rolled back successfully",
 	})
 
 	wa.logger.Log(ctx, echoErr)
@@ -227,7 +248,7 @@ func (wa *webauthn_server) FinishRegistration(ctx echo.Context) error {
 		},
 	}
 
-	if err = wa.webAuthN.FinishRegistration(ctx.Request().Context(), opts); err != nil {
+	if err = wa.webauthn.FinishRegistration(ctx.Request().Context(), opts); err != nil {
 		_ = meta.txn.Rollback(ctx.Request().Context())
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error":   err.Error(),
@@ -278,8 +299,17 @@ func (wa *webauthn_server) BeginLogin(ctx echo.Context) error {
 		},
 	}
 
-	credentialAssertion, err := wa.webAuthN.BeginLogin(ctx.Request().Context(), opts)
+	credentialAssertion, err := wa.webauthn.BeginLogin(ctx.Request().Context(), opts)
 	if err != nil {
+		if werr := wa.webauthn.RemoveSessionData(ctx.Request().Context(), user.Id); werr != nil {
+			echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
+				"error":   err.Error(),
+				"message": "error removing webauthn session data",
+			})
+			wa.logger.Log(ctx, err)
+			return echoErr
+		}
+
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error":   err.Error(),
 			"message": "error performing Webauthn login",
@@ -318,7 +348,7 @@ func (wa *webauthn_server) FinishLogin(ctx echo.Context) error {
 		},
 	}
 
-	if err = wa.webAuthN.FinishLogin(ctx.Request().Context(), opts); err != nil {
+	if err = wa.webauthn.FinishLogin(ctx.Request().Context(), opts); err != nil {
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error":   err.Error(),
 			"message": "parsing error: could not parse credential request body in finish login",

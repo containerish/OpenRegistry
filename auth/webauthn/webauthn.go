@@ -10,6 +10,7 @@ import (
 
 	"github.com/containerish/OpenRegistry/config"
 	"github.com/containerish/OpenRegistry/store/postgres"
+	"github.com/fatih/color"
 	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/go-webauthn/webauthn/webauthn"
 	"github.com/jackc/pgx/v4"
@@ -31,16 +32,18 @@ type (
 		BeginLogin(ctx context.Context, opts *BeginLoginOptions) (*protocol.CredentialAssertion, error)
 		FinishLogin(ctx context.Context, opts *FinishLoginOpts) error
 
-		// RollbackRegisteration rolls a registration back. This can be specially useful for scenarios like when the
-		// user does not provide input to the authentication
-		RollbackRegisteration(ctx context.Context, username string) error
+		// RemoveSessionData works sort of like a rollback for failed session operations.
+		// for eg. if the user doesn't answer the prompt within 60s, the client must call this API
+		// or if the received data is invalid in FinishLogin/FinishRegistration.
+		// The client is responsible for calling this method because it's possible that all of the Webauthn APIs succeed but
+		// some custom logic fails which would require the client to rollback
+		RemoveSessionData(ctx context.Context, userId string) error
 	}
 
 	webAuthnService struct {
-		cfg      *config.WebAuthnConfig
-		store    postgres.WebAuthN
-		txnStore map[string]*webAuthNMeta
-		core     *webauthn.WebAuthn
+		cfg   *config.WebAuthnConfig
+		store postgres.WebAuthN
+		core  *webauthn.WebAuthn
 	}
 
 	webAuthNMeta struct {
@@ -49,6 +52,8 @@ type (
 	}
 )
 
+// New returns a new Webauthn Service, which has simple wrappers for Signing up and registering a user
+// Also, if the WebAuthnConfig.Enabled is set to `false`, this will return `nil`
 // Inspired from https://github.com/passwordless-id/webauthn#how-does-it-work
 // nolint
 // More of a permalink: https://camo.githubusercontent.com/56fd16123e9cef7d5ed6994812d0edef43e13c2f4bae12a0f7e06b6b9760fd57/68747470733a2f2f70617373776f72646c6573732e69642f70726f746f636f6c732f776562617574686e2f6f766572766965772e737667
@@ -116,24 +121,35 @@ type (
 //		        ┃                                        ┃                                       ┃
 //		        ┃                                        ┃                                       ┃
 //		        ┃                                        ┃                                       ┃
-//
-// New returns a new Webauthn Service, which has simple wrappers for Signing up and registering a user
 func New(cfg *config.WebAuthnConfig, store postgres.WebAuthN) WebAuthnService {
+	if !cfg.Enabled {
+		color.Yellow("Webauthn: disabled")
+		return nil
+	}
+
 	core, err := webauthn.New(&webauthn.Config{
-		RPDisplayName: cfg.RPDisplayName,
-		RPID:          cfg.RPID,
-		RPOrigins:     cfg.RPOrigins,
-		RPIcon:        cfg.RPIcon,
+		RPDisplayName:         cfg.RPDisplayName,
+		RPID:                  cfg.RPID,
+		RPIcon:                cfg.RPIcon,
+		RPOrigin:              cfg.RPOrigin,
+		RPOrigins:             cfg.RPOrigins,
+		AttestationPreference: protocol.PreferNoAttestation,
+		AuthenticatorSelection: protocol.AuthenticatorSelection{
+			RequireResidentKey: protocol.ResidentKeyNotRequired(),
+			ResidentKey:        protocol.ResidentKeyRequirementDiscouraged,
+			UserVerification:   protocol.VerificationRequired,
+		},
+		Timeout: int(cfg.Timeout.Milliseconds()),
+		Debug:   false,
 	})
 	if err != nil {
-		log.Fatalf("webauthn config is missing: %s", err)
+		log.Fatalf("webauthn configuration is invalid: %s", err)
 	}
 
 	return &webAuthnService{
-		cfg:      cfg,
-		store:    store,
-		txnStore: make(map[string]*webAuthNMeta),
-		core:     core,
+		cfg:   cfg,
+		store: store,
+		core:  core,
 	}
 }
 
@@ -151,13 +167,13 @@ func (wa *webAuthnService) BeginRegistration(
 
 	// User might already have few credentials. They shouldn't be considered when creating a new credential for them.
 	// A user can have multiple credentials
-	excludeList := user.GetExistingPublicKeyCredentials()
+	excludeList := user.GetWebauthnCredentialDescriptors()
 
-	authSelect := &protocol.AuthenticatorSelection{
-		AuthenticatorAttachment: protocol.Platform,
-		RequireResidentKey:      protocol.ResidentKeyRequired(),
-		UserVerification:        protocol.VerificationRequired,
-	}
+	// authSelect := &protocol.AuthenticatorSelection{
+	// 	RequireResidentKey: protocol.ResidentKeyRequired(),
+	// 	ResidentKey:        protocol.ResidentKeyRequirementRequired,
+	// 	UserVerification:   protocol.VerificationRequired,
+	// }
 
 	conveyancePref := protocol.ConveyancePreference(protocol.PreferNoAttestation)
 
@@ -165,7 +181,7 @@ func (wa *webAuthnService) BeginRegistration(
 	credentialCreation, sessionData, err := wa.core.BeginRegistration(
 		user,
 		webauthn.WithExclusions(excludeList),
-		webauthn.WithAuthenticatorSelection(*authSelect),
+		// webauthn.WithAuthenticatorSelection(*authSelect),
 		webauthn.WithConveyancePreference(conveyancePref),
 	)
 	if err != nil {
@@ -177,20 +193,6 @@ func (wa *webAuthnService) BeginRegistration(
 	}
 
 	return credentialCreation, err
-}
-
-func (wa *webAuthnService) RollbackRegisteration(ctx context.Context, username string) error {
-	meta, ok := wa.txnStore[username]
-	if !ok {
-		return fmt.Errorf("ERR_ROLLBACK_REGISTRATION: txn does not exist")
-	}
-
-	err := meta.txn.Rollback(ctx)
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
 type FinishRegistrationOpts struct {
@@ -244,10 +246,9 @@ func (wa *webAuthnService) BeginLogin(
 	// these credentials are added here because WebAuthn will try to access then via
 	// user.WebAuthnCredentials method
 	opts.User.AddWebAuthNCredential(creds)
-
 	credentialAssertionOpts, sessionData, err := wa.core.BeginLogin(
 		opts.User,
-		webauthn.WithAllowedCredentials(opts.User.GetExistingPublicKeyCredentials()),
+		webauthn.WithAllowedCredentials(opts.User.GetWebauthnCredentialDescriptors()),
 	)
 	if err != nil {
 		return nil, err
@@ -261,6 +262,10 @@ func (wa *webAuthnService) BeginLogin(
 	return credentialAssertionOpts, nil
 }
 
+func (wa *webAuthnService) RemoveSessionData(ctx context.Context, userId string) error {
+	return wa.store.RemoveWebAuthSessionData(ctx, userId)
+}
+
 type FinishLoginOpts struct {
 	RequestBody io.Reader
 	User        *WebAuthnUser
@@ -271,17 +276,16 @@ type FinishLoginOpts struct {
 func (wa *webAuthnService) FinishLogin(ctx context.Context, opts *FinishLoginOpts) error {
 	sessionData, err := wa.store.GetWebAuthNSessionData(ctx, opts.User.Id, "authentication")
 	if err != nil {
-		return err
+		return fmt.Errorf("ERR_GET_WEBAUTHN_SESSION_DATA: %w", err)
 	}
-
 	parsedResponse, err := protocol.ParseCredentialRequestResponseBody(opts.RequestBody)
 	if err != nil {
-		return err
+		return fmt.Errorf("ERR_PARSE_REQUEST_RESPONSE_BODY: %w", err)
 	}
 
 	creds, err := wa.store.GetWebAuthNCredentials(ctx, opts.User.Id)
 	if err != nil {
-		return err
+		return fmt.Errorf("ERR_GET_WEBAUTHN_CREDENTIALS: %w", err)
 	}
 
 	opts.User.AddWebAuthNCredential(creds)
@@ -289,7 +293,7 @@ func (wa *webAuthnService) FinishLogin(ctx context.Context, opts *FinishLoginOpt
 	//Validate login gives back credential
 	_, err = wa.core.ValidateLogin(opts.User, *sessionData, parsedResponse)
 	if err != nil {
-		return err
+		return fmt.Errorf("ERR_VALIDATE_WEBAUTHN_LOGIN: %w", err)
 	}
 
 	return nil
@@ -306,7 +310,7 @@ func (wa *webAuthnService) doWebAuthnRegisteration(
 
 	// User might already have few credentials. They shouldn't be considered when creating a new credential for them.
 	// A user can have multiple credentials
-	excludeList := user.GetExistingPublicKeyCredentials()
+	excludeList := user.GetWebauthnCredentialDescriptors()
 
 	authSelect := &protocol.AuthenticatorSelection{
 		AuthenticatorAttachment: protocol.Platform,

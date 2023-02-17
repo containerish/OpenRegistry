@@ -9,6 +9,22 @@ import (
 	"github.com/go-webauthn/webauthn/webauthn"
 )
 
+func (p *pg) RemoveWebAuthSessionData(ctx context.Context, credentialOwnerID string) error {
+	childCtx, cancel := context.WithTimeout(ctx, time.Millisecond*500)
+	defer cancel()
+
+	_, err := p.conn.Exec(
+		childCtx,
+		queries.RemoveWebAuthNSessionData,
+		credentialOwnerID,
+	)
+	if err != nil {
+		return fmt.Errorf("ERR_REMOVE_WEB_AUTHN_SESSION_DATA :%w", err)
+	}
+
+	return nil
+}
+
 func (p *pg) AddWebAuthSessionData(
 	ctx context.Context,
 	credentialOwnerID string,
@@ -17,6 +33,7 @@ func (p *pg) AddWebAuthSessionData(
 ) error {
 	childCtx, cancel := context.WithTimeout(ctx, time.Millisecond*500)
 	defer cancel()
+
 	_, err := p.conn.Exec(
 		childCtx,
 		queries.AddWebAuthNSessionData,
@@ -31,6 +48,7 @@ func (p *pg) AddWebAuthSessionData(
 	if err != nil {
 		return fmt.Errorf("ERR_ADD_WEB_AUTHN_SESSION_DATA :%w", err)
 	}
+
 	return nil
 }
 

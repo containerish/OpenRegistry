@@ -20,8 +20,8 @@ type (
 )
 
 // WebAuthnID - User ID according to the Relying Party
+// TODO(jay-dee7): This will panic if the uuid is not in the requited format
 func (u *WebAuthnUser) WebAuthnID() []byte {
-	// TODO(jay-dee7): This will panic
 	userID := uuid.MustParse(u.Id)
 	return userID[:]
 }
@@ -60,7 +60,7 @@ func (u *WebAuthnUser) AddWebAuthNCredentials(creds ...*webauthn.Credential) {
 	}
 }
 
-func (u *WebAuthnUser) GetExistingPublicKeyCredentials() []protocol.CredentialDescriptor {
+func (u *WebAuthnUser) GetWebauthnCredentialDescriptors() []protocol.CredentialDescriptor {
 	var list []protocol.CredentialDescriptor
 
 	for _, cred := range u.credentials {
