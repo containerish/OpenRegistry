@@ -138,8 +138,8 @@ func (a *auth) SignIn(ctx echo.Context) error {
 
 	sessionId := fmt.Sprintf("%s:%s", id, userFromDb.Id)
 	sessionCookie := a.createCookie("session_id", sessionId, false, time.Now().Add(time.Hour*750))
-	accessCookie := a.createCookie("access", access, true, time.Now().Add(time.Hour*750))
-	refreshCookie := a.createCookie("refresh", refresh, true, time.Now().Add(time.Hour*750))
+	accessCookie := a.createCookie("access_token", access, true, time.Now().Add(time.Hour*750))
+	refreshCookie := a.createCookie("refresh_token", refresh, true, time.Now().Add(time.Hour*750))
 
 	ctx.SetCookie(accessCookie)
 	ctx.SetCookie(refreshCookie)

@@ -140,8 +140,8 @@ func (a *auth) GithubLoginCallbackHandler(ctx echo.Context) error {
 	val := fmt.Sprintf("%s:%s", sessionId, oauthUser.Id)
 
 	sessionCookie := a.createCookie("session_id", val, false, time.Now().Add(time.Hour*750))
-	accessCookie := a.createCookie("access", accessToken, true, time.Now().Add(time.Hour*750))
-	refreshCookie := a.createCookie("refresh", refreshToken, true, time.Now().Add(time.Hour*750))
+	accessCookie := a.createCookie("access_token", accessToken, true, time.Now().Add(time.Hour*750))
+	refreshCookie := a.createCookie("refresh_token", refreshToken, true, time.Now().Add(time.Hour*750))
 
 	ctx.SetCookie(accessCookie)
 	ctx.SetCookie(refreshCookie)

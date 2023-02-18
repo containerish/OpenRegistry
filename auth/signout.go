@@ -45,8 +45,8 @@ func (a *auth) SignOut(ctx echo.Context) error {
 		return echoErr
 	}
 
-	ctx.SetCookie(a.createCookie("access", "", true, time.Now().Add(-time.Hour)))
-	ctx.SetCookie(a.createCookie("refresh", "", true, time.Now().Add(-time.Hour)))
+	ctx.SetCookie(a.createCookie("access_token", "", true, time.Now().Add(-time.Hour)))
+	ctx.SetCookie(a.createCookie("refresh_token", "", true, time.Now().Add(-time.Hour)))
 	ctx.SetCookie(a.createCookie("session_id", "", true, time.Now().Add(-time.Hour)))
 	err = ctx.JSON(http.StatusAccepted, echo.Map{
 		"message": "session deleted successfully",
