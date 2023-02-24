@@ -25,7 +25,7 @@ require (
 	github.com/spf13/viper v1.15.0
 	github.com/valyala/fasttemplate v1.2.2
 	golang.org/x/crypto v0.6.0
-	golang.org/x/oauth2 v0.0.0-20221014153046-6fdb5e3db783
+	golang.org/x/oauth2 v0.5.0
 	gopkg.in/yaml.v2 v2.4.0
 )
 
