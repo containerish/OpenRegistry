@@ -18,14 +18,14 @@ require (
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/jackc/pgx/v4 v4.18.0
 	github.com/labstack/echo-contrib v0.13.1
-	github.com/labstack/echo/v4 v4.10.0
+	github.com/labstack/echo/v4 v4.10.2
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/rs/zerolog v1.29.0
 	github.com/sendgrid/sendgrid-go v3.12.0+incompatible
 	github.com/spf13/viper v1.15.0
 	github.com/valyala/fasttemplate v1.2.2
 	golang.org/x/crypto v0.6.0
-	golang.org/x/oauth2 v0.0.0-20221014153046-6fdb5e3db783
+	golang.org/x/oauth2 v0.5.0
 	gopkg.in/yaml.v2 v2.4.0
 )
 
@@ -82,7 +82,7 @@ require (
 	golang.org/x/net v0.7.0 // indirect
 	golang.org/x/sys v0.5.0 // indirect
 	golang.org/x/text v0.7.0 // indirect
-	golang.org/x/time v0.2.0 // indirect
+	golang.org/x/time v0.3.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/protobuf v1.28.1 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
