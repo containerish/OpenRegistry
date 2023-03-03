@@ -16,7 +16,7 @@ require (
 	github.com/google/go-github/v42 v42.0.0
 	github.com/google/uuid v1.3.0
 	github.com/hashicorp/go-multierror v1.1.1
-	github.com/jackc/pgx/v4 v4.18.0
+	github.com/jackc/pgx/v4 v4.18.1
 	github.com/labstack/echo-contrib v0.14.0
 	github.com/labstack/echo/v4 v4.10.2
 	github.com/opencontainers/go-digest v1.0.0
