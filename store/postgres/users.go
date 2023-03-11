@@ -178,7 +178,6 @@ func (p *pg) GetOAuthUser(ctx context.Context, identifier string, txn pgx.Tx) (*
 		queryRow = txn.QueryRow
 	}
 
-	// GetOAuthUser = `select id, is_active, username, login, email, node_id, created_at, updated_at from users where email=$1 or username=$1;`
 	var user types.User
 	row := queryRow(childCtx, queries.GetOAuthUser, identifier)
 	err := row.Scan(

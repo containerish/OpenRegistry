@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"time"
 
 	"github.com/containerish/OpenRegistry/config"
 	"github.com/containerish/OpenRegistry/store/postgres"
@@ -44,11 +43,6 @@ type (
 		cfg   *config.WebAuthnConfig
 		store postgres.WebAuthN
 		core  *webauthn.WebAuthn
-	}
-
-	webAuthNMeta struct {
-		expiresAt time.Time
-		txn       pgx.Tx
 	}
 )
 

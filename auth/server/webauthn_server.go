@@ -15,8 +15,6 @@ import (
 	"github.com/containerish/OpenRegistry/telemetry"
 	"github.com/containerish/OpenRegistry/types"
 	"github.com/google/uuid"
-	"github.com/jackc/pgconn"
-	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v4"
 	"github.com/labstack/echo/v4"
 )
@@ -436,31 +434,4 @@ func (wa *webauthn_server) FinishLogin(ctx echo.Context) error {
 
 	wa.logger.Log(ctx, echoErr)
 	return echoErr
-}
-
-func (wa *webauthn_server) storeWebauthnUserIfDoesntExist(ctx context.Context, pgErr error, user *types.User) error {
-	if errors.Unwrap(pgErr) == pgx.ErrNoRows {
-		id, err := uuid.NewRandom()
-		if err != nil {
-			return err
-		}
-		user.Id = id.String()
-		if err = user.Validate(false); err != nil {
-			return err
-		}
-
-		user.WebauthnConnected = true
-		if err = wa.store.AddUser(ctx, user, nil); err != nil {
-			var pgErr *pgconn.PgError
-			// this would mean that the user email is already registered
-			// so we return an error in this case
-			if errors.As(err, &pgErr) && pgErr.Code == pgerrcode.UniqueViolation {
-				return fmt.Errorf("username/email already exists")
-			}
-			return err
-		}
-		return nil
-	}
-
-	return pgErr
 }
