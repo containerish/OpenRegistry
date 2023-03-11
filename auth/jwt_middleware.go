@@ -8,7 +8,8 @@ import (
 	"time"
 
 	"github.com/containerish/OpenRegistry/types"
-	"github.com/golang-jwt/jwt"
+	"github.com/golang-jwt/jwt/v4"
+	echo_jwt "github.com/labstack/echo-jwt/v4"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 )
@@ -39,7 +40,7 @@ func (a *auth) JWT() echo.MiddlewareFunc {
 		panic(err)
 	}
 
-	return middleware.JWTWithConfig(middleware.JWTConfig{
+	return echo_jwt.WithConfig(echo_jwt.Config{
 		Skipper: func(ctx echo.Context) bool {
 			if strings.HasPrefix(ctx.Request().RequestURI, "/auth") {
 				return false
@@ -57,11 +58,7 @@ func (a *auth) JWT() echo.MiddlewareFunc {
 
 			return true
 		},
-		BeforeFunc:     middleware.DefaultJWTConfig.BeforeFunc,
-		SuccessHandler: middleware.DefaultJWTConfig.SuccessHandler,
-		ErrorHandler:   nil,
-		ErrorHandlerWithContext: func(err error, ctx echo.Context) error {
-			// ErrorHandlerWithContext only logs the failing requtest
+		ErrorHandler: func(ctx echo.Context, err error) error {
 			ctx.Set(types.HandlerStartTime, time.Now())
 			a.logger.Log(ctx, err)
 			return ctx.JSON(http.StatusUnauthorized, echo.Map{
@@ -141,12 +138,8 @@ func (a *auth) JWTRest() echo.MiddlewareFunc {
 		panic(err)
 	}
 
-	return middleware.JWTWithConfig(middleware.JWTConfig{
-		BeforeFunc:     middleware.DefaultJWTConfig.BeforeFunc,
-		SuccessHandler: middleware.DefaultJWTConfig.SuccessHandler,
-		ErrorHandler:   nil,
-		ErrorHandlerWithContext: func(err error, ctx echo.Context) error {
-			// ErrorHandlerWithContext only logs the failing requtest
+	return echo_jwt.WithConfig(echo_jwt.Config{
+		ErrorHandler: func(ctx echo.Context, err error) error {
 			ctx.Set(types.HandlerStartTime, time.Now())
 			a.logger.Log(ctx, err)
 			return ctx.JSON(http.StatusUnauthorized, echo.Map{
