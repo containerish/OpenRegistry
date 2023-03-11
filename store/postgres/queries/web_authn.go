@@ -18,4 +18,6 @@ var (
     where credential_owner_id=$1;`
 	RemoveWebAuthNSessionData = `delete from web_authn_session where credential_owner_id = $1`
 	RemoveWebAuthNCredentials = `delete from web_authn_creds where credential_owner_id = $1`
+	WebauthnUserExists        = `select exists (select username, email from users where (username=$1 or email=$2) and webauthn_connected=true)`
+	GithubUserExists          = `select exists (select username, email from users where (username=$1 or email=$2) and github_connected=true)`
 )

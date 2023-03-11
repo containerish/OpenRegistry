@@ -15,6 +15,8 @@ import (
 	"github.com/containerish/OpenRegistry/telemetry"
 	"github.com/containerish/OpenRegistry/types"
 	"github.com/google/uuid"
+	"github.com/jackc/pgconn"
+	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v4"
 	"github.com/labstack/echo/v4"
 )
@@ -97,11 +99,6 @@ func (wa *webauthn_server) BeginRegistration(ctx echo.Context) error {
 		return echoErr
 	}
 
-	key := user.Email
-	if user.Username != "" {
-		key = user.Username
-	}
-
 	txn, err := wa.store.NewTxn(ctx.Request().Context())
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
@@ -117,71 +114,66 @@ func (wa *webauthn_server) BeginRegistration(ctx echo.Context) error {
 		expiresAt: time.Now().Add(time.Minute),
 	}
 
-	existingUser, err := wa.store.GetUser(ctx.Request().Context(), key, true, nil)
-	if err != nil {
-		if errors.Unwrap(err) == pgx.ErrNoRows {
-			//user does not exist, create new user
-			user.Id = uuid.NewString()
-			if err = wa.store.AddUser(ctx.Request().Context(), &user, txn); err != nil {
-				echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
-					"error":   err.Error(),
-					"message": "database error, failed to add user",
+	_, err = wa.store.GetUser(ctx.Request().Context(), user.Email, false, nil)
+	if errors.Unwrap(err) == pgx.ErrNoRows {
+		user.Id = uuid.NewString()
+		user.WebauthnConnected = true
+		if err = wa.store.AddUser(ctx.Request().Context(), &user, txn); err != nil {
+			echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
+				"error":   err.Error(),
+				"message": "failed to store user details",
+			})
+			wa.logger.Log(ctx, err)
+			return echoErr
+		}
+
+		webauthnUser := &webauthn.WebAuthnUser{User: &user}
+		credentialOpts, err := wa.webauthn.BeginRegistration(ctx.Request().Context(), webauthnUser)
+		if err != nil {
+			// If we encounter an error here, we need to do the following:
+			// 1. Rollback the session data (since this session data is irrelevant from this point onwards)
+			// 2. Rollback the webauthn user store txn
+			if werr := wa.webauthn.RemoveSessionData(ctx.Request().Context(), user.Id); werr != nil {
+				echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
+					"error":   werr.Error(),
+					"message": "failed to rollback stale session data",
 				})
 				wa.logger.Log(ctx, err)
 				return echoErr
 			}
 
-			// set it here so that we can continue to use existingUser object
-			existingUser = &user
+			if rollbackErr := txn.Rollback(ctx.Request().Context()); rollbackErr != nil {
+				echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
+					"error":   rollbackErr.Error(),
+					"message": "failed to rollback webauthn user txn",
+				})
+				wa.logger.Log(ctx, err)
+				return echoErr
+			}
 
-		} else {
-			echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
+			echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 				"error":   err.Error(),
-				"message": "database error, failed to get user",
-			})
-			wa.logger.Log(ctx, err)
-			return echoErr
-		}
-	}
-
-	webauthnUser := &webauthn.WebAuthnUser{User: existingUser}
-	credentialOpts, err := wa.webauthn.BeginRegistration(ctx.Request().Context(), webauthnUser)
-	if err != nil {
-		// If we encounter an error here, we need to do the following:
-		// 1. Rollback the session data (since this session data is irrelevant from this point onwards)
-		// 2. Rollback the webauthn user store txn
-		if werr := wa.webauthn.RemoveSessionData(ctx.Request().Context(), existingUser.Id); werr != nil {
-			echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
-				"error":   werr.Error(),
-				"message": "failed to rollback stale session data",
+				"message": "failed to add webauthn session data for existing user",
 			})
 			wa.logger.Log(ctx, err)
 			return echoErr
 		}
 
-		if rollbackErr := txn.Rollback(ctx.Request().Context()); rollbackErr != nil {
-			echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
-				"error":   rollbackErr.Error(),
-				"message": "failed to rollback webauthn user txn",
-			})
-			wa.logger.Log(ctx, err)
-			return echoErr
-		}
-
-		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
-			"error":   err.Error(),
-			"message": "failed to add webauthn session data for existing user",
+		echoErr := ctx.JSON(http.StatusOK, echo.Map{
+			"message": "registration successful",
+			"options": credentialOpts,
 		})
-		wa.logger.Log(ctx, err)
+
+		wa.logger.Log(ctx, echoErr)
 		return echoErr
 	}
 
-	echoErr := ctx.JSON(http.StatusOK, echo.Map{
-		"message": "registration successful",
-		"options": credentialOpts,
+	err = fmt.Errorf("username/email already exists")
+	echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
+		"error":   err.Error(),
+		"message": "username/email already exists",
 	})
-
-	wa.logger.Log(ctx, echoErr)
+	wa.logger.Log(ctx, err)
 	return echoErr
 }
 
@@ -444,4 +436,31 @@ func (wa *webauthn_server) FinishLogin(ctx echo.Context) error {
 
 	wa.logger.Log(ctx, echoErr)
 	return echoErr
+}
+
+func (wa *webauthn_server) storeWebauthnUserIfDoesntExist(ctx context.Context, pgErr error, user *types.User) error {
+	if errors.Unwrap(pgErr) == pgx.ErrNoRows {
+		id, err := uuid.NewRandom()
+		if err != nil {
+			return err
+		}
+		user.Id = id.String()
+		if err = user.Validate(false); err != nil {
+			return err
+		}
+
+		user.WebauthnConnected = true
+		if err = wa.store.AddUser(ctx, user, nil); err != nil {
+			var pgErr *pgconn.PgError
+			// this would mean that the user email is already registered
+			// so we return an error in this case
+			if errors.As(err, &pgErr) && pgErr.Code == pgerrcode.UniqueViolation {
+				return fmt.Errorf("username/email already exists")
+			}
+			return err
+		}
+		return nil
+	}
+
+	return pgErr
 }

@@ -21,5 +21,7 @@ CREATE TABLE "users" (
 	"avatar_url" varchar, 
 	"oauth_id" int,
 	"is_active" boolean,  
-	"hireable" boolean
+	"hireable" boolean,
+    "webauthn_connected" boolean default false,
+    "github_connected" boolean default false
 );

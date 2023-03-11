@@ -8,7 +8,6 @@ import (
 	"unicode"
 
 	"github.com/go-playground/validator/v10"
-	"github.com/go-webauthn/webauthn/webauthn"
 )
 
 type (
@@ -33,10 +32,11 @@ type (
 		Name              string    `json:"name,omitempty"`
 		NodeID            string    `json:"node_id,omitempty"`
 		OrganizationsURL  string    `json:"organizations_url,omitempty"`
-		credentials       []webauthn.Credential
-		OAuthID           int  `json:"id,omitempty"`
-		Hireable          bool `json:"hireable,omitempty"`
-		IsActive          bool `json:"is_active,omitempty" validate:"-"`
+		OAuthID           int       `json:"id,omitempty"`
+		Hireable          bool      `json:"hireable,omitempty"`
+		IsActive          bool      `json:"is_active,omitempty" validate:"-"`
+		WebauthnConnected bool      `json:"webauthn_connected"`
+		GithubConnected   bool      `json:"github_connected"`
 	}
 
 	OAuthUser struct {
@@ -61,6 +61,7 @@ type (
 		ID                int  `json:"id"`
 		Hireable          bool `json:"hireable"`
 	}
+
 	Session struct {
 		Id           string `json:"id"`
 		RefreshToken string `json:"refresh_token"`

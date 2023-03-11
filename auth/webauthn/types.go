@@ -47,6 +47,10 @@ func (u *WebAuthnUser) WebAuthnCredentials() []webauthn.Credential {
 }
 
 func (u *WebAuthnUser) AddWebAuthNCredential(creds *webauthn.Credential) {
+	// initialised to non-nil value in case of first attempt
+	if u.credentials == nil {
+		u.credentials = make([]webauthn.Credential, 0)
+	}
 	u.credentials = append(u.credentials, *creds)
 }
 

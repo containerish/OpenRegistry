@@ -34,6 +34,8 @@ func (p *pg) AddUser(ctx context.Context, u *types.User, txn pgx.Tx) error {
 			u.Name,
 			u.Email,
 			u.Password,
+			u.WebauthnConnected,
+			u.GithubConnected,
 			u.Hireable,
 			u.HTMLURL,
 			t,
@@ -72,17 +74,21 @@ func (p *pg) AddOAuthUser(ctx context.Context, u *types.User) error {
 	defer cancel()
 
 	t := time.Now()
-	id, err := uuid.NewRandom()
-	if err != nil {
-		return fmt.Errorf("error creating id for oauth user")
+	if u.Id == "" {
+		id, err := uuid.NewRandom()
+		if err != nil {
+			return fmt.Errorf("error creating id for oauth user")
+		}
+		u.Id = id.String()
 	}
 
-	_, err = p.conn.Exec(
+	_, err := p.conn.Exec(
 		childCtx,
 		queries.AddOAuthUser,
-		id.String(),
+		u.Id,
 		u.Username,
 		u.Email,
+		u.GithubConnected,
 		u.HTMLURL,
 		t,
 		t,
@@ -130,6 +136,8 @@ func (p *pg) GetUser(ctx context.Context, identifier string, withPassword bool, 
 			&user.Password,
 			&user.CreatedAt,
 			&user.UpdatedAt,
+			&user.WebauthnConnected,
+			&user.GithubConnected,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("ERR_GET_USER_WITH_PASSWORD_FROM_DB: %w", err)
@@ -146,12 +154,57 @@ func (p *pg) GetUser(ctx context.Context, identifier string, withPassword bool, 
 		&user.Email,
 		&user.CreatedAt,
 		&user.UpdatedAt,
+		&user.WebauthnConnected,
+		&user.GithubConnected,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("ERR_GET_USER_FROM_DB: %w", err)
 	}
 
 	return &user, nil
+}
+
+// GetUser returns a types.User. Any of the following parameters can be used to querying the user:
+// - user id
+// - user email
+// - user's username
+// It also takes an optional txn field, which can be helpful to query this information from uncommited txns
+func (p *pg) GetOAuthUser(ctx context.Context, identifier string, txn pgx.Tx) (*types.User, error) {
+	childCtx, cancel := context.WithTimeout(ctx, time.Millisecond*100)
+	defer cancel()
+
+	queryRow := p.conn.QueryRow
+	if txn != nil {
+		queryRow = txn.QueryRow
+	}
+
+	// GetOAuthUser = `select id, is_active, username, login, email, node_id, created_at, updated_at from users where email=$1 or username=$1;`
+	var user types.User
+	row := queryRow(childCtx, queries.GetOAuthUser, identifier)
+	err := row.Scan(
+		&user.Id,
+		&user.Username,
+		&user.Email,
+		&user.GithubConnected,
+		&user.WebauthnConnected,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("ERR_GET_OAUTH_USER_FROM_DB: %w", err)
+	}
+
+	return &user, nil
+}
+
+func (p *pg) UpdateOAuthUser(ctx context.Context, email, login, nodeId string, txn pgx.Tx) error {
+	childCtx, cancel := context.WithTimeout(ctx, time.Millisecond*100)
+	defer cancel()
+
+	_, err := p.conn.Exec(childCtx, queries.UpdateOAuthUser, email, login, nodeId)
+	if err != nil {
+		return fmt.Errorf("ERR_UPDATE_OAUTH_USER_FROM_DB: %w", err)
+	}
+
+	return nil
 }
 
 // GetUserById returns a types.User. The parameter used to query the user is userID.
@@ -314,14 +367,35 @@ func (p *pg) IsActive(ctx context.Context, identifier string) bool {
 	return row != nil
 }
 
-func (p *pg) UserExists(ctx context.Context, id string) bool {
-	childCtx, cancel := context.WithTimeout(ctx, time.Millisecond*100)
-	defer cancel()
+// ID can be either a username or a uuid
+// func (p *pg) UserExists(ctx context.Context, id string) bool {
+// 	childCtx, cancel := context.WithTimeout(ctx, time.Millisecond*100)
+// 	defer cancel()
+//
+// 	var exists bool
+// 	if err := p.conn.QueryRow(childCtx, queries.UserExists, id).Scan(&exists); err != nil {
+// 		return false
+//
+// 	}
+//
+// 	return exists
+// }
 
-	row, err := p.GetUserById(childCtx, id, false, nil)
-	if err != nil || row == nil {
+func (p *pg) githubUserExists(ctx context.Context, username, email string) bool {
+	var exists bool
+	err := p.conn.QueryRow(ctx, queries.GithubUserExists, username, email).Scan((&exists))
+	if err != nil {
 		return false
 	}
 
-	return true
+	return exists
+}
+
+// returns github or webauthn user exists
+func (p *pg) UserExists(ctx context.Context, username, email string) (bool, bool) {
+	childCtx, cancel := context.WithTimeout(ctx, time.Millisecond*500)
+	defer cancel()
+
+	return p.githubUserExists(childCtx, email, username), p.WebauthnUserExists(childCtx, email, username)
+
 }

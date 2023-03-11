@@ -116,3 +116,13 @@ func (p *pg) GetWebAuthNCredentials(ctx context.Context, credentialOwnerID strin
 	}
 	return &creds, nil
 }
+
+func (p *pg) WebauthnUserExists(ctx context.Context, username, email string) bool {
+	var exists bool
+	err := p.conn.QueryRow(ctx, queries.WebauthnUserExists, username, email).Scan((&exists))
+	if err != nil {
+		return false
+	}
+
+	return exists
+}

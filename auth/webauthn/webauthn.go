@@ -137,7 +137,7 @@ func New(cfg *config.WebAuthnConfig, store postgres.WebAuthN) WebAuthnService {
 		AuthenticatorSelection: protocol.AuthenticatorSelection{
 			RequireResidentKey: protocol.ResidentKeyNotRequired(),
 			ResidentKey:        protocol.ResidentKeyRequirementDiscouraged,
-			UserVerification:   protocol.VerificationRequired,
+			UserVerification:   protocol.VerificationDiscouraged,
 		},
 		Timeout: int(cfg.Timeout.Milliseconds()),
 		Debug:   false,
@@ -165,15 +165,20 @@ func (wa *webAuthnService) BeginRegistration(
 		return nil, err
 	}
 
+	// if there are any existing credentials, add them here
+	if creds != nil {
+		user.AddWebAuthNCredential(creds)
+	}
+
 	// User might already have few credentials. They shouldn't be considered when creating a new credential for them.
 	// A user can have multiple credentials
 	excludeList := user.GetWebauthnCredentialDescriptors()
 
-	// authSelect := &protocol.AuthenticatorSelection{
-	// 	RequireResidentKey: protocol.ResidentKeyRequired(),
-	// 	ResidentKey:        protocol.ResidentKeyRequirementRequired,
-	// 	UserVerification:   protocol.VerificationRequired,
-	// }
+	authSelect := &protocol.AuthenticatorSelection{
+		RequireResidentKey: protocol.ResidentKeyRequired(),
+		ResidentKey:        protocol.ResidentKeyRequirementRequired,
+		UserVerification:   protocol.VerificationDiscouraged,
+	}
 
 	conveyancePref := protocol.ConveyancePreference(protocol.PreferNoAttestation)
 
@@ -181,7 +186,7 @@ func (wa *webAuthnService) BeginRegistration(
 	credentialCreation, sessionData, err := wa.core.BeginRegistration(
 		user,
 		webauthn.WithExclusions(excludeList),
-		// webauthn.WithAuthenticatorSelection(*authSelect),
+		webauthn.WithAuthenticatorSelection(*authSelect),
 		webauthn.WithConveyancePreference(conveyancePref),
 	)
 	if err != nil {
@@ -297,43 +302,4 @@ func (wa *webAuthnService) FinishLogin(ctx context.Context, opts *FinishLoginOpt
 	}
 
 	return nil
-}
-
-func (wa *webAuthnService) doWebAuthnRegisteration(
-	ctx context.Context,
-	user *WebAuthnUser,
-) (*protocol.CredentialCreation, error) {
-	creds, err := wa.store.GetWebAuthNCredentials(ctx, user.Id)
-	if err != nil && errors.Unwrap(err) != pgx.ErrNoRows {
-		return nil, err
-	}
-
-	// User might already have few credentials. They shouldn't be considered when creating a new credential for them.
-	// A user can have multiple credentials
-	excludeList := user.GetWebauthnCredentialDescriptors()
-
-	authSelect := &protocol.AuthenticatorSelection{
-		AuthenticatorAttachment: protocol.Platform,
-		RequireResidentKey:      protocol.ResidentKeyRequired(),
-		UserVerification:        protocol.VerificationRequired,
-	}
-
-	conveyancePref := protocol.ConveyancePreference(protocol.PreferNoAttestation)
-
-	user.AddWebAuthNCredentials(creds)
-	credentialCreation, sessionData, err := wa.core.BeginRegistration(
-		user,
-		webauthn.WithExclusions(excludeList),
-		webauthn.WithAuthenticatorSelection(*authSelect),
-		webauthn.WithConveyancePreference(conveyancePref),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("ERR_WEB_AUTHN_BEGIN_REGISTRATION: %w", err)
-	}
-	// store session data in DB
-	if err = wa.store.AddWebAuthSessionData(ctx, user.Id, sessionData, "registration"); err != nil {
-		return nil, err
-	}
-
-	return credentialCreation, err
 }

@@ -27,7 +27,10 @@ type UserReader interface {
 	GetUserWithSession(ctx context.Context, sessionId string) (*types.User, error)
 	IsActive(ctx context.Context, identifier string) bool
 	GetVerifyEmail(ctx context.Context, userId string) (string, error)
-	UserExists(ctx context.Context, id string) bool
+	// ID can be either a username, oauth login (GitHub username) or the user id (uuid)
+	UserExists(ctx context.Context, username, email string) (bool, bool)
+	GetOAuthUser(ctx context.Context, identifier string, txn pgx.Tx) (*types.User, error)
+	UpdateOAuthUser(ctx context.Context, email, login, nodeId string, txn pgx.Tx) error
 }
 
 type UserWriter interface {
@@ -102,6 +105,7 @@ type WebAuthN interface {
 	AddWebAuthSessionData(ctx context.Context, userId string, sessionData *webauthn.SessionData, sessionType string) error
 	AddWebAuthNCredentials(ctx context.Context, userId string, credential *webauthn.Credential) error
 	RemoveWebAuthSessionData(ctx context.Context, credentialOwnerID string) error
+	WebauthnUserExists(ctx context.Context, email, username string) bool
 }
 
 type pg struct {
