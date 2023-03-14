@@ -6,6 +6,7 @@ import (
 
 	"github.com/SkynetLabs/go-skynet/v2"
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
+	"github.com/containerish/OpenRegistry/config"
 	"github.com/containerish/OpenRegistry/types"
 )
 
@@ -40,4 +41,5 @@ type DFS interface {
 	GetUploadProgress(identifier, uploadID string) (*types.ObjectMetadata, error)
 	AbortMultipartUpload(ctx context.Context, layerKey string, uploadId string) error
 	GeneratePresignedURL(ctx context.Context, key string) (string, error)
+	Config() *config.S3CompatibleDFS
 }

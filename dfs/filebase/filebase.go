@@ -20,6 +20,7 @@ import (
 type filebase struct {
 	client    *s3.Client
 	preSigner *s3.PresignClient
+	config    *config.S3CompatibleDFS
 	bucket    string
 }
 
@@ -30,6 +31,7 @@ func New(cfg *config.S3CompatibleDFS) dfs.DFS {
 		client:    client,
 		bucket:    cfg.BucketName,
 		preSigner: s3.NewPresignClient(client),
+		config:    cfg,
 	}
 }
 
@@ -278,4 +280,8 @@ func (fb *filebase) GeneratePresignedURL(ctx context.Context, key string) (strin
 	}
 
 	return resp.URL, nil
+}
+
+func (fb *filebase) Config() *config.S3CompatibleDFS {
+	return fb.config
 }

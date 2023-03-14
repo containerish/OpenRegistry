@@ -43,12 +43,24 @@ func ReadYamlConfig() (*OpenRegistryConfig, error) {
 		return nil, fmt.Errorf("ERR_UNMARSHAL_CONFIG: %w", err)
 	}
 
-	if cfg.DFS.Filebase.Enabled && cfg.DFS.Filebase.ChunkSize == 0 {
-		cfg.DFS.Filebase.ChunkSize = 1024 * 1024 * 20
+	if cfg.DFS.Filebase.Enabled {
+		if cfg.DFS.Filebase.ChunkSize == 0 {
+			cfg.DFS.Filebase.ChunkSize = twentyMBInBytes
+		}
+
+		if cfg.DFS.Filebase.MinChunkSize == 0 {
+			cfg.DFS.Filebase.MinChunkSize = fiveMBInBytes
+		}
 	}
 
-	if cfg.DFS.Storj.Enabled && cfg.DFS.Storj.ChunkSize == 0 {
-		cfg.DFS.Storj.ChunkSize = 1024 * 1024 * 20
+	if cfg.DFS.Storj.Enabled {
+		if cfg.DFS.Storj.ChunkSize == 0 {
+			cfg.DFS.Storj.ChunkSize = twentyMBInBytes
+		}
+
+		if cfg.DFS.Storj.MinChunkSize == 0 {
+			cfg.DFS.Storj.MinChunkSize = fiveMBInBytes
+		}
 	}
 
 	if err := cfg.Validate(); err != nil {
@@ -57,3 +69,6 @@ func ReadYamlConfig() (*OpenRegistryConfig, error) {
 
 	return &cfg, nil
 }
+
+const fiveMBInBytes = 1024 * 1024 * 5
+const twentyMBInBytes = 1024 * 1024 * 20

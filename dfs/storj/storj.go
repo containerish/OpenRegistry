@@ -20,6 +20,7 @@ import (
 type storj struct {
 	client    *s3.Client
 	preSigner *s3.PresignClient
+	config    *config.S3CompatibleDFS
 	bucket    string
 }
 
@@ -30,6 +31,7 @@ func New(cfg *config.S3CompatibleDFS) dfs.DFS {
 		client:    client,
 		bucket:    cfg.BucketName,
 		preSigner: s3.NewPresignClient(client),
+		config:    cfg,
 	}
 }
 
@@ -267,4 +269,8 @@ func (sj *storj) AbortMultipartUpload(ctx context.Context, layerKey string, uplo
 	}
 
 	return nil
+}
+
+func (sj *storj) Config() *config.S3CompatibleDFS {
+	return sj.config
 }

@@ -41,6 +41,7 @@ type (
 		BucketName      string `yaml:"bucket_name" mapstructure:"bucket_name"`
 		DFSLinkResolver string `yaml:"dfs_link_resolver" mapstructure:"dfs_link_resolver"`
 		ChunkSize       int    `yaml:"chunk_size" mapstructure:"chunk_size"`
+		MinChunkSize    uint64 `yaml:"min_chunk_size" mapstructure:"min_chunk_size"`
 		Enabled         bool   `yaml:"enabled" mapstructure:"enabled"`
 	}
 

@@ -477,6 +477,7 @@ func (r *registry) StartUpload(ctx echo.Context) error {
 	ctx.Response().Header().Set("Location", locationHeader)
 	ctx.Response().Header().Set("Content-Length", "0")
 	ctx.Response().Header().Set("Docker-Upload-UUID", uploadTrackingID)
+	ctx.Response().Header().Set("OCI-Chunk-Min-Bytes", fmt.Sprintf("%d", r.dfs.Config().MinChunkSize))
 	ctx.Response().Header().Set("Range", "0-0")
 	echoErr := ctx.NoContent(http.StatusAccepted)
 	r.logger.Log(ctx, nil)
