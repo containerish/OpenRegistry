@@ -35,10 +35,11 @@ type (
 
 	WebauthnServer interface {
 		BeginRegistration(ctx echo.Context) error
-		RollbackRegistration(ctx echo.Context) error
 		FinishRegistration(ctx echo.Context) error
 		BeginLogin(ctx echo.Context) error
 		FinishLogin(ctx echo.Context) error
+		RollbackRegistration(ctx echo.Context) error
+		RollbackSessionData(ctx echo.Context) error
 	}
 )
 
@@ -97,6 +98,8 @@ func (wa *webauthn_server) BeginRegistration(ctx echo.Context) error {
 		return echoErr
 	}
 
+	wa.invalidateExistingRequests(ctx.Request().Context(), user.Username)
+
 	txn, err := wa.store.NewTxn(ctx.Request().Context())
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
@@ -126,8 +129,8 @@ func (wa *webauthn_server) BeginRegistration(ctx echo.Context) error {
 		}
 
 		webauthnUser := &webauthn.WebAuthnUser{User: &user}
-		credentialOpts, err := wa.webauthn.BeginRegistration(ctx.Request().Context(), webauthnUser)
-		if err != nil {
+		credentialOpts, wErr := wa.webauthn.BeginRegistration(ctx.Request().Context(), webauthnUser)
+		if wErr != nil {
 			// If we encounter an error here, we need to do the following:
 			// 1. Rollback the session data (since this session data is irrelevant from this point onwards)
 			// 2. Rollback the webauthn user store txn
@@ -136,7 +139,7 @@ func (wa *webauthn_server) BeginRegistration(ctx echo.Context) error {
 					"error":   werr.Error(),
 					"message": "failed to rollback stale session data",
 				})
-				wa.logger.Log(ctx, err)
+				wa.logger.Log(ctx, wErr)
 				return echoErr
 			}
 
@@ -145,15 +148,15 @@ func (wa *webauthn_server) BeginRegistration(ctx echo.Context) error {
 					"error":   rollbackErr.Error(),
 					"message": "failed to rollback webauthn user txn",
 				})
-				wa.logger.Log(ctx, err)
+				wa.logger.Log(ctx, wErr)
 				return echoErr
 			}
 
 			echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
-				"error":   err.Error(),
+				"error":   wErr.Error(),
 				"message": "failed to add webauthn session data for existing user",
 			})
-			wa.logger.Log(ctx, err)
+			wa.logger.Log(ctx, wErr)
 			return echoErr
 		}
 
@@ -204,6 +207,41 @@ func (wa *webauthn_server) RollbackRegistration(ctx echo.Context) error {
 
 	wa.logger.Log(ctx, echoErr)
 	return nil
+}
+
+func (wa *webauthn_server) RollbackSessionData(ctx echo.Context) error {
+	username := ctx.QueryParam("username")
+	if username == "" {
+		return ctx.JSON(http.StatusBadRequest, echo.Map{
+			"error": "invalid request, missing username",
+		})
+	}
+
+	user, err := wa.store.GetUser(ctx.Request().Context(), username, false, nil)
+	if err != nil {
+		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
+			"error":   err.Error(),
+			"message": "no user found",
+		})
+
+		wa.logger.Log(ctx, echoErr)
+		return echoErr
+	}
+
+	err = wa.webauthn.RemoveSessionData(ctx.Request().Context(), user.Id)
+	if err != nil {
+		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
+			"error":   err.Error(),
+			"message": "error rolling back session data for webauthn login",
+		})
+
+		wa.logger.Log(ctx, echoErr)
+		return echoErr
+	}
+
+	echoErr := ctx.NoContent(http.StatusNoContent)
+	wa.logger.Log(ctx, echoErr)
+	return echoErr
 }
 
 func (wa *webauthn_server) FinishRegistration(ctx echo.Context) error {
@@ -434,4 +472,11 @@ func (wa *webauthn_server) FinishLogin(ctx echo.Context) error {
 
 	wa.logger.Log(ctx, echoErr)
 	return echoErr
+}
+
+func (wa *webauthn_server) invalidateExistingRequests(ctx context.Context, username string) {
+	meta, ok := wa.txnStore[username]
+	if ok {
+		_ = meta.txn.Rollback(ctx)
+	}
 }
