@@ -43,7 +43,7 @@ jobs:
       - name: Start OpenRegistry server
         run: |
           wget https://github.com/mikefarah/yq/releases/download/v4.28.2/yq_linux_amd64 -O /usr/bin/yq && chmod +x /usr/bin/yq
-          cp config.yaml.example config.yaml
+          cp config.example.yaml config.yaml
           yq e -i '.environment = "ci"' config.yaml
           IP=`hostname -I | awk '{print $1}'`
           IP=$IP yq e -i '.database.host = env(IP)' config.yaml

@@ -43,7 +43,7 @@ jobs:
       - name: Start OpenRegistry server
         run: |
           IP=`hostname -I | awk '{print $1}'`
-          cp config.yaml.example config.yaml
+          cp config.example.yaml config.yaml
           yq e -i '.environment = "ci"' config.yaml
           IP=$IP yq e -i '.database.host = env(IP)' config.yaml
           FILEBASE_KEY=${{ secrets.FILEBASE_KEY }} yq e -i '.dfs.s3_any.access_key = env(FILEBASE_KEY)' config.yaml
