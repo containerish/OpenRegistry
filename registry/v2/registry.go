@@ -241,25 +241,30 @@ func (r *registry) PullManifest(ctx echo.Context) error {
 	}
 	resp, err := r.dfs.Download(ctx.Request().Context(), GetManifestIdentifier(namespace, manifest.Reference))
 	if err != nil {
-		errMsg := r.errorResponse(RegistryErrorCodeManifestInvalid, err.Error(), nil)
+		errMsg := r.errorResponse(RegistryErrorCodeManifestInvalid, err.Error(), echo.Map{
+			"message": "manifest download failed",
+		})
+		echoErr := ctx.JSONBlob(http.StatusNotFound, errMsg)
+		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
+		return echoErr
+	}
+	defer resp.Close()
+
+	var buf bytes.Buffer
+	if _, err = buf.ReadFrom(resp); err != nil {
+		errMsg := r.errorResponse(RegistryErrorCodeManifestBlobUnknown, err.Error(), echo.Map{
+			"message": "error reading manifest contents",
+		})
 		echoErr := ctx.JSONBlob(http.StatusNotFound, errMsg)
 		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
 		return echoErr
 	}
 
-	bz, err := io.ReadAll(resp)
-	if err != nil {
-		errMsg := r.errorResponse(RegistryErrorCodeManifestInvalid, err.Error(), nil)
-		echoErr := ctx.JSONBlob(http.StatusNotFound, errMsg)
-		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
-		return echoErr
-	}
-	_ = resp.Close()
 	ctx.Response().Header().Set("Docker-Content-Digest", manifest.Digest)
 	ctx.Response().Header().Set("X-Docker-Content-ID", manifest.DFSLink)
 	ctx.Response().Header().Set("Content-Type", manifest.MediaType)
-	ctx.Response().Header().Set("Content-Length", fmt.Sprintf("%d", len(bz)))
-	echoErr := ctx.JSONBlob(http.StatusOK, bz)
+	ctx.Response().Header().Set("Content-Length", fmt.Sprintf("%d", buf.Len()))
+	echoErr := ctx.JSONBlob(http.StatusOK, buf.Bytes())
 	r.logger.Log(ctx, nil)
 	return echoErr
 }
@@ -477,7 +482,7 @@ func (r *registry) StartUpload(ctx echo.Context) error {
 	ctx.Response().Header().Set("Location", locationHeader)
 	ctx.Response().Header().Set("Content-Length", "0")
 	ctx.Response().Header().Set("Docker-Upload-UUID", uploadTrackingID)
-	ctx.Response().Header().Set("OCI-Chunk-Min-Bytes", fmt.Sprintf("%d", r.dfs.Config().MinChunkSize))
+	ctx.Response().Header().Set("OCI-Chunk-Min-Length", fmt.Sprintf("%d", r.dfs.Config().MinChunkSize))
 	ctx.Response().Header().Set("Range", "0-0")
 	echoErr := ctx.NoContent(http.StatusAccepted)
 	r.logger.Log(ctx, nil)
