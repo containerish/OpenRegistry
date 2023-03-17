@@ -62,7 +62,7 @@ jobs:
           sleep 5
           curl -XPOST -d ${{ secrets.OPENREGISTRY_SIGNUP_PAYLOAD }} "http://${IP}:5000/auth/signup"
       - name: Run OCI Distribution Spec conformance tests
-        uses: opencontainers/distribution-spec@v1.0.1
+        uses: opencontainers/distribution-spec@main
         env:
           OCI_ROOT_URL: ${{ env.OCI_ROOT_URL }}
           OCI_USERNAME: ${{ secrets.OPENREGISTRY_USERNAME }}
