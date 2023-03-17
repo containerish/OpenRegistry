@@ -11,7 +11,7 @@ registry:
   host: 0.0.0.0
   port: 5000
   tls:
-    enabled: true
+    enabled: false
     priv_key: .certs/registry.local
     pub_key: .certs/registry.local.crt
     services:
@@ -25,8 +25,10 @@ oauth:
 dfs:
   filebase:
     enabled: true
+    type: "uplink"
     access_key: <access-key>
     secret_key: <access-secret-key>
+    access_grant_token: ""
     endpoint: <s3-compatible-api-endpoint>
     bucket_name: <s3-bucket-name>
     dfs_link_resolver: <optional-dfs-link-resolver-url>
@@ -34,9 +36,10 @@ dfs:
     enabled: true
     access_key: <access-key>
     secret_key: <access-secret-key>
-    endpoint: <s3-compatible-api-endpoint>
     bucket_name: <s3-bucket-name>
-    dfs_link_resolver: <optional-dfs-link-resolver-url>
+    link_share_service: https://link.storjshare.io
+    endpoint: https://gateway.storjshare.io
+    dfs_link_resolver: https://gateway.storjshare.io
 database:
   kind: postgres
   host: 0.0.0.0
