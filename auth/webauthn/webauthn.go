@@ -133,8 +133,19 @@ func New(cfg *config.WebAuthnConfig, store postgres.WebAuthN) WebAuthnService {
 			ResidentKey:        protocol.ResidentKeyRequirementDiscouraged,
 			UserVerification:   protocol.VerificationDiscouraged,
 		},
-		Timeout: int(cfg.Timeout.Milliseconds()),
-		Debug:   false,
+		Timeouts: webauthn.TimeoutsConfig{
+			Login: webauthn.TimeoutConfig{
+				Enforce:    true,
+				Timeout:    cfg.Timeout,
+				TimeoutUVD: cfg.Timeout,
+			},
+			Registration: webauthn.TimeoutConfig{
+				Enforce:    true,
+				Timeout:    cfg.Timeout,
+				TimeoutUVD: cfg.Timeout,
+			},
+		},
+		Debug: false,
 	})
 	if err != nil {
 		log.Fatalf("webauthn configuration is invalid: %s", err)
@@ -169,8 +180,7 @@ func (wa *webAuthnService) BeginRegistration(
 	excludeList := user.GetWebauthnCredentialDescriptors()
 
 	authSelect := &protocol.AuthenticatorSelection{
-		RequireResidentKey: protocol.ResidentKeyRequired(),
-		ResidentKey:        protocol.ResidentKeyRequirementRequired,
+		RequireResidentKey: protocol.ResidentKeyNotRequired(),
 		UserVerification:   protocol.VerificationDiscouraged,
 	}
 
