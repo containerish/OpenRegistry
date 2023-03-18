@@ -57,6 +57,8 @@ func (p *pg) AddUser(ctx context.Context, u *types.User, txn pgx.Tx) error {
 		u.Name,
 		u.Email,
 		u.Password,
+		u.WebauthnConnected,
+		u.GithubConnected,
 		u.Hireable,
 		u.HTMLURL,
 		t,

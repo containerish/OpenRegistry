@@ -11,7 +11,6 @@ import (
 	"github.com/golang-jwt/jwt/v4"
 	echo_jwt "github.com/labstack/echo-jwt/v4"
 	"github.com/labstack/echo/v4"
-	"github.com/labstack/echo/v4/middleware"
 )
 
 const (
@@ -69,12 +68,14 @@ func (a *auth) JWT() echo.MiddlewareFunc {
 		KeyFunc: func(t *jwt.Token) (interface{}, error) {
 			return pubKey, nil
 		},
-		ParseTokenFunc: middleware.DefaultJWTConfig.ParseTokenFunc,
-		SigningKey:     privkey,
-		SigningKeys:    map[string]interface{}{},
-		SigningMethod:  jwt.SigningMethodRS256.Name,
-		Claims:         &Claims{},
-		TokenLookup:    fmt.Sprintf("cookie:%s,header:%s:Bearer ", AccessCookieKey, echo.HeaderAuthorization),
+		SigningKey:    privkey,
+		SigningKeys:   map[string]interface{}{},
+		SigningMethod: jwt.SigningMethodRS256.Name,
+		// Claims:         &Claims{},
+		NewClaimsFunc: func(c echo.Context) jwt.Claims {
+			return &Claims{}
+		},
+		TokenLookup: fmt.Sprintf("cookie:%s,header:%s:Bearer ", AccessCookieKey, echo.HeaderAuthorization),
 	})
 }
 
@@ -150,10 +151,12 @@ func (a *auth) JWTRest() echo.MiddlewareFunc {
 		KeyFunc: func(t *jwt.Token) (interface{}, error) {
 			return pubKey, nil
 		},
-		ParseTokenFunc: middleware.DefaultJWTConfig.ParseTokenFunc,
-		SigningKey:     privkey,
-		SigningMethod:  jwt.SigningMethodRS256.Name,
-		Claims:         &Claims{},
-		TokenLookup:    fmt.Sprintf("cookie:%s,header:%s:Bearer ", AccessCookieKey, echo.HeaderAuthorization),
+		SigningKey:    privkey,
+		SigningMethod: jwt.SigningMethodRS256.Name,
+		NewClaimsFunc: func(c echo.Context) jwt.Claims {
+			return &Claims{}
+		},
+		// Claims:         &Claims{},
+		TokenLookup: fmt.Sprintf("cookie:%s,header:%s:Bearer ", AccessCookieKey, echo.HeaderAuthorization),
 	})
 }

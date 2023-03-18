@@ -1,8 +1,10 @@
 environment: local
 debug: true
-web_app_url: "http://localhost:3000"
-web_app_redirect_url: "/"
-web_app_error_redirect_path: "/auth/unhandled"
+web_app:
+  endpoint: "http://localhost:3000"
+  error_redirect_path: "/auth/unhandled"
+  redirect_url: "http://localhost:3000/repositories"
+  callback_url: "/api/oauth/callback"
 registry:
   dns_address: localhost
   version: master

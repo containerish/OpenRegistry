@@ -5,7 +5,7 @@ var (
 	AddUser = `insert into users (id, is_active, username, name, email, password, webauthn_connected, github_connected, hireable, html_url, created_at, updated_at)
 values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12);`
 	GetUser                 = `select id, is_active, username, email, created_at, updated_at, webauthn_connected, github_connected from users where email=$1 or username=$1;`
-	GetUserWithPassword     = `select id, is_active, username, email, password, created_at, updated_at from, webauthn_connected, github_connected users where email=$1 or username=$1;`
+	GetUserWithPassword     = `select id, is_active, username, email, password, created_at, updated_at, webauthn_connected, github_connected from users where email=$1 or username=$1;`
 	GetUserById             = `select id, is_active, username, email, created_at, updated_at from users where id=$1;`
 	GetUserByIdWithPassword = `select id, is_active, username, email, password, created_at, updated_at from users where id=$1;`
 	GetUserWithSession      = `select id, is_active, name, username, email, hireable, html_url, created_at, updated_at from users where id=(select owner from session where id=$1);`
