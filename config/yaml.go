@@ -16,19 +16,19 @@ func ReadYamlConfig() (*OpenRegistryConfig, error) {
 	viper.AddConfigPath(".")
 	viper.AddConfigPath("$HOME/.openregistry")
 
-	var registryConfig OpenRegistryConfig
+	var cfg OpenRegistryConfig
 	// OPENREGISTRY_CONFIG env variable takes precedence over everything
 	if yamlConfigInEnv := os.Getenv("OPENREGISTRY_CONFIG"); yamlConfigInEnv != "" {
-		err := yaml.Unmarshal([]byte(yamlConfigInEnv), &registryConfig)
+		err := yaml.Unmarshal([]byte(yamlConfigInEnv), &cfg)
 		if err != nil {
 			return nil, err
 		}
 
-		if err = registryConfig.Validate(); err != nil {
+		if err = cfg.Validate(); err != nil {
 			return nil, err
 		}
 		color.Green("read configuration from environment variable")
-		return &registryConfig, nil
+		return &cfg, nil
 	}
 
 	if err := viper.ReadInConfig(); err != nil {
@@ -39,17 +39,36 @@ func ReadYamlConfig() (*OpenRegistryConfig, error) {
 	env := strings.ToUpper(viper.GetString("environment"))
 	viper.Set("environment", environmentFromString(env))
 
-	if err := viper.Unmarshal(&registryConfig); err != nil {
+	if err := viper.Unmarshal(&cfg); err != nil {
 		return nil, fmt.Errorf("ERR_UNMARSHAL_CONFIG: %w", err)
 	}
 
-	if registryConfig.DFS.S3Any.ChunkSize == 0 {
-		registryConfig.DFS.S3Any.ChunkSize = 1024 * 1024 * 20
+	if cfg.DFS.Filebase.Enabled {
+		if cfg.DFS.Filebase.ChunkSize == 0 {
+			cfg.DFS.Filebase.ChunkSize = twentyMBInBytes
+		}
+
+		if cfg.DFS.Filebase.MinChunkSize == 0 {
+			cfg.DFS.Filebase.MinChunkSize = fiveMBInBytes
+		}
 	}
 
-	if err := registryConfig.Validate(); err != nil {
+	if cfg.DFS.Storj.Enabled {
+		if cfg.DFS.Storj.ChunkSize == 0 {
+			cfg.DFS.Storj.ChunkSize = twentyMBInBytes
+		}
+
+		if cfg.DFS.Storj.MinChunkSize == 0 {
+			cfg.DFS.Storj.MinChunkSize = fiveMBInBytes
+		}
+	}
+
+	if err := cfg.Validate(); err != nil {
 		return nil, err
 	}
 
-	return &registryConfig, nil
+	return &cfg, nil
 }
+
+const fiveMBInBytes = 1024 * 1024 * 5
+const twentyMBInBytes = 1024 * 1024 * 20
