@@ -42,7 +42,6 @@ jobs:
            PGUSER: postgres
       - name: Start OpenRegistry server
         run: |
-          wget https://github.com/mikefarah/yq/releases/download/v4.28.2/yq_linux_amd64 -O /usr/bin/yq && chmod +x /usr/bin/yq
           IP=`hostname -I | awk '{print $1}'`
           cp config.example.yaml config.yaml
           yq e -i '.environment = "ci"' config.yaml
@@ -55,25 +54,31 @@ jobs:
           echo "OCI_ROOT_URL=http://$IP:5000" >> $GITHUB_ENV
           DISTRIBUTION_REF="local-distribution:v$(date +%Y%m%d%H%M%S)"
           docker build -f ./Dockerfile -t "${DISTRIBUTION_REF}" .
+          make certs
           docker run --rm -p 5000:5000 \
             --mount="type=bind,source=${PWD}/config.yaml,target=/home/runner/.openregistry/config.yaml" \
+            -v "$PWD/.certs:/home/runner/.certs" \
             --env="CI_SYS_ADDR=$IP:5000" -d "${DISTRIBUTION_REF}"
           sleep 5
           curl -XPOST -d ${{ secrets.OPENREGISTRY_SIGNUP_PAYLOAD }} "http://${IP}:5000/auth/signup"
       - name: Run OCI Distribution Spec conformance tests
-        uses: opencontainers/distribution-spec@main
+        if: always()
+        run: |
+          git clone https://github.com/opencontainers/distribution-spec.git
+          pushd distribution-spec/conformance
+          go test -c
+          ./conformance.test
+          popd
+          mkdir -p .out/ && mv {distribution-spec/conformance/report.html,distribution-spec/conformance/junit.xml} .out/
         env:
           OCI_ROOT_URL: ${{ env.OCI_ROOT_URL }}
           OCI_USERNAME: ${{ secrets.OPENREGISTRY_USERNAME }}
           OCI_PASSWORD: ${{ secrets.OPENREGISTRY_PASSWORD }}
           OCI_NAMESPACE: ${{ secrets.OPENREGISTRY_USERNAME }}/distribution-test
-          OCI_TEST_PULL: 1
+          OCI_TEST_PUSH: 1
           OCI_HIDE_SKIPPED_WORKFLOWS: 1
           OCI_CROSSMOUNT_NAMESPACE: ${{secrets.OPENREGISTRY_USERNAME}}/distribution-cross-mount
           OCI_DEBUG: 0
-          OCI_DELETE_MANIFEST_BEFORE_BLOBS: 0
-      - run: mkdir -p .out/ && mv {report.html,junit.xml} .out/
-        if: always()
       - name: Upload test results zip as build artifact
         uses: actions/upload-artifact@v3
         with:

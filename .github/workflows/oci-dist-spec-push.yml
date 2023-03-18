@@ -26,6 +26,7 @@ jobs:
         ports:
           - 5432:5432
     steps:
+      - uses: actions/setup-go@v4
       - uses: actions/checkout@v3
       - name: Install Migrate CLI
         run: |
@@ -62,7 +63,14 @@ jobs:
           sleep 5
           curl -XPOST -d ${{ secrets.OPENREGISTRY_SIGNUP_PAYLOAD }} "http://${IP}:5000/auth/signup"
       - name: Run OCI Distribution Spec conformance tests
-        uses: opencontainers/distribution-spec@main
+        if: always()
+        run: |
+          git clone https://github.com/opencontainers/distribution-spec.git
+          pushd distribution-spec/conformance
+          go test -c
+          ./conformance.test
+          popd
+          mkdir -p .out/ && mv {distribution-spec/conformance/report.html,distribution-spec/conformance/junit.xml} .out/
         env:
           OCI_ROOT_URL: ${{ env.OCI_ROOT_URL }}
           OCI_USERNAME: ${{ secrets.OPENREGISTRY_USERNAME }}
@@ -72,8 +80,6 @@ jobs:
           OCI_HIDE_SKIPPED_WORKFLOWS: 1
           OCI_CROSSMOUNT_NAMESPACE: ${{secrets.OPENREGISTRY_USERNAME}}/distribution-cross-mount
           OCI_DEBUG: 0
-      - run: mkdir -p .out/ && mv {report.html,junit.xml} .out/
-        if: always()
       - name: Upload test results zip as build artifact
         uses: actions/upload-artifact@v3
         with:
