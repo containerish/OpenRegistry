@@ -79,9 +79,14 @@ jobs:
           OCI_HIDE_SKIPPED_WORKFLOWS: 1
           OCI_CROSSMOUNT_NAMESPACE: ${{secrets.OPENREGISTRY_USERNAME}}/distribution-cross-mount
           OCI_DEBUG: 0
+      - name: Set output report name
+        id: vars
+        run: echo "short_commit_hash=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
       - name: Upload test results zip as build artifact
         uses: actions/upload-artifact@v3
-        with:
-          name: oci-test-results-${{ github.sha }}
-          path: .out/
         if: always()
+        with:
+          name: oci-distribution-pull-report-${{ steps.vars.outputs.short_commit_hash }}
+          path: .out/
+        env:
+          GITHUB_SHORT_SHA: $(echo ${ github.sha } | cut -c1-8)
