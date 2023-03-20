@@ -80,6 +80,9 @@ jobs:
           OCI_HIDE_SKIPPED_WORKFLOWS: 1
           OCI_CROSSMOUNT_NAMESPACE: ${{secrets.OPENREGISTRY_USERNAME}}/distribution-cross-mount
           OCI_DEBUG: 0
+      - name: Setup tmate session if mode is debug and OpenRegistry or OCI Tests Fail
+        uses: mxschmitt/action-tmate@v3
+        if:  ${{ github.event_name == 'workflow_dispatch' && inputs.debug_enabled }}
       - name: Set output report name
         id: vars
         run: echo "short_commit_hash=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
