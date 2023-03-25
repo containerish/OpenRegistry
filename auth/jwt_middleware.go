@@ -77,7 +77,7 @@ func (a *auth) JWT() echo.MiddlewareFunc {
 		SigningKeys:    map[string]interface{}{},
 		SigningMethod:  jwt.SigningMethodRS256.Name,
 		Claims:         &Claims{},
-		TokenLookup:    fmt.Sprintf("cookie:%s,header:%s", AccessCookieKey, echo.HeaderAuthorization),
+		TokenLookup:    fmt.Sprintf("cookie:%s,header:%s:Bearer ", AccessCookieKey, echo.HeaderAuthorization),
 	})
 }
 
@@ -161,6 +161,6 @@ func (a *auth) JWTRest() echo.MiddlewareFunc {
 		SigningKey:     privkey,
 		SigningMethod:  jwt.SigningMethodRS256.Name,
 		Claims:         &Claims{},
-		TokenLookup:    fmt.Sprintf("cookie:%s,header:%s", AccessCookieKey, echo.HeaderAuthorization),
+		TokenLookup:    fmt.Sprintf("cookie:%s,header:%s:Bearer ", AccessCookieKey, echo.HeaderAuthorization),
 	})
 }
