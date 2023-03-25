@@ -54,7 +54,7 @@ type (
 	}
 
 	// just so that we can retrieve values easily
-	Integrations []*Integation
+	Integrations []*Integration
 
 	Registry struct {
 		TLS        TLS      `yaml:"tls" mapstructure:"tls" validate:"-"`
@@ -124,13 +124,14 @@ type (
 		Enabled       bool          `yaml:"enabled" mapstructure:"enabled"`
 		Timeout       time.Duration `yaml:"timeout" mapstructure:"timeout"`
 	}
-	Integation struct {
+	Integration struct {
 		Name                  string `yaml:"name" mapstructure:"name"`
 		ClientSecret          string `yaml:"client_secret" mapstructure:"client_secret"`
 		ClientID              string `yaml:"client_id" mapstructure:"client_id"`
 		PublicLink            string `yaml:"public_link" mapstructure:"public_link"`
 		PrivateKeyPem         string `yaml:"private_key_pem" mapstructure:"private_key_pem"`
 		AppInstallRedirectURL string `yaml:"app_install_redirect_url" mapstructure:"app_install_redirect_url"`
+		WebhookSecret         string `yaml:"webhook_secret" mapstructure:"webhook_secret"`
 		AppID                 int64  `yaml:"app_id" mapstructure:"app_id"`
 		Enabled               bool   `yaml:"enabled" mapstructure:"enabled"`
 	}
@@ -231,7 +232,7 @@ func (oc *OpenRegistryConfig) Endpoint() string {
 	}
 }
 
-func (itg Integrations) GetGithubConfig() *Integation {
+func (itg Integrations) GetGithubConfig() *Integration {
 	for _, cfg := range itg {
 		if cfg.Name == "github" && cfg.Enabled {
 			return cfg

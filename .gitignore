@@ -20,3 +20,4 @@ config.yml.bak
 *.pem
 *.crt
 *.cert
+*.log

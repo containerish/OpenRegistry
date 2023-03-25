@@ -15,7 +15,7 @@ import (
 )
 
 type ghAppService struct {
-	config               *config.Integation
+	config               *config.Integration
 	store                vcs.VCSStore
 	ghClient             *github.Client
 	ghAppTransport       *ghinstallation.AppsTransport
@@ -26,7 +26,7 @@ type ghAppService struct {
 }
 
 func NewGithubApp(
-	cfg *config.Integation,
+	cfg *config.Integration,
 	store vcs.VCSStore,
 	logger telemetry.Logger,
 	webInterfaceURL string,

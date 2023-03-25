@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/containerish/OpenRegistry/vcs"
-	"github.com/google/go-github/v46/github"
+	"github.com/google/go-github/v50/github"
 	"github.com/labstack/echo/v4"
 )
 
@@ -69,7 +69,72 @@ func (gh *ghAppService) HandleSetupCallback(ctx echo.Context) error {
 
 // HandleWebhookEvents implements vcs.VCS
 func (gh *ghAppService) HandleWebhookEvents(ctx echo.Context) error {
+	xHubSignature := ctx.Request().Header.Get("X-Hub-Signature-256")
+
+	payload, err := github.ValidatePayloadFromBody(
+		ctx.Request().Header.Get("Content-Type"),
+		ctx.Request().Body,
+		xHubSignature,
+		[]byte(gh.config.WebhookSecret),
+	)
+
+	if err != nil {
+		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
+			"error": err.Error(),
+		})
+		gh.logger.Log(ctx, err).Send()
+		return echoErr
+	}
+
+	event, err := github.ParseWebHook(github.WebHookType(ctx.Request()), payload)
+	if err != nil {
+		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
+			"error": err.Error(),
+		})
+		gh.logger.Log(ctx, err).Send()
+		return echoErr
+	}
+
+	switch event := event.(type) {
+	case *github.PingEvent:
+	case *github.WorkflowJobEvent:
+	case *github.WorkflowRunEvent:
+		gh.handleWorkflowRunEvents(event)
+	case *github.WorkflowDispatchEvent:
+	case *github.InstallationRepositoriesEvent:
+	case *github.CheckRunEvent:
+	case *github.InstallationEvent:
+	}
+
 	return ctx.NoContent(http.StatusNoContent)
+}
+
+// @TODO pending implementation (@jay-dee7)
+func (gh *ghAppService) handleWorkflowRunEvents(event *github.WorkflowRunEvent) {
+	client := gh.refreshGHClient(gh.ghAppTransport, event.GetInstallation().GetID())
+	repo := event.GetRepo()
+	if event.GetAction() == "in_progress" || event.GetAction() == "completed" {
+		logsUrl, resp, err := client.Actions.GetWorkflowRunLogs(
+			context.Background(),
+			repo.GetOwner().GetLogin(),
+			repo.GetName(),
+			event.GetWorkflowRun().GetID(),
+			true,
+		)
+		if err != nil {
+			var buf bytes.Buffer
+			_, _ = buf.ReadFrom(resp.Body)
+			resp.Body.Close()
+			return
+		}
+
+		var logs []byte
+		req, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, logsUrl.String(), nil)
+		_, err = client.Do(context.Background(), req, &logs)
+		if err != nil {
+			return
+		}
+	}
 }
 
 // ListAuthorisedRepositories implements vcs.VCS
