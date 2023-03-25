@@ -80,7 +80,7 @@ type (
 
 // @TODO (jay-dee7) maybe a better way to do it?
 func (a *auth) stateTokenCleanup() {
-	// tick every 10 minutes, delete ant oauth state tokens which are older than 10 mins
+	// tick every 10 seconds, delete any oauth state tokens which are older than 10 mins
 	// duration = 10mins, because github short lived code is valid for 10 mins
 	for range time.Tick(time.Second * 10) {
 		for key, t := range a.oauthStateStore {

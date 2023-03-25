@@ -48,3 +48,9 @@ database:
   username: postgres
   password: Qwerty@123
   name: open_registry
+web_authn_config:
+  rp_display_name: <relaying_party_name>
+  rp_id: localhost
+  rp_origins:
+    - http://localhost:3000
+  rp_icon: <icon_link>
