@@ -511,7 +511,7 @@ func (r *registry) UploadProgress(ctx echo.Context) error {
 
 	locationHeader := fmt.Sprintf("/v2/%s/blobs/uploads/%s", namespace, uuid)
 	ctx.Response().Header().Set("Location", locationHeader)
-	ctx.Response().Header().Set("Range", fmt.Sprintf("bytes=0-%d", metadata.ContentLength))
+	ctx.Response().Header().Set("Range", fmt.Sprintf("bytes=0-%d", metadata.ContentLength-1))
 	ctx.Response().Header().Set("Docker-Upload-UUID", uuid)
 	echoErr := ctx.NoContent(http.StatusNoContent)
 	r.logger.Log(ctx, nil)
