@@ -14,6 +14,7 @@ const (
 	// authentication mechanisms
 	Auth = "/auth"
 
+	Webauthn = Auth + "/webauthn"
 	//Beta endpoint refers to the experimental code and features under observation
 	// not to be released or exposed to public
 	Beta = "/beta"

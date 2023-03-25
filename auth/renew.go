@@ -76,7 +76,7 @@ func (a *auth) RenewAccessToken(ctx echo.Context) error {
 	}
 
 	userId := claims.Id
-	user, err := a.pgStore.GetUserById(ctx.Request().Context(), userId, false)
+	user, err := a.pgStore.GetUserById(ctx.Request().Context(), userId, false, nil)
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusUnauthorized, echo.Map{
 			"error":   err.Error(),
@@ -86,7 +86,15 @@ func (a *auth) RenewAccessToken(ctx echo.Context) error {
 		return echoErr
 	}
 
-	tokenString, err := a.newWebLoginToken(userId, user.Username, "access")
+	opts := &WebLoginJWTOptions{
+		Id:        userId,
+		Username:  user.Username,
+		TokenType: "access_token",
+		Audience:  a.c.Registry.FQDN,
+		Privkey:   a.c.Registry.TLS.PrivateKey,
+		Pubkey:    a.c.Registry.TLS.PubKey,
+	}
+	tokenString, err := NewWebLoginToken(opts)
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error":   err.Error(),
@@ -96,7 +104,7 @@ func (a *auth) RenewAccessToken(ctx echo.Context) error {
 		return echoErr
 	}
 
-	accessCookie := a.createCookie("access", tokenString, true, time.Now().Add(time.Hour))
+	accessCookie := a.createCookie("access_token", tokenString, true, time.Now().Add(time.Hour))
 	ctx.SetCookie(accessCookie)
 	err = ctx.NoContent(http.StatusNoContent)
 	a.logger.Log(ctx, err)

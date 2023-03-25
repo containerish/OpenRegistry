@@ -2,6 +2,12 @@ name: OCI Distribution Spec
 
 on:
   workflow_call:
+    inputs:
+      debug_enabled:
+        type: boolean
+        description: 'Run the build with tmate debugging enabled (https://github.com/marketplace/actions/debugging-with-tmate)'
+        required: false
+        default: false
 
 concurrency:
   group: content-discovery-${{ github.workflow }}-${{ github.head_ref || github.run_id }}
@@ -81,7 +87,7 @@ jobs:
           OCI_DEBUG: 0
       - name: Setup tmate session if mode is debug and OpenRegistry or OCI Tests Fail
         uses: mxschmitt/action-tmate@v3
-        if:  ${{ github.event_name == 'workflow_dispatch' && inputs.debug_enabled }}
+        if:  ${{ always() && (github.event_name == 'workflow_dispatch') && inputs.debug_enabled }}
       - name: Set output report name
         id: vars
         run: echo "short_commit_hash=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT

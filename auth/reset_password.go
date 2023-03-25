@@ -49,7 +49,7 @@ func (a *auth) ResetForgottenPassword(ctx echo.Context) error {
 	_ = ctx.Request().Body.Close()
 
 	userId := c.Id
-	user, err := a.pgStore.GetUserById(ctx.Request().Context(), userId, true)
+	user, err := a.pgStore.GetUserById(ctx.Request().Context(), userId, true, nil)
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusNotFound, echo.Map{
 			"error":   err.Error(),
@@ -62,7 +62,7 @@ func (a *auth) ResetForgottenPassword(ctx echo.Context) error {
 	if err = types.ValidatePassword(pwd.NewPassword); err != nil {
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error": err.Error(),
-			"message": `password must be alphanumeric, at least 8 chars long, must have at least one special character 
+			"message": `password must be alphanumeric, at least 8 chars long, must have at least one special character
 and an uppercase letter`,
 		})
 		a.logger.Log(ctx, err)
@@ -143,7 +143,7 @@ func (a *auth) ResetPassword(ctx echo.Context) error {
 	_ = ctx.Request().Body.Close()
 
 	userId := c.Id
-	user, err := a.pgStore.GetUserById(ctx.Request().Context(), userId, true)
+	user, err := a.pgStore.GetUserById(ctx.Request().Context(), userId, true, nil)
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusNotFound, echo.Map{
 			"error":   err.Error(),
@@ -188,7 +188,7 @@ func (a *auth) ResetPassword(ctx echo.Context) error {
 	if err = types.ValidatePassword(pwd.NewPassword); err != nil {
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error": err.Error(),
-			"message": `password must be alphanumeric, at least 8 chars long, must have at least one special character 
+			"message": `password must be alphanumeric, at least 8 chars long, must have at least one special character
 and an uppercase letter`,
 		})
 		a.logger.Log(ctx, err)
@@ -222,7 +222,7 @@ func (a *auth) ForgotPassword(ctx echo.Context) error {
 		return echoErr
 	}
 
-	user, err := a.pgStore.GetUser(ctx.Request().Context(), userEmail, false)
+	user, err := a.pgStore.GetUser(ctx.Request().Context(), userEmail, false, nil)
 	if err != nil {
 		if errors.Unwrap(err) == pgx.ErrNoRows {
 			echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
@@ -247,7 +247,15 @@ func (a *auth) ForgotPassword(ctx echo.Context) error {
 		})
 	}
 
-	token, err := a.newWebLoginToken(user.Id, user.Username, "short-lived")
+	opts := &WebLoginJWTOptions{
+		Id:        user.Id,
+		Username:  user.Username,
+		TokenType: "access_token",
+		Audience:  a.c.Registry.FQDN,
+		Privkey:   a.c.Registry.TLS.PrivateKey,
+		Pubkey:    a.c.Registry.TLS.PubKey,
+	}
+	token, err := NewWebLoginToken(opts)
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error":   err.Error(),

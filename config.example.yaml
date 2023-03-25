@@ -1,8 +1,10 @@
 environment: local
 debug: true
-web_app_url: "http://localhost:3000"
-web_app_redirect_url: "/"
-web_app_error_redirect_path: "/auth/unhandled"
+web_app:
+  endpoint: "http://localhost:3000"
+  error_redirect_path: "/auth/unhandled"
+  redirect_url: "http://localhost:3000/repositories"
+  callback_url: "/api/oauth/callback"
 registry:
   dns_address: localhost
   version: master
@@ -46,3 +48,9 @@ database:
   username: postgres
   password: Qwerty@123
   name: open_registry
+web_authn_config:
+  rp_display_name: <relaying_party_name>
+  rp_id: localhost
+  rp_origins:
+    - http://localhost:3000
+  rp_icon: <icon_link>

@@ -4,6 +4,7 @@ import (
 	"os"
 
 	"github.com/containerish/OpenRegistry/auth"
+	auth_server "github.com/containerish/OpenRegistry/auth/server"
 	"github.com/containerish/OpenRegistry/config"
 	"github.com/containerish/OpenRegistry/dfs/client"
 	"github.com/containerish/OpenRegistry/registry/v2"
@@ -39,6 +40,7 @@ func main() {
 
 	logger := telemetry.ZLogger(fluentBitCollector, cfg.Environment)
 	authSvc := auth.New(cfg, pgStore, logger)
+	webauthnServer := auth_server.NewWebauthnServer(cfg, pgStore, logger)
 
 	dfs := client.NewDFSBackend(&cfg.DFS)
 	reg, err := registry.NewRegistry(pgStore, dfs, logger, cfg)
@@ -53,7 +55,7 @@ func main() {
 		return
 	}
 
-	router.Register(cfg, e, reg, authSvc, ext)
+	router.Register(cfg, e, reg, authSvc, webauthnServer, ext)
 	color.Red("error initialising OpenRegistry Server: %s", buildHTTPServer(cfg, e))
 }
 

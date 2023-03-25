@@ -8,9 +8,9 @@ import (
 	"time"
 
 	"github.com/containerish/OpenRegistry/types"
-	"github.com/golang-jwt/jwt"
+	"github.com/golang-jwt/jwt/v4"
+	echo_jwt "github.com/labstack/echo-jwt/v4"
 	"github.com/labstack/echo/v4"
-	"github.com/labstack/echo/v4/middleware"
 )
 
 const (
@@ -39,7 +39,7 @@ func (a *auth) JWT() echo.MiddlewareFunc {
 		panic(err)
 	}
 
-	return middleware.JWTWithConfig(middleware.JWTConfig{
+	return echo_jwt.WithConfig(echo_jwt.Config{
 		Skipper: func(ctx echo.Context) bool {
 			if strings.HasPrefix(ctx.Request().RequestURI, "/auth") {
 				return false
@@ -57,11 +57,7 @@ func (a *auth) JWT() echo.MiddlewareFunc {
 
 			return true
 		},
-		BeforeFunc:     middleware.DefaultJWTConfig.BeforeFunc,
-		SuccessHandler: middleware.DefaultJWTConfig.SuccessHandler,
-		ErrorHandler:   nil,
-		ErrorHandlerWithContext: func(err error, ctx echo.Context) error {
-			// ErrorHandlerWithContext only logs the failing requtest
+		ErrorHandler: func(ctx echo.Context, err error) error {
 			ctx.Set(types.HandlerStartTime, time.Now())
 			a.logger.Log(ctx, err)
 			return ctx.JSON(http.StatusUnauthorized, echo.Map{
@@ -72,12 +68,14 @@ func (a *auth) JWT() echo.MiddlewareFunc {
 		KeyFunc: func(t *jwt.Token) (interface{}, error) {
 			return pubKey, nil
 		},
-		ParseTokenFunc: middleware.DefaultJWTConfig.ParseTokenFunc,
-		SigningKey:     privkey,
-		SigningKeys:    map[string]interface{}{},
-		SigningMethod:  jwt.SigningMethodRS256.Name,
-		Claims:         &Claims{},
-		TokenLookup:    fmt.Sprintf("cookie:%s,header:%s:Bearer ", AccessCookieKey, echo.HeaderAuthorization),
+		SigningKey:    privkey,
+		SigningKeys:   map[string]interface{}{},
+		SigningMethod: jwt.SigningMethodRS256.Name,
+		// Claims:         &Claims{},
+		NewClaimsFunc: func(c echo.Context) jwt.Claims {
+			return &Claims{}
+		},
+		TokenLookup: fmt.Sprintf("cookie:%s,header:%s:Bearer ", AccessCookieKey, echo.HeaderAuthorization),
 	})
 }
 
@@ -106,7 +104,7 @@ func (a *auth) ACL() echo.MiddlewareFunc {
 
 			username := ctx.Param("username")
 
-			user, err := a.pgStore.GetUserById(ctx.Request().Context(), claims.Id, false)
+			user, err := a.pgStore.GetUserById(ctx.Request().Context(), claims.Id, false, nil)
 			if err != nil {
 				a.logger.Log(ctx, err)
 				return ctx.NoContent(http.StatusUnauthorized)
@@ -141,12 +139,8 @@ func (a *auth) JWTRest() echo.MiddlewareFunc {
 		panic(err)
 	}
 
-	return middleware.JWTWithConfig(middleware.JWTConfig{
-		BeforeFunc:     middleware.DefaultJWTConfig.BeforeFunc,
-		SuccessHandler: middleware.DefaultJWTConfig.SuccessHandler,
-		ErrorHandler:   nil,
-		ErrorHandlerWithContext: func(err error, ctx echo.Context) error {
-			// ErrorHandlerWithContext only logs the failing requtest
+	return echo_jwt.WithConfig(echo_jwt.Config{
+		ErrorHandler: func(ctx echo.Context, err error) error {
 			ctx.Set(types.HandlerStartTime, time.Now())
 			a.logger.Log(ctx, err)
 			return ctx.JSON(http.StatusUnauthorized, echo.Map{
@@ -157,10 +151,12 @@ func (a *auth) JWTRest() echo.MiddlewareFunc {
 		KeyFunc: func(t *jwt.Token) (interface{}, error) {
 			return pubKey, nil
 		},
-		ParseTokenFunc: middleware.DefaultJWTConfig.ParseTokenFunc,
-		SigningKey:     privkey,
-		SigningMethod:  jwt.SigningMethodRS256.Name,
-		Claims:         &Claims{},
-		TokenLookup:    fmt.Sprintf("cookie:%s,header:%s:Bearer ", AccessCookieKey, echo.HeaderAuthorization),
+		SigningKey:    privkey,
+		SigningMethod: jwt.SigningMethodRS256.Name,
+		NewClaimsFunc: func(c echo.Context) jwt.Claims {
+			return &Claims{}
+		},
+		// Claims:         &Claims{},
+		TokenLookup: fmt.Sprintf("cookie:%s,header:%s:Bearer ", AccessCookieKey, echo.HeaderAuthorization),
 	})
 }

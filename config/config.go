@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
 	"github.com/go-playground/locales/en"
 	ut "github.com/go-playground/universal-translator"
@@ -15,18 +16,24 @@ import (
 
 type (
 	OpenRegistryConfig struct {
-		DFS            DFS    `yaml:"dfs" mapstructure:"dfs"`
-		OAuth          *OAuth `yaml:"oauth" mapstructure:"oauth"`
-		WebAppEndpoint string `yaml:"web_app_url" mapstructure:"web_app_url" validate:"required"`
-		//nolint
-		WebAppRedirectURL       string      `yaml:"web_app_redirect_url" mapstructure:"web_app_redirect_url" validate:"required"`
-		WebAppErrorRedirectPath string      `yaml:"web_app_error_redirect_path" mapstructure:"web_app_error_redirect_path"`
-		StoreConfig             Store       `yaml:"database" mapstructure:"database" validate:"required"`
-		LogConfig               Log         `yaml:"log_service" mapstructure:"log_service"`
-		Email                   Email       `yaml:"email" mapstructure:"email" validate:"-"`
-		Registry                Registry    `yaml:"registry" mapstructure:"registry" validate:"required"`
-		Environment             Environment `yaml:"environment" mapstructure:"environment" validate:"required"`
-		Debug                   bool        `yaml:"debug" mapstructure:"debug"`
+		SkynetConfig   Skynet         `yaml:"skynet" mapstructure:"skynet" validate:"-"`
+		OAuth          OAuth          `yaml:"oauth" mapstructure:"oauth" validate:"-"`
+		WebAppConfig   WebAppConfig   `yaml:"web_app" mapstructure:"web_app"`
+		DFS            DFS            `yaml:"dfs" mapstructure:"dfs"`
+		StoreConfig    Store          `yaml:"database" mapstructure:"database" validate:"required"`
+		LogConfig      Log            `yaml:"log_service" mapstructure:"log_service"`
+		Email          Email          `yaml:"email" mapstructure:"email" validate:"-"`
+		Registry       Registry       `yaml:"registry" mapstructure:"registry" validate:"required"`
+		WebAuthnConfig WebAuthnConfig `yaml:"web_authn_config" mapstructure:"web_authn_config"`
+		Environment    Environment    `yaml:"environment" mapstructure:"environment" validate:"required"`
+		Debug          bool           `yaml:"debug" mapstructure:"debug"`
+	}
+
+	WebAppConfig struct {
+		Endpoint          string `yaml:"endpoint" mapstructure:"endpoint" validate:"required"`
+		RedirectURL       string `yaml:"redirect_url" mapstructure:"redirect_url" validate:"required"`
+		ErrorRedirectPath string `yaml:"error_redirect_path" mapstructure:"error_redirect_path"`
+		CallbackURL       string `yaml:"callback_url" mapstructure:"callback_url"`
 	}
 
 	DFS struct {
@@ -102,6 +109,16 @@ type (
 		ForgotPasswordTemplateId string `yaml:"forgot_password_template_id" mapstructure:"forgot_password_template_id" validate:"required"`
 		WelcomeEmailTemplateId   string `yaml:"welcome_template_id" mapstructure:"welcome_template_id" validate:"required"`
 		Enabled                  bool   `yaml:"enabled" mapstructure:"enabled"`
+	}
+
+	WebAuthnConfig struct {
+		RPDisplayName string        `yaml:"rp_display_name" mapstructure:"rp_display_name"`
+		RPID          string        `yaml:"rp_id" mapstructure:"rp_id"`
+		RPIcon        string        `yaml:"rp_icon" mapstructure:"rp_icon"`
+		RPOrigin      string        `yaml:"rp_origin" mapstructure:"rp_origin"`
+		RPOrigins     []string      `yaml:"rp_origins" mapstructure:"rp_origins"`
+		Enabled       bool          `yaml:"enabled" mapstructure:"enabled"`
+		Timeout       time.Duration `yaml:"timeout" mapstructure:"timeout"`
 	}
 )
 

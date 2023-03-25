@@ -41,7 +41,6 @@ func New(
 	pgStore postgres.PersistentStore,
 	logger telemetry.Logger,
 ) Authentication {
-
 	githubOAuth := &oauth2.Config{
 		ClientID:     c.OAuth.Github.ClientID,
 		ClientSecret: c.OAuth.Github.ClientSecret,
@@ -50,7 +49,7 @@ func New(
 	}
 
 	ghClient := gh.NewClient(nil)
-	emailClient := email.New(&c.Email, c.WebAppEndpoint)
+	emailClient := email.New(&c.Email, c.WebAppConfig.Endpoint)
 
 	a := &auth{
 		c:               c,
@@ -62,7 +61,7 @@ func New(
 		emailClient:     emailClient,
 	}
 
-	go a.StateTokenCleanup()
+	go a.stateTokenCleanup()
 
 	return a
 }
@@ -80,8 +79,8 @@ type (
 )
 
 // @TODO (jay-dee7) maybe a better way to do it?
-func (a *auth) StateTokenCleanup() {
-	// tick every 10 minutes, delete ant oauth state tokens which are older than 10 mins
+func (a *auth) stateTokenCleanup() {
+	// tick every 10 seconds, delete any oauth state tokens which are older than 10 mins
 	// duration = 10mins, because github short lived code is valid for 10 mins
 	for range time.Tick(time.Second * 10) {
 		for key, t := range a.oauthStateStore {
