@@ -82,7 +82,7 @@ func (wa *webauthn_server) BeginRegistration(ctx echo.Context) error {
 			"error":   err.Error(),
 			"message": "invalid JSON object",
 		})
-		wa.logger.Log(ctx, err)
+		wa.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 	_ = ctx.Request().Body.Close()
@@ -94,7 +94,7 @@ func (wa *webauthn_server) BeginRegistration(ctx echo.Context) error {
 			"message": "invalid data provided for user login",
 			"code":    "INVALID_CREDENTIALS",
 		})
-		wa.logger.Log(ctx, err)
+		wa.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 
@@ -106,7 +106,7 @@ func (wa *webauthn_server) BeginRegistration(ctx echo.Context) error {
 			"error":   err.Error(),
 			"message": "database error, failed to add user",
 		})
-		wa.logger.Log(ctx, err)
+		wa.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 
@@ -124,7 +124,7 @@ func (wa *webauthn_server) BeginRegistration(ctx echo.Context) error {
 				"error":   err.Error(),
 				"message": "failed to store user details",
 			})
-			wa.logger.Log(ctx, err)
+			wa.logger.Log(ctx, err).Send()
 			return echoErr
 		}
 
@@ -139,7 +139,7 @@ func (wa *webauthn_server) BeginRegistration(ctx echo.Context) error {
 					"error":   werr.Error(),
 					"message": "failed to rollback stale session data",
 				})
-				wa.logger.Log(ctx, wErr)
+				wa.logger.Log(ctx, wErr).Send()
 				return echoErr
 			}
 
@@ -148,7 +148,7 @@ func (wa *webauthn_server) BeginRegistration(ctx echo.Context) error {
 					"error":   rollbackErr.Error(),
 					"message": "failed to rollback webauthn user txn",
 				})
-				wa.logger.Log(ctx, wErr)
+				wa.logger.Log(ctx, wErr).Send()
 				return echoErr
 			}
 
@@ -156,7 +156,7 @@ func (wa *webauthn_server) BeginRegistration(ctx echo.Context) error {
 				"error":   wErr.Error(),
 				"message": "failed to add webauthn session data for existing user",
 			})
-			wa.logger.Log(ctx, wErr)
+			wa.logger.Log(ctx, wErr).Send()
 			return echoErr
 		}
 
@@ -165,7 +165,7 @@ func (wa *webauthn_server) BeginRegistration(ctx echo.Context) error {
 			"options": credentialOpts,
 		})
 
-		wa.logger.Log(ctx, echoErr)
+		wa.logger.Log(ctx, echoErr).Send()
 		return echoErr
 	}
 
@@ -174,7 +174,7 @@ func (wa *webauthn_server) BeginRegistration(ctx echo.Context) error {
 		"error":   err.Error(),
 		"message": "username/email already exists",
 	})
-	wa.logger.Log(ctx, err)
+	wa.logger.Log(ctx, err).Send()
 	return echoErr
 }
 
@@ -186,7 +186,7 @@ func (wa *webauthn_server) RollbackRegistration(ctx echo.Context) error {
 			"message": "user transaction does not exist",
 		})
 
-		wa.logger.Log(ctx, echoErr)
+		wa.logger.Log(ctx, echoErr).Send()
 		return echoErr
 	}
 
@@ -197,7 +197,7 @@ func (wa *webauthn_server) RollbackRegistration(ctx echo.Context) error {
 			"message": "failed to rollback transaction",
 		})
 
-		wa.logger.Log(ctx, echoErr)
+		wa.logger.Log(ctx, echoErr).Send()
 		return echoErr
 	}
 
@@ -205,7 +205,7 @@ func (wa *webauthn_server) RollbackRegistration(ctx echo.Context) error {
 		"message": "transaction rolled back successfully",
 	})
 
-	wa.logger.Log(ctx, echoErr)
+	wa.logger.Log(ctx, echoErr).Send()
 	return nil
 }
 
@@ -224,7 +224,7 @@ func (wa *webauthn_server) RollbackSessionData(ctx echo.Context) error {
 			"message": "no user found",
 		})
 
-		wa.logger.Log(ctx, echoErr)
+		wa.logger.Log(ctx, echoErr).Send()
 		return echoErr
 	}
 
@@ -235,12 +235,12 @@ func (wa *webauthn_server) RollbackSessionData(ctx echo.Context) error {
 			"message": "error rolling back session data for webauthn login",
 		})
 
-		wa.logger.Log(ctx, echoErr)
+		wa.logger.Log(ctx, echoErr).Send()
 		return echoErr
 	}
 
 	echoErr := ctx.NoContent(http.StatusNoContent)
-	wa.logger.Log(ctx, echoErr)
+	wa.logger.Log(ctx, echoErr).Send()
 	return echoErr
 }
 
@@ -255,7 +255,7 @@ func (wa *webauthn_server) FinishRegistration(ctx echo.Context) error {
 			"message": "no user found with this username",
 		})
 
-		wa.logger.Log(ctx, nil)
+		wa.logger.Log(ctx, nil).Send()
 		return echoErr
 	}
 
@@ -282,7 +282,7 @@ func (wa *webauthn_server) FinishRegistration(ctx echo.Context) error {
 			"error":   err.Error(),
 			"message": "error creating webauthn credentials",
 		})
-		wa.logger.Log(ctx, err)
+		wa.logger.Log(ctx, err).Send()
 		return echoErr
 
 	}
@@ -294,7 +294,7 @@ func (wa *webauthn_server) FinishRegistration(ctx echo.Context) error {
 			"error":   err.Error(),
 			"message": "error storing the credential info",
 		})
-		wa.logger.Log(ctx, err)
+		wa.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 
@@ -302,7 +302,7 @@ func (wa *webauthn_server) FinishRegistration(ctx echo.Context) error {
 		"message": "registration successful",
 	})
 
-	wa.logger.Log(ctx, echoErr)
+	wa.logger.Log(ctx, echoErr).Send()
 	return echoErr
 }
 
@@ -316,7 +316,7 @@ func (wa *webauthn_server) BeginLogin(ctx echo.Context) error {
 			"error":   err.Error(),
 			"message": "database error: user not found",
 		})
-		wa.logger.Log(ctx, err)
+		wa.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 
@@ -334,7 +334,7 @@ func (wa *webauthn_server) BeginLogin(ctx echo.Context) error {
 				"error":   err.Error(),
 				"message": "error removing webauthn session data",
 			})
-			wa.logger.Log(ctx, err)
+			wa.logger.Log(ctx, err).Send()
 			return echoErr
 		}
 
@@ -342,7 +342,7 @@ func (wa *webauthn_server) BeginLogin(ctx echo.Context) error {
 			"error":   err.Error(),
 			"message": "error performing Webauthn login",
 		})
-		wa.logger.Log(ctx, err)
+		wa.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 	defer ctx.Request().Body.Close()
@@ -351,7 +351,7 @@ func (wa *webauthn_server) BeginLogin(ctx echo.Context) error {
 		"options": credentialAssertion,
 	})
 
-	wa.logger.Log(ctx, echoErr)
+	wa.logger.Log(ctx, echoErr).Send()
 	return echoErr
 }
 
@@ -365,7 +365,7 @@ func (wa *webauthn_server) FinishLogin(ctx echo.Context) error {
 			"error":   err.Error(),
 			"message": "database error: user not found",
 		})
-		wa.logger.Log(ctx, err)
+		wa.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 
@@ -381,7 +381,7 @@ func (wa *webauthn_server) FinishLogin(ctx echo.Context) error {
 			"error":   err.Error(),
 			"message": "parsing error: could not parse credential request body in finish login",
 		})
-		wa.logger.Log(ctx, err)
+		wa.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 	defer ctx.Request().Body.Close()
@@ -410,7 +410,7 @@ func (wa *webauthn_server) FinishLogin(ctx echo.Context) error {
 			"error":   err.Error(),
 			"message": "error creating web login token",
 		})
-		wa.logger.Log(ctx, err)
+		wa.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 
@@ -420,7 +420,7 @@ func (wa *webauthn_server) FinishLogin(ctx echo.Context) error {
 			"error":   err.Error(),
 			"message": "error creating refresh token",
 		})
-		wa.logger.Log(ctx, err)
+		wa.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 	id := uuid.NewString()
@@ -431,7 +431,7 @@ func (wa *webauthn_server) FinishLogin(ctx echo.Context) error {
 			"error":   err.Error(),
 			"message": "error creating session",
 		})
-		wa.logger.Log(ctx, err)
+		wa.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 
@@ -470,7 +470,7 @@ func (wa *webauthn_server) FinishLogin(ctx echo.Context) error {
 		"message": "Login Success",
 	})
 
-	wa.logger.Log(ctx, echoErr)
+	wa.logger.Log(ctx, echoErr).Send()
 	return echoErr
 }
 
