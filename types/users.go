@@ -75,7 +75,7 @@ func (u *User) Validate(validatePassword bool) error {
 	}
 
 	// there's no password for OAuth Users
-	if validatePassword || u.OAuthID <= 0 {
+	if validatePassword || u.OAuthID > 0 {
 		if err := ValidatePassword(u.Password); err != nil {
 			return fmt.Errorf("invalid password: %w", err)
 		}

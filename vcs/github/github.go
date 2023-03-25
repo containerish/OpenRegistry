@@ -10,7 +10,7 @@ import (
 	"github.com/containerish/OpenRegistry/config"
 	"github.com/containerish/OpenRegistry/telemetry"
 	"github.com/containerish/OpenRegistry/vcs"
-	"github.com/google/go-github/v46/github"
+	"github.com/google/go-github/v50/github"
 	"github.com/labstack/echo/v4"
 )
 
@@ -77,10 +77,14 @@ func (gh *ghAppService) RegisterRoutes(r *echo.Group) {
 func (gh *ghAppService) getUsernameMiddleware() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
+			if c.Path() == "/github"+vcs.HandleWebhookEventsEndpoint {
+				return next(c)
+			}
 			sessionID, err := c.Cookie("session_id")
 			if err != nil {
 				echoErr := c.JSON(http.StatusNotAcceptable, echo.Map{
-					"error": err.Error(),
+					"error":     err.Error(),
+					"cookie_id": "session_id",
 				})
 				gh.logger.Log(c, err).Send()
 				return echoErr
@@ -104,6 +108,9 @@ func (gh *ghAppService) getUsernameMiddleware() echo.MiddlewareFunc {
 func (gh *ghAppService) getGitubInstallationID(skipRoutes ...string) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
+			if c.Path() == "/github"+vcs.HandleWebhookEventsEndpoint {
+				return next(c)
+			}
 			username, ok := c.Get(UsernameContextKey).(string)
 			if !ok {
 				echoErr := c.JSON(http.StatusNotAcceptable, echo.Map{
