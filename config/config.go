@@ -17,13 +17,14 @@ import (
 type (
 	OpenRegistryConfig struct {
 		SkynetConfig   Skynet         `yaml:"skynet" mapstructure:"skynet" validate:"-"`
-		OAuth          OAuth          `yaml:"oauth" mapstructure:"oauth" validate:"-"`
 		WebAppConfig   WebAppConfig   `yaml:"web_app" mapstructure:"web_app"`
-		DFS            DFS            `yaml:"dfs" mapstructure:"dfs"`
+		OAuth          OAuth          `yaml:"oauth" mapstructure:"oauth" validate:"-"`
 		StoreConfig    Store          `yaml:"database" mapstructure:"database" validate:"required"`
 		LogConfig      Log            `yaml:"log_service" mapstructure:"log_service"`
 		Email          Email          `yaml:"email" mapstructure:"email" validate:"-"`
+		Integrations   Integrations   `yaml:"integrations" mapstructure:"integrations"`
 		Registry       Registry       `yaml:"registry" mapstructure:"registry" validate:"required"`
+		DFS            DFS            `yaml:"dfs" mapstructure:"dfs"`
 		WebAuthnConfig WebAuthnConfig `yaml:"web_authn_config" mapstructure:"web_authn_config"`
 		Environment    Environment    `yaml:"environment" mapstructure:"environment" validate:"required"`
 		Debug          bool           `yaml:"debug" mapstructure:"debug"`
@@ -51,6 +52,9 @@ type (
 		MinChunkSize    uint64 `yaml:"min_chunk_size" mapstructure:"min_chunk_size"`
 		Enabled         bool   `yaml:"enabled" mapstructure:"enabled"`
 	}
+
+	// just so that we can retrieve values easily
+	Integrations []*Integration
 
 	Registry struct {
 		TLS        TLS      `yaml:"tls" mapstructure:"tls" validate:"-"`
@@ -119,6 +123,17 @@ type (
 		RPOrigins     []string      `yaml:"rp_origins" mapstructure:"rp_origins"`
 		Enabled       bool          `yaml:"enabled" mapstructure:"enabled"`
 		Timeout       time.Duration `yaml:"timeout" mapstructure:"timeout"`
+	}
+	Integration struct {
+		Name                  string `yaml:"name" mapstructure:"name"`
+		ClientSecret          string `yaml:"client_secret" mapstructure:"client_secret"`
+		ClientID              string `yaml:"client_id" mapstructure:"client_id"`
+		PublicLink            string `yaml:"public_link" mapstructure:"public_link"`
+		PrivateKeyPem         string `yaml:"private_key_pem" mapstructure:"private_key_pem"`
+		AppInstallRedirectURL string `yaml:"app_install_redirect_url" mapstructure:"app_install_redirect_url"`
+		WebhookSecret         string `yaml:"webhook_secret" mapstructure:"webhook_secret"`
+		AppID                 int64  `yaml:"app_id" mapstructure:"app_id"`
+		Enabled               bool   `yaml:"enabled" mapstructure:"enabled"`
 	}
 )
 
@@ -215,6 +230,16 @@ func (oc *OpenRegistryConfig) Endpoint() string {
 	default:
 		return fmt.Sprintf("https://%s:%d", oc.Registry.Host, oc.Registry.Port)
 	}
+}
+
+func (itg Integrations) GetGithubConfig() *Integration {
+	for _, cfg := range itg {
+		if cfg.Name == "github" && cfg.Enabled {
+			return cfg
+		}
+	}
+
+	return nil
 }
 
 type Environment int

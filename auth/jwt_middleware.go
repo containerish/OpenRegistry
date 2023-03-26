@@ -59,11 +59,12 @@ func (a *auth) JWT() echo.MiddlewareFunc {
 		},
 		ErrorHandler: func(ctx echo.Context, err error) error {
 			ctx.Set(types.HandlerStartTime, time.Now())
-			a.logger.Log(ctx, err)
-			return ctx.JSON(http.StatusUnauthorized, echo.Map{
+			echoErr := ctx.JSON(http.StatusUnauthorized, echo.Map{
 				"error":   err.Error(),
 				"message": "missing authentication information",
 			})
+			a.logger.Log(ctx, err).Send()
+			return echoErr
 		},
 		KeyFunc: func(t *jwt.Token) (interface{}, error) {
 			return pubKey, nil
@@ -92,22 +93,25 @@ func (a *auth) ACL() echo.MiddlewareFunc {
 
 			token, ok := ctx.Get("user").(*jwt.Token)
 			if !ok {
-				a.logger.Log(ctx, fmt.Errorf("ACL: unauthorized"))
-				return ctx.NoContent(http.StatusUnauthorized)
+				echoErr := ctx.NoContent(http.StatusUnauthorized)
+				a.logger.Log(ctx, fmt.Errorf("ACL: unauthorized")).Send()
+				return echoErr
 			}
 
 			claims, ok := token.Claims.(*Claims)
 			if !ok {
-				a.logger.Log(ctx, fmt.Errorf("ACL: invalid claims"))
-				return ctx.NoContent(http.StatusUnauthorized)
+				echoErr := ctx.NoContent(http.StatusUnauthorized)
+				a.logger.Log(ctx, fmt.Errorf("ACL: invalid claims")).Send()
+				return echoErr
 			}
 
 			username := ctx.Param("username")
 
 			user, err := a.pgStore.GetUserById(ctx.Request().Context(), claims.Id, false, nil)
 			if err != nil {
-				a.logger.Log(ctx, err)
-				return ctx.NoContent(http.StatusUnauthorized)
+				echoErr := ctx.NoContent(http.StatusUnauthorized)
+				a.logger.Log(ctx, err).Send()
+				return echoErr
 			}
 			if user.Username == username {
 				return hf(ctx)
@@ -142,11 +146,12 @@ func (a *auth) JWTRest() echo.MiddlewareFunc {
 	return echo_jwt.WithConfig(echo_jwt.Config{
 		ErrorHandler: func(ctx echo.Context, err error) error {
 			ctx.Set(types.HandlerStartTime, time.Now())
-			a.logger.Log(ctx, err)
-			return ctx.JSON(http.StatusUnauthorized, echo.Map{
+			echoErr := ctx.JSON(http.StatusUnauthorized, echo.Map{
 				"error":   err.Error(),
 				"message": "missing authentication information",
 			})
+			a.logger.Log(ctx, err).Send()
+			return echoErr
 		},
 		KeyFunc: func(t *jwt.Token) (interface{}, error) {
 			return pubKey, nil

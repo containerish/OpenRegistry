@@ -17,9 +17,11 @@ values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12);`
 	AddOAuthUser            = `insert into users (id, username, email, github_connected, html_url, created_at, updated_at,
 bio, type, gravatar_id, login, name, node_id, avatar_url, oauth_id, is_active, hireable)
 values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`
-	UserExists      = `select exists (select username from users where username=$1 or id=$id or login=$1 or email=$1)`
-	GetOAuthUser    = `select id, username, email, github_connected, webauthn_connected from users where email=$1 or username=$1;`
-	UpdateOAuthUser = `update users set email=$1, login=$2,node_id=$3`
+	UserExists               = `select exists (select username from users where username=$1 or id=$id or login=$1 or email=$1)`
+	GetOAuthUser             = `select id, username, email, github_connected, webauthn_connected from users where email=$1 or username=$1;`
+	UpdateOAuthUser          = `update users set email=$1, login=$2,node_id=$3`
+	UpdateUserInstallationID = `update users set github_app_installation_id=$1 where username=$2;`
+	GetUserInstallationID    = `select github_app_installation_id from users where username=$1;`
 )
 
 var (

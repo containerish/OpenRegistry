@@ -20,7 +20,7 @@ func (a *auth) VerifyEmail(ctx echo.Context) error {
 			"error":   err.Error(),
 			"message": "token can not be empty",
 		})
-		a.logger.Log(ctx, err)
+		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 
@@ -29,7 +29,7 @@ func (a *auth) VerifyEmail(ctx echo.Context) error {
 			"error":   err.Error(),
 			"message": "error parsing token",
 		})
-		a.logger.Log(ctx, err)
+		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 
@@ -39,7 +39,7 @@ func (a *auth) VerifyEmail(ctx echo.Context) error {
 			"error":   err.Error(),
 			"message": "invalid token",
 		})
-		a.logger.Log(ctx, err)
+		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 
@@ -49,7 +49,7 @@ func (a *auth) VerifyEmail(ctx echo.Context) error {
 			"error":   err.Error(),
 			"message": "user not found",
 		})
-		a.logger.Log(ctx, err)
+		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 
@@ -61,7 +61,7 @@ func (a *auth) VerifyEmail(ctx echo.Context) error {
 			"error": err.Error(),
 			"msg":   "error updating user",
 		})
-		a.logger.Log(ctx, err)
+		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 
@@ -71,7 +71,7 @@ func (a *auth) VerifyEmail(ctx echo.Context) error {
 			"error": err.Error(),
 			"msg":   "error while deleting verify email",
 		})
-		a.logger.Log(ctx, err)
+		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 
@@ -90,7 +90,7 @@ func (a *auth) VerifyEmail(ctx echo.Context) error {
 			"error":   err.Error(),
 			"message": "error getting access token",
 		})
-		a.logger.Log(ctx, err)
+		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 
@@ -108,7 +108,7 @@ func (a *auth) VerifyEmail(ctx echo.Context) error {
 			"error":   err.Error(),
 			"message": "error getting refresh token",
 		})
-		a.logger.Log(ctx, err)
+		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 
@@ -118,7 +118,7 @@ func (a *auth) VerifyEmail(ctx echo.Context) error {
 			"error": err.Error(),
 			"cause": "error creating random id for session",
 		})
-		a.logger.Log(ctx, err)
+		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 	if err = a.pgStore.AddSession(ctx.Request().Context(), id.String(), refresh, user.Username); err != nil {
@@ -126,7 +126,7 @@ func (a *auth) VerifyEmail(ctx echo.Context) error {
 			"error":   err.Error(),
 			"message": "error creating session",
 		})
-		a.logger.Log(ctx, err)
+		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 
@@ -142,6 +142,6 @@ func (a *auth) VerifyEmail(ctx echo.Context) error {
 	err = ctx.JSON(http.StatusOK, echo.Map{
 		"message": "user profile activated successfully",
 	})
-	a.logger.Log(ctx, err)
+	a.logger.Log(ctx, err).Send()
 	return err
 }

@@ -24,18 +24,20 @@ func (a *auth) Token(ctx echo.Context) error {
 		username, password, err := a.getCredsFromHeader(ctx.Request())
 		if err != nil {
 			echoErr := ctx.NoContent(http.StatusUnauthorized)
-			a.logger.Log(ctx, err)
+			a.logger.Log(ctx, err).Send()
 			return echoErr
 		}
 
-		if strings.HasPrefix(password, "gho_") || strings.HasPrefix(password, "ghp_") {
+		// Github OAuth Scoped tokens start with "gho" prefix and personal tokens start with "ghp"
+		// more on this here: https://www.infoq.com/news/2021/04/github-new-token-format
+		if strings.HasPrefix(password, "gho") || strings.HasPrefix(password, "ghp") {
 			user, err := a.getUserWithGithubOauthToken(ctx.Request().Context(), password)
 			if err != nil {
 				echoErr := ctx.JSON(http.StatusUnauthorized, echo.Map{
 					"error":   err.Error(),
 					"message": "invalid github token",
 				})
-				a.logger.Log(ctx, err)
+				a.logger.Log(ctx, err).Send()
 				return echoErr
 			}
 
@@ -45,7 +47,7 @@ func (a *auth) Token(ctx echo.Context) error {
 					"error":   err.Error(),
 					"message": "failed to get new service token",
 				})
-				a.logger.Log(ctx, err)
+				a.logger.Log(ctx, err).Send()
 				return echoErr
 			}
 
@@ -54,7 +56,7 @@ func (a *auth) Token(ctx echo.Context) error {
 				"expires_in": time.Now().Add(time.Hour).Unix(), // look at auth/jwt.go:251
 				"issued_at":  time.Now(),
 			})
-			a.logger.Log(ctx, err)
+			a.logger.Log(ctx, err).Send()
 			return err
 		}
 
@@ -64,12 +66,12 @@ func (a *auth) Token(ctx echo.Context) error {
 				"error":   err.Error(),
 				"message": "error validating user, unauthorised",
 			})
-			a.logger.Log(ctx, err)
+			a.logger.Log(ctx, err).Send()
 			return echoErr
 		}
 
 		err = ctx.JSON(http.StatusOK, creds)
-		a.logger.Log(ctx, err)
+		a.logger.Log(ctx, err).Send()
 		return err
 	}
 
@@ -79,7 +81,7 @@ func (a *auth) Token(ctx echo.Context) error {
 			"error":   err.Error(),
 			"message": "invalid scope provided",
 		})
-		a.logger.Log(ctx, err)
+		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 
@@ -89,19 +91,19 @@ func (a *auth) Token(ctx echo.Context) error {
 		token, err := a.newPublicPullToken()
 		if err != nil {
 			echoErr := ctx.NoContent(http.StatusInternalServerError)
-			a.logger.Log(ctx, err)
+			a.logger.Log(ctx, err).Send()
 			return echoErr
 		}
 
 		echoErr := ctx.JSON(http.StatusOK, echo.Map{
 			"token": token,
 		})
-		a.logger.Log(ctx, err)
+		a.logger.Log(ctx, echoErr).Send()
 		return echoErr
 	}
 
 	err = ctx.NoContent(http.StatusUnauthorized)
-	a.logger.Log(ctx, err)
+	a.logger.Log(ctx, err).Send()
 	return err
 }
 

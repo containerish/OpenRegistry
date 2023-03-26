@@ -26,20 +26,24 @@ func (a *auth) LoginWithGithub(ctx echo.Context) error {
 			"error":   err.Error(),
 			"message": "error generating random id for github login",
 		})
-		a.logger.Log(ctx, err)
+		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 
+	a.mu.Lock()
 	a.oauthStateStore[state.String()] = time.Now().Add(time.Minute * 10)
+	a.mu.Unlock()
 	url := a.github.AuthCodeURL(state.String(), oauth2.AccessTypeOffline)
-	a.logger.Log(ctx, nil)
-	return ctx.Redirect(http.StatusTemporaryRedirect, url)
+	echoErr := ctx.Redirect(http.StatusTemporaryRedirect, url)
+	a.logger.Log(ctx, echoErr).Send()
+	return echoErr
 }
 
 func (a *auth) GithubLoginCallbackHandler(ctx echo.Context) error {
 	ctx.Set(types.HandlerStartTime, time.Now())
 
 	stateToken := ctx.FormValue("state")
+	a.mu.Lock()
 	_, ok := a.oauthStateStore[stateToken]
 	if !ok {
 		err := fmt.Errorf("missing or invalid state token")
@@ -52,6 +56,7 @@ func (a *auth) GithubLoginCallbackHandler(ctx echo.Context) error {
 	// no need to compare the stateToken from QueryParam \w stateToken from a.oauthStateStore
 	// the key is the actual token :p
 	delete(a.oauthStateStore, stateToken)
+	a.mu.Unlock()
 
 	code := ctx.FormValue("code")
 	token, err := a.github.Exchange(context.Background(), code)
@@ -160,7 +165,12 @@ func (a *auth) createCookie(name string, value string, httpOnly bool, expiresAt 
 	if a.c.Environment == config.Local {
 		secure = false
 		sameSite = http.SameSiteLaxMode
-		domain = "localhost"
+		url, err := url.Parse(a.c.WebAppConfig.Endpoint)
+		if err != nil {
+			domain = "localhost"
+		} else {
+			domain = url.Hostname()
+		}
 	}
 
 	cookie := &http.Cookie{

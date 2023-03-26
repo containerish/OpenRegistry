@@ -42,10 +42,11 @@ func (ext *extension) CatalogDetail(ctx echo.Context) error {
 	if queryParamPageSize != "" {
 		ps, err := strconv.ParseInt(ctx.QueryParam("n"), 10, 64)
 		if err != nil {
-			ext.logger.Log(ctx, err)
-			return ctx.JSON(http.StatusBadRequest, echo.Map{
+			echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 				"error": err.Error(),
 			})
+			ext.logger.Log(ctx, err).Send()
+			return echoErr
 		}
 		pageSize = ps
 	}
@@ -53,18 +54,20 @@ func (ext *extension) CatalogDetail(ctx echo.Context) error {
 	if queryParamOffset != "" {
 		o, err := strconv.ParseInt(ctx.QueryParam("last"), 10, 64)
 		if err != nil {
-			ext.logger.Log(ctx, err)
-			return ctx.JSON(http.StatusBadRequest, echo.Map{
+			echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 				"error": err.Error(),
 			})
+			ext.logger.Log(ctx, err).Send()
+			return echoErr
 		}
 		offset = o
 	}
 
 	total, err := ext.store.GetCatalogCount(ctx.Request().Context(), namespace)
 	if err != nil {
-		ext.logger.Log(ctx, err)
-		return ctx.JSON(http.StatusInternalServerError, echo.Map{"error": err.Error()})
+		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{"error": err.Error()})
+		ext.logger.Log(ctx, err).Send()
+		return echoErr
 	}
 
 	switch sortBy {
@@ -76,25 +79,28 @@ func (ext *extension) CatalogDetail(ctx echo.Context) error {
 		sortBy = "namespace asc"
 	default:
 		err = fmt.Errorf("invalid choice of sort_by element")
-		ext.logger.Log(ctx, err)
-		return ctx.JSON(http.StatusBadRequest, echo.Map{
+		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error": err.Error(),
 		})
+		ext.logger.Log(ctx, err).Send()
+		return echoErr
 	}
 
 	catalogWithDetail, err := ext.store.GetCatalogDetail(ctx.Request().Context(), namespace, pageSize, offset, sortBy)
 	if err != nil {
-		ext.logger.Log(ctx, err)
-		return ctx.JSON(http.StatusInternalServerError, echo.Map{
+		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error": err.Error(),
 		})
+		ext.logger.Log(ctx, err).Send()
+		return echoErr
 	}
 
-	ext.logger.Log(ctx, err)
-	return ctx.JSON(http.StatusOK, echo.Map{
+	echoErr := ctx.JSON(http.StatusOK, echo.Map{
 		"repositories": catalogWithDetail,
 		"total":        total,
 	})
+	ext.logger.Log(ctx, err).Send()
+	return echoErr
 }
 
 // RepositoryDetail returns detail of a particular container image
@@ -109,10 +115,11 @@ func (ext *extension) RepositoryDetail(ctx echo.Context) error {
 	if queryParamPageSize != "" {
 		ps, err := strconv.ParseInt(ctx.QueryParam("n"), 10, 64)
 		if err != nil {
-			ext.logger.Log(ctx, err)
-			return ctx.JSON(http.StatusBadRequest, echo.Map{
+			echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 				"error": err.Error(),
 			})
+			ext.logger.Log(ctx, err).Send()
+			return echoErr
 		}
 		pageSize = ps
 	}
@@ -120,22 +127,25 @@ func (ext *extension) RepositoryDetail(ctx echo.Context) error {
 	if queryParamOffset != "" {
 		o, err := strconv.ParseInt(ctx.QueryParam("last"), 10, 64)
 		if err != nil {
-			ext.logger.Log(ctx, err)
-			return ctx.JSON(http.StatusBadRequest, echo.Map{
+			echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 				"error": err.Error(),
 			})
+			ext.logger.Log(ctx, err).Send()
+			return echoErr
 		}
 		offset = o
 	}
 
 	repository, err := ext.store.GetRepoDetail(ctx.Request().Context(), namespace, pageSize, offset)
 	if err != nil {
-		ext.logger.Log(ctx, err)
-		return ctx.JSON(http.StatusInternalServerError, echo.Map{
+		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error": err.Error(),
 		})
+		ext.logger.Log(ctx, err).Send()
+		return echoErr
 	}
 
-	ext.logger.Log(ctx, nil)
-	return ctx.JSON(http.StatusOK, repository)
+	echoErr := ctx.JSON(http.StatusOK, repository)
+	ext.logger.Log(ctx, echoErr).Send()
+	return echoErr
 }

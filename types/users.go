@@ -74,9 +74,10 @@ func (u *User) Validate(validatePassword bool) error {
 		return fmt.Errorf("user is nil")
 	}
 
-	if validatePassword {
+	// there's no password for OAuth Users
+	if validatePassword || u.OAuthID > 0 {
 		if err := ValidatePassword(u.Password); err != nil {
-			return err
+			return fmt.Errorf("invalid password: %w", err)
 		}
 	}
 
@@ -126,7 +127,7 @@ func ValidatePassword(password string) error {
 		appendError("uppercase letter missing")
 	}
 	if !numberPresent {
-		appendError("atleast one numeric character required")
+		appendError("at least one numeric character required")
 	}
 	if !specialCharPresent {
 		appendError("special character missing")

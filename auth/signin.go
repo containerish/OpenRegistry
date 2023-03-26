@@ -22,18 +22,18 @@ func (a *auth) SignIn(ctx echo.Context) error {
 			"error":   err.Error(),
 			"message": "invalid JSON object",
 		})
-		a.logger.Log(ctx, err)
+		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 
 	err := user.Validate(true)
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
-			"error":   err.Error(),
-			"message": "invalid data provided for user login",
+			"error":   "invalid data provided for user login",
+			"message": err.Error(),
 			"code":    "INVALID_CREDENTIALS",
 		})
-		a.logger.Log(ctx, err)
+		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 
@@ -44,13 +44,12 @@ func (a *auth) SignIn(ctx echo.Context) error {
 
 	userFromDb, err := a.pgStore.GetUser(ctx.Request().Context(), key, true, nil)
 	if err != nil {
-
 		if errors.Unwrap(err) == pgx.ErrNoRows {
 			echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 				"error":   err.Error(),
 				"message": "user not found",
 			})
-			a.logger.Log(ctx, err)
+			a.logger.Log(ctx, err).Send()
 			return echoErr
 		}
 
@@ -58,7 +57,7 @@ func (a *auth) SignIn(ctx echo.Context) error {
 			"error":   err.Error(),
 			"message": "database error, failed to get user",
 		})
-		a.logger.Log(ctx, err)
+		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 
@@ -68,7 +67,7 @@ func (a *auth) SignIn(ctx echo.Context) error {
 			"error":   "ERR_USER_INACTIVE",
 			"message": err.Error(),
 		})
-		a.logger.Log(ctx, err)
+		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 
@@ -78,7 +77,7 @@ func (a *auth) SignIn(ctx echo.Context) error {
 			"error":   "ERR_INCORRECT_PASSWORD",
 			"message": err.Error(),
 		})
-		a.logger.Log(ctx, err)
+		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 
@@ -96,7 +95,7 @@ func (a *auth) SignIn(ctx echo.Context) error {
 			"error":   err.Error(),
 			"message": "error creating web login token",
 		})
-		a.logger.Log(ctx, err)
+		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 
@@ -115,24 +114,25 @@ func (a *auth) SignIn(ctx echo.Context) error {
 			"error":   err.Error(),
 			"message": "error creating refresh token",
 		})
-		a.logger.Log(ctx, err)
+		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 
 	id, err := uuid.NewRandom()
 	if err != nil {
-		a.logger.Log(ctx, err)
-		return ctx.JSON(http.StatusInternalServerError, echo.Map{
+		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error":   err.Error(),
 			"message": "error creating session id",
 		})
+		a.logger.Log(ctx, err).Send()
+		return echoErr
 	}
 	if err = a.pgStore.AddSession(ctx.Request().Context(), id.String(), refresh, userFromDb.Username); err != nil {
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error":   err.Error(),
 			"message": "error creating session",
 		})
-		a.logger.Log(ctx, err)
+		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 
@@ -148,6 +148,6 @@ func (a *auth) SignIn(ctx echo.Context) error {
 		"token":   access,
 		"refresh": refresh,
 	})
-	a.logger.Log(ctx, err)
+	a.logger.Log(ctx, err).Send()
 	return err
 }

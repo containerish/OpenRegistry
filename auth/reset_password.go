@@ -21,7 +21,7 @@ func (a *auth) ResetForgottenPassword(ctx echo.Context) error {
 			"error":   err.Error(),
 			"message": "JWT token can not be empty",
 		})
-		a.logger.Log(ctx, err)
+		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 
@@ -32,7 +32,7 @@ func (a *auth) ResetForgottenPassword(ctx echo.Context) error {
 			"error":   err.Error(),
 			"message": "invalid claims in JWT",
 		})
-		a.logger.Log(ctx, err)
+		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 
@@ -43,7 +43,7 @@ func (a *auth) ResetForgottenPassword(ctx echo.Context) error {
 			"error":   err.Error(),
 			"message": "request body could not be decoded",
 		})
-		a.logger.Log(ctx, err)
+		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 	_ = ctx.Request().Body.Close()
@@ -55,7 +55,7 @@ func (a *auth) ResetForgottenPassword(ctx echo.Context) error {
 			"error":   err.Error(),
 			"message": "error getting user by ID from DB",
 		})
-		a.logger.Log(ctx, err)
+		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 
@@ -65,19 +65,18 @@ func (a *auth) ResetForgottenPassword(ctx echo.Context) error {
 			"message": `password must be alphanumeric, at least 8 chars long, must have at least one special character
 and an uppercase letter`,
 		})
-		a.logger.Log(ctx, err)
+		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 
 	if a.verifyPassword(user.Password, pwd.NewPassword) {
-
 		err = fmt.Errorf("new password can not be same as old password")
 		// error is already user friendly
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error":   err.Error(),
 			"message": err.Error(),
 		})
-		a.logger.Log(ctx, err)
+		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 
@@ -87,7 +86,7 @@ and an uppercase letter`,
 			"error":   err.Error(),
 			"message": "ERR_HASH_NEW_PASSWORD",
 		})
-		a.logger.Log(ctx, err)
+		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 
@@ -96,14 +95,14 @@ and an uppercase letter`,
 			"error":   err.Error(),
 			"message": "error updating new password",
 		})
-		a.logger.Log(ctx, err)
+		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 
 	err = ctx.JSON(http.StatusAccepted, echo.Map{
 		"message": "password changed successfully",
 	})
-	a.logger.Log(ctx, err)
+	a.logger.Log(ctx, err).Send()
 	return err
 }
 
@@ -115,7 +114,7 @@ func (a *auth) ResetPassword(ctx echo.Context) error {
 			"error":   err.Error(),
 			"message": "JWT token can not be empty",
 		})
-		a.logger.Log(ctx, err)
+		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 
@@ -126,7 +125,7 @@ func (a *auth) ResetPassword(ctx echo.Context) error {
 			"error":   err.Error(),
 			"message": "invalid claims in JWT",
 		})
-		a.logger.Log(ctx, err)
+		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 
@@ -137,7 +136,7 @@ func (a *auth) ResetPassword(ctx echo.Context) error {
 			"error":   err.Error(),
 			"message": "request body could not be decoded",
 		})
-		a.logger.Log(ctx, err)
+		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 	_ = ctx.Request().Body.Close()
@@ -149,7 +148,7 @@ func (a *auth) ResetPassword(ctx echo.Context) error {
 			"error":   err.Error(),
 			"message": "error getting user by ID from DB",
 		})
-		a.logger.Log(ctx, err)
+		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 
@@ -160,7 +159,7 @@ func (a *auth) ResetPassword(ctx echo.Context) error {
 			"error":   err.Error(),
 			"message": "password is wrong",
 		})
-		a.logger.Log(ctx, err)
+		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 
@@ -170,7 +169,7 @@ func (a *auth) ResetPassword(ctx echo.Context) error {
 			"error":   err.Error(),
 			"message": "ERR_HASH_NEW_PASSWORD",
 		})
-		a.logger.Log(ctx, err)
+		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 
@@ -181,7 +180,7 @@ func (a *auth) ResetPassword(ctx echo.Context) error {
 			"error":   err.Error(),
 			"message": err.Error(),
 		})
-		a.logger.Log(ctx, err)
+		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 
@@ -191,7 +190,7 @@ func (a *auth) ResetPassword(ctx echo.Context) error {
 			"message": `password must be alphanumeric, at least 8 chars long, must have at least one special character
 and an uppercase letter`,
 		})
-		a.logger.Log(ctx, err)
+		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 
@@ -200,14 +199,14 @@ and an uppercase letter`,
 			"error":   err.Error(),
 			"message": "error updating new password",
 		})
-		a.logger.Log(ctx, err)
+		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 
 	err = ctx.JSON(http.StatusAccepted, echo.Map{
 		"message": "password changed successfully",
 	})
-	a.logger.Log(ctx, nil)
+	a.logger.Log(ctx, err).Send()
 	return err
 }
 
@@ -218,7 +217,7 @@ func (a *auth) ForgotPassword(ctx echo.Context) error {
 			"error":   err.Error(),
 			"message": "email is invalid",
 		})
-		a.logger.Log(ctx, err)
+		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 
@@ -229,7 +228,7 @@ func (a *auth) ForgotPassword(ctx echo.Context) error {
 				"error":   err.Error(),
 				"message": "user does not exist with this email",
 			})
-			a.logger.Log(ctx, err)
+			a.logger.Log(ctx, err).Send()
 			return echoErr
 		}
 
@@ -237,7 +236,7 @@ func (a *auth) ForgotPassword(ctx echo.Context) error {
 			"error":   err.Error(),
 			"message": "error get user from DB with this email",
 		})
-		a.logger.Log(ctx, err)
+		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 
@@ -261,7 +260,7 @@ func (a *auth) ForgotPassword(ctx echo.Context) error {
 			"error":   err.Error(),
 			"message": "error generating reset password token",
 		})
-		a.logger.Log(ctx, err)
+		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 
@@ -270,13 +269,13 @@ func (a *auth) ForgotPassword(ctx echo.Context) error {
 			"error":   err.Error(),
 			"message": "error sending password reset link",
 		})
-		a.logger.Log(ctx, err)
+		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 
 	err = ctx.JSON(http.StatusAccepted, echo.Map{
 		"message": "a password reset link has been sent to your email",
 	})
-	a.logger.Log(ctx, err)
+	a.logger.Log(ctx, err).Send()
 	return err
 }

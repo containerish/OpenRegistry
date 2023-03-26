@@ -47,7 +47,7 @@ jobs:
            PGDATABASE: open_registry
            PGPASSWORD: Qwerty@123
            PGUSER: postgres
-      - name: Start OpenRegistry server
+      - name: Build and configure OpenRegistry container image
         run: |
           IP=`hostname -I | awk '{print $1}'`
           cp config.example.yaml config.yaml
