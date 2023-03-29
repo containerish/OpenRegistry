@@ -39,7 +39,21 @@ type (
 
 	DFS struct {
 		Filebase S3CompatibleDFS `yaml:"filebase" mapstructure:"filebase"`
-		Storj    S3CompatibleDFS `yaml:"storj" mapstructure:"storj"`
+		Storj    Storj           `yaml:"storj" mapstructure:"storj"`
+	}
+
+	Storj struct {
+		Type             string `yaml:"type" mapstructure:"type"`
+		AccessGrantToken string `yaml:"access_grant_token" mapstructure:"access_grant_token"`
+		LinkShareService string `yaml:"link_share_service" mapstructure:"link_share_service"`
+		AccessKey        string `yaml:"access_key" mapstructure:"access_key"`
+		SecretKey        string `yaml:"secret_key" mapstructure:"secret_key"`
+		Endpoint         string `yaml:"endpoint" mapstructure:"endpoint"`
+		BucketName       string `yaml:"bucket_name" mapstructure:"bucket_name"`
+		DFSLinkResolver  string `yaml:"dfs_link_resolver" mapstructure:"dfs_link_resolver"`
+		ChunkSize        int    `yaml:"chunk_size" mapstructure:"chunk_size"`
+		MinChunkSize     uint64 `yaml:"min_chunk_size" mapstructure:"min_chunk_size"`
+		Enabled          bool   `yaml:"enabled" mapstructure:"enabled"`
 	}
 
 	S3CompatibleDFS struct {
@@ -278,5 +292,18 @@ func (e Environment) String() string {
 		return "CI"
 	default:
 		panic("deployment environment is invalid, allowed values are: PRODUCTION, STAGING, LOCAL, and CI")
+	}
+}
+
+func (sj *Storj) S3Config() *S3CompatibleDFS {
+	return &S3CompatibleDFS{
+		AccessKey:       sj.AccessKey,
+		SecretKey:       sj.SecretKey,
+		Endpoint:        sj.Endpoint,
+		BucketName:      sj.BucketName,
+		DFSLinkResolver: sj.DFSLinkResolver,
+		ChunkSize:       sj.ChunkSize,
+		MinChunkSize:    sj.MinChunkSize,
+		Enabled:         sj.Enabled,
 	}
 }
