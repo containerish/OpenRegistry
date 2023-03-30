@@ -9,8 +9,8 @@ on:
         required: false
         default: false
 
-concurrency:
-  group: content-management-${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+concurrency: 
+  group: 'storj-s3-cm-${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.ref }}'
   cancel-in-progress: true
 
 jobs:
