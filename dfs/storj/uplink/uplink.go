@@ -204,17 +204,12 @@ func (u *storjUplink) Upload(ctx context.Context, namespace string, digest strin
 }
 
 // GeneratePresignedURL generates a public link (something like a presigned url) given the following:
-// 1. image/object name
-// 2. user namespace
 func (u *storjUplink) GeneratePresignedURL(ctx context.Context, key string) (string, error) {
 	perms := uplink.ReadOnlyPermission()
 	perms.NotAfter = time.Now().Add(time.Minute * 5)
 
 	var shareList []uplink.SharePrefix
-	// first element is always the object key
-	// for _, key := range key {
 	shareList = append(shareList, uplink.SharePrefix{Bucket: u.config.BucketName, Prefix: key})
-	// }
 	shareList = append(shareList, uplink.SharePrefix{Bucket: u.config.BucketName, Prefix: "layers"})
 
 	access, err := u.access.Share(perms, shareList...)
@@ -227,6 +222,7 @@ func (u *storjUplink) GeneratePresignedURL(ctx context.Context, key string) (str
 		CertificatePEM:     []byte{},
 		InsecureSkipVerify: false,
 	}
+
 	creds, err := cfg.RegisterAccess(ctx, access, &edge.RegisterAccessOptions{
 		Public: true,
 	})

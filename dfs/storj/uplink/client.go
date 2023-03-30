@@ -14,8 +14,6 @@ func newUplinkClient(cfg *config.Storj) (*uplink.Project, error) {
 		return nil, fmt.Errorf("ERR_STORJ_UPLINK_PARSE_ACCESS_GRANT_TOKEN: %w", err)
 	}
 
-	// edge.JoinShareURL(baseURL string, accessKeyID string, bucket string, key string, *edge.ShareURLOptions{})
-
 	project, err := uplink.OpenProject(context.Background(), access)
 	if err != nil {
 		return nil, fmt.Errorf("ERR_STORJ_UPLINK_OPEN_PROJECT: %w", err)
