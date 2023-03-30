@@ -27,6 +27,7 @@ oauth:
 dfs:
   storj:
     enabled: true
+    type: "s3"
     access_key: <access-key>
     secret_key: <access-secret-key>
     bucket_name: <s3-bucket-name>

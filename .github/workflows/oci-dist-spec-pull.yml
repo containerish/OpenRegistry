@@ -52,6 +52,7 @@ jobs:
           cp config.example.yaml config.yaml
           yq e -i '.environment = "ci"' config.yaml
           IP=$IP yq e -i '.database.host = env(IP)' config.yaml
+          yq e -i '.dfs.storj.type = "uplink"' config.yaml
           STORJ_CI_ACCESS_KEY=${{ secrets.STORJ_CI_ACCESS_KEY }} yq e -i '.dfs.storj.access_key = env(STORJ_CI_ACCESS_KEY)' config.yaml
           STORJ_CI_SECRET_KEY=${{ secrets.STORJ_CI_SECRET_KEY }} yq e -i '.dfs.storj.secret_key = env(STORJ_CI_SECRET_KEY)' config.yaml
           STORJ_CI_BUCKET_NAME=${{ secrets.STORJ_CI_BUCKET_NAME }} yq e -i '.dfs.storj.bucket_name = env(STORJ_CI_BUCKET_NAME)' config.yaml

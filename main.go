@@ -43,7 +43,7 @@ func main() {
 	authSvc := auth.New(cfg, pgStore, logger)
 	webauthnServer := auth_server.NewWebauthnServer(cfg, pgStore, logger)
 
-	dfs := client.NewDFSBackend(&cfg.DFS)
+	dfs := client.NewDFSBackend(cfg.Environment, &cfg.DFS)
 	reg, err := registry.NewRegistry(pgStore, dfs, logger, cfg)
 	if err != nil {
 		e.Logger.Errorf("error creating new container registry: %s", err)
