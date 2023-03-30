@@ -13,67 +13,80 @@ jobs:
 
   ## Storj S3 Gateway Tests
   call-storj-s3-image-push:
-    name: OCI Distribution Spec
+    name: OCI - Storj S3
     uses: ./.github/workflows/oci-dist-spec-storj-s3-push.yml
-    needs: call-lint
     secrets: inherit
+    needs:
+      - call-lint
   call-storj-s3-image-pull:
-    name: OCI Distribution Spec
+    name: OCI - Storj S3
     uses: ./.github/workflows/oci-dist-spec-storj-s3-pull.yml
-    needs: call-lint
     secrets: inherit
+    needs:
+      - call-lint
   call-storj-s3-image-content-discovery:
-    name: OCI Distribution Spec
+    name: OCI - Storj S3
     uses: ./.github/workflows/oci-dist-spec-storj-s3-content-discovery.yml
-    needs: call-lint
     secrets: inherit
+    needs:
+      - call-lint
   call-storj-s3-image-content-management:
-    name: OCI Distribution Spec
+    name: OCI - Storj S3
     uses: ./.github/workflows/oci-dist-spec-storj-s3-content-management.yml
-    needs: call-lint
     secrets: inherit
+    needs:
+      - call-lint
+
 
   ## Storj Uplink Tests
   call-storj-uplink-image-push:
-    name: OCI Distribution Spec
+    name: OCI - Storj Uplink
     uses: ./.github/workflows/oci-dist-spec-storj-uplink-push.yml
-    needs: call-lint
     secrets: inherit
+    needs:
+      - call-lint
   call-storj-uplink-image-pull:
-    name: OCI Distribution Spec
+    name: OCI - Storj Uplink
     uses: ./.github/workflows/oci-dist-spec-storj-uplink-pull.yml
-    needs: call-lint
     secrets: inherit
+    needs:
+      - call-lint
   call-storj-uplink-image-content-discovery:
-    name: OCI Distribution Spec
+    name: OCI - Storj Uplink
     uses: ./.github/workflows/oci-dist-spec-storj-uplink-content-discovery.yml
-    needs: call-lint
     secrets: inherit
+    needs:
+      - call-lint
   call-storj-uplink-image-content-management:
-    name: OCI Distribution Spec
+    name: OCI - Storj Uplink
     uses: ./.github/workflows/oci-dist-spec-storj-uplink-content-management.yml
-    needs: call-lint
     secrets: inherit
+    needs:
+      - call-lint
 
 
   ## Filebase Tests
   call-filebase-image-push:
-    name: OCI Distribution Spec
+    name: OCI - Filebase + IPFS
     uses: ./.github/workflows/oci-dist-spec-filebase-push.yml
-    needs: call-lint
     secrets: inherit
+    needs:
+      - call-lint
   call-filebase-image-pull:
-    name: OCI Distribution Spec
+    name: OCI - Filebase + IPFS
     uses: ./.github/workflows/oci-dist-spec-filebase-pull.yml
-    needs: call-lint
     secrets: inherit
+    needs:
+      - call-lint
   call-filebase-image-content-discovery:
-    name: OCI Distribution Spec
+    name: OCI - Filebase + IPFS
     uses: ./.github/workflows/oci-dist-spec-filebase-content-discovery.yml
-    needs: call-lint
     secrets: inherit
+    needs:
+      - call-lint
   call-filebase-image-content-management:
-    name: OCI Distribution Spec
+    name: OCI - Filebase + IPFS
     uses: ./.github/workflows/oci-dist-spec-filebase-content-management.yml
-    needs: call-lint
     secrets: inherit
+    needs:
+      - call-lint
