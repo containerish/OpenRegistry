@@ -1,0 +1,101 @@
+name: OCI Dist - Storj Uplink
+
+on:
+  workflow_call:
+    inputs:
+      debug_enabled:
+        type: boolean
+        description: 'Run the build with tmate debugging enabled (https://github.com/marketplace/actions/debugging-with-tmate)'
+        required: false
+        default: false
+
+concurrency:
+  group: content-management-${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  content-management:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres
+        env:
+          PGUSER: postgres
+          POSTGRES_DB: open_registry
+          POSTGRES_PASSWORD: Qwerty@123
+          POSTGRES_USER: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install Migrate CLI
+        run: |
+          curl -L https://github.com/golang-migrate/migrate/releases/download/v4.15.1/migrate.linux-amd64.tar.gz | tar xvz
+          sudo mv migrate /usr/bin/migrate
+      - name: Setup PostgreSQL Database
+        run: |
+          IP=`hostname -I | awk '{print $1}'`
+          POSTGRESQL_URL=postgres://$PGUSER:$PGPASSWORD@$IP:5432/$PGDATABASE?sslmode=disable
+          migrate -database ${POSTGRESQL_URL} -path db/migrations up
+        env:
+           PGDATABASE: open_registry
+           PGPASSWORD: Qwerty@123
+           PGUSER: postgres
+      - name: Build and configure OpenRegistry container image
+        run: |
+          IP=`hostname -I | awk '{print $1}'`
+          cp config.example.yaml config.yaml
+          IP=$IP yq e -i '.database.host = env(IP)' config.yaml
+          yq e -i '.environment = "ci"' config.yaml
+          yq e -i '.dfs.storj.type = "uplink"' config.yaml
+          yq e -i '.dfs.storj.enabled = "true"' config.yaml
+          STORJ_CI_ACCESS_KEY=${{ secrets.STORJ_CI_ACCESS_KEY }} yq e -i '.dfs.storj.access_key = env(STORJ_CI_ACCESS_KEY)' config.yaml
+          STORJ_CI_SECRET_KEY=${{ secrets.STORJ_CI_SECRET_KEY }} yq e -i '.dfs.storj.secret_key = env(STORJ_CI_SECRET_KEY)' config.yaml
+          STORJ_CI_BUCKET_NAME=${{ secrets.STORJ_CI_BUCKET_NAME }} yq e -i '.dfs.storj.bucket_name = env(STORJ_CI_BUCKET_NAME)' config.yaml
+          STORJ_CI_ACCESS_GRANT_TOKEN=${{ secrets.STORJ_CI_ACCESS_GRANT_TOKEN }} yq e -i '.dfs.storj.access_grant_token = env(STORJ_CI_ACCESS_GRANT_TOKEN)' config.yaml
+          echo "IP=$IP" >> $GITHUB_ENV
+          echo "OCI_ROOT_URL=http://$IP:5000" >> $GITHUB_ENV
+          DISTRIBUTION_REF="local-distribution:v$(date +%Y%m%d%H%M%S)"
+          docker build -f ./Dockerfile -t "${DISTRIBUTION_REF}" .
+          make certs
+          docker run --rm -p 5000:5000 \
+            --mount="type=bind,source=${PWD}/config.yaml,target=/home/runner/.openregistry/config.yaml" \
+            -v "$PWD/.certs:/home/runner/.certs" \
+            --env="CI_SYS_ADDR=$IP:5000" -d "${DISTRIBUTION_REF}"
+          sleep 5
+          curl -XPOST -d ${{ secrets.OPENREGISTRY_SIGNUP_PAYLOAD }} "http://${IP}:5000/auth/signup"
+      - name: Run OCI Distribution Spec conformance tests
+        if: always()
+        run: |
+          git clone https://github.com/opencontainers/distribution-spec.git
+          pushd distribution-spec/conformance
+          go test -c
+          ./conformance.test
+          popd
+          mkdir -p .out/ && mv {distribution-spec/conformance/report.html,distribution-spec/conformance/junit.xml} .out/
+        env:
+          OCI_ROOT_URL: ${{ env.OCI_ROOT_URL }}
+          OCI_USERNAME: ${{ secrets.OPENREGISTRY_USERNAME }}
+          OCI_PASSWORD: ${{ secrets.OPENREGISTRY_PASSWORD }}
+          OCI_NAMESPACE: ${{ secrets.OPENREGISTRY_USERNAME }}/distribution-test
+          OCI_TEST_PUSH: 1
+          OCI_HIDE_SKIPPED_WORKFLOWS: 1
+          OCI_CROSSMOUNT_NAMESPACE: ${{secrets.OPENREGISTRY_USERNAME}}/distribution-cross-mount
+          OCI_DEBUG: 0
+      - name: Setup tmate session if mode is debug and OpenRegistry or OCI Tests Fail
+        uses: mxschmitt/action-tmate@v3
+        if:  ${{ always() && (github.event_name == 'workflow_dispatch') && inputs.debug_enabled }}
+      - name: Set output report name
+        id: vars
+        run: echo "short_commit_hash=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+      - name: Upload test results zip as build artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: oci-distribution-content-management-report-${{ steps.vars.outputs.short_commit_hash }}
+          path: .out/
+        if: always()
