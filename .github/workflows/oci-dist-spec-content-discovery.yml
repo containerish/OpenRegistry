@@ -57,6 +57,9 @@ jobs:
           STORJ_CI_SECRET_KEY=${{ secrets.STORJ_CI_SECRET_KEY }} yq e -i '.dfs.storj.secret_key = env(STORJ_CI_SECRET_KEY)' config.yaml
           STORJ_CI_BUCKET_NAME=${{ secrets.STORJ_CI_BUCKET_NAME }} yq e -i '.dfs.storj.bucket_name = env(STORJ_CI_BUCKET_NAME)' config.yaml
           STORJ_CI_ACCESS_GRANT_TOKEN=${{ secrets.STORJ_CI_ACCESS_GRANT_TOKEN }} yq e -i '.dfs.storj.access_grant_token = env(STORJ_CI_ACCESS_GRANT_TOKEN)' config.yaml
+          STORJ_CI_ENDPOINT=${{ secrets.STORJ_CI_ENDPOINT }} yq e -i '.dfs.storj.endpoint = env(STORJ_CI_ENDPOINT)' config.yaml
+          STORJ_CI_RESOLVER_ENDPOINT=${{ secrets.STORJ_CI_RESOLVER_ENDPOINT }} yq e -i '.dfs.storj.dfs_link_resolver = env(STORJ_CI_RESOLVER_ENDPOINT)' config.yaml
+          STORJ_CI_LINK_SHARE_SERVICE_ENDPOINT=${{ secrets.STORJ_CI_LINK_SHARE_SERVICE_ENDPOINT }} yq e -i '.dfs.storj.link_share_service = env(STORJ_CI_LINK_SHARE_SERVICE_ENDPOINT)' config.yaml
           echo "IP=$IP" >> $GITHUB_ENV
           echo "OCI_ROOT_URL=http://$IP:5000" >> $GITHUB_ENV
           DISTRIBUTION_REF="local-distribution:v$(date +%Y%m%d%H%M%S)"
