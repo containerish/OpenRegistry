@@ -1,6 +1,7 @@
 package main
 
 import (
+	"net/http"
 	"os"
 
 	"github.com/containerish/OpenRegistry/auth"
@@ -11,12 +12,16 @@ import (
 	"github.com/containerish/OpenRegistry/registry/v2"
 	"github.com/containerish/OpenRegistry/registry/v2/extensions"
 	"github.com/containerish/OpenRegistry/router"
+	github_actions_server "github.com/containerish/OpenRegistry/services/kone/github_actions/v1/server"
 	"github.com/containerish/OpenRegistry/store/postgres"
+	build_automation_store "github.com/containerish/OpenRegistry/store/postgres/build_automation"
 	"github.com/containerish/OpenRegistry/telemetry"
 	fluentbit "github.com/containerish/OpenRegistry/telemetry/fluent-bit"
 	"github.com/containerish/OpenRegistry/vcs/github"
 	"github.com/fatih/color"
 	"github.com/labstack/echo/v4"
+	"golang.org/x/net/http2"
+	"golang.org/x/net/http2/h2c"
 )
 
 func main() {
@@ -33,6 +38,13 @@ func main() {
 		return
 	}
 	defer pgStore.Close()
+
+	buildAutomationStore, err := build_automation_store.New(&cfg.StoreConfig)
+	if err != nil {
+		color.Red("ERR_BUILD_AUTOMATION_PG_CONN: %s", err.Error())
+		return
+	}
+	defer buildAutomationStore.Close()
 
 	fluentBitCollector, err := fluentbit.New(cfg)
 	if err != nil {
@@ -75,6 +87,12 @@ func main() {
 
 		ghApp.RegisterRoutes(e.Group("/github"))
 	}
+
+	mux := http.NewServeMux()
+	const ProtoBufServerHostPort = "0.0.0.0:5001"
+	github_actions_server.NewGithubActionsServer(cfg.Integrations.GetGithubConfig(), logger, mux, buildAutomationStore)
+	go http.ListenAndServe(ProtoBufServerHostPort, h2c.NewHandler(mux, &http2.Server{}))
+	color.Green("connect-go gRPC running on: %s", ProtoBufServerHostPort)
 
 	color.Red("error initialising OpenRegistry Server: %s", buildHTTPServer(cfg, e))
 }
