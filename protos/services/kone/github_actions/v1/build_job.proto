@@ -1,0 +1,92 @@
+syntax = "proto3";
+
+package services.kone.github_actions.v1;
+option go_package = "github.com/containerish/OpenRegistry/services/kone/github_actions/v1;github_actions_v1";
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
+
+service GithubActionsBuildService {
+  rpc StoreJob(StoreJobRequest) returns (StoreJobResponse) {}
+  rpc GetBuildJob(GetBuildJobRequest) returns (GetBuildJobResponse) {}
+  rpc TriggerBuild(TriggerBuildRequest) returns (TriggerBuildResponse) {}
+  rpc CancelBuild(CancelBuildRequest) returns (CancelBuildResponse) {}
+  rpc DeleteJob(DeleteJobRequest) returns (DeleteJobResponse) {}
+  rpc ListBuildJobs(ListBuildJobsRequest) returns (ListBuildJobsResponse) {}
+  rpc BulkDeleteBuildJobs(BulkDeleteBuildJobsRequest) returns (BulkDeleteBuildJobsResponse) {}
+}
+
+message BulkDeleteBuildJobsRequest {
+    repeated string job_ids = 1;
+}
+
+message BulkDeleteBuildJobsResponse {
+    string message = 1;
+}
+
+message TriggerBuildRequest {
+    uint64 job_id = 1;
+    google.protobuf.Timestamp triggered_at = 2;
+}
+
+message TriggerBuildResponse {
+    string message = 1;
+}
+
+
+message CancelBuildRequest {
+    uint64 job_id = 1;
+    uint64 run_id = 2;
+    google.protobuf.Timestamp cancelled_at = 3;
+}
+
+message CancelBuildResponse {
+    string message = 1;
+}
+
+message GetBuildJobRequest {
+    uint64 job_id = 1;
+}
+
+message GetBuildJobResponse {
+    string id = 1;
+    string logs_url = 2;
+    string status = 3;
+    string triggered_by = 4;
+    google.protobuf.Duration duration = 5;
+    string branch = 6;
+    string commit_hash = 7;
+    google.protobuf.Timestamp triggered_at = 8;
+}
+
+
+message DeleteJobRequest {
+    string id = 1;
+}
+
+message DeleteJobResponse {
+    string message = 1;
+}
+
+message StoreJobResponse {
+    string message = 1;
+}
+
+message StoreJobRequest {
+    string id = 1;
+    string logs_url = 2;
+    string status = 3;
+    string triggered_by = 4;
+    google.protobuf.Duration duration = 5;
+    string branch = 6;
+    string commit_hash = 7;
+    google.protobuf.Timestamp triggered_at = 8;
+}
+
+message ListBuildJobsRequest {
+    string id = 1;
+}
+
+message ListBuildJobsResponse {
+    repeated GetBuildJobResponse jobs = 1;
+}
+
