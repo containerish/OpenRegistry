@@ -6,7 +6,7 @@ require (
 	github.com/SkynetLabs/go-skynet/v2 v2.0.2
 	github.com/aws/aws-sdk-go-v2 v1.17.8
 	github.com/aws/aws-sdk-go-v2/config v1.18.19
-	github.com/aws/aws-sdk-go-v2/credentials v1.13.18
+	github.com/aws/aws-sdk-go-v2/credentials v1.13.20
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.31.3
 	github.com/bradleyfalzon/ghinstallation/v2 v2.3.0
 	github.com/fatih/color v1.15.0
@@ -39,7 +39,7 @@ require (
 require (
 	github.com/ProtonMail/go-crypto v0.0.0-20230217124315-7d5c6f04bbb8 // indirect
 	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.4.10 // indirect
-	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.13.1 // indirect
+	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.13.2 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/configsources v1.1.32 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.4.26 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/ini v1.3.32 // indirect
@@ -48,9 +48,9 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/internal/checksum v1.1.27 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.9.26 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/s3shared v1.14.1 // indirect
-	github.com/aws/aws-sdk-go-v2/service/sso v1.12.6 // indirect
-	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.14.6 // indirect
-	github.com/aws/aws-sdk-go-v2/service/sts v1.18.7 // indirect
+	github.com/aws/aws-sdk-go-v2/service/sso v1.12.8 // indirect
+	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.14.8 // indirect
+	github.com/aws/aws-sdk-go-v2/service/sts v1.18.9 // indirect
 	github.com/aws/smithy-go v1.13.5 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/calebcase/tmpfile v1.0.3 // indirect
