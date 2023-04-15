@@ -77,6 +77,7 @@ jobs:
         run: |
           git clone https://github.com/opencontainers/distribution-spec.git
           pushd distribution-spec/conformance
+          git checkout 235fa1b
           go test -c
           ./conformance.test
           popd
@@ -92,8 +93,7 @@ jobs:
           OCI_DEBUG: 0
       - name: Setup tmate session if mode is debug and OpenRegistry or OCI Tests Fail
         uses: mxschmitt/action-tmate@v3
-        if:  ${{ always() }}
-        # if:  ${{ always() && (github.event_name == 'workflow_dispatch') && inputs.debug_enabled }}
+        if:  ${{ always() && (github.event_name == 'workflow_dispatch') && inputs.debug_enabled }}
       - name: Set output report name
         id: vars
         run: echo "short_commit_hash=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
