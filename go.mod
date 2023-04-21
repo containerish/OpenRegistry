@@ -7,7 +7,7 @@ require (
 	github.com/aws/aws-sdk-go-v2 v1.17.8
 	github.com/aws/aws-sdk-go-v2/config v1.18.21
 	github.com/aws/aws-sdk-go-v2/credentials v1.13.20
-	github.com/aws/aws-sdk-go-v2/service/s3 v1.31.3
+	github.com/aws/aws-sdk-go-v2/service/s3 v1.32.0
 	github.com/bradleyfalzon/ghinstallation/v2 v2.3.0
 	github.com/fatih/color v1.15.0
 	github.com/go-playground/locales v0.14.1
