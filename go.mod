@@ -30,7 +30,7 @@ require (
 	github.com/sendgrid/sendgrid-go v3.12.0+incompatible
 	github.com/spf13/viper v1.15.0
 	github.com/valyala/fasttemplate v1.2.2
-	golang.org/x/crypto v0.8.0
+	golang.org/x/crypto v0.9.0
 	golang.org/x/oauth2 v0.8.0
 	gopkg.in/yaml.v2 v2.4.0
 	storj.io/uplink v1.10.0
