@@ -3,6 +3,7 @@ package auth
 import (
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -13,7 +14,7 @@ import (
 func (a *auth) ReadUserWithSession(ctx echo.Context) error {
 	ctx.Set(types.HandlerStartTime, time.Now())
 
-	session, err := ctx.Cookie("session_id")
+	sessionCookie, err := ctx.Cookie("session_id")
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error":   err.Error(),
@@ -22,17 +23,18 @@ func (a *auth) ReadUserWithSession(ctx echo.Context) error {
 		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
-	if session.Value == "" {
-		err = fmt.Errorf("ERR_GETTING_COOKIE")
+
+	sessionID, err := url.QueryUnescape(sessionCookie.Value)
+	if err != nil {
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error":   err.Error(),
-			"message": "error getting cookie",
+			"message": "error parsing session id",
 		})
 		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 
-	parts := strings.Split(session.Value, ":")
+	parts := strings.Split(sessionID, ":")
 	if len(parts) != 2 {
 		err = fmt.Errorf("INVALID_SESSION_ID")
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
@@ -43,8 +45,8 @@ func (a *auth) ReadUserWithSession(ctx echo.Context) error {
 		return echoErr
 	}
 
-	sessionId := parts[0]
-	user, err := a.pgStore.GetUserWithSession(ctx.Request().Context(), sessionId)
+	sessionUUID := parts[0]
+	user, err := a.pgStore.GetUserWithSession(ctx.Request().Context(), sessionUUID)
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error":   err.Error(),

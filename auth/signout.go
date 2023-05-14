@@ -14,7 +14,7 @@ import (
 func (a *auth) SignOut(ctx echo.Context) error {
 	ctx.Set(types.HandlerStartTime, time.Now())
 
-	cookie, err := ctx.Cookie("session_id")
+	sessionCookie, err := ctx.Cookie("session_id")
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error":   err.Error(),
@@ -23,7 +23,7 @@ func (a *auth) SignOut(ctx echo.Context) error {
 		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
-	sessionCookie, err := url.QueryUnescape(cookie.Value)
+	sessionID, err := url.QueryUnescape(sessionCookie.Value)
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error":   err.Error(),
@@ -33,7 +33,7 @@ func (a *auth) SignOut(ctx echo.Context) error {
 		return echoErr
 	}
 
-	parts := strings.Split(sessionCookie, ":")
+	parts := strings.Split(sessionID, ":")
 	if len(parts) != 2 {
 		err = fmt.Errorf("invalid session id")
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
@@ -44,10 +44,10 @@ func (a *auth) SignOut(ctx echo.Context) error {
 		return echoErr
 	}
 
-	sessionId := parts[0]
+	sessionUUID := parts[0]
 	userId := parts[1]
 
-	if err = a.pgStore.DeleteSession(ctx.Request().Context(), sessionId, userId); err != nil {
+	if err = a.pgStore.DeleteSession(ctx.Request().Context(), sessionUUID, userId); err != nil {
 		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error":   err.Error(),
 			"message": "could not delete sessions",

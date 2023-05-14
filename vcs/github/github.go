@@ -3,6 +3,7 @@ package github
 import (
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -80,7 +81,7 @@ func (gh *ghAppService) getUsernameMiddleware() echo.MiddlewareFunc {
 			if c.Path() == "/github"+vcs.HandleWebhookEventsEndpoint {
 				return next(c)
 			}
-			sessionID, err := c.Cookie("session_id")
+			sessionCookie, err := c.Cookie("session_id")
 			if err != nil {
 				echoErr := c.JSON(http.StatusNotAcceptable, echo.Map{
 					"error":     err.Error(),
@@ -89,7 +90,16 @@ func (gh *ghAppService) getUsernameMiddleware() echo.MiddlewareFunc {
 				gh.logger.Log(c, err).Send()
 				return echoErr
 			}
-			userID := strings.Split(sessionID.Value, ":")[1]
+
+			sessionID, err := url.QueryUnescape(sessionCookie.Value)
+			if err != nil {
+				echoErr := c.JSON(http.StatusBadRequest, echo.Map{
+					"error": err.Error(),
+				})
+				gh.logger.Log(c, err).Send()
+				return echoErr
+			}
+			userID := strings.Split(sessionID, ":")[1]
 			user, err := gh.store.GetUserById(c.Request().Context(), userID, false, nil)
 			if err != nil {
 				echoErr := c.JSON(http.StatusNotAcceptable, echo.Map{
