@@ -3,6 +3,7 @@ package auth
 import (
 	"fmt"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -16,7 +17,7 @@ func (a *auth) ExpireSessions(ctx echo.Context) error {
 	//queryParamSessionId := ctx.QueryParam("session_id")
 	ctx.Set(types.HandlerStartTime, time.Now())
 
-	cookie, err := ctx.Cookie("session_id")
+	sessionCookie, err := ctx.Cookie("session_id")
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error":   err.Error(),
@@ -25,7 +26,17 @@ func (a *auth) ExpireSessions(ctx echo.Context) error {
 		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
-	parts := strings.Split(cookie.Value, ":")
+	sessionID, err := url.QueryUnescape(sessionCookie.Value)
+	if err != nil {
+		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
+			"error":   err.Error(),
+			"message": "error while parsing cookie",
+		})
+		a.logger.Log(ctx, err).Send()
+		return echoErr
+	}
+
+	parts := strings.Split(sessionID, ":")
 	if len(parts) != 2 {
 		err = fmt.Errorf("ERR_INVALID_COOKIE")
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
@@ -36,7 +47,7 @@ func (a *auth) ExpireSessions(ctx echo.Context) error {
 		return echoErr
 	}
 
-	sessionID := parts[0]
+	sessionUUID := parts[0]
 	userId := parts[1]
 
 	var deleteAllSessions bool
@@ -75,8 +86,8 @@ func (a *auth) ExpireSessions(ctx echo.Context) error {
 
 	}
 
-	if sessionID != "" {
-		_, err = uuid.Parse(sessionID)
+	if sessionUUID != "" {
+		_, err = uuid.Parse(sessionUUID)
 		if err != nil {
 			echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 				"error":   err.Error(),
@@ -85,7 +96,7 @@ func (a *auth) ExpireSessions(ctx echo.Context) error {
 			a.logger.Log(ctx, err).Send()
 			return echoErr
 		}
-		err = a.pgStore.DeleteSession(ctx.Request().Context(), sessionID, userId)
+		err = a.pgStore.DeleteSession(ctx.Request().Context(), sessionUUID, userId)
 		if err != nil {
 			echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 				"error":   err.Error(),
