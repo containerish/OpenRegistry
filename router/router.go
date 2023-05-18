@@ -52,7 +52,7 @@ func Register(
 	p.Use(e)
 
 	v2Router := e.Group(V2, authSvc.BasicAuth(), authSvc.JWT())
-	nsRouter := v2Router.Group(Namespace, authSvc.ACL())
+	nsRouter := v2Router.Group(Namespace, authSvc.ACL(), registryNamespaceValidator())
 
 	authRouter := e.Group(Auth)
 	webauthnRouter := e.Group(Webauthn)
@@ -87,7 +87,7 @@ func RegisterNSRoutes(nsRouter *echo.Group, reg registry.Registry) {
 
 	// HEAD /v2/<name>/manifests/<reference>
 	// should be called reference/digest
-	nsRouter.Add(http.MethodHead, ManifestsReference, reg.ManifestExists)
+	nsRouter.Add(http.MethodHead, ManifestsReference, reg.ManifestExists, registryReferenceOrTagValidator())
 
 	// ALL THE PUT METHODS
 
@@ -97,7 +97,7 @@ func RegisterNSRoutes(nsRouter *echo.Group, reg registry.Registry) {
 	nsRouter.Add(http.MethodPut, BlobsMonolithicPut, reg.MonolithicPut)
 
 	// PUT /v2/<name>/manifests/<reference>
-	nsRouter.Add(http.MethodPut, ManifestsReference, reg.PushManifest)
+	nsRouter.Add(http.MethodPut, ManifestsReference, reg.PushManifest, registryReferenceOrTagValidator())
 
 	// POST METHODS
 
@@ -116,7 +116,7 @@ func RegisterNSRoutes(nsRouter *echo.Group, reg registry.Registry) {
 	// GET METHODS
 
 	// GET /v2/<name>/manifests/<reference>
-	nsRouter.Add(http.MethodGet, ManifestsReference, reg.PullManifest)
+	nsRouter.Add(http.MethodGet, ManifestsReference, reg.PullManifest, registryReferenceOrTagValidator())
 
 	// GET /v2/<name>/blobs/<digest>
 	nsRouter.Add(http.MethodGet, BlobsDigest, reg.PullLayer)
@@ -131,7 +131,7 @@ func RegisterNSRoutes(nsRouter *echo.Group, reg registry.Registry) {
 
 	/// mf/sha -> mf/latest
 	nsRouter.Add(http.MethodDelete, BlobsDigest, reg.DeleteLayer)
-	nsRouter.Add(http.MethodDelete, ManifestsReference, reg.DeleteTagOrManifest)
+	nsRouter.Add(http.MethodDelete, ManifestsReference, reg.DeleteTagOrManifest, registryReferenceOrTagValidator())
 }
 
 // Extensions for teh OCI dist spec
