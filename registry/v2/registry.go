@@ -70,7 +70,7 @@ func (r *registry) LayerExists(ctx echo.Context) error {
 func (r *registry) ManifestExists(ctx echo.Context) error {
 	ctx.Set(types.HandlerStartTime, time.Now())
 
-	namespace := ctx.Param("username") + "/" + ctx.Param("imagename")
+	namespace := ctx.Get(string(RegistryNamespace)).(string)
 	ref := ctx.Param("reference") // ref can be either tag or digest
 
 	manifest, err := r.store.GetManifestByReference(ctx.Request().Context(), namespace, ref)
@@ -185,7 +185,7 @@ func (r *registry) Catalog(ctx echo.Context) error {
 func (r *registry) ListTags(ctx echo.Context) error {
 	ctx.Set(types.HandlerStartTime, time.Now())
 
-	namespace := ctx.Param("username") + "/" + ctx.Param("imagename")
+	namespace := ctx.Get(string(RegistryNamespace)).(string)
 	limit := ctx.QueryParam("n")
 
 	tags, err := r.store.GetImageTags(ctx.Request().Context(), namespace)
@@ -229,7 +229,7 @@ func (r *registry) List(ctx echo.Context) error {
 func (r *registry) PullManifest(ctx echo.Context) error {
 	ctx.Set(types.HandlerStartTime, time.Now())
 
-	namespace := ctx.Param("username") + "/" + ctx.Param("imagename")
+	namespace := ctx.Get(string(RegistryNamespace)).(string)
 	ref := ctx.Param("reference")
 
 	manifest, err := r.store.GetManifestByReference(ctx.Request().Context(), namespace, ref)
@@ -430,7 +430,7 @@ registry.tnxMap[uuid] = {txn,blobs[],timeout}
 func (r *registry) StartUpload(ctx echo.Context) error {
 	ctx.Set(types.HandlerStartTime, time.Now())
 
-	namespace := ctx.Param("username") + "/" + ctx.Param("imagename")
+	namespace := ctx.Get(string(RegistryNamespace)).(string)
 	imageDigest := ctx.QueryParam("digest")
 
 	// Do a Single POST monolithic upload if the digest is present
@@ -493,7 +493,7 @@ func (r *registry) StartUpload(ctx echo.Context) error {
 func (r *registry) UploadProgress(ctx echo.Context) error {
 	ctx.Set(types.HandlerStartTime, time.Now())
 
-	namespace := ctx.Param("username") + "/" + ctx.Param("imagename")
+	namespace := ctx.Get(string(RegistryNamespace)).(string)
 	uuid := ctx.Param("uuid")
 	layerkey := GetLayerIdentifierFromTrakcingID(uuid)
 	uploadID := GetUploadIDFromTrakcingID(uuid)
@@ -607,7 +607,7 @@ func (r *registry) CompleteUpload(ctx echo.Context) error {
 	ctx.Set(types.HandlerStartTime, time.Now())
 
 	dig := ctx.QueryParam("digest")
-	namespace := ctx.Param("username") + "/" + ctx.Param("imagename")
+	namespace := ctx.Get(string(RegistryNamespace)).(string)
 	identifier := ctx.Param("uuid")
 	layerKey := GetLayerIdentifierFromTrakcingID(identifier)
 	uploadID := GetUploadIDFromTrakcingID(identifier)
@@ -744,7 +744,7 @@ func (r *registry) PushImage(ctx echo.Context) error {
 func (r *registry) PushManifest(ctx echo.Context) error {
 	ctx.Set(types.HandlerStartTime, time.Now())
 
-	namespace := ctx.Param("username") + "/" + ctx.Param("imagename")
+	namespace := ctx.Get(string(RegistryNamespace)).(string)
 	ref := ctx.Param("reference")
 	contentType := ctx.Request().Header.Get("Content-Type")
 
@@ -906,7 +906,7 @@ func (r *registry) CancelUpload(ctx echo.Context) error {
 func (r *registry) DeleteTagOrManifest(ctx echo.Context) error {
 	ctx.Set(types.HandlerStartTime, time.Now())
 
-	namespace := ctx.Param("username") + "/" + ctx.Param("imagename")
+	namespace := ctx.Get(string(RegistryNamespace)).(string)
 	ref := ctx.Param("reference")
 
 	if ref == "" {

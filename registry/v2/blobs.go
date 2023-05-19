@@ -77,7 +77,7 @@ these will be part of the txn in StartUpload
 func (b *blobs) UploadBlob(ctx echo.Context) error {
 	ctx.Set(types.HandlerStartTime, time.Now())
 
-	namespace := ctx.Param("username") + "/" + ctx.Param("imagename")
+	namespace := ctx.Get(string(RegistryNamespace)).(string)
 	contentRange := ctx.Request().Header.Get("Content-Range")
 	identifier := ctx.Param("uuid")
 	layerKey := GetLayerIdentifierFromTrakcingID(identifier)
