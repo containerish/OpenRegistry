@@ -12,7 +12,7 @@ require (
 	github.com/fatih/color v1.15.0
 	github.com/go-playground/locales v0.14.1
 	github.com/go-playground/universal-translator v0.18.1
-	github.com/go-playground/validator/v10 v10.13.0
+	github.com/go-playground/validator/v10 v10.14.0
 	github.com/go-webauthn/webauthn v0.8.2
 	github.com/golang-jwt/jwt v3.2.2+incompatible
 	github.com/golang-jwt/jwt/v4 v4.5.0
@@ -58,6 +58,7 @@ require (
 	github.com/cloudflare/circl v1.3.3 // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
 	github.com/fxamacker/cbor/v2 v2.4.0 // indirect
+	github.com/gabriel-vasile/mimetype v1.4.2 // indirect
 	github.com/go-webauthn/revoke v0.1.9 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang-jwt/jwt/v5 v5.0.0 // indirect
@@ -78,7 +79,7 @@ require (
 	github.com/jtolio/eventkit v0.0.0-20221004135224-074cf276595b // indirect
 	github.com/klauspost/cpuid/v2 v2.0.12 // indirect
 	github.com/labstack/gommon v0.4.0 // indirect
-	github.com/leodido/go-urn v1.2.3 // indirect
+	github.com/leodido/go-urn v1.2.4 // indirect
 	github.com/magiconair/properties v1.8.7 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.18 // indirect
