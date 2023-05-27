@@ -25,15 +25,6 @@ oauth:
     client_id: dummy-gh-client-id
     client_secret: dummy-gh-client-secret
 dfs:
-  storj:
-    enabled: true
-    type: "s3"
-    access_key: <access-key>
-    secret_key: <access-secret-key>
-    bucket_name: <s3-bucket-name>
-    link_share_service: https://link.storjshare.io
-    endpoint: https://gateway.storjshare.io
-    dfs_link_resolver: https://gateway.storjshare.io
   filebase:
     enabled: false
     type: "s3"
@@ -42,6 +33,15 @@ dfs:
     endpoint: <s3-compatible-api-endpoint>
     bucket_name: <s3-bucket-name>
     dfs_link_resolver: <optional-dfs-link-resolver-url>
+  storj:
+    enabled: false
+    type: "s3"
+    access_key: <access-key>
+    secret_key: <access-secret-key>
+    bucket_name: <s3-bucket-name>
+    link_share_service: https://link.storjshare.io
+    endpoint: https://gateway.storjshare.io
+    dfs_link_resolver: https://gateway.storjshare.io
 database:
   kind: postgres
   host: 0.0.0.0
