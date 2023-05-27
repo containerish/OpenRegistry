@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/containerish/OpenRegistry/types"
-	"github.com/golang-jwt/jwt"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/labstack/echo/v4"
 )
 
@@ -75,7 +75,7 @@ func (a *auth) RenewAccessToken(ctx echo.Context) error {
 		return echoErr
 	}
 
-	userId := claims.Id
+	userId := claims.ID
 	user, err := a.pgStore.GetUserById(ctx.Request().Context(), userId, false, nil)
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusUnauthorized, echo.Map{

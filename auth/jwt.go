@@ -11,29 +11,29 @@ import (
 	"time"
 
 	"github.com/containerish/OpenRegistry/types"
-	"github.com/golang-jwt/jwt"
+	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/oauth2"
 )
 
 type Claims struct {
-	jwt.StandardClaims
+	jwt.RegisteredClaims
 	Type   string
 	Access AccessList
 }
 
 type PlatformClaims struct {
 	OauthPayload *oauth2.Token `json:"oauth2_token,omitempty"`
-	jwt.StandardClaims
+	jwt.RegisteredClaims
 	Type string
 }
 
 type RefreshClaims struct {
 	ID string
-	jwt.StandardClaims
+	jwt.RegisteredClaims
 }
 
 type ServiceClaims struct {
-	jwt.StandardClaims
+	jwt.RegisteredClaims
 	Access AccessList
 }
 
@@ -240,13 +240,13 @@ func (a *auth) newServiceToken(u types.User) (string, error) {
 // nolint
 func (a *auth) createServiceClaims(u types.User) ServiceClaims {
 	claims := ServiceClaims{
-		StandardClaims: jwt.StandardClaims{
-			Audience:  a.c.Endpoint(),
-			ExpiresAt: time.Now().Add(time.Hour * 750).Unix(),
-			Id:        u.Id,
-			IssuedAt:  time.Now().Unix(),
+		RegisteredClaims: jwt.RegisteredClaims{
+			Audience:  jwt.ClaimStrings{a.c.Endpoint()},
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 750)),
+			ID:        u.Id,
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			Issuer:    "OpenRegistry",
-			NotBefore: time.Now().Unix(),
+			NotBefore: jwt.NewNumericDate(time.Now()),
 			Subject:   u.Id,
 		},
 		Access: AccessList{
@@ -264,13 +264,13 @@ func (a *auth) createServiceClaims(u types.User) ServiceClaims {
 func (a *auth) createOAuthClaims(userId string, token *oauth2.Token) PlatformClaims {
 	claims := PlatformClaims{
 		OauthPayload: token,
-		StandardClaims: jwt.StandardClaims{
-			Audience:  a.c.Endpoint(),
-			ExpiresAt: time.Now().Add(time.Hour * 750).Unix(),
-			Id:        userId,
-			IssuedAt:  time.Now().Unix(),
+		RegisteredClaims: jwt.RegisteredClaims{
+			Audience:  jwt.ClaimStrings{a.c.Endpoint()},
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 750)),
+			ID:        userId,
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			Issuer:    "OpenRegistry",
-			NotBefore: time.Now().Unix(),
+			NotBefore: jwt.NewNumericDate(time.Now()),
 			Subject:   userId,
 		},
 	}
@@ -281,13 +281,13 @@ func (a *auth) createOAuthClaims(userId string, token *oauth2.Token) PlatformCla
 func (a *auth) createRefreshClaims(userId string) RefreshClaims {
 	claims := RefreshClaims{
 		ID: userId,
-		StandardClaims: jwt.StandardClaims{
-			Audience:  a.c.Endpoint(),
-			ExpiresAt: time.Now().Add(time.Hour * 750).Unix(), // Refresh tokens can live longer
-			Id:        userId,
-			IssuedAt:  time.Now().Unix(),
+		RegisteredClaims: jwt.RegisteredClaims{
+			Audience:  jwt.ClaimStrings{a.c.Endpoint()},
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 750)), // Refresh tokens can live longer
+			ID:        userId,
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			Issuer:    "OpenRegistry",
-			NotBefore: time.Now().Unix(),
+			NotBefore: jwt.NewNumericDate(time.Now()),
 			Subject:   userId,
 		},
 	}
@@ -382,7 +382,7 @@ claims format
 // 	}
 //
 // 	claims := Claims{
-// 		StandardClaims: jwt.StandardClaims{
+// 		RegisteredClaims: jwt.StandardClaims{
 // 			Audience:  a.c.Endpoint(),
 // 			ExpiresAt: tokenLife,
 // 			Id:        id,

@@ -32,8 +32,12 @@ jobs:
         ports:
           - 5432:5432
     steps:
-      - uses: actions/setup-go@v4
       - uses: actions/checkout@v3
+      - uses: actions/setup-go@v4
+        with:
+          go-version-file: go.mod
+          check-latest: true
+          cache-dependency-path: go.sum
       - name: Install Migrate CLI
         run: |
           curl -L https://github.com/golang-migrate/migrate/releases/download/v4.15.1/migrate.linux-amd64.tar.gz | tar xvz
@@ -93,6 +97,7 @@ jobs:
           OCI_DEBUG: 0
       - name: Setup tmate session if mode is debug and OpenRegistry or OCI Tests Fail
         uses: mxschmitt/action-tmate@v3
+        if: always()
         # if:  ${{ always() && (github.event_name == 'workflow_dispatch') && inputs.debug_enabled }}
       - name: Set output report name
         id: vars

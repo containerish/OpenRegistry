@@ -8,7 +8,7 @@ import (
 
 	"github.com/containerish/OpenRegistry/services/email"
 	"github.com/containerish/OpenRegistry/types"
-	"github.com/golang-jwt/jwt"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/jackc/pgx/v4"
 	"github.com/labstack/echo/v4"
 )
@@ -48,7 +48,7 @@ func (a *auth) ResetForgottenPassword(ctx echo.Context) error {
 	}
 	_ = ctx.Request().Body.Close()
 
-	userId := c.Id
+	userId := c.ID
 	user, err := a.pgStore.GetUserById(ctx.Request().Context(), userId, true, nil)
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusNotFound, echo.Map{
@@ -141,7 +141,7 @@ func (a *auth) ResetPassword(ctx echo.Context) error {
 	}
 	_ = ctx.Request().Body.Close()
 
-	userId := c.Id
+	userId := c.ID
 	user, err := a.pgStore.GetUserById(ctx.Request().Context(), userId, true, nil)
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusNotFound, echo.Map{

@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/containerish/OpenRegistry/config"
-	"github.com/golang-jwt/jwt"
+	"github.com/golang-jwt/jwt/v5"
 )
 
 type CreateCookieOptions struct {
@@ -132,28 +132,28 @@ type CreateClaimOptions struct {
 }
 
 func CreateClaims(opts *CreateClaimOptions) Claims {
-	tokenLife := time.Now().Add(time.Minute * 10).Unix()
+	tokenLife := time.Now().Add(time.Minute * 10)
 	switch opts.TokeType {
 	case "access":
 		// TODO (jay-dee7)
 		// token can live for month now, but must be addressed when we implement PASETO
-		tokenLife = time.Now().Add(time.Hour * 750).Unix()
+		tokenLife = time.Now().Add(time.Hour * 750)
 	case "refresh":
-		tokenLife = time.Now().Add(time.Hour * 750).Unix()
+		tokenLife = time.Now().Add(time.Hour * 750)
 	case "service":
-		tokenLife = time.Now().Add(time.Hour * 750).Unix()
+		tokenLife = time.Now().Add(time.Hour * 750)
 	case "short-lived":
-		tokenLife = time.Now().Add(time.Minute * 30).Unix()
+		tokenLife = time.Now().Add(time.Minute * 30)
 	}
 
 	return Claims{
-		StandardClaims: jwt.StandardClaims{
-			Audience:  opts.Audience,
-			ExpiresAt: tokenLife,
-			Id:        opts.Id,
-			IssuedAt:  time.Now().Unix(),
+		RegisteredClaims: jwt.RegisteredClaims{
+			Audience:  jwt.ClaimStrings{opts.Audience},
+			ExpiresAt: jwt.NewNumericDate(tokenLife),
+			ID:        opts.Id,
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			Issuer:    opts.Issuer,
-			NotBefore: time.Now().Unix(),
+			NotBefore: jwt.NewNumericDate(time.Now()),
 			Subject:   opts.Id,
 		},
 		Access: opts.Acl,

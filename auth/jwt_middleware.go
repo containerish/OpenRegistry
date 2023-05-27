@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/containerish/OpenRegistry/types"
-	"github.com/golang-jwt/jwt/v4"
+	"github.com/golang-jwt/jwt/v5"
 	echo_jwt "github.com/labstack/echo-jwt/v4"
 	"github.com/labstack/echo/v4"
 )
@@ -107,7 +107,7 @@ func (a *auth) ACL() echo.MiddlewareFunc {
 
 			username := ctx.Param("username")
 
-			user, err := a.pgStore.GetUserById(ctx.Request().Context(), claims.Id, false, nil)
+			user, err := a.pgStore.GetUserById(ctx.Request().Context(), claims.ID, false, nil)
 			if err != nil {
 				echoErr := ctx.NoContent(http.StatusUnauthorized)
 				a.logger.Log(ctx, err).Send()
