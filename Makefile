@@ -1,11 +1,13 @@
 POSTGRESQL_URL='postgres://postgres:postgres@0.0.0.0:5432/open_registry?sslmode=disable'
 
 migup:
-	migrate -database ${POSTGRESQL_URL} -path db/migrations up
+	@migrate -database ${POSTGRESQL_URL} -path db/migrations up
 migdown:
-	migrate -database ${POSTGRESQL_URL} -path db/migrations down
+	@migrate -database ${POSTGRESQL_URL} -path db/migrations down
+psql_grants:
+	@psql -d open_registry -c 'GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO open_registry_user;'
 
-cleanup: migdown migup
+cleanup: migdown migup psql_grants
 
 mock-images:
 	bash ./scripts/mock-images.sh

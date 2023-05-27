@@ -28,10 +28,12 @@ func New(cfg *config.S3CompatibleDFS) dfs.DFS {
 	client := dfs.NewS3Client(cfg.Endpoint, cfg.AccessKey, cfg.SecretKey)
 
 	return &filebase{
-		client:    client,
-		bucket:    cfg.BucketName,
-		preSigner: s3.NewPresignClient(client),
-		config:    cfg,
+		client: client,
+		bucket: cfg.BucketName,
+		preSigner: s3.NewPresignClient(client, func(po *s3.PresignOptions) {
+			po.Expires = time.Minute * 20
+		}),
+		config: cfg,
 	}
 }
 
@@ -266,8 +268,8 @@ func (fb *filebase) AbortMultipartUpload(ctx context.Context, layerKey, uploadId
 
 func (fb *filebase) GeneratePresignedURL(ctx context.Context, key string) (string, error) {
 	opts := &s3.GetObjectInput{
-		Bucket: aws.String(fb.bucket),
-		Key:    aws.String(key),
+		Bucket: &fb.bucket,
+		Key:    aws.String("layers/" + key),
 	}
 
 	duration := func(o *s3.PresignOptions) {

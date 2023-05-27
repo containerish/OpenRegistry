@@ -228,7 +228,6 @@ func (r *registry) List(ctx echo.Context) error {
 // OK
 func (r *registry) PullManifest(ctx echo.Context) error {
 	ctx.Set(types.HandlerStartTime, time.Now())
-
 	namespace := ctx.Get(string(RegistryNamespace)).(string)
 	ref := ctx.Param("reference")
 
@@ -302,23 +301,25 @@ func (r *registry) PullLayer(ctx echo.Context) error {
 		}
 		errMsg := r.errorResponse(RegistryErrorCodeBlobUnknown, err.Error(), detail)
 		ctx.Set(types.HttpEndpointErrorKey, errMsg)
+		echoErr := ctx.JSONBlob(http.StatusNotFound, errMsg)
 		r.logger.Log(ctx, fmt.Errorf("%s", errMsg)).Send()
-		return ctx.JSONBlob(http.StatusNotFound, errMsg)
+		return echoErr
 	}
 
 	ctx.Response().Header().Set("Content-Length", fmt.Sprintf("%d", size.ContentLength))
 	ctx.Response().Header().Set("Docker-Content-Digest", layer.Digest)
 	ctx.Response().Header().Set("status", "307")
 
-	downloadableURL, err := r.getDownloadableURLFromDFSLink(layer.DFSLink)
+	downloadableURL, err := r.getDownloadableURLFromDFSLink(layer.UUID)
 	if err != nil {
 		errMsg := r.errorResponse(RegistryErrorCodeBlobUnknown, err.Error(), nil)
 		echoErr := ctx.JSONBlob(http.StatusInternalServerError, errMsg)
-		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
+		r.logger.Log(ctx, fmt.Errorf("%s", errMsg)).Send()
 		return echoErr
 	}
-	r.logger.Log(ctx, nil)
-	return ctx.Redirect(http.StatusTemporaryRedirect, downloadableURL)
+	echoErr := ctx.Redirect(http.StatusTemporaryRedirect, downloadableURL)
+	r.logger.Log(ctx, nil).Send()
+	return echoErr
 }
 
 // MonolithicUpload
@@ -405,7 +406,7 @@ func (r *registry) MonolithicUpload(ctx echo.Context) error {
 	if err != nil {
 		errMsg := r.errorResponse(RegistryErrorCodeBlobUnknown, err.Error(), nil)
 		echoErr := ctx.JSONBlob(http.StatusInternalServerError, errMsg)
-		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
+		r.logger.Log(ctx, fmt.Errorf("%s", errMsg)).Send()
 		return echoErr
 	}
 
@@ -502,7 +503,7 @@ func (r *registry) UploadProgress(ctx echo.Context) error {
 	if err != nil {
 		locationHeader := fmt.Sprintf("/v2/%s/blobs/uploads/%s", namespace, uuid)
 		ctx.Response().Header().Set("Location", locationHeader)
-		ctx.Response().Header().Set("Range", "bytes=0-0")
+		ctx.Response().Header().Set("Range", "0-0")
 		ctx.Response().Header().Set("Docker-Upload-UUID", uuid)
 		echoErr := ctx.NoContent(http.StatusNoContent)
 		r.logger.Log(ctx, err).Send()
@@ -511,7 +512,7 @@ func (r *registry) UploadProgress(ctx echo.Context) error {
 
 	locationHeader := fmt.Sprintf("/v2/%s/blobs/uploads/%s", namespace, uuid)
 	ctx.Response().Header().Set("Location", locationHeader)
-	ctx.Response().Header().Set("Range", fmt.Sprintf("bytes=0-%d", metadata.ContentLength-1))
+	ctx.Response().Header().Set("Range", fmt.Sprintf("0-%d", metadata.ContentLength-1))
 	ctx.Response().Header().Set("Docker-Upload-UUID", uuid)
 	echoErr := ctx.NoContent(http.StatusNoContent)
 	r.logger.Log(ctx, echoErr).Send()
@@ -585,7 +586,7 @@ func (r *registry) MonolithicPut(ctx echo.Context) error {
 	if err != nil {
 		errMsg := r.errorResponse(RegistryErrorCodeBlobUnknown, err.Error(), nil)
 		echoErr := ctx.JSONBlob(http.StatusInternalServerError, errMsg)
-		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
+		r.logger.Log(ctx, fmt.Errorf("%s", errMsg)).Send()
 		return echoErr
 	}
 	ctx.Response().Header().Set("Docker-Content-Digest", ourHash.String())
@@ -891,7 +892,7 @@ func (r *registry) PushLayer(ctx echo.Context) error {
 	locationHeader := fmt.Sprintf("/v2/%s/blobs/uploads/%s", p, uuid)
 	ctx.Response().Header().Set("Location", locationHeader)
 	ctx.Response().Header().Set("Docker-Upload-UUID", uuid)
-	ctx.Response().Header().Set("Range", "bytes=0-0")
+	ctx.Response().Header().Set("Range", "0-0")
 	echoErr := ctx.NoContent(http.StatusAccepted)
 	r.logger.Log(ctx, echoErr).Send()
 	return echoErr
