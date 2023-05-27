@@ -1,7 +1,7 @@
 syntax = "proto3";
 
-package services.kone.github_actions.v1;
-option go_package = "github.com/containerish/OpenRegistry/services/kone/github_actions/v1;github_actions_v1";
+package services.kon.github_actions.v1;
+option go_package = "github.com/containerish/OpenRegistry/services/kon/github_actions/v1;github_actions_v1";
 import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 
@@ -16,7 +16,8 @@ service GithubActionsBuildService {
 }
 
 message BulkDeleteBuildJobsRequest {
-    repeated string job_ids = 1;
+    string owner_id = 1;
+    repeated string job_ids = 2;
 }
 
 message BulkDeleteBuildJobsResponse {
@@ -44,7 +45,7 @@ message CancelBuildResponse {
 }
 
 message GetBuildJobRequest {
-    uint64 job_id = 1;
+    string job_id = 1;
 }
 
 message GetBuildJobResponse {
@@ -56,10 +57,11 @@ message GetBuildJobResponse {
     string branch = 6;
     string commit_hash = 7;
     google.protobuf.Timestamp triggered_at = 8;
+    string owner_id = 9;
 }
 
-
 message DeleteJobRequest {
+    string owner_id = 2;
     string id = 1;
 }
 
@@ -80,6 +82,7 @@ message StoreJobRequest {
     string branch = 6;
     string commit_hash = 7;
     google.protobuf.Timestamp triggered_at = 8;
+    string owner_id = 9;
 }
 
 message ListBuildJobsRequest {

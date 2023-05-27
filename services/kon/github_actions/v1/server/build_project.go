@@ -4,7 +4,7 @@ import (
 	"context"
 
 	connect_go "github.com/bufbuild/connect-go"
-	github_actions_v1 "github.com/containerish/OpenRegistry/services/kone/github_actions/v1"
+	github_actions_v1 "github.com/containerish/OpenRegistry/services/kon/github_actions/v1"
 )
 
 // CreateProject implements github_actions_v1connect.GitHubActionsProjectServiceHandler

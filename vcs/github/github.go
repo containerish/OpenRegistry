@@ -95,10 +95,12 @@ func (gh *ghAppService) getUsernameMiddleware() echo.MiddlewareFunc {
 				return echoErr
 			}
 
+			// session is <session_uuid>:<userid>, and ":" is url encoded
 			sessionID, err := url.QueryUnescape(sessionCookie.Value)
 			if err != nil {
-				echoErr := c.JSON(http.StatusBadRequest, echo.Map{
-					"error": err.Error(),
+				echoErr := c.JSON(http.StatusNotAcceptable, echo.Map{
+					"error":     err.Error(),
+					"cookie_id": "session_id",
 				})
 				gh.logger.Log(c, err).Send()
 				return echoErr
@@ -180,5 +182,5 @@ const (
 	GithubInstallationIDContextKey = "GITHUB_INSTALLATION_ID"
 )
 
-const WorkflowFilePath = ".github/workflows/openregistry-build.yml"
+const WorkflowFilePath = ".github/workflows/openregistry.yml"
 const OpenRegistryAutomationBranchName = "openregistry-build-automation"

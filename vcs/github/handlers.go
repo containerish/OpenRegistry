@@ -151,7 +151,7 @@ func (gh *ghAppService) handleWorkflowRunEvents(event *github.WorkflowRunEvent) 
 
 // ListAuthorisedRepositories implements vcs.VCS
 func (gh *ghAppService) ListAuthorisedRepositories(ctx echo.Context) error {
-	installationID := ctx.Get(GithubInstallationIDContextKey).(int64)
+	installationID := ctx.Get(string(GithubInstallationIDContextKey)).(int64)
 
 	client := gh.refreshGHClient(gh.ghAppTransport, installationID)
 	repos, _, err := client.Apps.ListRepos(context.Background(), &github.ListOptions{})
@@ -195,7 +195,7 @@ func (gh *ghAppService) ListAuthorisedRepositories(ctx echo.Context) error {
 }
 
 func (gh *ghAppService) CreateInitialPR(ctx echo.Context) error {
-	installationID := ctx.Get(GithubInstallationIDContextKey).(int64)
+	installationID := ctx.Get(string(GithubInstallationIDContextKey)).(int64)
 
 	var req vcs.InitialPRRequest
 	if err := json.NewDecoder(ctx.Request().Body).Decode(&req); err != nil {
@@ -234,9 +234,7 @@ func (gh *ghAppService) CreateInitialPR(ctx echo.Context) error {
 
 	workflowExists := gh.doesWorkflowExist(ctx.Request().Context(), client, &repository)
 	if workflowExists {
-		echoErr := ctx.JSON(http.StatusNotModified, echo.Map{
-			"error": "workflow file already exists",
-		})
+		echoErr := ctx.NoContent(http.StatusAccepted)
 		gh.logger.Log(ctx, echoErr).Send()
 		return echoErr
 	}

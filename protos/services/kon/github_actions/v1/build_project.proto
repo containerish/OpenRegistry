@@ -1,7 +1,7 @@
 syntax = "proto3";
 
-package services.kone.github_actions.v1;
-option go_package = "github.com/containerish/OpenRegistry/services/kone/github_actions/v1;github_actions_v1";
+package services.kon.github_actions.v1;
+option go_package = "github.com/containerish/OpenRegistry/services/kon/github_actions/v1;github_actions_v1";
 import "google/protobuf/timestamp.proto";
 
 service GitHubActionsProjectService {
@@ -19,7 +19,7 @@ message ListProjectsResponse {
     repeated GetProjectResponse projects = 1;
 }
 
-message CreateProjectRequest {
+message CreateProjectRequest  {
     string id = 1;
     string owner = 2;
     string project_name = 3;

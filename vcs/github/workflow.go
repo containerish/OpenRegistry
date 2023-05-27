@@ -1,13 +1,8 @@
 package github
 
 const (
-	buildAndPushTemplate = `
-name: "Build Container Image"
-on:
-  workflow_call:
-  push:
-    branches:
-      - [[ . ]]
+	buildAndPushTemplate = `name: "Build Container Image"
+on: [push, pull_request]
 
 defaults:
   run:
@@ -24,7 +19,8 @@ jobs:
       CONTAINER_IMAGE_NAME: openregistry.dev/${{ github.repository }}:${{ github.sha }}
 
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout the branch
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0
 
@@ -34,7 +30,8 @@ jobs:
         with:
           install: true
           version: latest
-	  - name: Login to OpenRegistry
+
+      - name: Login to OpenRegistry
         uses: docker/login-action@v2
         with:
           registry: openregistry.dev
@@ -47,7 +44,7 @@ jobs:
           context: .
           file: Dockerfile
           platforms: linux/amd64
-		  push: true
+          push: true
           target: runner
           tags: ${{ env.CONTAINER_IMAGE_NAME }}
 `

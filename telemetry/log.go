@@ -21,6 +21,8 @@ import (
 
 type Logger interface {
 	Log(ctx echo.Context, err error) *zerolog.Event
+	Info() *zerolog.Event
+	Debug() *zerolog.Event
 }
 
 type logger struct {
@@ -179,4 +181,12 @@ func (l logger) Log(ctx echo.Context, errMsg error) *zerolog.Event {
 	bz := bytes.TrimSpace(buf.Bytes())
 	defer l.fluentBit.Send(bz)
 	return l.zlog.WithLevel(level).RawJSON("msg", bz)
+}
+
+func (l *logger) Debug() *zerolog.Event {
+	return l.zlog.WithLevel(zerolog.DebugLevel)
+}
+
+func (l *logger) Info() *zerolog.Event {
+	return l.zlog.WithLevel(zerolog.InfoLevel)
 }

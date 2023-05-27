@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	github_actions_v1 "github.com/containerish/OpenRegistry/services/kone/github_actions/v1"
+	github_actions_v1 "github.com/containerish/OpenRegistry/services/kon/github_actions/v1"
 )
 
 // DeleteProject implements BuildAutomationStore

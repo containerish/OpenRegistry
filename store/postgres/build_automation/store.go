@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/containerish/OpenRegistry/config"
-	github_actions_v1 "github.com/containerish/OpenRegistry/services/kone/github_actions/v1"
+	gha_v1 "github.com/containerish/OpenRegistry/services/kon/github_actions/v1"
 	"github.com/fatih/color"
 	"github.com/jackc/pgx/v4/pgxpool"
 )
@@ -15,10 +15,17 @@ type pg struct {
 }
 
 type BuildAutomationStore interface {
-	StoreProject(ctx context.Context, project *github_actions_v1.CreateProjectRequest) error
-	GetProject(ctx context.Context, project *github_actions_v1.GetProjectRequest) (*github_actions_v1.GetProjectResponse, error)
-	DeleteProject(ctx context.Context, project *github_actions_v1.DeleteProjectRequest) error
-	ListProjects(ctx context.Context, project *github_actions_v1.ListProjectsRequest) (*github_actions_v1.ListProjectsResponse, error)
+	StoreProject(context.Context, *gha_v1.CreateProjectRequest) error
+	GetProject(context.Context, *gha_v1.GetProjectRequest) (*gha_v1.GetProjectResponse, error)
+	DeleteProject(context.Context, *gha_v1.DeleteProjectRequest) error
+	ListProjects(context.Context, *gha_v1.ListProjectsRequest) (*gha_v1.ListProjectsResponse, error)
+	CancelBuild(context.Context, *gha_v1.CancelBuildRequest) error
+	TriggerBuild(context.Context, *gha_v1.TriggerBuildRequest) error
+	StoreJob(context.Context, *gha_v1.StoreJobRequest) error
+	ListBuildJobs(context.Context, *gha_v1.ListBuildJobsRequest) (*gha_v1.ListBuildJobsResponse, error)
+	GetBuildJob(context.Context, *gha_v1.GetBuildJobRequest) (*gha_v1.GetBuildJobResponse, error)
+	BulkDeleteBuildJobs(context.Context, *gha_v1.BulkDeleteBuildJobsRequest) error
+	DeleteJob(context.Context, *gha_v1.DeleteJobRequest) error
 	Close()
 }
 
@@ -36,6 +43,6 @@ func New(cfg *config.Store) (BuildAutomationStore, error) {
 		return nil, err
 	}
 
-	color.Green("connection to database successful")
+	color.Green("Service - BuildAutomationStore - connection to database successful")
 	return &pg{conn: conn}, nil
 }

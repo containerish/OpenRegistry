@@ -7,7 +7,10 @@ import (
 	"github.com/rs/zerolog"
 )
 
-func (l logger) consoleWriter(ctx echo.Context, errMsg error) *zerolog.Event {
+func (l logger) consoleWriter(ctx echo.Context, errMsg error, msg ...string) *zerolog.Event {
+	if ctx == nil {
+		return l.debugWriter()
+	}
 	req := ctx.Request()
 	res := ctx.Response()
 
@@ -28,5 +31,10 @@ func (l logger) consoleWriter(ctx echo.Context, errMsg error) *zerolog.Event {
 		event.Err(errMsg)
 	}
 
+	return event
+}
+
+func (l logger) debugWriter() *zerolog.Event {
+	event := l.zlog.WithLevel(zerolog.DebugLevel)
 	return event
 }

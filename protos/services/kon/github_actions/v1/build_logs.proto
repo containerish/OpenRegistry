@@ -1,7 +1,7 @@
 syntax = "proto3";
 
-package services.kone.github_actions.v1;
-option go_package = "github.com/containerish/OpenRegistry/services/kone/github_actions/v1;github_actions_v1";
+package services.kon.github_actions.v1;
+option go_package = "github.com/containerish/OpenRegistry/services/kon/github_actions/v1;github_actions_v1";
 
 service GitHubActionsLogsService {
   rpc StreamWorkflowJobLogs(StreamWorkflowJobLogsRequest) returns (stream StreamWorkflowJobLogsResponse) {}
@@ -13,6 +13,7 @@ message DumpLogsRequest {
     string repo_owner = 1;
     string repo_name = 2;
     int64 run_id = 3;
+    bool skip_to_previous_run = 4;
 }
 
 message DumpLogsResponse {
@@ -23,12 +24,14 @@ message StreamWorkflowJobLogsRequest {
     string repo_owner = 1;
     string repo_name = 2;
     int64 job_id = 3;
+    bool stream_latest_job_logs = 4;
 }
 
 message StreamWorkflowRunLogsRequest {
     string repo_owner = 1;
     string repo_name = 2;
     int64 run_id = 3;
+    bool skip_to_previous_run = 4;
 }
 message StreamWorkflowDispatchLogsRequest {
     string repo_owner = 1;

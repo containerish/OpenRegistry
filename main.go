@@ -12,7 +12,7 @@ import (
 	"github.com/containerish/OpenRegistry/registry/v2"
 	"github.com/containerish/OpenRegistry/registry/v2/extensions"
 	"github.com/containerish/OpenRegistry/router"
-	github_actions_server "github.com/containerish/OpenRegistry/services/kone/github_actions/v1/server"
+	github_actions_server "github.com/containerish/OpenRegistry/services/kon/github_actions/v1/server"
 	"github.com/containerish/OpenRegistry/store/postgres"
 	build_automation_store "github.com/containerish/OpenRegistry/store/postgres/build_automation"
 	"github.com/containerish/OpenRegistry/telemetry"
@@ -90,7 +90,13 @@ func main() {
 
 	mux := http.NewServeMux()
 	const ProtoBufServerHostPort = "0.0.0.0:5001"
-	github_actions_server.NewGithubActionsServer(cfg.Integrations.GetGithubConfig(), logger, mux, buildAutomationStore)
+	github_actions_server.NewGithubActionsServer(
+		cfg.Integrations.GetGithubConfig(),
+		logger,
+		mux,
+		buildAutomationStore,
+		pgStore,
+	)
 	go http.ListenAndServe(ProtoBufServerHostPort, h2c.NewHandler(mux, &http2.Server{}))
 	color.Green("connect-go gRPC running on: %s", ProtoBufServerHostPort)
 
