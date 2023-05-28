@@ -148,7 +148,9 @@ type (
 		PrivateKeyPem         string `yaml:"private_key_pem" mapstructure:"private_key_pem"`
 		AppInstallRedirectURL string `yaml:"app_install_redirect_url" mapstructure:"app_install_redirect_url"`
 		WebhookSecret         string `yaml:"webhook_secret" mapstructure:"webhook_secret"`
+		Host                  string `yaml:"host" mapstructure:"host"`
 		AppID                 int64  `yaml:"app_id" mapstructure:"app_id"`
+		Port                  int    `yaml:"port" mapstructure:"port"`
 		Enabled               bool   `yaml:"enabled" mapstructure:"enabled"`
 	}
 )
@@ -255,7 +257,16 @@ func (itg Integrations) GetGithubConfig() *Integration {
 		}
 	}
 
-	return nil
+	return &Integration{}
+}
+
+func (itg Integrations) SetGithubConfig(config *Integration) {
+	for i, cfg := range itg {
+		if cfg.Name == "github" {
+			itg[i] = config
+			break
+		}
+	}
 }
 
 type Environment int

@@ -1,6 +1,7 @@
 package server
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"sync"
@@ -15,6 +16,8 @@ import (
 	"github.com/containerish/OpenRegistry/vcs"
 	"github.com/fatih/color"
 	"github.com/google/go-github/v50/github"
+	"golang.org/x/net/http2"
+	"golang.org/x/net/http2/h2c"
 )
 
 type GitHubActionsServer struct {
@@ -35,10 +38,15 @@ type streamLogsJob struct {
 func NewGithubActionsServer(
 	config *config.Integration,
 	logger telemetry.Logger,
-	mux *http.ServeMux,
 	store build_automation_store.BuildAutomationStore,
 	ghStore vcs.VCSStore,
 ) {
+	if !config.Enabled {
+		return
+	}
+	mux := http.NewServeMux()
+	hostPort := fmt.Sprintf("%s:%d", config.Host, config.Port)
+	color.Green("connect-go gRPC running on: %s", hostPort)
 	transport, githubClient, err := newGHClient(config.AppID, config.PrivateKeyPem)
 	if err != nil {
 		log.Fatalf("%s\n", color.RedString("error creating github client: %s", err))
@@ -55,11 +63,15 @@ func NewGithubActionsServer(
 	}
 
 	interceptors := connect.WithInterceptors(NewGithubAppInterceptor(logger, ghStore, nil))
-
 	mux.Handle(connect_v1.NewGitHubActionsLogsServiceHandler(server, interceptors))
 	mux.Handle(connect_v1.NewGitHubActionsProjectServiceHandler(server))
 	mux.Handle(connect_v1.NewGithubActionsBuildServiceHandler(server))
 	// mux.Handle("/", http.HandlerFunc(server.Listen)
 	mux.Handle("/services.kon.github_actions.v1.GitHubWebhookListenerService/Listen", http.HandlerFunc(server.Listen))
 	// mux.Handle(, mux.Handle(pattern string, handler http.Handler)
+	go func() {
+		if err := http.ListenAndServe(hostPort, h2c.NewHandler(mux, &http2.Server{})); err != nil {
+			color.Red("gRPC listen error: %s", err)
+		}
+	}()
 }

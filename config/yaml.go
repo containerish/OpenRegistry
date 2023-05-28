@@ -63,6 +63,17 @@ func ReadYamlConfig() (*OpenRegistryConfig, error) {
 		}
 	}
 
+	githubConfig := cfg.Integrations.GetGithubConfig()
+	if githubConfig.Host == "" {
+		githubConfig.Host = "0.0.0.0"
+	}
+
+	if githubConfig.Port == 0 {
+		githubConfig.Port = 5001
+	}
+
+	cfg.Integrations.SetGithubConfig(githubConfig)
+
 	if err := cfg.Validate(); err != nil {
 		return nil, err
 	}

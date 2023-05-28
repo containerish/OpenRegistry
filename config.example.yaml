@@ -56,3 +56,12 @@ web_authn_config:
   rp_origins:
     - http://localhost:3000
   rp_icon: <icon_link>
+integrations:
+  - name: github
+    enabled: false
+    app_id: 0
+    client_id: ""
+    public_link: ""
+    private_key_pem: ""
+    app_install_redirect_url: "http://localhost:3000/apps/github/connect/setup"
+    webhook_secret: ""
