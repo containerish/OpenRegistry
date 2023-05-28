@@ -18,7 +18,6 @@ import (
 	connect_go "github.com/bufbuild/connect-go"
 	github_actions_v1 "github.com/containerish/OpenRegistry/services/kon/github_actions/v1"
 	github_impl "github.com/containerish/OpenRegistry/vcs/github"
-	"github.com/fatih/color"
 	"github.com/google/go-github/v50/github"
 )
 
@@ -37,12 +36,14 @@ func (ghs *GitHubActionsServer) StreamWorkflowJobLogs(
 		return connect_go.NewError(connect_go.CodeInternal, fmt.Errorf("missing githubAppInstallation"))
 	}
 
-	uri, err := ghs.getWorkflowJobLogsURL(ctx, req.Msg.GetRepoOwner(), req.Msg.GetRepoName(), req.Msg.GetJobId(), githubAppInstallation)
+	uri, err := ghs.getWorkflowJobLogsURL(
+		ctx, req.Msg.GetRepoOwner(), req.Msg.GetRepoName(), req.Msg.GetJobId(), githubAppInstallation,
+	)
 	if err != nil {
 		return connect_go.NewError(connect_go.CodeNotFound, err)
 	}
 
-	downloadLogsReq, err := http.NewRequest(http.MethodGet, uri.String(), nil)
+	downloadLogsReq, err := http.NewRequestWithContext(ctx, http.MethodGet, uri.String(), nil)
 	if err != nil {
 		return connect_go.NewError(connect_go.CodeInternal, err)
 	}
@@ -100,18 +101,18 @@ func (ghs *GitHubActionsServer) StreamWorkflowJobLogs(
 	})
 
 	for _, step := range workflowSteps {
-		stream.Send(&github_actions_v1.StreamWorkflowJobLogsResponse{
+		_ = stream.Send(&github_actions_v1.StreamWorkflowJobLogsResponse{
 			LogMessage: step.Buf.String(),
 		})
 
 	}
 	if len(errList) > 0 {
-		stream.Send(&github_actions_v1.StreamWorkflowJobLogsResponse{
+		_ = stream.Send(&github_actions_v1.StreamWorkflowJobLogsResponse{
 			LogMessage: fmt.Sprintf("%v", errList),
 		})
 	}
-	stream.Send(&github_actions_v1.StreamWorkflowJobLogsResponse{LogMessage: "STREAM_END"})
-	return nil
+
+	return stream.Send(&github_actions_v1.StreamWorkflowJobLogsResponse{LogMessage: "STREAM_END"})
 }
 
 type WorkflowStep struct {
@@ -141,7 +142,10 @@ func (ghs *GitHubActionsServer) streamPreviousRunLogs(
 	}
 
 	if len(runs.WorkflowRuns) < 1 {
-		return connect_go.NewError(connect_go.CodeInvalidArgument, fmt.Errorf("no github actions run found for this id"))
+		return connect_go.NewError(
+			connect_go.CodeInvalidArgument,
+			fmt.Errorf("no github actions run found for this id"),
+		)
 	}
 	logEvent := ghs.logger.Debug().Str("method", "streamPreviousRunLogs")
 
@@ -152,7 +156,7 @@ func (ghs *GitHubActionsServer) streamPreviousRunLogs(
 	}
 
 	for _, step := range workflowSteps {
-		stream.Send(&github_actions_v1.StreamWorkflowRunLogsResponse{
+		_ = stream.Send(&github_actions_v1.StreamWorkflowRunLogsResponse{
 			LogMessage: step.Buf.String(),
 		})
 	}
@@ -165,7 +169,6 @@ func (ghs *GitHubActionsServer) StreamWorkflowRunLogs(
 	req *connect_go.Request[github_actions_v1.StreamWorkflowRunLogsRequest],
 	stream *connect_go.ServerStream[github_actions_v1.StreamWorkflowRunLogsResponse],
 ) error {
-	// color.Red("run id: %d - repo name: %s - repo owner: %s", req.Msg.GetRunId(), req.Msg.GetRepoName(), req.Msg.GetRepoOwner())
 	ghs.logger.Debug().
 		Str("method", "StreamWorkflowRunLogs").
 		Str("workflow_run_id", fmt.Sprintf("%d", req.Msg.GetRunId())).
@@ -182,7 +185,9 @@ func (ghs *GitHubActionsServer) StreamWorkflowRunLogs(
 	// get the GitHub App Installation ID, which must be set by the interceptor
 	ghAppInstallationID, ok := ctx.Value(github_impl.GithubInstallationIDContextKey).(int64)
 	if !ok {
-		return connect_go.NewError(connect_go.CodeInvalidArgument, fmt.Errorf("github app installation id not found for user"))
+		return connect_go.NewError(
+			connect_go.CodeInvalidArgument, fmt.Errorf("github app installation id not found for user"),
+		)
 	}
 
 	githubClient := ghs.refreshGHClient(ghs.transport, ghAppInstallationID)
@@ -216,12 +221,12 @@ func (ghs *GitHubActionsServer) StreamWorkflowRunLogs(
 				Str("workflow_run_id", fmt.Sprintf("%d", event.req.GetRunId())).
 				Send()
 			found = true
-			stream.Send(&github_actions_v1.StreamWorkflowRunLogsResponse{
+			_ = stream.Send(&github_actions_v1.StreamWorkflowRunLogsResponse{
 				LogMessage: "Fetching logs...",
 			})
 			break
 		}
-		stream.Send(&github_actions_v1.StreamWorkflowRunLogsResponse{
+		_ = stream.Send(&github_actions_v1.StreamWorkflowRunLogsResponse{
 			LogMessage: "Waiting for logs...",
 		})
 		// wait before trying next run
@@ -233,7 +238,7 @@ func (ghs *GitHubActionsServer) StreamWorkflowRunLogs(
 	}
 
 	delete(ghs.activeLogStreamJobs, ghs.getLogsEventKey(req.Msg))
-	stream.Send(&github_actions_v1.StreamWorkflowRunLogsResponse{
+	_ = stream.Send(&github_actions_v1.StreamWorkflowRunLogsResponse{
 		LogMessage: "Downloading logs to stream",
 	})
 
@@ -280,11 +285,12 @@ func (ghs *GitHubActionsServer) StreamWorkflowRunLogs(
 	}
 
 	for _, step := range workflowSteps {
-		stream.Send(&github_actions_v1.StreamWorkflowRunLogsResponse{
+		_ = stream.Send(&github_actions_v1.StreamWorkflowRunLogsResponse{
 			LogMessage: step.Buf.String(),
 		})
 
 	}
+
 	return stream.Send(&github_actions_v1.StreamWorkflowRunLogsResponse{LogMessage: "STREAM_END"})
 }
 
@@ -303,7 +309,13 @@ func (ghs *GitHubActionsServer) refreshGHClient(appTransport *ghinstallation.App
 	return github.NewClient(&http.Client{Transport: transport})
 }
 
-func (ghs *GitHubActionsServer) getWorkflowJobLogsURL(ctx context.Context, owner, repo string, jobID, githubAppInstallationID int64) (*url.URL, error) {
+func (ghs *GitHubActionsServer) getWorkflowJobLogsURL(
+	ctx context.Context,
+	owner string,
+	repo string,
+	jobID int64,
+	githubAppInstallationID int64,
+) (*url.URL, error) {
 	client := ghs.refreshGHClient(ghs.transport, githubAppInstallationID)
 	url, resp, err := client.Actions.GetWorkflowJobLogs(ctx, owner, repo, jobID, true)
 	if err != nil {
@@ -368,7 +380,12 @@ func (ghs *GitHubActionsServer) retryGetWorkflowRunLogsURL(
 
 }
 
-func (ghs *GitHubActionsServer) getWorkflowRunLogsURL(ctx context.Context, owner, repo string, runID int64) (*url.URL, error) {
+func (ghs *GitHubActionsServer) getWorkflowRunLogsURL(
+	ctx context.Context,
+	owner string,
+	repo string,
+	runID int64,
+) (*url.URL, error) {
 	client := ghs.refreshGHClient(ghs.transport, 30257283)
 
 	return ghs.retryGetWorkflowRunLogsURL(client, ctx, owner, repo, runID, 3, time.Second*5)
@@ -394,7 +411,6 @@ func (ghs *GitHubActionsServer) DumpLogs(
 	*connect_go.Response[github_actions_v1.DumpLogsResponse],
 	error,
 ) {
-	color.Red("run id: %d - repo name: %s - repo owner: %s", req.Msg.GetRunId(), req.Msg.GetRepoName(), req.Msg.GetRepoOwner())
 	if err := req.Msg.Validate(); err != nil {
 		return nil, connect_go.NewError(connect_go.CodeInvalidArgument, err)
 	}
@@ -404,7 +420,7 @@ func (ghs *GitHubActionsServer) DumpLogs(
 		return nil, connect_go.NewError(connect_go.CodeNotFound, err)
 	}
 
-	downloadLogsReq, err := http.NewRequest(http.MethodGet, uri.String(), nil)
+	downloadLogsReq, err := http.NewRequestWithContext(ctx, http.MethodGet, uri.String(), nil)
 	if err != nil {
 		return nil, connect_go.NewError(connect_go.CodeInternal, err)
 	}

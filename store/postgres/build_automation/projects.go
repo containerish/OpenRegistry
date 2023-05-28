@@ -19,7 +19,10 @@ func (p *pg) DeleteProject(ctx context.Context, project *github_actions_v1.Delet
 }
 
 // GetProject implements BuildAutomationStore
-func (p *pg) GetProject(ctx context.Context, project *github_actions_v1.GetProjectRequest) (*github_actions_v1.GetProjectResponse, error) {
+func (p *pg) GetProject(
+	ctx context.Context,
+	project *github_actions_v1.GetProjectRequest,
+) (*github_actions_v1.GetProjectResponse, error) {
 	query := `select
     id,
     name,
@@ -52,7 +55,10 @@ func (p *pg) GetProject(ctx context.Context, project *github_actions_v1.GetProje
 }
 
 // ListProjects implements BuildAutomationStore
-func (p *pg) ListProjects(ctx context.Context, project *github_actions_v1.ListProjectsRequest) (*github_actions_v1.ListProjectsResponse, error) {
+func (p *pg) ListProjects(
+	ctx context.Context,
+	project *github_actions_v1.ListProjectsRequest,
+) (*github_actions_v1.ListProjectsResponse, error) {
 	query := `select
     id,
     name,

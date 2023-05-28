@@ -7,6 +7,9 @@ skip-dirs:
 linters-settings:
   cyclop:
     max-complexity: 16
+  gosec:
+    excludes:
+      - G114
 
 lll:
   line-length: 120

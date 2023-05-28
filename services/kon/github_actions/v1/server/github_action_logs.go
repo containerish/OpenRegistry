@@ -18,7 +18,7 @@ func (ghs *GitHubActionsServer) getLogsToStream(
 	githubClient *github.Client,
 	logsURL string,
 ) ([]WorkflowStep, error) {
-	downloadLogsReq, err := http.NewRequest(http.MethodGet, logsURL, nil)
+	downloadLogsReq, err := http.NewRequestWithContext(ctx, http.MethodGet, logsURL, nil)
 	if err != nil {
 		ghs.logger.Debug().Err(err).Send()
 		return nil, connect_go.NewError(connect_go.CodeInternal, err)

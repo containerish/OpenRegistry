@@ -62,7 +62,10 @@ func (p *pg) GetBuildJob(ctx context.Context, req *gha_v1.GetBuildJobRequest) (*
 }
 
 // ListBuildJobs implements gha_v1connect.GithubActionsBuildServiceHandler
-func (p *pg) ListBuildJobs(ctx context.Context, req *gha_v1.ListBuildJobsRequest) (*gha_v1.ListBuildJobsResponse, error) {
+func (p *pg) ListBuildJobs(
+	ctx context.Context,
+	req *gha_v1.ListBuildJobsRequest,
+) (*gha_v1.ListBuildJobsResponse, error) {
 	query := `select 
     id, logs_url, status, triggered_by, duration, branch, commit_hash, triggered_at
     from 

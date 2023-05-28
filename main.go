@@ -97,7 +97,11 @@ func main() {
 		buildAutomationStore,
 		pgStore,
 	)
-	go http.ListenAndServe(ProtoBufServerHostPort, h2c.NewHandler(mux, &http2.Server{}))
+	go func() {
+		if err := http.ListenAndServe(ProtoBufServerHostPort, h2c.NewHandler(mux, &http2.Server{})); err != nil {
+			color.Red("gRPC listen error: %s", err)
+		}
+	}()
 	color.Green("connect-go gRPC running on: %s", ProtoBufServerHostPort)
 
 	color.Red("error initialising OpenRegistry Server: %s", buildHTTPServer(cfg, e))

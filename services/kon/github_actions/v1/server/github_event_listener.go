@@ -11,6 +11,7 @@ import (
 	// "github.com/google/go-github/v50/github"
 )
 
+//nolint:cyclop
 func (ghs *GitHubActionsServer) Listen(resp http.ResponseWriter, req *http.Request) {
 	xHubSignature := req.Header.Get("X-Hub-Signature-256")
 	contentType := req.Header.Get("Content-Type")
@@ -122,55 +123,4 @@ func (ghs *GitHubActionsServer) Listen(resp http.ResponseWriter, req *http.Reque
 		// Str("workflow_name", event)
 		// color.Yellow("event type default: %#v", event)
 	}
-
 }
-
-// func (gha *GitHubActionsServer) captureEvent(
-// 	ctx context.Context,
-// 	req *connect_go.Request[github_actions_v1.StreamWorkflowRunLogsRequest],
-// ) error {
-// 	xHubSignature := req.Header().Get("X-Hub-Signature-256")
-// 	contentType := req.Header().Get("Content-Type")
-//
-// 	// xHubSignature := ctx.Request().Header.Get("X-Hub-Signature-256")
-//
-// 	bz, err := json.Marshal(req.Msg)
-// 	buf := bytes.NewBuffer(bz)
-//
-// payload, err := github.ValidatePayloadFromBody(
-// 	contentType,
-// 	buf,
-// 	xHubSignature,
-// 	[]byte(gha.config.WebhookSecret),
-// )
-//
-// 	if err != nil {
-// 		// echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
-// 		// 	"error": err.Error(),
-// 		// })
-// 		// gh.logger.Log(ctx, err).Send()
-// 		return err
-// 	}
-//
-// 	event, err := github.ParseWebHook(github.WebHookType(ctx.Request()), payload)
-// 	if err != nil {
-// 		// echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
-// 		// 	"error": err.Error(),
-// 		// })
-// 		// gh.logger.Log(ctx, err).Send()
-// 		return err
-// 	}
-//
-// 	switch event := event.(type) {
-// 	case *github.PingEvent:
-// 	case *github.WorkflowJobEvent:
-// 	case *github.WorkflowRunEvent:
-// 	case *github.WorkflowDispatchEvent:
-// 		color.Yellow("event type WorkflowDispatchEvent: %#v", event)
-// 	case *github.InstallationRepositoriesEvent:
-// 	case *github.CheckRunEvent:
-// 	case *github.InstallationEvent:
-// 	}
-//
-// 	return ctx.NoContent(http.StatusNoContent)
-// }

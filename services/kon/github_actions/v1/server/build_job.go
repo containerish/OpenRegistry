@@ -85,7 +85,10 @@ func (gha *GitHubActionsServer) ListBuildJobs(
 }
 
 // StoreJob implements github_actions_v1connect.GithubActionsBuildServiceHandler
-func (gha *GitHubActionsServer) StoreJob(ctx context.Context, req *connect_go.Request[v1.StoreJobRequest]) (*connect_go.Response[v1.StoreJobResponse], error) {
+func (gha *GitHubActionsServer) StoreJob(
+	ctx context.Context,
+	req *connect_go.Request[v1.StoreJobRequest],
+) (*connect_go.Response[v1.StoreJobResponse], error) {
 	err := req.Msg.Validate()
 	if err != nil {
 		return nil, connect_go.NewError(connect_go.CodeInvalidArgument, err)

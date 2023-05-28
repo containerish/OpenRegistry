@@ -11,13 +11,11 @@ import (
 	"github.com/containerish/OpenRegistry/telemetry"
 	"github.com/containerish/OpenRegistry/vcs"
 	"github.com/containerish/OpenRegistry/vcs/github"
-	"github.com/fatih/color"
 )
 
 func NewGitHubAppUsernameInterceptor(ghStore vcs.VCSStore, logger telemetry.Logger) connect.UnaryInterceptorFunc {
 	return connect.UnaryInterceptorFunc(func(next connect.UnaryFunc) connect.UnaryFunc {
 		return connect.UnaryFunc(func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
-			color.Red("========================= NewGitHubAppUsernameInterceptor ===================================")
 			rawCookies := req.Header().Get("cookie")
 			header := http.Header{}
 			header.Add("Cookie", rawCookies)
@@ -42,15 +40,20 @@ func NewGitHubAppUsernameInterceptor(ghStore vcs.VCSStore, logger telemetry.Logg
 	})
 }
 
-func NewGitHubAppInstallationIDInterceptor(ghStore vcs.VCSStore, skipRoutes []string, logger telemetry.Logger) connect.UnaryInterceptorFunc {
+func NewGitHubAppInstallationIDInterceptor(
+	ghStore vcs.VCSStore,
+	skipRoutes []string,
+	logger telemetry.Logger,
+) connect.UnaryInterceptorFunc {
 	interceptor := func(next connect.UnaryFunc) connect.UnaryFunc {
 		return connect.UnaryFunc(func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
-			color.Red("========================= NewGitHubAppInstallationIDInterceptor ===================================")
 			username, ok := ctx.Value(github.UsernameContextKey).(string)
 			logEvent := logger.Debug().Str("interceptor_name", "NewGitHubAppInstallationIDInterceptor")
 			if !ok {
-				logEvent.Str("missing_value_in_context", string(github.UsernameContextKey))
-				return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("username not found from context"))
+				logEvent.Str("missing_value_in_context", string(github.UsernameContextKey)).Send()
+				return nil, connect.NewError(
+					connect.CodeFailedPrecondition, fmt.Errorf("username not found from context"),
+				)
 			}
 
 			skip := false
@@ -85,7 +88,9 @@ type githubAppStreamingInterceptor struct {
 	routesToSkip []string
 }
 
-func NewGithubAppInterceptor(logger telemetry.Logger, store vcs.VCSStore, routesToSkip []string) *githubAppStreamingInterceptor {
+func NewGithubAppInterceptor(
+	logger telemetry.Logger, store vcs.VCSStore, routesToSkip []string,
+) *githubAppStreamingInterceptor {
 	return &githubAppStreamingInterceptor{
 		logger,
 		store,
@@ -138,7 +143,9 @@ func (i *githubAppStreamingInterceptor) WrapUnary(next connect.UnaryFunc) connec
 	}
 }
 
-func (i *githubAppStreamingInterceptor) WrapStreamingClient(next connect.StreamingClientFunc) connect.StreamingClientFunc {
+func (i *githubAppStreamingInterceptor) WrapStreamingClient(
+	next connect.StreamingClientFunc,
+) connect.StreamingClientFunc {
 	return func(ctx context.Context, spec connect.Spec) connect.StreamingClientConn {
 		i.logger.Debug().Str("method", "WrapStreamingClient").Send()
 		conn := next(ctx, spec)
@@ -147,9 +154,13 @@ func (i *githubAppStreamingInterceptor) WrapStreamingClient(next connect.Streami
 	}
 }
 
-func (i *githubAppStreamingInterceptor) WrapStreamingHandler(next connect.StreamingHandlerFunc) connect.StreamingHandlerFunc {
+func (i *githubAppStreamingInterceptor) WrapStreamingHandler(
+	next connect.StreamingHandlerFunc,
+) connect.StreamingHandlerFunc {
 	return func(ctx context.Context, conn connect.StreamingHandlerConn) error {
-		logEvent := i.logger.Debug().Str("interceptor_name", "NewGitHubAppUsernameInterceptor").Str("method", "WrapStreamingHandler")
+		logEvent := i.logger.Debug().
+			Str("interceptor_name", "NewGitHubAppUsernameInterceptor").
+			Str("method", "WrapStreamingHandler")
 
 		tmpReq := http.Request{Header: conn.RequestHeader()}
 		sessionCookie, err := tmpReq.Cookie("session_id")
