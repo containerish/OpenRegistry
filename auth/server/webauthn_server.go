@@ -75,7 +75,7 @@ func (wa *webauthn_server) webAuthNTxnCleanup() {
 
 func (wa *webauthn_server) BeginRegistration(ctx echo.Context) error {
 	ctx.Set(types.HandlerStartTime, time.Now())
-	var user types.User
+	user := types.User{}
 
 	if err := json.NewDecoder(ctx.Request().Body).Decode(&user); err != nil {
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
@@ -86,6 +86,7 @@ func (wa *webauthn_server) BeginRegistration(ctx echo.Context) error {
 		return echoErr
 	}
 	_ = ctx.Request().Body.Close()
+	user.Identities = make(types.Identities)
 
 	err := user.Validate(false)
 	if err != nil {
