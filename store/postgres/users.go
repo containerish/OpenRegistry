@@ -134,7 +134,7 @@ func (p *pg) GetGitHubUser(ctx context.Context, identifier string, txn pgx.Tx) (
 		&user.Identities,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("ERR_GET_GITHUN_USER_FROM_DB: %w", err)
+		return nil, fmt.Errorf("ERR_GET_GITHUB_USER_FROM_DB: %w", err)
 	}
 
 	if user.Identities == nil {
