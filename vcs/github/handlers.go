@@ -11,13 +11,14 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/containerish/OpenRegistry/types"
 	"github.com/containerish/OpenRegistry/vcs"
 	"github.com/google/go-github/v50/github"
 	"github.com/labstack/echo/v4"
 )
 
 func (gh *ghAppService) HandleAppFinish(ctx echo.Context) error {
-	username := ctx.Get(UsernameContextKey).(string)
+	user := ctx.Get(UserContextKey).(*types.User)
 
 	installationID, err := strconv.ParseInt(ctx.QueryParam("installation_id"), 10, 64)
 	if err != nil {
@@ -28,7 +29,12 @@ func (gh *ghAppService) HandleAppFinish(ctx echo.Context) error {
 		return echoErr
 	}
 
-	if err = gh.store.UpdateInstallationID(ctx.Request().Context(), installationID, username); err != nil {
+	if user.Identities.GetGitHubIdentity() == nil {
+		user.Identities[types.IdentityProviderGitHub] = &types.UserIdentity{}
+	}
+	user.Identities.GetGitHubIdentity().InstallationID = installationID
+
+	if err = gh.store.UpdateUser(ctx.Request().Context(), user); err != nil {
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error": err.Error(),
 		})
@@ -43,7 +49,7 @@ func (gh *ghAppService) HandleAppFinish(ctx echo.Context) error {
 
 // HandleSetupCallback implements vcs.VCS
 func (gh *ghAppService) HandleSetupCallback(ctx echo.Context) error {
-	username := ctx.Get(UsernameContextKey).(string)
+	user := ctx.Get(UserContextKey).(*types.User)
 
 	installationID, err := strconv.ParseInt(ctx.QueryParam("installation_id"), 10, 64)
 	if err != nil {
@@ -54,7 +60,13 @@ func (gh *ghAppService) HandleSetupCallback(ctx echo.Context) error {
 		return echoErr
 	}
 
-	if err := gh.store.UpdateInstallationID(ctx.Request().Context(), installationID, username); err != nil {
+	if user.Identities.GetGitHubIdentity() == nil {
+		user.Identities[types.IdentityProviderGitHub] = &types.UserIdentity{}
+	}
+	user.Identities.GetGitHubIdentity().InstallationID = installationID
+
+	if err := gh.store.UpdateUser(ctx.Request().Context(), user); err != nil {
+		// if err := gh.store.UpdateInstallationID(ctx.Request().Context(), installationID, username); err != nil {
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error": err.Error(),
 		})

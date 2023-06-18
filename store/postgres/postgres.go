@@ -4,11 +4,10 @@ import (
 	"context"
 	"time"
 
-	"github.com/go-webauthn/webauthn/webauthn"
-
 	"github.com/containerish/OpenRegistry/config"
 	"github.com/containerish/OpenRegistry/types"
 	"github.com/fatih/color"
+	"github.com/go-webauthn/webauthn/webauthn"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 )
@@ -29,14 +28,12 @@ type UserReader interface {
 	GetVerifyEmail(ctx context.Context, userId string) (string, error)
 	// ID can be either a username, oauth login (GitHub username) or the user id (uuid)
 	UserExists(ctx context.Context, username, email string) (bool, bool)
-	GetOAuthUser(ctx context.Context, identifier string, txn pgx.Tx) (*types.User, error)
-	UpdateOAuthUser(ctx context.Context, email, login, nodeId string, txn pgx.Tx) error
+	GetGitHubUser(ctx context.Context, identifier string, txn pgx.Tx) (*types.User, error)
 }
 
 type UserWriter interface {
 	AddUser(ctx context.Context, u *types.User, txn pgx.Tx) error
-	AddOAuthUser(ctx context.Context, u *types.User) error
-	UpdateUser(ctx context.Context, identifier string, u *types.User) error
+	UpdateUser(ctx context.Context, u *types.User) error
 	UpdateUserPWD(ctx context.Context, identifier string, newPassword string) error
 	AddSession(ctx context.Context, sessionId, refreshToken, owner string) error
 	AddVerifyEmail(ctx context.Context, userId, token string) error
@@ -47,8 +44,6 @@ type UserDeleter interface {
 	DeleteSession(ctx context.Context, sessionId, userId string) error
 	DeleteAllSessions(ctx context.Context, userId string) error
 	DeleteVerifyEmail(ctx context.Context, userId string) error
-	UpdateInstallationID(ctx context.Context, id int64, githubUsername string) error
-	GetInstallationID(ctx context.Context, githubUsername string) (int64, error)
 }
 
 type UserReadWriteDeleter interface {

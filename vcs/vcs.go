@@ -23,9 +23,8 @@ type VCS interface {
 }
 
 type VCSStore interface {
-	UpdateInstallationID(ctx context.Context, id int64, githubUsername string) error
-	GetInstallationID(ctx context.Context, githubUsername string) (int64, error)
 	GetUserById(ctx context.Context, userId string, wihtPassword bool, txn pgx.Tx) (*types.User, error)
+	UpdateUser(ctx context.Context, u *types.User) error
 }
 
 type Repository struct {
