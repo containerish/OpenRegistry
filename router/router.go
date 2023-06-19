@@ -144,3 +144,7 @@ func Extensions(group *echo.Group, reg registry.Registry, ext extensions.Extenio
 	group.Add(http.MethodGet, CatalogDetail, ext.CatalogDetail, middlewares...)
 	group.Add(http.MethodGet, RepositoryDetail, ext.RepositoryDetail, middlewares...)
 }
+
+func RegisterHealthCheckEndpoint(e *echo.Echo, fn http.HandlerFunc) {
+	e.Add(http.MethodGet, "/health", echo.WrapHandler(fn))
+}
