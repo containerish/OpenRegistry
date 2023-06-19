@@ -28,7 +28,7 @@ func Register(
 ) {
 	e.Use(middleware.Recover())
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
-		AllowOrigins:     strings.Split(cfg.WebAppConfig.Endpoint, ","),
+		AllowOrigins:     cfg.WebAppConfig.AllowedEndpoints,
 		AllowMethods:     middleware.DefaultCORSConfig.AllowMethods,
 		AllowHeaders:     middleware.DefaultCORSConfig.AllowHeaders,
 		AllowCredentials: true,
@@ -72,7 +72,19 @@ func Register(
 
 	//catch-all will redirect user back to web interface
 	e.Add(http.MethodGet, "/", func(ctx echo.Context) error {
-		return ctx.Redirect(http.StatusTemporaryRedirect, cfg.WebAppConfig.Endpoint)
+		webAppURL := ""
+		for _, url := range cfg.WebAppConfig.AllowedEndpoints {
+			if url == ctx.Request().Header.Get("Origin") {
+				webAppURL = url
+				break
+			}
+		}
+
+		if strings.HasSuffix(ctx.Request().Header.Get("Origin"), "openregistry-web.pages.dev") {
+			webAppURL = ctx.Request().Header.Get("Origin")
+		}
+
+		return ctx.Redirect(http.StatusTemporaryRedirect, webAppURL)
 	})
 }
 

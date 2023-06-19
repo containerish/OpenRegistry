@@ -35,7 +35,7 @@ func CreateCookie(opts *CreateCookieOptions) *http.Cookie {
 		domain = "localhost"
 	}
 
-	return &http.Cookie{
+	cookie := &http.Cookie{
 		Name:     opts.Name,
 		Value:    opts.Value,
 		Path:     "/",
@@ -45,6 +45,12 @@ func CreateCookie(opts *CreateCookieOptions) *http.Cookie {
 		SameSite: sameSite,
 		HttpOnly: opts.HTTPOnly,
 	}
+
+	if opts.ExpiresAt.Unix() < time.Now().Unix() {
+		cookie.MaxAge = -1
+	}
+
+	return cookie
 }
 
 const (

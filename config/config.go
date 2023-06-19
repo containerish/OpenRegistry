@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/go-playground/locales/en"
@@ -11,6 +12,7 @@ import (
 	"github.com/go-playground/validator/v10"
 	enTranslations "github.com/go-playground/validator/v10/translations/en"
 	"github.com/hashicorp/go-multierror"
+	"github.com/labstack/echo/v4"
 	"github.com/spf13/viper"
 )
 
@@ -31,10 +33,10 @@ type (
 	}
 
 	WebAppConfig struct {
-		Endpoint          string `yaml:"endpoint" mapstructure:"endpoint" validate:"required"`
-		RedirectURL       string `yaml:"redirect_url" mapstructure:"redirect_url" validate:"required"`
-		ErrorRedirectPath string `yaml:"error_redirect_path" mapstructure:"error_redirect_path"`
-		CallbackURL       string `yaml:"callback_url" mapstructure:"callback_url"`
+		RedirectURL       string   `yaml:"redirect_url" mapstructure:"redirect_url" validate:"required"`
+		ErrorRedirectPath string   `yaml:"error_redirect_path" mapstructure:"error_redirect_path"`
+		CallbackURL       string   `yaml:"callback_url" mapstructure:"callback_url"`
+		AllowedEndpoints  []string `yaml:"endpoints" mapstructure:"endpoints" validate:"required"`
 	}
 
 	DFS struct {
@@ -306,4 +308,65 @@ func (sj *Storj) S3Config() *S3CompatibleDFS {
 		MinChunkSize:    sj.MinChunkSize,
 		Enabled:         sj.Enabled,
 	}
+}
+
+func (cfg *WebAppConfig) GetAllowedURLFromEchoContext(ctx echo.Context, env Environment) string {
+	origin := ctx.Request().Header.Get("Origin")
+	if env == Staging {
+		return origin
+	}
+
+	if strings.HasSuffix(origin, "openregistry-web.pages.dev") {
+		return "openregistry-web.pages.dev"
+	}
+
+	for _, url := range cfg.AllowedEndpoints {
+		if url == origin {
+			return url
+		}
+	}
+
+	return cfg.AllowedEndpoints[0]
+}
+
+func (itg *Integration) GetAllowedURLFromEchoContext(ctx echo.Context, env Environment, allowedURLs []string) string {
+	origin := ctx.Request().Header.Get("Origin")
+	if env == Staging {
+		return origin
+	}
+
+	if strings.HasSuffix(origin, "openregistry-web.pages.dev") {
+		return "openregistry-web.pages.dev"
+	}
+
+	for _, url := range allowedURLs {
+		if url == origin {
+			return url
+		}
+	}
+
+	return allowedURLs[0]
+}
+
+func (wan *WebAuthnConfig) GetAllowedURLFromEchoContext(ctx echo.Context, env Environment) string {
+	origin := ctx.Request().Header.Get("Origin")
+	if env == Staging {
+		return origin
+	}
+
+	if wan.RPOrigin == origin {
+		return wan.RPOrigin
+	}
+
+	for _, url := range wan.RPOrigins {
+		if url == origin {
+			return url
+		}
+	}
+
+	if wan.RPOrigin != "" {
+		return wan.RPOrigin
+	}
+
+	return wan.RPOrigins[0]
 }

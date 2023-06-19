@@ -65,7 +65,8 @@ func main() {
 			cfg.Integrations.GetGithubConfig(),
 			pgStore,
 			logger,
-			cfg.WebAppConfig.Endpoint+"/repositories",
+			cfg.WebAppConfig.AllowedEndpoints,
+			cfg.Environment,
 		)
 		if err != nil {
 			e.Logger.Errorf("error initializing Github App Service: %s", err)

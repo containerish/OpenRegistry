@@ -264,7 +264,9 @@ func (a *auth) ForgotPassword(ctx echo.Context) error {
 		return echoErr
 	}
 
-	if err = a.emailClient.SendEmail(user, token, email.ResetPasswordEmailKind); err != nil {
+	webAppURL := a.c.WebAppConfig.GetAllowedURLFromEchoContext(ctx, a.c.Environment)
+
+	if err = a.emailClient.SendEmail(user, token, email.ResetPasswordEmailKind, webAppURL); err != nil {
 		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error":   err.Error(),
 			"message": "error sending password reset link",

@@ -47,7 +47,8 @@ func (a *auth) Invites(ctx echo.Context) error {
 		return echoErr
 	}
 
-	err = a.emailClient.WelcomeEmail(emails)
+	webAppURL := a.c.WebAppConfig.GetAllowedURLFromEchoContext(ctx, a.c.Environment)
+	err = a.emailClient.WelcomeEmail(emails, webAppURL)
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error":   err.Error(),

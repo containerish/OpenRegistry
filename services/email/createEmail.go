@@ -7,7 +7,7 @@ import (
 	"github.com/sendgrid/sendgrid-go/helpers/mail"
 )
 
-func (e *email) CreateEmail(u *types.User, kind EmailKind, token string) (*mail.SGMailV3, error) {
+func (e *email) CreateEmail(u *types.User, kind EmailKind, token string, baseURL string) (*mail.SGMailV3, error) {
 	mailReq := &Mail{}
 	m := mail.NewV3Mail()
 
@@ -19,12 +19,12 @@ func (e *email) CreateEmail(u *types.User, kind EmailKind, token string) (*mail.
 	case VerifyEmailKind:
 		m.SetTemplateID(e.config.VerifyEmailTemplateId)
 		mailReq.Subject = "Verify Email"
-		mailReq.Data.Link = fmt.Sprintf("%s/auth/verify?token=%s", e.baseURL, token)
+		mailReq.Data.Link = fmt.Sprintf("%s/auth/verify?token=%s", baseURL, token)
 
 	case ResetPasswordEmailKind:
 		m.SetTemplateID(e.config.ForgotPasswordTemplateId)
 		mailReq.Subject = "Forgot Password"
-		mailReq.Data.Link = fmt.Sprintf("%s/auth/forgot-password?token=%s", e.baseURL, token)
+		mailReq.Data.Link = fmt.Sprintf("%s/auth/forgot-password?token=%s", baseURL, token)
 
 	default:
 		return nil, fmt.Errorf("incorrect email kind")

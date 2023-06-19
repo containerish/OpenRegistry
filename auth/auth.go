@@ -50,7 +50,7 @@ func New(
 	}
 
 	ghClient := gh.NewClient(nil)
-	emailClient := email.New(&c.Email, c.WebAppConfig.Endpoint)
+	emailClient := email.New(&c.Email)
 
 	a := &auth{
 		c:               c,

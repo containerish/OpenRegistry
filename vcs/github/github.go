@@ -17,21 +17,23 @@ import (
 )
 
 type ghAppService struct {
-	config               *config.Integration
 	store                vcs.VCSStore
+	logger               telemetry.Logger
+	config               *config.Integration
 	ghClient             *github.Client
 	ghAppTransport       *ghinstallation.AppsTransport
-	logger               telemetry.Logger
-	webInterfaceURL      string
 	automationBranchName string
 	workflowFilePath     string
+	webInterfaceURLs     []string
+	env                  config.Environment
 }
 
 func NewGithubApp(
 	cfg *config.Integration,
 	store vcs.VCSStore,
 	logger telemetry.Logger,
-	webInterfaceURL string,
+	webInterfaceURLs []string,
+	env config.Environment,
 ) (vcs.VCS, error) {
 	ghAppTransport, ghClient, err := newGHClient(cfg.AppID, cfg.PrivateKeyPem)
 	if err != nil {
@@ -46,7 +48,8 @@ func NewGithubApp(
 		ghAppTransport:       ghAppTransport,
 		logger:               logger,
 		automationBranchName: OpenRegistryAutomationBranchName,
-		webInterfaceURL:      webInterfaceURL,
+		webInterfaceURLs:     webInterfaceURLs,
+		env:                  env,
 	}, nil
 }
 

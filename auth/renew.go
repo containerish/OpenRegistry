@@ -104,7 +104,7 @@ func (a *auth) RenewAccessToken(ctx echo.Context) error {
 		return echoErr
 	}
 
-	accessCookie := a.createCookie("access_token", tokenString, true, time.Now().Add(time.Hour))
+	accessCookie := a.createCookie(ctx, "access_token", tokenString, true, time.Now().Add(time.Hour))
 	ctx.SetCookie(accessCookie)
 	err = ctx.NoContent(http.StatusNoContent)
 	a.logger.Log(ctx, err).Send()
