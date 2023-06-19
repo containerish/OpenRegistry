@@ -7,6 +7,7 @@ import (
 	auth_server "github.com/containerish/OpenRegistry/auth/server"
 	"github.com/containerish/OpenRegistry/config"
 	"github.com/containerish/OpenRegistry/dfs/client"
+	healthchecks "github.com/containerish/OpenRegistry/health-checks"
 	"github.com/containerish/OpenRegistry/registry/v2"
 	"github.com/containerish/OpenRegistry/registry/v2/extensions"
 	"github.com/containerish/OpenRegistry/router"
@@ -42,6 +43,7 @@ func main() {
 	logger := telemetry.ZLogger(fluentBitCollector, cfg.Environment)
 	authSvc := auth.New(cfg, pgStore, logger)
 	webauthnServer := auth_server.NewWebauthnServer(cfg, pgStore, logger)
+	healthCheckHandler := healthchecks.NewHealthChecksAPI(pgStore)
 
 	dfs := client.NewDFSBackend(cfg.Environment, &cfg.DFS)
 	reg, err := registry.NewRegistry(pgStore, dfs, logger, cfg)
@@ -57,6 +59,7 @@ func main() {
 	}
 
 	router.Register(cfg, e, reg, authSvc, webauthnServer, ext)
+	router.RegisterHealthCheckEndpoint(e, healthCheckHandler)
 	if cfg.Integrations.GetGithubConfig() != nil && cfg.Integrations.GetGithubConfig().Enabled {
 		ghApp, err := github.NewGithubApp(
 			cfg.Integrations.GetGithubConfig(),

@@ -17,6 +17,15 @@ type PersistentStore interface {
 	RegistryStore
 	SessionStore
 	WebAuthN
+	PostgresConnCloser
+	PostgresPing
+}
+
+type PostgresPing interface {
+	Ping(ctx context.Context) error
+}
+
+type PostgresConnCloser interface {
 	Close()
 }
 
@@ -111,6 +120,10 @@ type pg struct {
 
 func (p *pg) Close() {
 	p.conn.Close()
+}
+
+func (p *pg) Ping(ctx context.Context) error {
+	return p.conn.Ping(ctx)
 }
 
 func New(cfg *config.Store) (PersistentStore, error) {
