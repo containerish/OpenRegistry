@@ -8,58 +8,22 @@ import (
 	"unicode"
 
 	"github.com/go-playground/validator/v10"
+	"github.com/google/go-github/v50/github"
+	"github.com/google/uuid"
 )
 
 type (
 	User struct {
-		UpdatedAt         time.Time `json:"updated_at,omitempty" validate:"-"`
-		CreatedAt         time.Time `json:"created_at,omitempty" validate:"-"`
-		GravatarID        string    `json:"gravatar_id,omitempty"`
-		Password          string    `json:"password,omitempty"`
-		Id                string    `json:"uuid,omitempty" validate:"-"`
-		Username          string    `json:"username,omitempty" validate:"-"`
-		Email             string    `json:"email,omitempty" validate:"email"`
-		URL               string    `json:"url,omitempty"`
-		Company           string    `json:"company,omitempty"`
-		ReceivedEventsURL string    `json:"received_events_url,omitempty"`
-		HTMLURL           string    `json:"html_url,omitempty"`
-		Type              string    `json:"type,omitempty"`
-		AvatarURL         string    `json:"avatar_url,omitempty"`
-		TwitterUsername   string    `json:"twitter_username,omitempty"`
-		Bio               string    `json:"bio,omitempty"`
-		Location          string    `json:"location,omitempty"`
-		Login             string    `json:"login,omitempty"`
-		Name              string    `json:"name,omitempty"`
-		NodeID            string    `json:"node_id,omitempty"`
-		OrganizationsURL  string    `json:"organizations_url,omitempty"`
-		OAuthID           int       `json:"id,omitempty"`
-		Hireable          bool      `json:"hireable,omitempty"`
-		IsActive          bool      `json:"is_active,omitempty" validate:"-"`
-		WebauthnConnected bool      `json:"webauthn_connected"`
-		GithubConnected   bool      `json:"github_connected"`
-	}
-
-	OAuthUser struct {
-		CreatedAt         time.Time `json:"created_at"`
-		UpdatedAt         time.Time `json:"updated_at"`
-		Location          string    `json:"location"`
-		ReceivedEventsURL string    `json:"received_events_url"`
-		Email             string    `json:"email"`
-		Bio               string    `json:"bio"`
-		Type              string    `json:"type"`
-		GravatarID        string    `json:"gravatar_id"`
-		TwitterUsername   string    `json:"twitter_username"`
-		HTMLURL           string    `json:"html_url"`
-		Company           string    `json:"company"`
-		Login             string    `json:"login"`
-		Name              string    `json:"name"`
-		NodeID            string    `json:"node_id"`
-		OrganizationsURL  string    `json:"organizations_url"`
-		AvatarURL         string    `json:"avatar_url"`
-		URL               string    `json:"url"`
-		FKID              string
-		ID                int  `json:"id"`
-		Hireable          bool `json:"hireable"`
+		UpdatedAt         time.Time  `json:"updated_at,omitempty" validate:"-"`
+		CreatedAt         time.Time  `json:"created_at,omitempty" validate:"-"`
+		Identities        Identities `json:"identities"`
+		Id                string     `json:"uuid,omitempty" validate:"-"`
+		Password          string     `json:"password,omitempty"`
+		Username          string     `json:"username,omitempty" validate:"-"`
+		Email             string     `json:"email,omitempty" validate:"email"`
+		IsActive          bool       `json:"is_active,omitempty" validate:"-"`
+		WebauthnConnected bool       `json:"webauthn_connected"`
+		GithubConnected   bool       `json:"github_connected"`
 	}
 
 	Session struct {
@@ -67,7 +31,38 @@ type (
 		RefreshToken string `json:"refresh_token"`
 		Owner        string `json:"-"`
 	}
+
+	Identities   map[string]*UserIdentity
+	UserIdentity struct {
+		ID             string `json:"id"`
+		Name           string `json:"name"`
+		Username       string `json:"username"`
+		Email          string `json:"email"`
+		Avatar         string `json:"avatar"`
+		InstallationID int64  `json:"installation_id"`
+	}
 )
+
+const IdentityProviderGitHub = "github"
+const IdentityProviderWebauthn = "webauthn"
+
+func (i Identities) GetGitHubIdentity() *UserIdentity {
+	identity, ok := i[IdentityProviderGitHub]
+	if ok {
+		return identity
+	}
+
+	return nil
+}
+
+func (i Identities) GetWebauthnIdentity() *UserIdentity {
+	identity, ok := i[IdentityProviderWebauthn]
+	if ok {
+		return identity
+	}
+
+	return nil
+}
 
 func (u *User) Validate(validatePassword bool) error {
 	if u == nil {
@@ -75,7 +70,7 @@ func (u *User) Validate(validatePassword bool) error {
 	}
 
 	// there's no password for OAuth Users
-	if validatePassword || u.OAuthID > 0 {
+	if validatePassword {
 		if err := ValidatePassword(u.Password); err != nil {
 			return fmt.Errorf("invalid password: %w", err)
 		}
@@ -150,4 +145,24 @@ func (u *User) Bytes() ([]byte, error) {
 	}
 
 	return json.Marshal(u)
+}
+
+func (*User) NewUserFromGitHubUser(ghUser github.User) *User {
+	return &User{
+		Id:              uuid.NewString(),
+		Username:        ghUser.GetLogin(),
+		Email:           ghUser.GetEmail(),
+		IsActive:        true,
+		GithubConnected: true,
+		Identities: map[string]*UserIdentity{
+			IdentityProviderGitHub: {
+				ID:             fmt.Sprintf("%d", ghUser.GetID()),
+				Name:           ghUser.GetName(),
+				Username:       ghUser.GetLogin(),
+				Email:          ghUser.GetEmail(),
+				Avatar:         ghUser.GetAvatarURL(),
+				InstallationID: 0,
+			},
+		},
+	}
 }

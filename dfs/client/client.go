@@ -16,12 +16,12 @@ import (
 func NewDFSBackend(env config.Environment, cfg *config.DFS) dfs.DFS {
 	if cfg.Filebase.Enabled {
 		color.Green("Storage backend: Filebase")
-		return filebase.New(&cfg.Filebase)
+		return filebase.New(env, &cfg.Filebase)
 	}
 
 	if cfg.Storj.Enabled && cfg.Storj.Type == "s3" {
 		color.Green("Storage backend: Storj with S3 Gateway")
-		return storj.New(cfg.Storj.S3Config())
+		return storj.New(env, cfg.Storj.S3Config())
 	}
 
 	if cfg.Storj.Enabled && cfg.Storj.Type == "uplink" {

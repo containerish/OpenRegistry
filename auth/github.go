@@ -10,6 +10,7 @@ import (
 
 	"github.com/containerish/OpenRegistry/config"
 	"github.com/containerish/OpenRegistry/types"
+	"github.com/google/go-github/v50/github"
 	"github.com/google/uuid"
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgerrcode"
@@ -49,7 +50,7 @@ func (a *auth) GithubLoginCallbackHandler(ctx echo.Context) error {
 		err := fmt.Errorf("missing or invalid state token")
 		uri := a.getGitHubErrorURI(http.StatusBadRequest, err.Error())
 		echoErr := ctx.Redirect(http.StatusSeeOther, uri)
-		a.logger.Log(ctx, err)
+		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 
@@ -63,7 +64,7 @@ func (a *auth) GithubLoginCallbackHandler(ctx echo.Context) error {
 	if err != nil {
 		uri := a.getGitHubErrorURI(http.StatusBadRequest, err.Error())
 		echoErr := ctx.Redirect(http.StatusSeeOther, uri)
-		a.logger.Log(ctx, err)
+		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 
@@ -71,85 +72,90 @@ func (a *auth) GithubLoginCallbackHandler(ctx echo.Context) error {
 	if err != nil {
 		uri := a.getGitHubErrorURI(http.StatusBadRequest, err.Error())
 		echoErr := ctx.Redirect(http.StatusSeeOther, uri)
-		a.logger.Log(ctx, err)
+		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 
 	req.Header.Set("Authorization", "token "+token.AccessToken)
-	var oauthUser types.User
-	_, err = a.ghClient.Do(ctx.Request().Context(), req, &oauthUser)
+	var ghUser github.User
+	_, err = a.ghClient.Do(ctx.Request().Context(), req, &ghUser)
 	if err != nil {
 		uri := a.getGitHubErrorURI(http.StatusBadRequest, err.Error())
 		echoErr := ctx.Redirect(http.StatusSeeOther, uri)
-		a.logger.Log(ctx, err)
+		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 
-	user, err := a.pgStore.GetOAuthUser(ctx.Request().Context(), oauthUser.Login, nil)
+	user, err := a.pgStore.GetGitHubUser(ctx.Request().Context(), ghUser.GetEmail(), nil)
 	if err != nil {
-		err = a.storeGitHubUserIfDoesntExist(ctx.Request().Context(), err, &oauthUser)
+		user = user.NewUserFromGitHubUser(ghUser)
+		err = a.storeGitHubUserIfDoesntExist(ctx.Request().Context(), err, user)
 		if err != nil {
 			uri := a.getGitHubErrorURI(http.StatusConflict, err.Error())
 			echoErr := ctx.Redirect(http.StatusSeeOther, uri)
-			a.logger.Log(ctx, err)
+			a.logger.Log(ctx, err).Send()
 			return echoErr
 		}
-		if err = a.finishGitHubCallback(ctx, oauthUser.Username, oauthUser.Id, token); err != nil {
+		if err = a.finishGitHubCallback(ctx, user, token); err != nil {
 			uri := a.getGitHubErrorURI(http.StatusConflict, err.Error())
 			echoErr := ctx.Redirect(http.StatusTemporaryRedirect, uri)
-			a.logger.Log(ctx, err)
+			a.logger.Log(ctx, err).Send()
 			return echoErr
 		}
 
 		err = ctx.Redirect(http.StatusTemporaryRedirect, a.c.WebAppConfig.RedirectURL)
-		a.logger.Log(ctx, nil)
+		a.logger.Log(ctx, nil).Send()
 		return err
 	}
+
 	if user.WebauthnConnected && !user.GithubConnected {
 		err = fmt.Errorf("username/email already exists")
 		uri := a.getGitHubErrorURI(http.StatusConflict, err.Error())
 		echoErr := ctx.Redirect(http.StatusSeeOther, uri)
-		a.logger.Log(ctx, err)
+		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 
 	if user.GithubConnected {
-		err = a.pgStore.UpdateOAuthUser(
-			ctx.Request().Context(),
-			oauthUser.Email,
-			oauthUser.Login,
-			oauthUser.NodeID,
-			nil,
-		)
+		err = a.pgStore.UpdateUser(ctx.Request().Context(), user)
 		if err != nil {
 			uri := a.getGitHubErrorURI(http.StatusConflict, err.Error())
 			echoErr := ctx.Redirect(http.StatusSeeOther, uri)
-			a.logger.Log(ctx, err)
+			a.logger.Log(ctx, err).Send()
 			return echoErr
 		}
 
-		if err = a.finishGitHubCallback(ctx, oauthUser.Login, user.Id, token); err != nil {
+		if err = a.finishGitHubCallback(ctx, user, token); err != nil {
 			uri := a.getGitHubErrorURI(http.StatusConflict, err.Error())
 			echoErr := ctx.Redirect(http.StatusTemporaryRedirect, uri)
-			a.logger.Log(ctx, err)
+			a.logger.Log(ctx, err).Send()
 			return echoErr
 		}
 
 		err = ctx.Redirect(http.StatusTemporaryRedirect, a.c.WebAppConfig.RedirectURL)
-		a.logger.Log(ctx, nil)
+		a.logger.Log(ctx, nil).Send()
 		return err
 	}
 
+	user.Identities[types.IdentityProviderGitHub] = &types.UserIdentity{
+		ID:             fmt.Sprint(ghUser.GetID()),
+		Name:           ghUser.GetName(),
+		Username:       ghUser.GetLogin(),
+		Email:          ghUser.GetEmail(),
+		Avatar:         ghUser.GetAvatarURL(),
+		InstallationID: 0,
+	}
+
 	// this will set the add session object to database and attaches cookies to the echo.Context object
-	if err = a.finishGitHubCallback(ctx, oauthUser.Username, oauthUser.Id, token); err != nil {
+	if err = a.finishGitHubCallback(ctx, user, token); err != nil {
 		uri := a.getGitHubErrorURI(http.StatusConflict, err.Error())
 		echoErr := ctx.Redirect(http.StatusTemporaryRedirect, uri)
-		a.logger.Log(ctx, err)
+		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 
 	err = ctx.Redirect(http.StatusTemporaryRedirect, a.c.WebAppConfig.RedirectURL)
-	a.logger.Log(ctx, nil)
+	a.logger.Log(ctx, nil).Send()
 	return err
 }
 
@@ -221,23 +227,28 @@ func (a *auth) getGitHubErrorURI(status int, err string) string {
 	return fmt.Sprintf("%s%s?%s", a.c.WebAppConfig.Endpoint, a.c.WebAppConfig.CallbackURL, queryParams.Encode())
 }
 
-func (a *auth) finishGitHubCallback(ctx echo.Context, username, userId string, oauthToken *oauth2.Token) error {
+func (a *auth) finishGitHubCallback(ctx echo.Context, user *types.User, oauthToken *oauth2.Token) error {
 	sessionId, err := uuid.NewRandom()
 	if err != nil {
 		return err
 	}
 
-	accessToken, refreshToken, err := a.SignOAuthToken(userId, oauthToken)
+	accessToken, refreshToken, err := a.SignOAuthToken(user.Id, oauthToken)
 	if err != nil {
 		return err
 	}
 
-	err = a.pgStore.AddSession(ctx.Request().Context(), sessionId.String(), refreshToken, username)
+	err = a.pgStore.AddSession(
+		ctx.Request().Context(),
+		sessionId.String(),
+		refreshToken,
+		user.Identities.GetGitHubIdentity().Username,
+	)
 	if err != nil {
 		return err
 	}
 
-	val := fmt.Sprintf("%s:%s", sessionId, userId)
+	val := fmt.Sprintf("%s:%s", sessionId, user.Id)
 
 	sessionCookie := a.createCookie("session_id", val, false, time.Now().Add(time.Hour*750))
 	accessCookie := a.createCookie("access_token", accessToken, true, time.Now().Add(time.Hour*750))
@@ -262,9 +273,7 @@ func (a *auth) storeGitHubUserIfDoesntExist(ctx context.Context, pgErr error, us
 		}
 
 		// In GitHub's response, Login is the GitHub Username
-		user.Username = user.Login
-		user.GithubConnected = true
-		if err = a.pgStore.AddOAuthUser(ctx, user); err != nil {
+		if err = a.pgStore.AddUser(ctx, user, nil); err != nil {
 			var pgErr *pgconn.PgError
 			// this would mean that the user email is already registered
 			// so we return an error in this case

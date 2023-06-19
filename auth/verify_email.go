@@ -55,7 +55,7 @@ func (a *auth) VerifyEmail(ctx echo.Context) error {
 
 	user.IsActive = true
 
-	err = a.pgStore.UpdateUser(ctx.Request().Context(), userId, user)
+	err = a.pgStore.UpdateUser(ctx.Request().Context(), user)
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error": err.Error(),

@@ -10,6 +10,7 @@ import (
 	"github.com/bradleyfalzon/ghinstallation/v2"
 	"github.com/containerish/OpenRegistry/config"
 	"github.com/containerish/OpenRegistry/telemetry"
+	"github.com/containerish/OpenRegistry/types"
 	"github.com/containerish/OpenRegistry/vcs"
 	"github.com/google/go-github/v50/github"
 	"github.com/labstack/echo/v4"
@@ -110,6 +111,7 @@ func (gh *ghAppService) getUsernameMiddleware() echo.MiddlewareFunc {
 			}
 
 			c.Set(UsernameContextKey, user.Username)
+			c.Set(UserContextKey, user)
 			return next(c)
 		}
 	}
@@ -121,7 +123,7 @@ func (gh *ghAppService) getGitubInstallationID(skipRoutes ...string) echo.Middle
 			if c.Path() == "/github"+vcs.HandleWebhookEventsEndpoint {
 				return next(c)
 			}
-			username, ok := c.Get(UsernameContextKey).(string)
+			user, ok := c.Get(UserContextKey).(*types.User)
 			if !ok {
 				echoErr := c.JSON(http.StatusNotAcceptable, echo.Map{
 					"error": "GH_MDW_ERR: username is not present in context",
@@ -141,16 +143,7 @@ func (gh *ghAppService) getGitubInstallationID(skipRoutes ...string) echo.Middle
 				return next(c)
 			}
 
-			installationID, err := gh.store.GetInstallationID(c.Request().Context(), username)
-			if err != nil {
-				echoErr := c.JSON(http.StatusBadRequest, echo.Map{
-					"error": fmt.Errorf("GH_MDW_ERR: %w", err).Error(),
-				})
-				gh.logger.Log(c, err).Send()
-				return echoErr
-			}
-
-			c.Set(GithubInstallationIDContextKey, installationID)
+			c.Set(GithubInstallationIDContextKey, user.Identities.GetGitHubIdentity().InstallationID)
 			return next(c)
 		}
 	}
@@ -180,6 +173,7 @@ type ContextKey string
 
 const (
 	UsernameContextKey             = "USERNAME"
+	UserContextKey                 = "USER"
 	GithubInstallationIDContextKey = "GITHUB_INSTALLATION_ID"
 )
 

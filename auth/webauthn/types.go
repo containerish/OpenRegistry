@@ -38,7 +38,11 @@ func (u *WebAuthnUser) WebAuthnDisplayName() string {
 
 // WebAuthnIcon - User's icon url
 func (u *WebAuthnUser) WebAuthnIcon() string {
-	return u.AvatarURL
+	if u.Identities.GetGitHubIdentity() != nil {
+		return u.Identities.GetGitHubIdentity().Avatar
+	}
+
+	return ""
 }
 
 // WebAuthnCredentials - Credentials owned by the user

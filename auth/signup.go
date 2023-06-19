@@ -59,19 +59,19 @@ func (a *auth) SignUp(ctx echo.Context) error {
 		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
+
 	newUser := &types.User{
-		Email:    u.Email,
-		Username: u.Username,
-		Password: u.Password,
-		Id:       id.String(),
+		Id:        id.String(),
+		UpdatedAt: time.Now(),
+		CreatedAt: time.Now(),
+		Password:  u.Password,
+		Username:  u.Username,
+		Email:     u.Email,
 	}
 
-	newUser.Hireable = false
-	newUser.HTMLURL = ""
-
-	// no need to do email verification in local mode
-	isEnvironemtElevated := a.c.Environment == config.Staging || a.c.Environment == config.Production
-	if !isEnvironemtElevated {
+	skipEmailVerification := !a.c.Email.Enabled || (a.c.Environment == config.Local || a.c.Environment == config.CI)
+	// no need to do email verification in local mode or if the email service is disabled
+	if skipEmailVerification {
 		newUser.IsActive = true
 	}
 
@@ -104,7 +104,7 @@ func (a *auth) SignUp(ctx echo.Context) error {
 	}
 
 	// in case of CI setup, no need to send verification emails
-	if !isEnvironemtElevated {
+	if skipEmailVerification {
 		echoErr := ctx.JSON(http.StatusCreated, echo.Map{
 			"message": "user successfully created",
 		})

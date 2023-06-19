@@ -75,7 +75,7 @@ func (wa *webauthn_server) webAuthNTxnCleanup() {
 
 func (wa *webauthn_server) BeginRegistration(ctx echo.Context) error {
 	ctx.Set(types.HandlerStartTime, time.Now())
-	var user types.User
+	user := types.User{}
 
 	if err := json.NewDecoder(ctx.Request().Body).Decode(&user); err != nil {
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
@@ -86,6 +86,7 @@ func (wa *webauthn_server) BeginRegistration(ctx echo.Context) error {
 		return echoErr
 	}
 	_ = ctx.Request().Body.Close()
+	user.Identities = make(types.Identities)
 
 	err := user.Validate(false)
 	if err != nil {
@@ -99,7 +100,6 @@ func (wa *webauthn_server) BeginRegistration(ctx echo.Context) error {
 	}
 
 	wa.invalidateExistingRequests(ctx.Request().Context(), user.Username)
-
 	txn, err := wa.store.NewTxn(ctx.Request().Context())
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
@@ -119,6 +119,11 @@ func (wa *webauthn_server) BeginRegistration(ctx echo.Context) error {
 	if errors.Unwrap(err) == pgx.ErrNoRows {
 		user.Id = uuid.NewString()
 		user.WebauthnConnected = true
+		user.Identities[types.IdentityProviderWebauthn] = &types.UserIdentity{
+			ID:       user.Id,
+			Username: user.Username,
+			Email:    user.Email,
+		}
 		if err = wa.store.AddUser(ctx.Request().Context(), &user, txn); err != nil {
 			echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 				"error":   err.Error(),

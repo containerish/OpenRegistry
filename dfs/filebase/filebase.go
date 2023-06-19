@@ -22,9 +22,10 @@ type filebase struct {
 	preSigner *s3.PresignClient
 	config    *config.S3CompatibleDFS
 	bucket    string
+	env       config.Environment
 }
 
-func New(cfg *config.S3CompatibleDFS) dfs.DFS {
+func New(env config.Environment, cfg *config.S3CompatibleDFS) dfs.DFS {
 	client := dfs.NewS3Client(cfg.Endpoint, cfg.AccessKey, cfg.SecretKey)
 
 	return &filebase{
@@ -34,6 +35,7 @@ func New(cfg *config.S3CompatibleDFS) dfs.DFS {
 			po.Expires = time.Minute * 20
 		}),
 		config: cfg,
+		env:    env,
 	}
 }
 
@@ -45,6 +47,9 @@ func (fb *filebase) CreateMultipartUpload(layerKey string) (string, error) {
 		ChecksumAlgorithm: s3types.ChecksumAlgorithmSha256,
 		ContentEncoding:   aws.String("gzip"),
 		StorageClass:      s3types.StorageClassStandard,
+	}
+	if fb.env == config.CI {
+		input.Expires = aws.Time(time.Now().Add(time.Minute * 30))
 	}
 	upload, err := fb.client.CreateMultipartUpload(context.Background(), input)
 	if err != nil {
@@ -138,7 +143,7 @@ func (fb *filebase) Upload(ctx context.Context, namespace, digest string, conten
 	ctx, cancel := context.WithTimeout(ctx, time.Minute*10)
 	defer cancel()
 
-	_, err := fb.client.PutObject(ctx, &s3.PutObjectInput{
+	input := &s3.PutObjectInput{
 		Bucket:            &fb.bucket,
 		Key:               &namespace,
 		ACL:               s3types.ObjectCannedACLPublicRead,
@@ -147,7 +152,11 @@ func (fb *filebase) Upload(ctx context.Context, namespace, digest string, conten
 		ChecksumSHA256:    &digest,
 		ContentLength:     int64(len(content)),
 		StorageClass:      s3types.StorageClassStandard,
-	})
+	}
+	if fb.env == config.CI {
+		input.Expires = aws.Time(time.Now().Add(time.Minute * 30))
+	}
+	_, err := fb.client.PutObject(ctx, input)
 	if err != nil {
 		return "", fmt.Errorf("ERR_FILEBASE_UPLOAD_OBJECT: %w", err)
 	}

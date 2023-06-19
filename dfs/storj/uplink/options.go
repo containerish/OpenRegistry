@@ -8,7 +8,7 @@ import (
 )
 
 func (u *storjUplink) checkAndSetExpiry(opts *uplink.UploadOptions) {
-	if u.env == config.Local {
+	if u.env == config.CI {
 		opts.Expires = time.Now().Add(time.Minute * 30)
 	}
 }

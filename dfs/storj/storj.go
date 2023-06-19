@@ -22,9 +22,10 @@ type storj struct {
 	preSigner *s3.PresignClient
 	config    *config.S3CompatibleDFS
 	bucket    string
+	env       config.Environment
 }
 
-func New(cfg *config.S3CompatibleDFS) dfs.DFS {
+func New(env config.Environment, cfg *config.S3CompatibleDFS) dfs.DFS {
 	client := dfs.NewS3Client(cfg.Endpoint, cfg.AccessKey, cfg.SecretKey)
 
 	return &storj{
@@ -32,6 +33,7 @@ func New(cfg *config.S3CompatibleDFS) dfs.DFS {
 		bucket:    cfg.BucketName,
 		preSigner: s3.NewPresignClient(client),
 		config:    cfg,
+		env:       env,
 	}
 }
 
@@ -43,6 +45,9 @@ func (sj *storj) CreateMultipartUpload(layerKey string) (string, error) {
 		ChecksumAlgorithm: s3types.ChecksumAlgorithmSha256,
 		ContentEncoding:   aws.String("gzip"),
 		StorageClass:      s3types.StorageClassStandard,
+	}
+	if sj.env == config.CI {
+		input.Expires = aws.Time(time.Now().Add(time.Minute * 30))
 	}
 	upload, err := sj.client.CreateMultipartUpload(context.Background(), input)
 	if err != nil {
@@ -131,7 +136,7 @@ func (sj *storj) Upload(ctx context.Context, identifier, digest string, content 
 	ctx, cancel := context.WithTimeout(ctx, time.Minute*10)
 	defer cancel()
 
-	_, err := sj.client.PutObject(ctx, &s3.PutObjectInput{
+	input := &s3.PutObjectInput{
 		Bucket:            &sj.bucket,
 		Key:               &identifier,
 		ACL:               s3types.ObjectCannedACLPublicRead,
@@ -140,7 +145,12 @@ func (sj *storj) Upload(ctx context.Context, identifier, digest string, content 
 		ChecksumSHA256:    &digest,
 		ContentLength:     int64(len(content)),
 		StorageClass:      s3types.StorageClassStandard,
-	})
+	}
+	if sj.env == config.CI {
+		input.Expires = aws.Time(time.Now().Add(time.Minute * 30))
+	}
+
+	_, err := sj.client.PutObject(ctx, input)
 	if err != nil {
 		return "", fmt.Errorf("ERR_STORJ_UPLOAD_OBJECT: %w", err)
 	}

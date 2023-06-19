@@ -186,8 +186,10 @@ func (u *storjUplink) Metadata(dfsLink string) (*skynet.Metadata, error) {
 func (u *storjUplink) Upload(ctx context.Context, namespace string, digest string, content []byte) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, time.Minute*20)
 	defer cancel()
+	opts := &uplink.UploadOptions{}
+	u.checkAndSetExpiry(opts)
 
-	resp, err := u.client.UploadObject(ctx, u.bucket, namespace, &uplink.UploadOptions{})
+	resp, err := u.client.UploadObject(ctx, u.bucket, namespace, opts)
 	if err != nil {
 		return "", fmt.Errorf("ERR_STORJ_UPLINK_UPLOAD_OBJECT: %w", err)
 	}
