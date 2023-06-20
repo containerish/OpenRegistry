@@ -243,7 +243,7 @@ func (a *auth) getGitHubErrorURI(ctx echo.Context, status int, err string) strin
 		"error":  {err},
 	}
 	webAppEndoint := a.c.WebAppConfig.GetAllowedURLFromEchoContext(ctx, a.c.Environment)
-	return fmt.Sprintf("%s%s?%s", webAppEndoint, a.c.WebAppConfig.CallbackURL, queryParams.Encode())
+	return fmt.Sprintf("%s%s?%s", webAppEndoint, a.c.WebAppConfig.ErrorRedirectPath, queryParams.Encode())
 }
 
 func (a *auth) finishGitHubCallback(ctx echo.Context, user *types.User, oauthToken *oauth2.Token) error {
