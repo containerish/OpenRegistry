@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/containerish/OpenRegistry/auth"
@@ -442,6 +443,13 @@ func (wa *webauthn_server) FinishLogin(ctx echo.Context) error {
 	}
 
 	webAppURL := wa.cfg.WebAuthnConfig.GetAllowedURLFromEchoContext(ctx, wa.cfg.Environment)
+	domain := ""
+	url, err := url.Parse(wa.cfg.WebAuthnConfig.GetAllowedURLFromEchoContext(ctx, wa.cfg.Environment))
+	if err != nil {
+		domain = wa.cfg.WebAuthnConfig.RPOrigins[0]
+	} else {
+		domain = url.Hostname()
+	}
 
 	sessionIdCookie := auth.CreateCookie(&auth.CreateCookieOptions{
 		ExpiresAt:   time.Now().Add(time.Hour), //one month
@@ -450,7 +458,7 @@ func (wa *webauthn_server) FinishLogin(ctx echo.Context) error {
 		FQDN:        webAppURL,
 		Environment: wa.cfg.Environment,
 		HTTPOnly:    true,
-	})
+	}, domain)
 
 	accessTokenCookie := auth.CreateCookie(&auth.CreateCookieOptions{
 		ExpiresAt:   time.Now().Add(time.Minute * 10),
@@ -459,7 +467,7 @@ func (wa *webauthn_server) FinishLogin(ctx echo.Context) error {
 		FQDN:        webAppURL,
 		Environment: wa.cfg.Environment,
 		HTTPOnly:    true,
-	})
+	}, domain)
 
 	refreshTokenCookie := auth.CreateCookie(&auth.CreateCookieOptions{
 		ExpiresAt:   time.Now().Add(time.Hour * 750), //one month
@@ -468,7 +476,7 @@ func (wa *webauthn_server) FinishLogin(ctx echo.Context) error {
 		FQDN:        webAppURL,
 		Environment: wa.cfg.Environment,
 		HTTPOnly:    true,
-	})
+	}, domain)
 
 	ctx.SetCookie(accessTokenCookie)
 	ctx.SetCookie(refreshTokenCookie)

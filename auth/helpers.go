@@ -25,10 +25,9 @@ type CreateCookieOptions struct {
 	HTTPOnly    bool
 }
 
-func CreateCookie(opts *CreateCookieOptions) *http.Cookie {
+func CreateCookie(opts *CreateCookieOptions, domain string) *http.Cookie {
 	secure := true
 	sameSite := http.SameSiteNoneMode
-	domain := opts.FQDN
 	if opts.Environment == config.Local {
 		secure = false
 		sameSite = http.SameSiteLaxMode
