@@ -30,7 +30,9 @@ func (a *auth) Token(ctx echo.Context) error {
 
 		// Github OAuth Scoped tokens start with "gho" prefix and personal tokens start with "ghp"
 		// more on this here: https://www.infoq.com/news/2021/04/github-new-token-format
-		if strings.HasPrefix(password, "gho") || strings.HasPrefix(password, "ghp") || strings.HasPrefix(password, "github_pat_") {
+		if strings.HasPrefix(password, "gho") ||
+			strings.HasPrefix(password, "ghp") ||
+			strings.HasPrefix(password, "github_pat_") {
 			user, err := a.getUserWithGithubOauthToken(ctx.Request().Context(), password)
 			if err != nil {
 				echoErr := ctx.JSON(http.StatusUnauthorized, echo.Map{
