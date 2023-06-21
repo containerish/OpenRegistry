@@ -25,9 +25,12 @@ type CreateCookieOptions struct {
 	HTTPOnly    bool
 }
 
-func CreateCookie(opts *CreateCookieOptions, domain string) *http.Cookie {
+func CreateCookie(opts *CreateCookieOptions) *http.Cookie {
 	secure := true
 	sameSite := http.SameSiteNoneMode
+	// this FQDN is set from the handler which calls this method, using the WebAuthnConfig.GetAllowedURLFromEchoContext
+	// method
+	domain := opts.FQDN
 	if opts.Environment == config.Local {
 		secure = false
 		sameSite = http.SameSiteLaxMode
@@ -41,8 +44,8 @@ func CreateCookie(opts *CreateCookieOptions, domain string) *http.Cookie {
 		Domain:   domain,
 		Expires:  opts.ExpiresAt,
 		Secure:   secure,
-		SameSite: sameSite,
 		HttpOnly: opts.HTTPOnly,
+		SameSite: sameSite,
 	}
 
 	if opts.ExpiresAt.Unix() < time.Now().Unix() {

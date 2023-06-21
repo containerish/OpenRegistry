@@ -442,7 +442,6 @@ func (wa *webauthn_server) FinishLogin(ctx echo.Context) error {
 		return echoErr
 	}
 
-	webAppURL := wa.cfg.WebAuthnConfig.GetAllowedURLFromEchoContext(ctx, wa.cfg.Environment)
 	domain := ""
 	url, err := url.Parse(wa.cfg.WebAuthnConfig.GetAllowedURLFromEchoContext(ctx, wa.cfg.Environment))
 	if err != nil {
@@ -452,31 +451,31 @@ func (wa *webauthn_server) FinishLogin(ctx echo.Context) error {
 	}
 
 	sessionIdCookie := auth.CreateCookie(&auth.CreateCookieOptions{
-		ExpiresAt:   time.Now().Add(time.Hour), //one month
+		ExpiresAt:   time.Now().Add(time.Hour * 750), //one month
 		Name:        "session_id",
 		Value:       sessionId,
-		FQDN:        webAppURL,
+		FQDN:        domain,
 		Environment: wa.cfg.Environment,
-		HTTPOnly:    true,
-	}, domain)
+		HTTPOnly:    false,
+	})
 
 	accessTokenCookie := auth.CreateCookie(&auth.CreateCookieOptions{
-		ExpiresAt:   time.Now().Add(time.Minute * 10),
+		ExpiresAt:   time.Now().Add(time.Hour * 750),
 		Name:        "access_token",
 		Value:       accessToken,
-		FQDN:        webAppURL,
+		FQDN:        domain,
 		Environment: wa.cfg.Environment,
 		HTTPOnly:    true,
-	}, domain)
+	})
 
 	refreshTokenCookie := auth.CreateCookie(&auth.CreateCookieOptions{
 		ExpiresAt:   time.Now().Add(time.Hour * 750), //one month
 		Name:        "refresh_token",
-		Value:       sessionId,
-		FQDN:        webAppURL,
+		Value:       refreshToken,
+		FQDN:        domain,
 		Environment: wa.cfg.Environment,
 		HTTPOnly:    true,
-	}, domain)
+	})
 
 	ctx.SetCookie(accessTokenCookie)
 	ctx.SetCookie(refreshTokenCookie)
