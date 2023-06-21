@@ -312,7 +312,7 @@ func (sj *Storj) S3Config() *S3CompatibleDFS {
 
 func (cfg *WebAppConfig) GetAllowedURLFromEchoContext(ctx echo.Context, env Environment) string {
 	origin := ctx.Request().Header.Get("Origin")
-	if env == Staging {
+	if env == Staging && origin != "" {
 		return origin
 	}
 

@@ -96,14 +96,17 @@ func (a *auth) GithubLoginCallbackHandler(ctx echo.Context) error {
 			a.logger.Log(ctx, err).Send()
 			return echoErr
 		}
-		if err = a.finishGitHubCallback(ctx, user, token); err != nil {
+		domain, err := a.finishGitHubCallback(ctx, user, token)
+		if err != nil {
 			uri := a.getGitHubErrorURI(ctx, http.StatusConflict, err.Error())
 			echoErr := ctx.Redirect(http.StatusTemporaryRedirect, uri)
 			a.logger.Log(ctx, err).Send()
 			return echoErr
 		}
+		webAppURL, _ := url.Parse(a.c.WebAppConfig.RedirectURL)
+		redirectURI := fmt.Sprintf("%s%s", domain.Hostname(), webAppURL.Path)
 
-		err = ctx.Redirect(http.StatusTemporaryRedirect, a.c.WebAppConfig.RedirectURL)
+		err = ctx.Redirect(http.StatusMovedPermanently, redirectURI)
 		a.logger.Log(ctx, nil).Send()
 		return err
 	}
@@ -125,14 +128,17 @@ func (a *auth) GithubLoginCallbackHandler(ctx echo.Context) error {
 			return echoErr
 		}
 
-		if err = a.finishGitHubCallback(ctx, user, token); err != nil {
+		domain, err := a.finishGitHubCallback(ctx, user, token)
+		if err != nil {
 			uri := a.getGitHubErrorURI(ctx, http.StatusConflict, err.Error())
 			echoErr := ctx.Redirect(http.StatusTemporaryRedirect, uri)
 			a.logger.Log(ctx, err).Send()
 			return echoErr
 		}
+		webAppURL, _ := url.Parse(a.c.WebAppConfig.RedirectURL)
+		redirectURI := fmt.Sprintf("https://%s%s", domain.Hostname(), webAppURL.Path)
 
-		err = ctx.Redirect(http.StatusTemporaryRedirect, a.c.WebAppConfig.RedirectURL)
+		err = ctx.Redirect(http.StatusMovedPermanently, redirectURI)
 		a.logger.Log(ctx, nil).Send()
 		return err
 	}
@@ -147,14 +153,17 @@ func (a *auth) GithubLoginCallbackHandler(ctx echo.Context) error {
 	}
 
 	// this will set the add session object to database and attaches cookies to the echo.Context object
-	if err = a.finishGitHubCallback(ctx, user, token); err != nil {
+	domain, err := a.finishGitHubCallback(ctx, user, token)
+	if err != nil {
 		uri := a.getGitHubErrorURI(ctx, http.StatusConflict, err.Error())
 		echoErr := ctx.Redirect(http.StatusTemporaryRedirect, uri)
 		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
+	webAppURL, _ := url.Parse(a.c.WebAppConfig.RedirectURL)
+	redirectURI := fmt.Sprintf("%s%s", domain.Hostname(), webAppURL.Path)
 
-	err = ctx.Redirect(http.StatusTemporaryRedirect, a.c.WebAppConfig.RedirectURL)
+	err = ctx.Redirect(http.StatusMovedPermanently, redirectURI)
 	a.logger.Log(ctx, nil).Send()
 	return err
 }
@@ -246,15 +255,15 @@ func (a *auth) getGitHubErrorURI(ctx echo.Context, status int, err string) strin
 	return fmt.Sprintf("%s%s?%s", webAppEndoint, a.c.WebAppConfig.ErrorRedirectPath, queryParams.Encode())
 }
 
-func (a *auth) finishGitHubCallback(ctx echo.Context, user *types.User, oauthToken *oauth2.Token) error {
+func (a *auth) finishGitHubCallback(ctx echo.Context, user *types.User, oauthToken *oauth2.Token) (*url.URL, error) {
 	sessionId, err := uuid.NewRandom()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	accessToken, refreshToken, err := a.SignOAuthToken(user.Id, oauthToken)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	err = a.pgStore.AddSession(
@@ -264,11 +273,10 @@ func (a *auth) finishGitHubCallback(ctx echo.Context, user *types.User, oauthTok
 		user.Identities.GetGitHubIdentity().Username,
 	)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	val := fmt.Sprintf("%s:%s", sessionId, user.Id)
-
 	sessionCookie := a.createCookie(ctx, "session_id", val, false, time.Now().Add(time.Hour*750))
 	accessCookie := a.createCookie(ctx, "access_token", accessToken, true, time.Now().Add(time.Hour*750))
 	refreshCookie := a.createCookie(ctx, "refresh_token", refreshToken, true, time.Now().Add(time.Hour*750))
@@ -277,7 +285,9 @@ func (a *auth) finishGitHubCallback(ctx echo.Context, user *types.User, oauthTok
 	ctx.SetCookie(refreshCookie)
 	ctx.SetCookie(sessionCookie)
 
-	return nil
+	domainURL, _ := url.Parse("https://" + sessionCookie.Domain)
+
+	return domainURL, nil
 }
 
 func (a *auth) storeGitHubUserIfDoesntExist(ctx context.Context, pgErr error, user *types.User) error {
