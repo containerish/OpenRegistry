@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/containerish/OpenRegistry/auth"
@@ -118,6 +119,7 @@ func (wa *webauthn_server) BeginRegistration(ctx echo.Context) error {
 	_, err = wa.store.GetUser(ctx.Request().Context(), user.Email, false, nil)
 	if errors.Unwrap(err) == pgx.ErrNoRows {
 		user.Id = uuid.NewString()
+		user.IsActive = true
 		user.WebauthnConnected = true
 		user.Identities[types.IdentityProviderWebauthn] = &types.UserIdentity{
 			ID:       user.Id,
@@ -336,10 +338,10 @@ func (wa *webauthn_server) BeginLogin(ctx echo.Context) error {
 	if err != nil {
 		if werr := wa.webauthn.RemoveSessionData(ctx.Request().Context(), user.Id); werr != nil {
 			echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
-				"error":   err.Error(),
+				"error":   werr.Error(),
 				"message": "error removing webauthn session data",
 			})
-			wa.logger.Log(ctx, err).Send()
+			wa.logger.Log(ctx, werr).Send()
 			return echoErr
 		}
 
@@ -440,20 +442,28 @@ func (wa *webauthn_server) FinishLogin(ctx echo.Context) error {
 		return echoErr
 	}
 
+	domain := ""
+	url, err := url.Parse(wa.cfg.WebAuthnConfig.GetAllowedURLFromEchoContext(ctx, wa.cfg.Environment))
+	if err != nil {
+		domain = wa.cfg.WebAuthnConfig.RPOrigins[0]
+	} else {
+		domain = url.Hostname()
+	}
+
 	sessionIdCookie := auth.CreateCookie(&auth.CreateCookieOptions{
-		ExpiresAt:   time.Now().Add(time.Hour), //one month
+		ExpiresAt:   time.Now().Add(time.Hour * 750), //one month
 		Name:        "session_id",
 		Value:       sessionId,
-		FQDN:        wa.cfg.Registry.FQDN,
+		FQDN:        domain,
 		Environment: wa.cfg.Environment,
-		HTTPOnly:    true,
+		HTTPOnly:    false,
 	})
 
 	accessTokenCookie := auth.CreateCookie(&auth.CreateCookieOptions{
-		ExpiresAt:   time.Now().Add(time.Minute * 10),
+		ExpiresAt:   time.Now().Add(time.Hour * 750),
 		Name:        "access_token",
 		Value:       accessToken,
-		FQDN:        wa.cfg.Registry.FQDN,
+		FQDN:        domain,
 		Environment: wa.cfg.Environment,
 		HTTPOnly:    true,
 	})
@@ -461,8 +471,8 @@ func (wa *webauthn_server) FinishLogin(ctx echo.Context) error {
 	refreshTokenCookie := auth.CreateCookie(&auth.CreateCookieOptions{
 		ExpiresAt:   time.Now().Add(time.Hour * 750), //one month
 		Name:        "refresh_token",
-		Value:       sessionId,
-		FQDN:        wa.cfg.Registry.FQDN,
+		Value:       refreshToken,
+		FQDN:        domain,
 		Environment: wa.cfg.Environment,
 		HTTPOnly:    true,
 	})

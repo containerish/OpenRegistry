@@ -71,6 +71,28 @@ func (a *auth) SignIn(ctx echo.Context) error {
 		return echoErr
 	}
 
+	if userFromDb.Password == "" {
+		if userFromDb.Identities.GetGitHubIdentity() != nil {
+			errMsg := fmt.Errorf("login method is not available for this user. Please try the GitHub method")
+			echoErr := ctx.JSON(http.StatusPreconditionFailed, echo.Map{
+				"message": errMsg.Error(),
+				"error":   "LOGIN_METHOD_CONFLICT",
+			})
+			a.logger.Log(ctx, errMsg).Send()
+			return echoErr
+		}
+
+		if userFromDb.Identities.GetWebauthnIdentity() != nil {
+			errMsg := fmt.Errorf("login method is not available for this user. Please try the Webauthn method")
+			echoErr := ctx.JSON(http.StatusPreconditionFailed, echo.Map{
+				"message": errMsg.Error(),
+				"error":   "LOGIN_METHOD_CONFLICT",
+			})
+			a.logger.Log(ctx, errMsg).Send()
+			return echoErr
+		}
+	}
+
 	if !a.verifyPassword(userFromDb.Password, user.Password) {
 		err = fmt.Errorf("password is incorrect")
 		echoErr := ctx.JSON(http.StatusUnauthorized, echo.Map{
@@ -137,9 +159,9 @@ func (a *auth) SignIn(ctx echo.Context) error {
 	}
 
 	sessionId := fmt.Sprintf("%s:%s", id, userFromDb.Id)
-	sessionCookie := a.createCookie("session_id", sessionId, false, time.Now().Add(time.Hour*750))
-	accessCookie := a.createCookie("access_token", access, true, time.Now().Add(time.Hour*750))
-	refreshCookie := a.createCookie("refresh_token", refresh, true, time.Now().Add(time.Hour*750))
+	sessionCookie := a.createCookie(ctx, "session_id", sessionId, false, time.Now().Add(time.Hour*750))
+	accessCookie := a.createCookie(ctx, "access_token", access, true, time.Now().Add(time.Hour*750))
+	refreshCookie := a.createCookie(ctx, "refresh_token", refresh, true, time.Now().Add(time.Hour*750))
 
 	ctx.SetCookie(accessCookie)
 	ctx.SetCookie(refreshCookie)

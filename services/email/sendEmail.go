@@ -16,9 +16,9 @@ const (
 
 type EmailKind int8
 
-func (e *email) SendEmail(u *types.User, token string, kind EmailKind) error {
+func (e *email) SendEmail(u *types.User, token string, kind EmailKind, webAppURL string) error {
 	if e.config.Enabled {
-		mailMsg, err := e.CreateEmail(u, kind, token)
+		mailMsg, err := e.CreateEmail(u, kind, token, webAppURL)
 		if err != nil {
 			return fmt.Errorf("ERR_CREATE_EMAIL: %w", err)
 		}

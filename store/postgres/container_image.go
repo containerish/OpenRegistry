@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
 
@@ -412,6 +413,9 @@ func (p *pg) GetRepoDetail(ctx context.Context, ns string, pageSize, offset int6
 		repo.Tags = append(repo.Tags, &tag)
 	}
 
+	sort.SliceStable(repo.Tags, func(i, j int) bool {
+		return repo.Tags[i].CreatedAt.After(repo.Tags[j].CreatedAt)
+	})
 	// why get it from db?
 	repo.Namespace = ns
 	return &repo, nil

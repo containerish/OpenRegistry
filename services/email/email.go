@@ -8,9 +8,8 @@ import (
 )
 
 type email struct {
-	client  *sendgrid.Client
-	config  *config.Email
-	baseURL string
+	client *sendgrid.Client
+	config *config.Email
 }
 
 type MailType int
@@ -30,15 +29,15 @@ type Mail struct {
 }
 
 type MailService interface {
-	CreateEmail(u *types.User, kind EmailKind, token string) (*mail.SGMailV3, error)
-	SendEmail(u *types.User, token string, kind EmailKind) error
-	WelcomeEmail(list []string) error
+	CreateEmail(u *types.User, kind EmailKind, token string, webAppURL string) (*mail.SGMailV3, error)
+	SendEmail(u *types.User, token string, kind EmailKind, webAppURL string) error
+	WelcomeEmail(list []string, webAppURL string) error
 }
 
-func New(config *config.Email, baseURL string) MailService {
+func New(config *config.Email) MailService {
 	if config.Enabled {
 		client := sendgrid.NewSendClient(config.ApiKey)
-		return &email{client: client, config: config, baseURL: baseURL}
+		return &email{client: client, config: config}
 	}
 
 	return nil

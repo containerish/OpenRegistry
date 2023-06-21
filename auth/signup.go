@@ -132,7 +132,8 @@ func (a *auth) SignUp(ctx echo.Context) error {
 		return echoErr
 	}
 
-	err = a.emailClient.SendEmail(newUser, token.String(), email.VerifyEmailKind)
+	webAppURL := a.c.WebAppConfig.GetAllowedURLFromEchoContext(ctx, a.c.Environment)
+	err = a.emailClient.SendEmail(newUser, token.String(), email.VerifyEmailKind, webAppURL)
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error":   err.Error(),

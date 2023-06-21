@@ -249,7 +249,8 @@ func (gh *ghAppService) CreateInitialPR(ctx echo.Context) error {
 		return echoErr
 	}
 
-	prTemplate, err := gh.populateInitialPRTempplate()
+	webAppURL := gh.config.GetAllowedURLFromEchoContext(ctx, gh.env, gh.webInterfaceURLs)
+	prTemplate, err := gh.populateInitialPRTempplate(webAppURL)
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"code":  "CREATE_WORKFLOW",
@@ -289,7 +290,7 @@ func (gh *ghAppService) CreateInitialPR(ctx echo.Context) error {
 	return echoErr
 }
 
-func (gh *ghAppService) populateInitialPRTempplate() (string, error) {
+func (gh *ghAppService) populateInitialPRTempplate(webAppURL string) (string, error) {
 	tpl, err := template.New("github-pull-request").Parse(InitialPRBody)
 	if err != nil {
 		return "", fmt.Errorf("ERR_TEMPLATE_PARSE: %w", err)
@@ -297,7 +298,7 @@ func (gh *ghAppService) populateInitialPRTempplate() (string, error) {
 
 	buf := &bytes.Buffer{}
 	td := InitialPRTemplateData{
-		WebInterfaceURL: gh.webInterfaceURL,
+		WebInterfaceURL: webAppURL,
 	}
 
 	if err = tpl.Execute(buf, td); err != nil {

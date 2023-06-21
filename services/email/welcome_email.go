@@ -7,14 +7,14 @@ import (
 	"github.com/sendgrid/sendgrid-go/helpers/mail"
 )
 
-func (e *email) WelcomeEmail(list []string) error {
+func (e *email) WelcomeEmail(list []string, baseURL string) error {
 	if e.config.Enabled {
 		mailReq := &Mail{}
 		m := mail.NewV3Mail()
 
 		m.SetTemplateID(e.config.WelcomeEmailTemplateId)
 		mailReq.Subject = "Welcome to OpenRegistry"
-		mailReq.Data.Link = fmt.Sprintf("%s/send-email/welcome", e.baseURL)
+		mailReq.Data.Link = fmt.Sprintf("%s/send-email/welcome", baseURL)
 
 		email := mail.NewEmail("Team OpenRegistry", e.config.SendAs)
 		m.SetFrom(email)
