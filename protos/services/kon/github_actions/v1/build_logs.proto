@@ -4,7 +4,6 @@ package services.kon.github_actions.v1;
 option go_package = "github.com/containerish/OpenRegistry/services/kon/github_actions/v1;github_actions_v1";
 
 service GitHubActionsLogsService {
-  rpc StreamWorkflowJobLogs(StreamWorkflowJobLogsRequest) returns (stream StreamWorkflowJobLogsResponse) {}
   rpc StreamWorkflowRunLogs(StreamWorkflowRunLogsRequest) returns (stream StreamWorkflowRunLogsResponse) {}
   rpc DumpLogs(DumpLogsRequest) returns (DumpLogsResponse) {}
 }
@@ -20,13 +19,6 @@ message DumpLogsResponse {
     repeated string logs = 1;
 }
 
-message StreamWorkflowJobLogsRequest {
-    string repo_owner = 1;
-    string repo_name = 2;
-    int64 job_id = 3;
-    bool stream_latest_job_logs = 4;
-}
-
 message StreamWorkflowRunLogsRequest {
     string repo_owner = 1;
     string repo_name = 2;
@@ -39,14 +31,18 @@ message StreamWorkflowDispatchLogsRequest {
     int64 dispatch_id = 3;
 }
 
-message StreamWorkflowJobLogsResponse {
-  string log_message = 1;
-}
-
 message StreamWorkflowRunLogsResponse {
   string log_message = 1;
+  StreamWorkflowRunMessageType msg_type = 2;
 }
 
 message StreamWorkflowDispatchLogsResponse {
   string log_message = 1;
+}
+
+enum StreamWorkflowRunMessageType {
+    MSG_TYPE_WAIT = 0;
+    MSG_TYPE_LOG = 1;
+    MSG_TYPE_PROCESSING = 2;
+    MSG_TYPE_STEP = 3;
 }

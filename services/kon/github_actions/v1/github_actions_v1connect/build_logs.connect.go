@@ -33,9 +33,6 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
-	// GitHubActionsLogsServiceStreamWorkflowJobLogsProcedure is the fully-qualified name of the
-	// GitHubActionsLogsService's StreamWorkflowJobLogs RPC.
-	GitHubActionsLogsServiceStreamWorkflowJobLogsProcedure = "/services.kon.github_actions.v1.GitHubActionsLogsService/StreamWorkflowJobLogs"
 	// GitHubActionsLogsServiceStreamWorkflowRunLogsProcedure is the fully-qualified name of the
 	// GitHubActionsLogsService's StreamWorkflowRunLogs RPC.
 	GitHubActionsLogsServiceStreamWorkflowRunLogsProcedure = "/services.kon.github_actions.v1.GitHubActionsLogsService/StreamWorkflowRunLogs"
@@ -47,7 +44,6 @@ const (
 // GitHubActionsLogsServiceClient is a client for the
 // services.kon.github_actions.v1.GitHubActionsLogsService service.
 type GitHubActionsLogsServiceClient interface {
-	StreamWorkflowJobLogs(context.Context, *connect_go.Request[v1.StreamWorkflowJobLogsRequest]) (*connect_go.ServerStreamForClient[v1.StreamWorkflowJobLogsResponse], error)
 	StreamWorkflowRunLogs(context.Context, *connect_go.Request[v1.StreamWorkflowRunLogsRequest]) (*connect_go.ServerStreamForClient[v1.StreamWorkflowRunLogsResponse], error)
 	DumpLogs(context.Context, *connect_go.Request[v1.DumpLogsRequest]) (*connect_go.Response[v1.DumpLogsResponse], error)
 }
@@ -63,11 +59,6 @@ type GitHubActionsLogsServiceClient interface {
 func NewGitHubActionsLogsServiceClient(httpClient connect_go.HTTPClient, baseURL string, opts ...connect_go.ClientOption) GitHubActionsLogsServiceClient {
 	baseURL = strings.TrimRight(baseURL, "/")
 	return &gitHubActionsLogsServiceClient{
-		streamWorkflowJobLogs: connect_go.NewClient[v1.StreamWorkflowJobLogsRequest, v1.StreamWorkflowJobLogsResponse](
-			httpClient,
-			baseURL+GitHubActionsLogsServiceStreamWorkflowJobLogsProcedure,
-			opts...,
-		),
 		streamWorkflowRunLogs: connect_go.NewClient[v1.StreamWorkflowRunLogsRequest, v1.StreamWorkflowRunLogsResponse](
 			httpClient,
 			baseURL+GitHubActionsLogsServiceStreamWorkflowRunLogsProcedure,
@@ -83,15 +74,8 @@ func NewGitHubActionsLogsServiceClient(httpClient connect_go.HTTPClient, baseURL
 
 // gitHubActionsLogsServiceClient implements GitHubActionsLogsServiceClient.
 type gitHubActionsLogsServiceClient struct {
-	streamWorkflowJobLogs *connect_go.Client[v1.StreamWorkflowJobLogsRequest, v1.StreamWorkflowJobLogsResponse]
 	streamWorkflowRunLogs *connect_go.Client[v1.StreamWorkflowRunLogsRequest, v1.StreamWorkflowRunLogsResponse]
 	dumpLogs              *connect_go.Client[v1.DumpLogsRequest, v1.DumpLogsResponse]
-}
-
-// StreamWorkflowJobLogs calls
-// services.kon.github_actions.v1.GitHubActionsLogsService.StreamWorkflowJobLogs.
-func (c *gitHubActionsLogsServiceClient) StreamWorkflowJobLogs(ctx context.Context, req *connect_go.Request[v1.StreamWorkflowJobLogsRequest]) (*connect_go.ServerStreamForClient[v1.StreamWorkflowJobLogsResponse], error) {
-	return c.streamWorkflowJobLogs.CallServerStream(ctx, req)
 }
 
 // StreamWorkflowRunLogs calls
@@ -108,7 +92,6 @@ func (c *gitHubActionsLogsServiceClient) DumpLogs(ctx context.Context, req *conn
 // GitHubActionsLogsServiceHandler is an implementation of the
 // services.kon.github_actions.v1.GitHubActionsLogsService service.
 type GitHubActionsLogsServiceHandler interface {
-	StreamWorkflowJobLogs(context.Context, *connect_go.Request[v1.StreamWorkflowJobLogsRequest], *connect_go.ServerStream[v1.StreamWorkflowJobLogsResponse]) error
 	StreamWorkflowRunLogs(context.Context, *connect_go.Request[v1.StreamWorkflowRunLogsRequest], *connect_go.ServerStream[v1.StreamWorkflowRunLogsResponse]) error
 	DumpLogs(context.Context, *connect_go.Request[v1.DumpLogsRequest]) (*connect_go.Response[v1.DumpLogsResponse], error)
 }
@@ -119,31 +102,30 @@ type GitHubActionsLogsServiceHandler interface {
 // By default, handlers support the Connect, gRPC, and gRPC-Web protocols with the binary Protobuf
 // and JSON codecs. They also support gzip compression.
 func NewGitHubActionsLogsServiceHandler(svc GitHubActionsLogsServiceHandler, opts ...connect_go.HandlerOption) (string, http.Handler) {
-	mux := http.NewServeMux()
-	mux.Handle(GitHubActionsLogsServiceStreamWorkflowJobLogsProcedure, connect_go.NewServerStreamHandler(
-		GitHubActionsLogsServiceStreamWorkflowJobLogsProcedure,
-		svc.StreamWorkflowJobLogs,
-		opts...,
-	))
-	mux.Handle(GitHubActionsLogsServiceStreamWorkflowRunLogsProcedure, connect_go.NewServerStreamHandler(
+	gitHubActionsLogsServiceStreamWorkflowRunLogsHandler := connect_go.NewServerStreamHandler(
 		GitHubActionsLogsServiceStreamWorkflowRunLogsProcedure,
 		svc.StreamWorkflowRunLogs,
 		opts...,
-	))
-	mux.Handle(GitHubActionsLogsServiceDumpLogsProcedure, connect_go.NewUnaryHandler(
+	)
+	gitHubActionsLogsServiceDumpLogsHandler := connect_go.NewUnaryHandler(
 		GitHubActionsLogsServiceDumpLogsProcedure,
 		svc.DumpLogs,
 		opts...,
-	))
-	return "/services.kon.github_actions.v1.GitHubActionsLogsService/", mux
+	)
+	return "/services.kon.github_actions.v1.GitHubActionsLogsService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case GitHubActionsLogsServiceStreamWorkflowRunLogsProcedure:
+			gitHubActionsLogsServiceStreamWorkflowRunLogsHandler.ServeHTTP(w, r)
+		case GitHubActionsLogsServiceDumpLogsProcedure:
+			gitHubActionsLogsServiceDumpLogsHandler.ServeHTTP(w, r)
+		default:
+			http.NotFound(w, r)
+		}
+	})
 }
 
 // UnimplementedGitHubActionsLogsServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedGitHubActionsLogsServiceHandler struct{}
-
-func (UnimplementedGitHubActionsLogsServiceHandler) StreamWorkflowJobLogs(context.Context, *connect_go.Request[v1.StreamWorkflowJobLogsRequest], *connect_go.ServerStream[v1.StreamWorkflowJobLogsResponse]) error {
-	return connect_go.NewError(connect_go.CodeUnimplemented, errors.New("services.kon.github_actions.v1.GitHubActionsLogsService.StreamWorkflowJobLogs is not implemented"))
-}
 
 func (UnimplementedGitHubActionsLogsServiceHandler) StreamWorkflowRunLogs(context.Context, *connect_go.Request[v1.StreamWorkflowRunLogsRequest], *connect_go.ServerStream[v1.StreamWorkflowRunLogsResponse]) error {
 	return connect_go.NewError(connect_go.CodeUnimplemented, errors.New("services.kon.github_actions.v1.GitHubActionsLogsService.StreamWorkflowRunLogs is not implemented"))
