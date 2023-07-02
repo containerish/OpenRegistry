@@ -398,8 +398,8 @@ func (wa *webauthn_server) FinishLogin(ctx echo.Context) error {
 		Username:  username,
 		TokenType: "access_token",
 		Audience:  wa.cfg.Registry.FQDN,
-		Privkey:   wa.cfg.Registry.TLS.PrivateKey,
-		Pubkey:    wa.cfg.Registry.TLS.PubKey,
+		Privkey:   wa.cfg.Registry.Auth.JWTSigningPrivateKey,
+		Pubkey:    wa.cfg.Registry.Auth.JWTSigningPubKey,
 	}
 
 	refreshTokenOpts := &auth.WebLoginJWTOptions{
@@ -407,8 +407,8 @@ func (wa *webauthn_server) FinishLogin(ctx echo.Context) error {
 		Username:  username,
 		TokenType: "refresh_token",
 		Audience:  wa.cfg.Registry.FQDN,
-		Privkey:   wa.cfg.Registry.TLS.PrivateKey,
-		Pubkey:    wa.cfg.Registry.TLS.PubKey,
+		Privkey:   wa.cfg.Registry.Auth.JWTSigningPrivateKey,
+		Pubkey:    wa.cfg.Registry.Auth.JWTSigningPubKey,
 	}
 
 	accessToken, err := auth.NewWebLoginToken(accessTokenOpts)

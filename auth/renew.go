@@ -3,7 +3,6 @@ package auth
 import (
 	"fmt"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/containerish/OpenRegistry/types"
@@ -32,19 +31,10 @@ func (a *auth) RenewAccessToken(ctx echo.Context) error {
 		return echoErr
 	}
 
-	privBz, err := os.ReadFile(a.c.Registry.TLS.PrivateKey)
-	if err != nil {
-		panic(err)
-	}
-	privkey, err := jwt.ParseRSAPrivateKeyFromPEM(privBz)
-	if err != nil {
-		panic(err)
-	}
-
 	refreshCookie := c.Value
 	var claims Claims
 	tkn, err := jwt.ParseWithClaims(refreshCookie, &claims, func(token *jwt.Token) (interface{}, error) {
-		return privkey, nil
+		return a.c.Registry.Auth.JWTSigningPubKey, nil
 	})
 
 	if err != nil {
@@ -91,8 +81,8 @@ func (a *auth) RenewAccessToken(ctx echo.Context) error {
 		Username:  user.Username,
 		TokenType: "access_token",
 		Audience:  a.c.Registry.FQDN,
-		Privkey:   a.c.Registry.TLS.PrivateKey,
-		Pubkey:    a.c.Registry.TLS.PubKey,
+		Privkey:   a.c.Registry.Auth.JWTSigningPrivateKey,
+		Pubkey:    a.c.Registry.Auth.JWTSigningPubKey,
 	}
 	tokenString, err := NewWebLoginToken(opts)
 	if err != nil {

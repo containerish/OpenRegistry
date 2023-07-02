@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/fatih/color"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/spf13/viper"
 	"gopkg.in/yaml.v2"
 )
@@ -38,6 +39,42 @@ func ReadYamlConfig() (*OpenRegistryConfig, error) {
 	// just a hack for enum typed Environment
 	env := strings.ToUpper(viper.GetString("environment"))
 	viper.Set("environment", environmentFromString(env))
+
+	authConfig := viper.GetStringMap("registry.auth")
+	if authConfig == nil {
+		return nil, fmt.Errorf("missing registry.auth config")
+	}
+
+	privKeyPath, ok := authConfig["priv_key"].(string)
+	if !ok {
+		return nil, fmt.Errorf("invalid type for registry.auth.priv_key")
+	}
+
+	pubKeyPath, ok := authConfig["pub_key"].(string)
+	if !ok {
+		return nil, fmt.Errorf("invalid type for registry.auth.pub_key")
+	}
+
+	privKeyBz, err := os.ReadFile(privKeyPath)
+	if err != nil {
+		return nil, err
+	}
+	privKey, err := jwt.ParseRSAPrivateKeyFromPEM(privKeyBz)
+	if err != nil {
+		return nil, err
+	}
+
+	pubBz, err := os.ReadFile(pubKeyPath)
+	if err != nil {
+		return nil, err
+	}
+	pubKey, err := jwt.ParseRSAPublicKeyFromPEM(pubBz)
+	if err != nil {
+		return nil, err
+	}
+
+	viper.Set("registry.auth.priv_key", privKey)
+	viper.Set("registry.auth.pub_key", pubKey)
 
 	if err := viper.Unmarshal(&cfg); err != nil {
 		return nil, fmt.Errorf("ERR_UNMARSHAL_CONFIG: %w", err)

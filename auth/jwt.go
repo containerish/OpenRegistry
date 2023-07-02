@@ -6,7 +6,6 @@ import (
 	"crypto/x509"
 	"encoding/base32"
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
@@ -59,27 +58,7 @@ func (a *auth) newPublicPullToken() (string, error) {
 	// TODO (jay-dee7)- handle this properly, check for errors and don't set defaults for actions
 	claims.Access[0].Actions = []string{"pull"}
 
-	rawPrivateKey, err := os.ReadFile(a.c.Registry.TLS.PrivateKey)
-	if err != nil {
-		return "", err
-	}
-
-	pv, err := jwt.ParseRSAPrivateKeyFromPEM(rawPrivateKey)
-	if err != nil {
-		panic(err)
-	}
-
-	rawPublicKey, err := os.ReadFile(a.c.Registry.TLS.PubKey)
-	if err != nil {
-		return "", err
-	}
-
-	pb, err := jwt.ParseRSAPublicKeyFromPEM(rawPublicKey)
-	if err != nil {
-		panic(err)
-	}
-
-	pubKeyDerBz, err := x509.MarshalPKIXPublicKey(pb)
+	pubKeyDerBz, err := x509.MarshalPKIXPublicKey(a.c.Registry.Auth.JWTSigningPubKey)
 	if err != nil {
 		return "", err
 	}
@@ -90,7 +69,7 @@ func (a *auth) newPublicPullToken() (string, error) {
 	// token := jwt.NewWithClaims(jwt.SigningMethodHS256, &claims)
 	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
 	token.Header["kid"] = a.keyIDEncode(hasher.Sum(nil)[:30])
-	sign, err := token.SignedString(pv)
+	sign, err := token.SignedString(a.c.Registry.Auth.JWTSigningPrivateKey)
 	if err != nil {
 		return "", err
 	}
@@ -119,12 +98,7 @@ func (a *auth) newOAuthToken(userId string, payload *oauth2.Token) (string, stri
 	accessClaims := a.createOAuthClaims(userId, payload)
 	refreshClaims := a.createRefreshClaims(userId)
 
-	privKey, pubKey, err := ReadRSAKeyPair(a.c.Registry.TLS.PrivateKey, a.c.Registry.TLS.PubKey)
-	if err != nil {
-		return "", "", err
-	}
-
-	pubKeyDerBz, err := x509.MarshalPKIXPublicKey(pubKey)
+	pubKeyDerBz, err := x509.MarshalPKIXPublicKey(a.c.Registry.Auth.JWTSigningPubKey)
 	if err != nil {
 		return "", "", err
 	}
@@ -133,20 +107,19 @@ func (a *auth) newOAuthToken(userId string, payload *oauth2.Token) (string, stri
 	hasher.Write(pubKeyDerBz)
 	accessToken := jwt.NewWithClaims(jwt.SigningMethodRS256, &accessClaims)
 	accessToken.Header["kid"] = a.keyIDEncode(hasher.Sum(nil)[:30])
-	accessSign, err := accessToken.SignedString(privKey)
+	accessSign, err := accessToken.SignedString(a.c.Registry.Auth.JWTSigningPrivateKey)
 	if err != nil {
 		return "", "", fmt.Errorf("ERR_ACCESS_TOKEN_SIGN: %w", err)
 	}
 
 	refreshToken := jwt.NewWithClaims(jwt.SigningMethodRS256, &refreshClaims)
 	refreshToken.Header["kid"] = a.keyIDEncode(hasher.Sum(nil)[:30])
-	refreshSign, err := refreshToken.SignedString(privKey)
+	refreshSign, err := refreshToken.SignedString(a.c.Registry.Auth.JWTSigningPrivateKey)
 	if err != nil {
 		return "", "", fmt.Errorf("ERR_REFRESH_TOKEN_SIGN: %w", err)
 	}
 
 	return accessSign, refreshSign, nil
-
 }
 
 // nolint
@@ -167,12 +140,7 @@ func (a *auth) newServiceToken(u types.User) (string, error) {
 	}
 	claims := CreateClaims(opts)
 
-	privKey, pubKey, err := ReadRSAKeyPair(a.c.Registry.TLS.PrivateKey, a.c.Registry.TLS.PubKey)
-	if err != nil {
-		return "", err
-	}
-
-	pubKeyDerBz, err := x509.MarshalPKIXPublicKey(pubKey)
+	pubKeyDerBz, err := x509.MarshalPKIXPublicKey(a.c.Registry.Auth.JWTSigningPubKey)
 	if err != nil {
 		return "", err
 	}
@@ -182,7 +150,7 @@ func (a *auth) newServiceToken(u types.User) (string, error) {
 	// token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
 	token.Header["kid"] = a.keyIDEncode(hasher.Sum(nil)[:30])
-	sign, err := token.SignedString(privKey)
+	sign, err := token.SignedString(a.c.Registry.Auth.JWTSigningPrivateKey)
 	if err != nil {
 		return "", fmt.Errorf("error signing secret %w", err)
 	}
@@ -307,12 +275,7 @@ func (a *auth) newToken(u *types.User) (string, error) {
 		},
 	}
 
-	privKey, pubKey, err := ReadRSAKeyPair(a.c.Registry.TLS.PrivateKey, a.c.Registry.TLS.PubKey)
-	if err != nil {
-		return "", err
-	}
-
-	pubKeyDerBz, err := x509.MarshalPKIXPublicKey(pubKey)
+	pubKeyDerBz, err := x509.MarshalPKIXPublicKey(a.c.Registry.Auth.JWTSigningPubKey)
 	if err != nil {
 		return "", err
 	}
@@ -333,7 +296,7 @@ func (a *auth) newToken(u *types.User) (string, error) {
 	token.Header["kid"] = a.keyIDEncode(hasher.Sum(nil)[:30])
 
 	// Generate encoded token and send it as response.
-	t, err := token.SignedString(privKey)
+	t, err := token.SignedString(a.c.Registry.Auth.JWTSigningPrivateKey)
 	if err != nil {
 		return "", err
 

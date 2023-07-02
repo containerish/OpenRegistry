@@ -84,12 +84,12 @@ func ReadRSAKeyPair(privKeyPath, pubKeyPath string) (*rsa.PrivateKey, *rsa.Publi
 }
 
 type WebLoginJWTOptions struct {
+	Privkey   *rsa.PrivateKey
+	Pubkey    *rsa.PublicKey
 	Id        string
 	Username  string
 	TokenType string
 	Audience  string
-	Privkey   string
-	Pubkey    string
 }
 
 func NewWebLoginToken(opts *WebLoginJWTOptions) (string, error) {
@@ -109,12 +109,7 @@ func NewWebLoginToken(opts *WebLoginJWTOptions) (string, error) {
 		Acl:      acl,
 	})
 
-	privKey, pubKey, err := ReadRSAKeyPair(opts.Privkey, opts.Pubkey)
-	if err != nil {
-		return "", err
-	}
-
-	pubkeyDER, err := x509.MarshalPKIXPublicKey(pubKey)
+	pubkeyDER, err := x509.MarshalPKIXPublicKey(opts.Pubkey)
 	if err != nil {
 		return "", err
 	}
@@ -123,7 +118,7 @@ func NewWebLoginToken(opts *WebLoginJWTOptions) (string, error) {
 	hasher.Write(pubkeyDER)
 	raw := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
 	raw.Header["kid"] = KeyIDEncode(hasher.Sum(nil)[:30])
-	token, err := raw.SignedString(privKey)
+	token, err := raw.SignedString(opts.Privkey)
 	if err != nil {
 		return "", err
 	}
@@ -142,11 +137,11 @@ type CreateClaimOptions struct {
 func CreateClaims(opts *CreateClaimOptions) Claims {
 	tokenLife := time.Now().Add(time.Minute * 10)
 	switch opts.TokeType {
-	case "access":
+	case "access_token":
 		// TODO (jay-dee7)
 		// token can live for month now, but must be addressed when we implement PASETO
 		tokenLife = time.Now().Add(time.Hour * 750)
-	case "refresh":
+	case "refresh_token":
 		tokenLife = time.Now().Add(time.Hour * 750)
 	case "service":
 		tokenLife = time.Now().Add(time.Hour * 750)
