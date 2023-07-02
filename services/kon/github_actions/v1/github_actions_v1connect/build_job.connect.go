@@ -183,43 +183,61 @@ type GithubActionsBuildServiceHandler interface {
 // By default, handlers support the Connect, gRPC, and gRPC-Web protocols with the binary Protobuf
 // and JSON codecs. They also support gzip compression.
 func NewGithubActionsBuildServiceHandler(svc GithubActionsBuildServiceHandler, opts ...connect_go.HandlerOption) (string, http.Handler) {
-	mux := http.NewServeMux()
-	mux.Handle(GithubActionsBuildServiceStoreJobProcedure, connect_go.NewUnaryHandler(
+	githubActionsBuildServiceStoreJobHandler := connect_go.NewUnaryHandler(
 		GithubActionsBuildServiceStoreJobProcedure,
 		svc.StoreJob,
 		opts...,
-	))
-	mux.Handle(GithubActionsBuildServiceGetBuildJobProcedure, connect_go.NewUnaryHandler(
+	)
+	githubActionsBuildServiceGetBuildJobHandler := connect_go.NewUnaryHandler(
 		GithubActionsBuildServiceGetBuildJobProcedure,
 		svc.GetBuildJob,
 		opts...,
-	))
-	mux.Handle(GithubActionsBuildServiceTriggerBuildProcedure, connect_go.NewUnaryHandler(
+	)
+	githubActionsBuildServiceTriggerBuildHandler := connect_go.NewUnaryHandler(
 		GithubActionsBuildServiceTriggerBuildProcedure,
 		svc.TriggerBuild,
 		opts...,
-	))
-	mux.Handle(GithubActionsBuildServiceCancelBuildProcedure, connect_go.NewUnaryHandler(
+	)
+	githubActionsBuildServiceCancelBuildHandler := connect_go.NewUnaryHandler(
 		GithubActionsBuildServiceCancelBuildProcedure,
 		svc.CancelBuild,
 		opts...,
-	))
-	mux.Handle(GithubActionsBuildServiceDeleteJobProcedure, connect_go.NewUnaryHandler(
+	)
+	githubActionsBuildServiceDeleteJobHandler := connect_go.NewUnaryHandler(
 		GithubActionsBuildServiceDeleteJobProcedure,
 		svc.DeleteJob,
 		opts...,
-	))
-	mux.Handle(GithubActionsBuildServiceListBuildJobsProcedure, connect_go.NewUnaryHandler(
+	)
+	githubActionsBuildServiceListBuildJobsHandler := connect_go.NewUnaryHandler(
 		GithubActionsBuildServiceListBuildJobsProcedure,
 		svc.ListBuildJobs,
 		opts...,
-	))
-	mux.Handle(GithubActionsBuildServiceBulkDeleteBuildJobsProcedure, connect_go.NewUnaryHandler(
+	)
+	githubActionsBuildServiceBulkDeleteBuildJobsHandler := connect_go.NewUnaryHandler(
 		GithubActionsBuildServiceBulkDeleteBuildJobsProcedure,
 		svc.BulkDeleteBuildJobs,
 		opts...,
-	))
-	return "/services.kon.github_actions.v1.GithubActionsBuildService/", mux
+	)
+	return "/services.kon.github_actions.v1.GithubActionsBuildService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case GithubActionsBuildServiceStoreJobProcedure:
+			githubActionsBuildServiceStoreJobHandler.ServeHTTP(w, r)
+		case GithubActionsBuildServiceGetBuildJobProcedure:
+			githubActionsBuildServiceGetBuildJobHandler.ServeHTTP(w, r)
+		case GithubActionsBuildServiceTriggerBuildProcedure:
+			githubActionsBuildServiceTriggerBuildHandler.ServeHTTP(w, r)
+		case GithubActionsBuildServiceCancelBuildProcedure:
+			githubActionsBuildServiceCancelBuildHandler.ServeHTTP(w, r)
+		case GithubActionsBuildServiceDeleteJobProcedure:
+			githubActionsBuildServiceDeleteJobHandler.ServeHTTP(w, r)
+		case GithubActionsBuildServiceListBuildJobsProcedure:
+			githubActionsBuildServiceListBuildJobsHandler.ServeHTTP(w, r)
+		case GithubActionsBuildServiceBulkDeleteBuildJobsProcedure:
+			githubActionsBuildServiceBulkDeleteBuildJobsHandler.ServeHTTP(w, r)
+		default:
+			http.NotFound(w, r)
+		}
+	})
 }
 
 // UnimplementedGithubActionsBuildServiceHandler returns CodeUnimplemented from all methods.

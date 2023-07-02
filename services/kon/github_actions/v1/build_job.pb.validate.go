@@ -59,6 +59,8 @@ func (m *BulkDeleteBuildJobsRequest) validate(all bool) error {
 
 	// no validation rules for OwnerId
 
+	// no validation rules for Repo
+
 	if len(errors) > 0 {
 		return BulkDeleteBuildJobsRequestMultiError(errors)
 	}
@@ -266,7 +268,7 @@ func (m *TriggerBuildRequest) validate(all bool) error {
 
 	var errors []error
 
-	// no validation rules for JobId
+	// no validation rules for RunId
 
 	if all {
 		switch v := interface{}(m.GetTriggeredAt()).(type) {
@@ -296,6 +298,10 @@ func (m *TriggerBuildRequest) validate(all bool) error {
 			}
 		}
 	}
+
+	// no validation rules for OwnerId
+
+	// no validation rules for Repo
 
 	if len(errors) > 0 {
 		return TriggerBuildRequestMultiError(errors)
@@ -536,6 +542,10 @@ func (m *CancelBuildRequest) validate(all bool) error {
 		}
 	}
 
+	// no validation rules for OwnerId
+
+	// no validation rules for Repo
+
 	if len(errors) > 0 {
 		return CancelBuildRequestMultiError(errors)
 	}
@@ -743,6 +753,10 @@ func (m *GetBuildJobRequest) validate(all bool) error {
 	var errors []error
 
 	// no validation rules for JobId
+
+	// no validation rules for OwnerId
+
+	// no validation rules for Repo
 
 	if len(errors) > 0 {
 		return GetBuildJobRequestMultiError(errors)
@@ -1020,9 +1034,11 @@ func (m *DeleteJobRequest) validate(all bool) error {
 
 	var errors []error
 
+	// no validation rules for RunId
+
 	// no validation rules for OwnerId
 
-	// no validation rules for Id
+	// no validation rules for Repo
 
 	if len(errors) > 0 {
 		return DeleteJobRequestMultiError(errors)
@@ -1503,6 +1519,10 @@ func (m *ListBuildJobsRequest) validate(all bool) error {
 	var errors []error
 
 	// no validation rules for Id
+
+	// no validation rules for OwnerId
+
+	// no validation rules for Repo
 
 	if len(errors) > 0 {
 		return ListBuildJobsRequestMultiError(errors)

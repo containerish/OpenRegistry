@@ -17,7 +17,8 @@ service GithubActionsBuildService {
 
 message BulkDeleteBuildJobsRequest {
     string owner_id = 1;
-    repeated string job_ids = 2;
+    repeated int64 job_ids = 2;
+    string repo = 3;
 }
 
 message BulkDeleteBuildJobsResponse {
@@ -25,8 +26,10 @@ message BulkDeleteBuildJobsResponse {
 }
 
 message TriggerBuildRequest {
-    uint64 job_id = 1;
+    int64 run_id = 1;
     google.protobuf.Timestamp triggered_at = 2;
+    string owner_id = 3;
+    string repo = 4;
 }
 
 message TriggerBuildResponse {
@@ -35,9 +38,11 @@ message TriggerBuildResponse {
 
 
 message CancelBuildRequest {
-    uint64 job_id = 1;
-    uint64 run_id = 2;
+    int64 job_id = 1;
+    int64 run_id = 2;
     google.protobuf.Timestamp cancelled_at = 3;
+    string owner_id = 4;
+    string repo = 5;
 }
 
 message CancelBuildResponse {
@@ -45,11 +50,13 @@ message CancelBuildResponse {
 }
 
 message GetBuildJobRequest {
-    string job_id = 1;
+    int64 job_id = 1;
+    string owner_id = 2;
+    string repo = 3;
 }
 
 message GetBuildJobResponse {
-    string id = 1;
+    int64 id = 1;
     string logs_url = 2;
     string status = 3;
     string triggered_by = 4;
@@ -61,8 +68,9 @@ message GetBuildJobResponse {
 }
 
 message DeleteJobRequest {
+    int64 run_id = 1;
     string owner_id = 2;
-    string id = 1;
+    string repo = 3;
 }
 
 message DeleteJobResponse {
@@ -87,6 +95,8 @@ message StoreJobRequest {
 
 message ListBuildJobsRequest {
     string id = 1;
+    string owner_id = 2;
+    string repo = 3;
 }
 
 message ListBuildJobsResponse {
