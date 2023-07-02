@@ -80,8 +80,8 @@ func (a *auth) VerifyEmail(ctx echo.Context) error {
 		Username:  user.Username,
 		TokenType: "access_token",
 		Audience:  a.c.Registry.FQDN,
-		Privkey:   a.c.Registry.TLS.PrivateKey,
-		Pubkey:    a.c.Registry.TLS.PubKey,
+		Privkey:   a.c.Registry.Auth.JWTSigningPrivateKey,
+		Pubkey:    a.c.Registry.Auth.JWTSigningPubKey,
 	}
 
 	access, err := NewWebLoginToken(accesssTokenOpts)
@@ -97,10 +97,10 @@ func (a *auth) VerifyEmail(ctx echo.Context) error {
 	refreshTokenOpts := &WebLoginJWTOptions{
 		Id:        userId,
 		Username:  user.Username,
-		TokenType: "refresh",
+		TokenType: "refresh_token",
 		Audience:  a.c.Registry.FQDN,
-		Privkey:   a.c.Registry.TLS.PrivateKey,
-		Pubkey:    a.c.Registry.TLS.PubKey,
+		Privkey:   a.c.Registry.Auth.JWTSigningPrivateKey,
+		Pubkey:    a.c.Registry.Auth.JWTSigningPubKey,
 	}
 	refresh, err := NewWebLoginToken(refreshTokenOpts)
 	if err != nil {

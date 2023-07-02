@@ -1,6 +1,7 @@
 package config
 
 import (
+	"crypto/rsa"
 	"fmt"
 	"log"
 	"os"
@@ -73,10 +74,11 @@ type (
 	Integrations []*Integration
 
 	Registry struct {
-		TLS        TLS      `yaml:"tls" mapstructure:"tls" validate:"-"`
 		DNSAddress string   `yaml:"dns_address" mapstructure:"dns_address" validate:"required"`
 		FQDN       string   `yaml:"fqdn" mapstructure:"fqdn" validate:"required"`
 		Host       string   `yaml:"host" mapstructure:"host" validate:"required"`
+		TLS        TLS      `yaml:"tls" mapstructure:"tls" validate:"-"`
+		Auth       Auth     `yaml:"auth" mapstructure:"auth" validate:"required"`
 		Services   []string `yaml:"services" mapstructure:"services" validate:"-"`
 		Port       uint     `yaml:"port" mapstructure:"port" validate:"required"`
 	}
@@ -148,8 +150,16 @@ type (
 		PrivateKeyPem         string `yaml:"private_key_pem" mapstructure:"private_key_pem"`
 		AppInstallRedirectURL string `yaml:"app_install_redirect_url" mapstructure:"app_install_redirect_url"`
 		WebhookSecret         string `yaml:"webhook_secret" mapstructure:"webhook_secret"`
+		Host                  string `yaml:"host" mapstructure:"host"`
 		AppID                 int64  `yaml:"app_id" mapstructure:"app_id"`
+		Port                  int    `yaml:"port" mapstructure:"port"`
 		Enabled               bool   `yaml:"enabled" mapstructure:"enabled"`
+	}
+
+	Auth struct {
+		JWTSigningPrivateKey *rsa.PrivateKey `yaml:"priv_key" mapstructure:"priv_key"`
+		JWTSigningPubKey     *rsa.PublicKey  `yaml:"pub_key" mapstructure:"pub_key"`
+		Enabled              bool            `yaml:"enabled" mapstructure:"enabled"`
 	}
 )
 
@@ -255,7 +265,16 @@ func (itg Integrations) GetGithubConfig() *Integration {
 		}
 	}
 
-	return nil
+	return &Integration{}
+}
+
+func (itg Integrations) SetGithubConfig(config *Integration) {
+	for i, cfg := range itg {
+		if cfg.Name == "github" {
+			itg[i] = config
+			break
+		}
+	}
 }
 
 type Environment int

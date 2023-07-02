@@ -3,7 +3,6 @@ package auth
 import (
 	"fmt"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
@@ -21,24 +20,6 @@ const (
 
 // JWT basically uses the default JWT middleware by echo, but has a slightly different skipper func
 func (a *auth) JWT() echo.MiddlewareFunc {
-	privBz, err := os.ReadFile(a.c.Registry.TLS.PrivateKey)
-	if err != nil {
-		panic(err)
-	}
-	privkey, err := jwt.ParseRSAPrivateKeyFromPEM(privBz)
-	if err != nil {
-		panic(err)
-	}
-
-	pubBz, err := os.ReadFile(a.c.Registry.TLS.PubKey)
-	if err != nil {
-		panic(err)
-	}
-	pubKey, err := jwt.ParseRSAPublicKeyFromPEM(pubBz)
-	if err != nil {
-		panic(err)
-	}
-
 	return echo_jwt.WithConfig(echo_jwt.Config{
 		Skipper: func(ctx echo.Context) bool {
 			if strings.HasPrefix(ctx.Request().RequestURI, "/auth") {
@@ -67,9 +48,9 @@ func (a *auth) JWT() echo.MiddlewareFunc {
 			return echoErr
 		},
 		KeyFunc: func(t *jwt.Token) (interface{}, error) {
-			return pubKey, nil
+			return a.c.Registry.Auth.JWTSigningPubKey, nil
 		},
-		SigningKey:    privkey,
+		SigningKey:    a.c.Registry.Auth.JWTSigningPrivateKey,
 		SigningKeys:   map[string]interface{}{},
 		SigningMethod: jwt.SigningMethodRS256.Name,
 		// Claims:         &Claims{},
@@ -125,24 +106,6 @@ func (a *auth) ACL() echo.MiddlewareFunc {
 
 // JWT basically uses the default JWT middleware by echo, but has a slightly different skipper func
 func (a *auth) JWTRest() echo.MiddlewareFunc {
-	privBz, err := os.ReadFile(a.c.Registry.TLS.PrivateKey)
-	if err != nil {
-		panic(err)
-	}
-	privkey, err := jwt.ParseRSAPrivateKeyFromPEM(privBz)
-	if err != nil {
-		panic(err)
-	}
-
-	pubBz, err := os.ReadFile(a.c.Registry.TLS.PubKey)
-	if err != nil {
-		panic(err)
-	}
-	pubKey, err := jwt.ParseRSAPublicKeyFromPEM(pubBz)
-	if err != nil {
-		panic(err)
-	}
-
 	return echo_jwt.WithConfig(echo_jwt.Config{
 		ErrorHandler: func(ctx echo.Context, err error) error {
 			ctx.Set(types.HandlerStartTime, time.Now())
@@ -154,9 +117,9 @@ func (a *auth) JWTRest() echo.MiddlewareFunc {
 			return echoErr
 		},
 		KeyFunc: func(t *jwt.Token) (interface{}, error) {
-			return pubKey, nil
+			return a.c.Registry.Auth.JWTSigningPubKey, nil
 		},
-		SigningKey:    privkey,
+		SigningKey:    a.c.Registry.Auth.JWTSigningPrivateKey,
 		SigningMethod: jwt.SigningMethodRS256.Name,
 		NewClaimsFunc: func(c echo.Context) jwt.Claims {
 			return &Claims{}

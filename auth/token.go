@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -21,6 +22,7 @@ func (a *auth) Token(ctx echo.Context) error {
 
 	authHeader := ctx.Request().Header.Get(AuthorizationHeaderKey)
 	if authHeader != "" {
+		a.logger.Debug().Str("auth_header", "present").Send()
 		username, password, err := a.getCredsFromHeader(ctx.Request())
 		if err != nil {
 			echoErr := ctx.NoContent(http.StatusUnauthorized)
@@ -28,6 +30,7 @@ func (a *auth) Token(ctx echo.Context) error {
 			return echoErr
 		}
 
+		a.getScopesFromURI(ctx.Request().RequestURI)
 		// Github OAuth Scoped tokens start with "gho" prefix and personal tokens start with "ghp"
 		// more on this here: https://www.infoq.com/news/2021/04/github-new-token-format
 		if strings.HasPrefix(password, "gho") ||
@@ -77,7 +80,9 @@ func (a *auth) Token(ctx echo.Context) error {
 		return err
 	}
 
-	scope, err := a.getScopeFromQueryParams(ctx.QueryParam("scope"))
+	scopes := ctx.QueryParam("scope")
+	a.logger.Debug().Str("scopes", scopes).Send()
+	scope, err := a.getScopeFromQueryParams(scopes)
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error":   err.Error(),
@@ -147,7 +152,50 @@ func (a *auth) getScopeFromQueryParams(param string) (*Scope, error) {
 }
 
 type Scope struct {
+	Actions map[string]bool
 	Type    string
 	Name    string
-	Actions map[string]bool
+}
+
+func (a *auth) getScopesFromURI(uri string) []Scope {
+	params, err := url.ParseQuery(uri)
+	logEvent := a.logger.Debug().Str("method", "getScopesFromURI")
+	if err != nil {
+		logEvent.Err(err).Send()
+		return nil
+	}
+	scopes := []Scope{}
+
+	for key, param := range params {
+		if key == "/token?account" {
+			scope := Scope{
+				Actions: map[string]bool{},
+				Type:    "account",
+				Name:    param[0],
+			}
+
+			for _, p := range param {
+				scope.Actions[p] = true
+			}
+			scopes = append(scopes, scope)
+		}
+
+		for _, p := range param {
+			scopeParts := strings.Split(p, ":")
+			if len(scopeParts) == 3 {
+				scope := Scope{
+					Actions: map[string]bool{},
+					Type:    scopeParts[0],
+					Name:    scopeParts[1],
+				}
+				for _, p := range param {
+					scope.Actions[p] = true
+				}
+
+				scopes = append(scopes, scope)
+			}
+		}
+	}
+
+	return scopes
 }

@@ -1,11 +1,13 @@
 package config
 
 import (
+	"crypto/rsa"
 	"fmt"
 	"os"
 	"strings"
 
 	"github.com/fatih/color"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/spf13/viper"
 	"gopkg.in/yaml.v2"
 )
@@ -39,10 +41,79 @@ func ReadYamlConfig() (*OpenRegistryConfig, error) {
 	env := strings.ToUpper(viper.GetString("environment"))
 	viper.Set("environment", environmentFromString(env))
 
+	authConfig := viper.GetStringMap("registry.auth")
+	if authConfig == nil {
+		return nil, fmt.Errorf("missing registry.auth config")
+	}
+
+	privKey, pubKey, err := getRSAKeyPairFromViperConfig(authConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	viper.Set("registry.auth.priv_key", privKey)
+	viper.Set("registry.auth.pub_key", pubKey)
+
 	if err := viper.Unmarshal(&cfg); err != nil {
 		return nil, fmt.Errorf("ERR_UNMARSHAL_CONFIG: %w", err)
 	}
 
+	setDefaultsForStorageBackend(&cfg)
+
+	githubConfig := cfg.Integrations.GetGithubConfig()
+	if githubConfig.Host == "" {
+		githubConfig.Host = "0.0.0.0"
+	}
+
+	if githubConfig.Port == 0 {
+		githubConfig.Port = 5001
+	}
+
+	cfg.Integrations.SetGithubConfig(githubConfig)
+
+	if err := cfg.Validate(); err != nil {
+		return nil, err
+	}
+
+	return &cfg, nil
+}
+
+const fiveMBInBytes = 1024 * 1024 * 5
+const twentyMBInBytes = 1024 * 1024 * 20
+
+func getRSAKeyPairFromViperConfig(authConfig map[string]any) (*rsa.PrivateKey, *rsa.PublicKey, error) {
+	privKeyPath, ok := authConfig["priv_key"].(string)
+	if !ok {
+		return nil, nil, fmt.Errorf("invalid type for registry.auth.priv_key")
+	}
+
+	pubKeyPath, ok := authConfig["pub_key"].(string)
+	if !ok {
+		return nil, nil, fmt.Errorf("invalid type for registry.auth.pub_key")
+	}
+
+	privKeyBz, err := os.ReadFile(privKeyPath)
+	if err != nil {
+		return nil, nil, err
+	}
+	privKey, err := jwt.ParseRSAPrivateKeyFromPEM(privKeyBz)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	pubBz, err := os.ReadFile(pubKeyPath)
+	if err != nil {
+		return nil, nil, err
+	}
+	pubKey, err := jwt.ParseRSAPublicKeyFromPEM(pubBz)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return privKey, pubKey, nil
+}
+
+func setDefaultsForStorageBackend(cfg *OpenRegistryConfig) {
 	if cfg.DFS.Filebase.Enabled {
 		if cfg.DFS.Filebase.ChunkSize == 0 {
 			cfg.DFS.Filebase.ChunkSize = twentyMBInBytes
@@ -62,13 +133,4 @@ func ReadYamlConfig() (*OpenRegistryConfig, error) {
 			cfg.DFS.Storj.MinChunkSize = fiveMBInBytes
 		}
 	}
-
-	if err := cfg.Validate(); err != nil {
-		return nil, err
-	}
-
-	return &cfg, nil
 }
-
-const fiveMBInBytes = 1024 * 1024 * 5
-const twentyMBInBytes = 1024 * 1024 * 20

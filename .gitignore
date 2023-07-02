@@ -21,3 +21,4 @@ config.yml.bak
 *.crt
 *.cert
 *.log
+*.DS_Store

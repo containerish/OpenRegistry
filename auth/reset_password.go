@@ -251,8 +251,8 @@ func (a *auth) ForgotPassword(ctx echo.Context) error {
 		Username:  user.Username,
 		TokenType: "access_token",
 		Audience:  a.c.Registry.FQDN,
-		Privkey:   a.c.Registry.TLS.PrivateKey,
-		Pubkey:    a.c.Registry.TLS.PubKey,
+		Privkey:   a.c.Registry.Auth.JWTSigningPrivateKey,
+		Pubkey:    a.c.Registry.Auth.JWTSigningPubKey,
 	}
 	token, err := NewWebLoginToken(opts)
 	if err != nil {
