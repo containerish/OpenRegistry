@@ -21,6 +21,10 @@ registry:
       - github
       - token
       - skynet_homescreen
+  auth:
+    enabled: false
+    priv_key: .certs/registry.local
+    pub_key: .certs/registry.local.crt
 oauth:
   github:
     client_id: dummy-gh-client-id

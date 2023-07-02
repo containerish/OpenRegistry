@@ -74,7 +74,6 @@ func (ghs *GitHubActionsServer) StreamWorkflowRunLogs(
 	req *connect_go.Request[github_actions_v1.StreamWorkflowRunLogsRequest],
 	stream *connect_go.ServerStream[github_actions_v1.StreamWorkflowRunLogsResponse],
 ) error {
-	now := time.Now()
 	logEvent := ghs.logger.Debug().Str("procedure", req.Spec().Procedure)
 	if err := req.Msg.Validate(); err != nil {
 		return connect_go.NewError(connect_go.CodeInvalidArgument, err)
@@ -104,59 +103,10 @@ func (ghs *GitHubActionsServer) StreamWorkflowRunLogs(
 	ghs.activeLogStreamJobs[ghs.getLogsEventKey(req.Msg)] = &streamLogsJob{req: req.Msg}
 	logEvent.Bool("waiting_for_log_events", true)
 
-	workflowRunExists, _, err := githubClient.Actions.GetWorkflowRunByID(ctx, req.Msg.GetRepoOwner(), req.Msg.GetRepoName(), req.Msg.GetRunId())
+	err := ghs.waitForJobToFinish(ctx, githubClient, req, stream)
 	if err != nil {
 		logEvent.Err(err).Send()
 		return connect_go.NewError(connect_go.CodeInvalidArgument, err)
-	}
-
-	logEvent.Str("workflow_actor", workflowRunExists.GetActor().GetName()).Str("status", workflowRunExists.GetStatus())
-
-	jobEndTime := time.Now().Add(time.Second * 30).Unix()
-	found := false
-	status := workflowRunExists.GetStatus()
-	jobInProgress := status == "queued" ||
-		status == "in_progress" ||
-		status == "requested" ||
-		status == "waiting" ||
-		status == "pending"
-
-	if !jobInProgress {
-		logEvent.Str("redirect_to", "streamPreviousRunLogs").Send()
-		return ghs.streamPreviousRunLogs(ctx, req, stream, githubClient)
-	}
-
-	for jobEndTime >= time.Now().Unix() && jobInProgress {
-		logEvent.Bool("waiting_for_logs", true).Dur("waiting_since", time.Since(now))
-		ghs.mu.Lock()
-		event, event_found := ghs.activeLogStreamJobs[ghs.getLogsEventKey(req.Msg)]
-		ghs.mu.Unlock()
-		if !event_found {
-			time.Sleep(time.Second * 2)
-			logEvent.Send()
-			continue
-		}
-		if event.req.GetRunId() > 0 && event.action == "completed" {
-			logEvent.Bool("workflow_id_found", true).Send()
-			found = true
-			_ = stream.Send(&github_actions_v1.StreamWorkflowRunLogsResponse{
-				LogMessage: "Fetching logs...",
-				MsgType:    github_actions_v1.StreamWorkflowRunMessageType_MSG_TYPE_PROCESSING,
-			})
-			break
-		}
-		_ = stream.Send(&github_actions_v1.StreamWorkflowRunLogsResponse{
-			LogMessage: "Waiting for logs...",
-			MsgType:    github_actions_v1.StreamWorkflowRunMessageType_MSG_TYPE_WAIT,
-		})
-		// wait before trying next run
-		time.Sleep(time.Second * 2)
-	}
-
-	if !found {
-		errMsg := fmt.Errorf("error getting github logs event run id")
-		logEvent.Err(errMsg).Send()
-		return connect_go.NewError(connect_go.CodeInternal, errMsg)
 	}
 
 	delete(ghs.activeLogStreamJobs, ghs.getLogsEventKey(req.Msg))
@@ -235,29 +185,6 @@ func (ghs *GitHubActionsServer) refreshGHClient(id int64) *github.Client {
 func (ghs *GitHubActionsServer) getGithubClientFromContext(ctx context.Context) *github.Client {
 	githubAppInstallationID := ctx.Value(github_impl.GithubInstallationIDContextKey).(int64)
 	return ghs.refreshGHClient(githubAppInstallationID)
-}
-
-func (ghs *GitHubActionsServer) getWorkflowJobLogsURL(
-	ctx context.Context,
-	owner string,
-	repo string,
-	jobID int64,
-	githubAppInstallationID int64,
-) (*url.URL, error) {
-	client := ghs.refreshGHClient(githubAppInstallationID)
-	url, resp, err := client.Actions.GetWorkflowJobLogs(ctx, owner, repo, jobID, true)
-	if err != nil {
-		var buf bytes.Buffer
-		_, bufReadErr := buf.ReadFrom(resp.Body)
-		resp.Body.Close()
-		if bufReadErr != nil {
-			return nil, fmt.Errorf("error reading response from github: %w", bufReadErr)
-		}
-
-		return nil, fmt.Errorf("error getting the url: %s", buf.String())
-	}
-
-	return url, nil
 }
 
 func (ghs *GitHubActionsServer) retryGetWorkflowRunLogsURL(
@@ -380,4 +307,68 @@ func (ghs *GitHubActionsServer) getFileInfo(fi *zip.File) (string, int64) {
 	}
 
 	return fileName, 0
+}
+
+func (ghs *GitHubActionsServer) waitForJobToFinish(
+	ctx context.Context,
+	githubClient *github.Client,
+	req *connect_go.Request[github_actions_v1.StreamWorkflowRunLogsRequest],
+	stream *connect_go.ServerStream[github_actions_v1.StreamWorkflowRunLogsResponse],
+) error {
+	now := time.Now()
+	logEvent := ghs.logger.Debug().Str("method", "waitForJobToFinish")
+
+	workflowRun, _, err := githubClient.Actions.GetWorkflowRunByID(
+		ctx,
+		req.Msg.GetRepoOwner(),
+		req.Msg.GetRepoName(),
+		req.Msg.GetRunId(),
+	)
+	if err != nil {
+		logEvent.Err(err).Send()
+		return connect_go.NewError(connect_go.CodeInvalidArgument, err)
+	}
+
+	logEvent.Str("status", workflowRun.GetStatus())
+
+	jobEndTime := time.Now().Add(time.Minute * 10).Unix()
+	status := workflowRun.GetStatus()
+	jobInProgress := status == "queued" ||
+		status == "in_progress" ||
+		status == "requested" ||
+		status == "waiting" ||
+		status == "pending"
+
+	if !jobInProgress {
+		logEvent.Str("redirect_to", "streamPreviousRunLogs").Send()
+		return ghs.streamPreviousRunLogs(ctx, req, stream, githubClient)
+	}
+
+	for jobEndTime >= time.Now().Unix() && jobInProgress {
+		logEvent.Bool("waiting_for_logs", true).Dur("waiting_since", time.Since(now))
+		ghs.mu.Lock()
+		event, event_found := ghs.activeLogStreamJobs[ghs.getLogsEventKey(req.Msg)]
+		ghs.mu.Unlock()
+		if !event_found {
+			time.Sleep(time.Second * 2)
+			logEvent.Send()
+			continue
+		}
+		if event.req.GetRunId() > 0 && event.action == "completed" {
+			logEvent.Bool("workflow_id_found", true).Send()
+			_ = stream.Send(&github_actions_v1.StreamWorkflowRunLogsResponse{
+				LogMessage: "Fetching logs...",
+				MsgType:    github_actions_v1.StreamWorkflowRunMessageType_MSG_TYPE_PROCESSING,
+			})
+			return nil
+		}
+		_ = stream.Send(&github_actions_v1.StreamWorkflowRunLogsResponse{
+			LogMessage: "Waiting for logs...",
+			MsgType:    github_actions_v1.StreamWorkflowRunMessageType_MSG_TYPE_WAIT,
+		})
+		// wait before trying next run
+		time.Sleep(time.Second * 2)
+	}
+
+	return fmt.Errorf("job not found")
 }

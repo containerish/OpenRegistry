@@ -3,30 +3,34 @@ package server
 import (
 	"context"
 	"fmt"
-	"net/http"
-	"net/url"
-	"strings"
 
 	"github.com/bufbuild/connect-go"
+	"github.com/containerish/OpenRegistry/config"
 	"github.com/containerish/OpenRegistry/telemetry"
 	"github.com/containerish/OpenRegistry/vcs"
 	"github.com/containerish/OpenRegistry/vcs/github"
 )
 
-func NewGitHubAppUsernameInterceptor(ghStore vcs.VCSStore, logger telemetry.Logger) connect.UnaryInterceptorFunc {
+type ContextKey string
+
+const (
+	OpenRegistryUserContextKey = ContextKey("OPENREGISTRY_USER")
+)
+
+func NewGitHubAppUsernameInterceptor(
+	ghStore vcs.VCSStore,
+	authConfig config.Auth,
+	logger telemetry.Logger,
+) connect.UnaryInterceptorFunc {
 	return connect.UnaryInterceptorFunc(func(next connect.UnaryFunc) connect.UnaryFunc {
 		return connect.UnaryFunc(func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
-			rawCookies := req.Header().Get("cookie")
-			header := http.Header{}
-			header.Add("Cookie", rawCookies)
-			tmpReq := http.Request{Header: header}
-			sessionID, err := tmpReq.Cookie("session_id")
-			logEvent := logger.Debug().Str("interceptor_name", "NewGitHubAppUsernameInterceptor")
+			logEvent := logger.Debug().Str("procedure", req.Spec().Procedure)
+
+			userID, err := getTokenFromReq(req, authConfig.JWTSigningPubKey)
 			if err != nil {
-				logEvent.Str("error", err.Error()).Send()
-				return nil, connect.NewError(connect.CodeUnauthenticated, err)
+				return nil, err
 			}
-			userID := strings.Split(sessionID.Value, ":")[1]
+
 			user, err := ghStore.GetUserById(ctx, userID, false, nil)
 			if err != nil {
 				logEvent.Str("error", err.Error()).Send()
@@ -40,85 +44,70 @@ func NewGitHubAppUsernameInterceptor(ghStore vcs.VCSStore, logger telemetry.Logg
 	})
 }
 
-func NewGitHubAppInstallationIDInterceptor(
+func PopulateContextWithUserInterceptor(
 	ghStore vcs.VCSStore,
-	skipRoutes []string,
+	authConfig config.Auth,
 	logger telemetry.Logger,
 ) connect.UnaryInterceptorFunc {
-	interceptor := func(next connect.UnaryFunc) connect.UnaryFunc {
+	return connect.UnaryInterceptorFunc(func(next connect.UnaryFunc) connect.UnaryFunc {
 		return connect.UnaryFunc(func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
-			username, ok := ctx.Value(github.UsernameContextKey).(string)
-			logEvent := logger.Debug().Str("interceptor_name", "NewGitHubAppInstallationIDInterceptor")
-			if !ok {
-				logEvent.Str("missing_value_in_context", string(github.UsernameContextKey)).Send()
-				return nil, connect.NewError(
-					connect.CodeFailedPrecondition, fmt.Errorf("username not found from context"),
-				)
-			}
-
-			skip := false
-			for _, r := range skipRoutes {
-				if req.Spec().Procedure == r {
-					skip = true
-				}
-			}
-
-			if skip {
-				logEvent.Bool("skip_check", true).Str("Procedure", req.Spec().Procedure)
-				return next(ctx, req)
-			}
-
-			installationID, err := ghStore.GetInstallationID(ctx, username)
+			logEvent := logger.Debug().Str("interceptor_name", "NewGitHubAppUsernameInterceptor")
+			userID, err := getTokenFromReq(req, authConfig.JWTSigningPubKey)
 			if err != nil {
-				logEvent.Str("error", err.Error())
+				logEvent.Err(err).Send()
+				return nil, err
+			}
+			user, err := ghStore.GetUserById(ctx, userID, false, nil)
+			if err != nil {
+				logEvent.Err(err).Send()
 				return nil, connect.NewError(connect.CodeFailedPrecondition, err)
 			}
 
 			logEvent.Bool("success", true).Send()
-			ctx = context.WithValue(ctx, github.GithubInstallationIDContextKey, installationID)
+			ctx = context.WithValue(ctx, github.UsernameContextKey, user.Username)
 			return next(ctx, req)
 		})
-	}
-	return connect.UnaryInterceptorFunc(interceptor)
+	})
 }
 
 type githubAppStreamingInterceptor struct {
 	logger       telemetry.Logger
 	store        vcs.VCSStore
+	config       *config.Auth
 	routesToSkip []string
 }
 
 func NewGithubAppInterceptor(
-	logger telemetry.Logger, store vcs.VCSStore, routesToSkip []string,
+	logger telemetry.Logger, store vcs.VCSStore, routesToSkip []string, config *config.Auth,
 ) *githubAppStreamingInterceptor {
 	return &githubAppStreamingInterceptor{
 		logger,
 		store,
+		config,
 		routesToSkip,
 	}
 }
 
 func (i *githubAppStreamingInterceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryFunc {
 	return func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
-		rawCookies := req.Header().Get("cookie")
-		header := http.Header{}
-		header.Add("Cookie", rawCookies)
-		tmpReq := http.Request{Header: header}
-		sessionID, err := tmpReq.Cookie("session_id")
-		logEvent := i.logger.Debug().Str("interceptor_name", "NewGitHubAppUsernameInterceptor")
+		logEvent := i.logger.Debug().Str("Procedure", req.Spec().Procedure)
+
+		userID, err := getTokenFromReq(req, i.config.JWTSigningPubKey)
 		if err != nil {
-			logEvent.Str("error", err.Error()).Send()
 			return nil, connect.NewError(connect.CodeUnauthenticated, err)
 		}
-		userID := strings.Split(sessionID.Value, ":")[1]
+
 		user, err := i.store.GetUserById(ctx, userID, false, nil)
 		if err != nil {
 			logEvent.Str("error", err.Error()).Send()
 			return nil, connect.NewError(connect.CodeFailedPrecondition, err)
 		}
 
-		logEvent.Bool("success", true).Send()
+		ctx = context.WithValue(ctx, OpenRegistryUserContextKey, user)
+
+		logEvent.Bool("success", true)
 		ctx = context.WithValue(ctx, github.UsernameContextKey, user.Username)
+		ctx = context.WithValue(ctx, github.UserContextKey, user)
 		skip := false
 		for _, r := range i.routesToSkip {
 			if req.Spec().Procedure == r {
@@ -127,18 +116,22 @@ func (i *githubAppStreamingInterceptor) WrapUnary(next connect.UnaryFunc) connec
 		}
 
 		if skip {
-			logEvent.Bool("skip_check", true).Str("Procedure", req.Spec().Procedure)
+			logEvent.Bool("skip_check", true).Str("Procedure", req.Spec().Procedure).Send()
 			return next(ctx, req)
 		}
-
-		installationID, err := i.store.GetInstallationID(ctx, user.Username)
-		if err != nil {
-			logEvent.Str("error", err.Error())
-			return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+		githubIdentity := user.Identities.GetGitHubIdentity()
+		if githubIdentity == nil {
+			errMsg := fmt.Errorf("github identity is not available")
+			logEvent.Err(errMsg).Send()
+			return nil, connect.NewError(connect.CodeUnauthenticated, errMsg)
 		}
 
 		logEvent.Bool("success", true).Send()
-		ctx = context.WithValue(ctx, github.GithubInstallationIDContextKey, installationID)
+		ctx = context.WithValue(
+			ctx,
+			github.GithubInstallationIDContextKey,
+			githubIdentity.InstallationID,
+		)
 		return next(ctx, req)
 	}
 }
@@ -148,9 +141,7 @@ func (i *githubAppStreamingInterceptor) WrapStreamingClient(
 ) connect.StreamingClientFunc {
 	return func(ctx context.Context, spec connect.Spec) connect.StreamingClientConn {
 		i.logger.Debug().Str("method", "WrapStreamingClient").Send()
-		conn := next(ctx, spec)
-		conn.RequestHeader().Set("test-value", "test-value")
-		return conn
+		return next(ctx, spec)
 	}
 }
 
@@ -162,20 +153,11 @@ func (i *githubAppStreamingInterceptor) WrapStreamingHandler(
 			Str("interceptor_name", "NewGitHubAppUsernameInterceptor").
 			Str("method", "WrapStreamingHandler")
 
-		tmpReq := http.Request{Header: conn.RequestHeader()}
-		sessionCookie, err := tmpReq.Cookie("session_id")
+		userID, err := getTokenFromConn(conn, i.config.JWTSigningPubKey, i.logger)
 		if err != nil {
-			logEvent.Str("error", err.Error()).Send()
+			logEvent.Err(err).Send()
 			return connect.NewError(connect.CodeUnauthenticated, err)
 		}
-
-		sessionID, err := url.QueryUnescape(sessionCookie.Value)
-		if err != nil {
-			logEvent.Str("error", err.Error()).Send()
-			return connect.NewError(connect.CodeUnauthenticated, err)
-		}
-
-		userID := strings.Split(sessionID, ":")[1]
 		user, err := i.store.GetUserById(ctx, userID, false, nil)
 		if err != nil {
 			logEvent.Str("error", err.Error()).Send()
@@ -192,18 +174,16 @@ func (i *githubAppStreamingInterceptor) WrapStreamingHandler(
 		}
 
 		if skip {
-			logEvent.Bool("skip_check", true).Str("Procedure", conn.Spec().Procedure)
+			logEvent.Bool("skip_check", true).Str("Procedure", conn.Spec().Procedure).Send()
 			return next(ctx, conn)
 		}
 
-		installationID, err := i.store.GetInstallationID(ctx, user.Username)
-		if err != nil {
-			logEvent.Str("error", err.Error())
-			return connect.NewError(connect.CodeFailedPrecondition, err)
-		}
-
 		logEvent.Bool("success", true).Send()
-		ctx = context.WithValue(ctx, github.GithubInstallationIDContextKey, installationID)
+		ctx = context.WithValue(
+			ctx,
+			github.GithubInstallationIDContextKey,
+			user.Identities.GetGitHubIdentity().InstallationID,
+		)
 		return next(ctx, conn)
 	}
 }

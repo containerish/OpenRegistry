@@ -1,6 +1,7 @@
 package config
 
 import (
+	"crypto/rsa"
 	"fmt"
 	"os"
 	"strings"
@@ -45,30 +46,7 @@ func ReadYamlConfig() (*OpenRegistryConfig, error) {
 		return nil, fmt.Errorf("missing registry.auth config")
 	}
 
-	privKeyPath, ok := authConfig["priv_key"].(string)
-	if !ok {
-		return nil, fmt.Errorf("invalid type for registry.auth.priv_key")
-	}
-
-	pubKeyPath, ok := authConfig["pub_key"].(string)
-	if !ok {
-		return nil, fmt.Errorf("invalid type for registry.auth.pub_key")
-	}
-
-	privKeyBz, err := os.ReadFile(privKeyPath)
-	if err != nil {
-		return nil, err
-	}
-	privKey, err := jwt.ParseRSAPrivateKeyFromPEM(privKeyBz)
-	if err != nil {
-		return nil, err
-	}
-
-	pubBz, err := os.ReadFile(pubKeyPath)
-	if err != nil {
-		return nil, err
-	}
-	pubKey, err := jwt.ParseRSAPublicKeyFromPEM(pubBz)
+	privKey, pubKey, err := getRSAKeyPairFromViperConfig(authConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -80,25 +58,7 @@ func ReadYamlConfig() (*OpenRegistryConfig, error) {
 		return nil, fmt.Errorf("ERR_UNMARSHAL_CONFIG: %w", err)
 	}
 
-	if cfg.DFS.Filebase.Enabled {
-		if cfg.DFS.Filebase.ChunkSize == 0 {
-			cfg.DFS.Filebase.ChunkSize = twentyMBInBytes
-		}
-
-		if cfg.DFS.Filebase.MinChunkSize == 0 {
-			cfg.DFS.Filebase.MinChunkSize = fiveMBInBytes
-		}
-	}
-
-	if cfg.DFS.Storj.Enabled {
-		if cfg.DFS.Storj.ChunkSize == 0 {
-			cfg.DFS.Storj.ChunkSize = twentyMBInBytes
-		}
-
-		if cfg.DFS.Storj.MinChunkSize == 0 {
-			cfg.DFS.Storj.MinChunkSize = fiveMBInBytes
-		}
-	}
+	setDefaultsForStorageBackend(&cfg)
 
 	githubConfig := cfg.Integrations.GetGithubConfig()
 	if githubConfig.Host == "" {
@@ -120,3 +80,57 @@ func ReadYamlConfig() (*OpenRegistryConfig, error) {
 
 const fiveMBInBytes = 1024 * 1024 * 5
 const twentyMBInBytes = 1024 * 1024 * 20
+
+func getRSAKeyPairFromViperConfig(authConfig map[string]any) (*rsa.PrivateKey, *rsa.PublicKey, error) {
+	privKeyPath, ok := authConfig["priv_key"].(string)
+	if !ok {
+		return nil, nil, fmt.Errorf("invalid type for registry.auth.priv_key")
+	}
+
+	pubKeyPath, ok := authConfig["pub_key"].(string)
+	if !ok {
+		return nil, nil, fmt.Errorf("invalid type for registry.auth.pub_key")
+	}
+
+	privKeyBz, err := os.ReadFile(privKeyPath)
+	if err != nil {
+		return nil, nil, err
+	}
+	privKey, err := jwt.ParseRSAPrivateKeyFromPEM(privKeyBz)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	pubBz, err := os.ReadFile(pubKeyPath)
+	if err != nil {
+		return nil, nil, err
+	}
+	pubKey, err := jwt.ParseRSAPublicKeyFromPEM(pubBz)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return privKey, pubKey, nil
+}
+
+func setDefaultsForStorageBackend(cfg *OpenRegistryConfig) {
+	if cfg.DFS.Filebase.Enabled {
+		if cfg.DFS.Filebase.ChunkSize == 0 {
+			cfg.DFS.Filebase.ChunkSize = twentyMBInBytes
+		}
+
+		if cfg.DFS.Filebase.MinChunkSize == 0 {
+			cfg.DFS.Filebase.MinChunkSize = fiveMBInBytes
+		}
+	}
+
+	if cfg.DFS.Storj.Enabled {
+		if cfg.DFS.Storj.ChunkSize == 0 {
+			cfg.DFS.Storj.ChunkSize = twentyMBInBytes
+		}
+
+		if cfg.DFS.Storj.MinChunkSize == 0 {
+			cfg.DFS.Storj.MinChunkSize = fiveMBInBytes
+		}
+	}
+}
