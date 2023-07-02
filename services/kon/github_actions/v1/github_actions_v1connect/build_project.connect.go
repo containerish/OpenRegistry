@@ -134,28 +134,40 @@ type GitHubActionsProjectServiceHandler interface {
 // By default, handlers support the Connect, gRPC, and gRPC-Web protocols with the binary Protobuf
 // and JSON codecs. They also support gzip compression.
 func NewGitHubActionsProjectServiceHandler(svc GitHubActionsProjectServiceHandler, opts ...connect_go.HandlerOption) (string, http.Handler) {
-	mux := http.NewServeMux()
-	mux.Handle(GitHubActionsProjectServiceCreateProjectProcedure, connect_go.NewUnaryHandler(
+	gitHubActionsProjectServiceCreateProjectHandler := connect_go.NewUnaryHandler(
 		GitHubActionsProjectServiceCreateProjectProcedure,
 		svc.CreateProject,
 		opts...,
-	))
-	mux.Handle(GitHubActionsProjectServiceGetProjectProcedure, connect_go.NewUnaryHandler(
+	)
+	gitHubActionsProjectServiceGetProjectHandler := connect_go.NewUnaryHandler(
 		GitHubActionsProjectServiceGetProjectProcedure,
 		svc.GetProject,
 		opts...,
-	))
-	mux.Handle(GitHubActionsProjectServiceDeleteProjectProcedure, connect_go.NewUnaryHandler(
+	)
+	gitHubActionsProjectServiceDeleteProjectHandler := connect_go.NewUnaryHandler(
 		GitHubActionsProjectServiceDeleteProjectProcedure,
 		svc.DeleteProject,
 		opts...,
-	))
-	mux.Handle(GitHubActionsProjectServiceListProjectsProcedure, connect_go.NewUnaryHandler(
+	)
+	gitHubActionsProjectServiceListProjectsHandler := connect_go.NewUnaryHandler(
 		GitHubActionsProjectServiceListProjectsProcedure,
 		svc.ListProjects,
 		opts...,
-	))
-	return "/services.kon.github_actions.v1.GitHubActionsProjectService/", mux
+	)
+	return "/services.kon.github_actions.v1.GitHubActionsProjectService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case GitHubActionsProjectServiceCreateProjectProcedure:
+			gitHubActionsProjectServiceCreateProjectHandler.ServeHTTP(w, r)
+		case GitHubActionsProjectServiceGetProjectProcedure:
+			gitHubActionsProjectServiceGetProjectHandler.ServeHTTP(w, r)
+		case GitHubActionsProjectServiceDeleteProjectProcedure:
+			gitHubActionsProjectServiceDeleteProjectHandler.ServeHTTP(w, r)
+		case GitHubActionsProjectServiceListProjectsProcedure:
+			gitHubActionsProjectServiceListProjectsHandler.ServeHTTP(w, r)
+		default:
+			http.NotFound(w, r)
+		}
+	})
 }
 
 // UnimplementedGitHubActionsProjectServiceHandler returns CodeUnimplemented from all methods.

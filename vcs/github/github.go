@@ -115,8 +115,8 @@ func (gh *ghAppService) getUsernameMiddleware() echo.MiddlewareFunc {
 				return echoErr
 			}
 
-			c.Set(UsernameContextKey, user.Username)
-			c.Set(UserContextKey, user)
+			c.Set(string(UsernameContextKey), user.Username)
+			c.Set(string(UserContextKey), user)
 			return next(c)
 		}
 	}
@@ -128,7 +128,7 @@ func (gh *ghAppService) getGitubInstallationID(skipRoutes ...string) echo.Middle
 			if c.Path() == "/github"+vcs.HandleWebhookEventsEndpoint {
 				return next(c)
 			}
-			user, ok := c.Get(UserContextKey).(*types.User)
+			user, ok := c.Get(string(UserContextKey)).(*types.User)
 			if !ok {
 				echoErr := c.JSON(http.StatusNotAcceptable, echo.Map{
 					"error": "GH_MDW_ERR: username is not present in context",
@@ -148,7 +148,7 @@ func (gh *ghAppService) getGitubInstallationID(skipRoutes ...string) echo.Middle
 				return next(c)
 			}
 
-			c.Set(GithubInstallationIDContextKey, user.Identities.GetGitHubIdentity().InstallationID)
+			c.Set(string(GithubInstallationIDContextKey), user.Identities.GetGitHubIdentity().InstallationID)
 			return next(c)
 		}
 	}
@@ -164,8 +164,8 @@ func newGHClient(appID int64, privKeyPem string) (*ghinstallation.AppsTransport,
 	return transport, client, nil
 }
 
-func (gh *ghAppService) refreshGHClient(appTransport *ghinstallation.AppsTransport, id int64) *github.Client {
-	transport := ghinstallation.NewFromAppsTransport(appTransport, id)
+func (gh *ghAppService) refreshGHClient(id int64) *github.Client {
+	transport := ghinstallation.NewFromAppsTransport(gh.ghAppTransport, id)
 	return github.NewClient(&http.Client{Transport: transport})
 }
 
@@ -177,9 +177,9 @@ type AuthorizedRepository struct {
 type ContextKey string
 
 const (
-	UsernameContextKey             = "USERNAME"
-	UserContextKey                 = "USER"
-	GithubInstallationIDContextKey = "GITHUB_INSTALLATION_ID"
+	UsernameContextKey             ContextKey = "USERNAME"
+	UserContextKey                 ContextKey = "USER"
+	GithubInstallationIDContextKey ContextKey = "GITHUB_INSTALLATION_ID"
 )
 
 const WorkflowFilePath = ".github/workflows/openregistry.yml"

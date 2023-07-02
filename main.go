@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+	"net/http"
 	"os"
 
 	"github.com/containerish/OpenRegistry/auth"
@@ -19,6 +21,8 @@ import (
 	"github.com/containerish/OpenRegistry/vcs/github"
 	"github.com/fatih/color"
 	"github.com/labstack/echo/v4"
+	"golang.org/x/net/http2"
+	"golang.org/x/net/http2/h2c"
 )
 
 func main() {
@@ -83,12 +87,21 @@ func main() {
 		}
 
 		ghApp.RegisterRoutes(e.Group("/github"))
-		github_actions_server.NewGithubActionsServer(
-			cfg.Integrations.GetGithubConfig(),
+		ghConfig := cfg.Integrations.GetGithubConfig()
+		githubMux := github_actions_server.NewGithubActionsServer(
+			ghConfig,
+			&cfg.Registry.Auth,
 			logger,
 			buildAutomationStore,
 			pgStore,
 		)
+		go func() {
+			hostPort := fmt.Sprintf("%s:%d", ghConfig.Host, ghConfig.Port)
+			color.Green("connect-go gRPC running on: %s", hostPort)
+			if err := http.ListenAndServe(hostPort, h2c.NewHandler(githubMux, &http2.Server{})); err != nil {
+				color.Red("gRPC listen error: %s", err)
+			}
+		}()
 	}
 
 	color.Red("error initialising OpenRegistry Server: %s", buildHTTPServer(cfg, e))

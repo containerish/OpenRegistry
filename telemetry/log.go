@@ -46,7 +46,6 @@ func ZLogger(fluentbitClient fluentbit.FluentBit, env config.Environment) Logger
 		`,"bytes_in":${bytes_in},"bytes_out":${bytes_out}}` + "\n"
 
 	baseLogger := setupLogger(env)
-
 	if env != config.Production {
 		baseLogger = log.Output(zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.RFC822}).With().Caller().Logger()
 	}

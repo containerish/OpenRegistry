@@ -3,8 +3,10 @@ package build_automation_store
 import (
 	"context"
 	"fmt"
+	"time"
 
 	github_actions_v1 "github.com/containerish/OpenRegistry/services/kon/github_actions/v1"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // DeleteProject implements BuildAutomationStore
@@ -37,11 +39,12 @@ func (p *pg) GetProject(
 
 	proj := &github_actions_v1.GetProjectResponse{}
 	proj.BuildSettings = &github_actions_v1.ProjectBuildSettingsMessage{}
+	var createdAt time.Time
 	err := row.Scan(
 		&proj.Id,
 		&proj.ProjectName,
 		&proj.ProductionBranch,
-		&proj.CreatedAt,
+		&createdAt,
 		&proj.BuildSettings.BuildTool,
 		&proj.BuildSettings.ExecCommand,
 		&proj.BuildSettings.WorfklowFile,
@@ -51,6 +54,7 @@ func (p *pg) GetProject(
 		return nil, fmt.Errorf("ERR_GET_PROJECTS_SCAN: %w", err)
 	}
 
+	proj.CreatedAt = timestamppb.New(createdAt)
 	return proj, nil
 }
 
@@ -78,11 +82,12 @@ func (p *pg) ListProjects(
 	for rows.Next() {
 		proj := &github_actions_v1.GetProjectResponse{}
 		proj.BuildSettings = &github_actions_v1.ProjectBuildSettingsMessage{}
+		var createdAt time.Time
 		err = rows.Scan(
 			&proj.Id,
 			&proj.ProjectName,
 			&proj.ProductionBranch,
-			&proj.CreatedAt,
+			&createdAt,
 			&proj.BuildSettings.BuildTool,
 			&proj.BuildSettings.ExecCommand,
 			&proj.BuildSettings.WorfklowFile,
@@ -91,6 +96,8 @@ func (p *pg) ListProjects(
 		if err != nil {
 			return nil, fmt.Errorf("ERR_LIST_PROJECTS_SCAN: %w", err)
 		}
+
+		proj.CreatedAt = timestamppb.New(createdAt)
 
 		projects.Projects = append(projects.Projects, proj)
 	}
@@ -111,7 +118,7 @@ func (p *pg) StoreProject(ctx context.Context, project *github_actions_v1.Create
 		project.GetProjectName(),
 		project.GetOwner(),
 		project.GetProductionBranch(),
-		project.GetCreatedAt(),
+		project.GetCreatedAt().AsTime(),
 		project.GetBuildSettings().GetBuildTool(),
 		project.GetBuildSettings().GetExecCommand(),
 		project.GetBuildSettings().GetWorfklowFile(),

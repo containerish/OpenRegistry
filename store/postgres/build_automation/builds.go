@@ -26,7 +26,7 @@ func (p *pg) BulkDeleteBuildJobs(ctx context.Context, req *gha_v1.BulkDeleteBuil
 func (p *pg) DeleteJob(ctx context.Context, req *gha_v1.DeleteJobRequest) error {
 	query := `delete from build_jobs where id=$1 and owner=$1`
 
-	_, err := p.conn.Exec(ctx, query, req.GetId(), req.GetOwnerId())
+	_, err := p.conn.Exec(ctx, query, req.GetRunId(), req.GetOwnerId())
 	if err != nil {
 		return fmt.Errorf("ERR_DELETE_JOB: %w", err)
 	}
