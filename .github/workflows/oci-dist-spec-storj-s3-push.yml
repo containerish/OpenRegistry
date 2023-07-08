@@ -55,8 +55,8 @@ jobs:
           yq e -i '.environment = "ci"' config.yaml
           yq e -i '.dfs.storj.type = "s3"' config.yaml
           yq e -i '.dfs.storj.enabled = "true"' config.yaml
-          STORJ_CI_ACCESS_KEY=${{ secrets.STORJ_CI_ACCESS_KEY }} yq e -i '.dfs.storj.access_key = env(STORJ_CI_ACCESS_KEY)' config.yaml
           STORJ_CI_SECRET_KEY=${{ secrets.STORJ_CI_SECRET_KEY }} yq e -i '.dfs.storj.secret_key = env(STORJ_CI_SECRET_KEY)' config.yaml
+          STORJ_CI_ACCESS_KEY=${{ secrets.STORJ_CI_ACCESS_KEY }} yq e -i '.dfs.storj.access_key = env(STORJ_CI_ACCESS_KEY)' config.yaml
           STORJ_CI_BUCKET_NAME=${{ secrets.STORJ_CI_BUCKET_NAME }} yq e -i '.dfs.storj.bucket_name = env(STORJ_CI_BUCKET_NAME)' config.yaml
           STORJ_CI_ACCESS_GRANT_TOKEN=${{ secrets.STORJ_CI_ACCESS_GRANT_TOKEN }} yq e -i '.dfs.storj.access_grant_token = env(STORJ_CI_ACCESS_GRANT_TOKEN)' config.yaml
           STORJ_CI_ENDPOINT=${{ secrets.STORJ_CI_ENDPOINT }} yq e -i '.dfs.storj.endpoint = env(STORJ_CI_ENDPOINT)' config.yaml
