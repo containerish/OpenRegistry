@@ -53,30 +53,18 @@ jobs:
           yq e -i '.environment = "ci"' config.yaml
           IP=$IP yq e -i '.database.host = env(IP)' config.yaml
           yq e -i '.dfs.mock.enabled = "true"' config.yaml
-          # FILEBASE_KEY=${{ secrets.FILEBASE_KEY }} yq e -i '.dfs.filebase.access_key = env(FILEBASE_KEY)' config.yaml
-          # FILEBASE_SECRET=${{ secrets.FILEBASE_SECRET }} yq e -i '.dfs.filebase.secret_key = env(FILEBASE_SECRET)' config.yaml
-          # FILEBASE_BUCKET=${{ secrets.FILEBASE_BUCKET }} yq e -i '.dfs.filebase.bucket_name = env(FILEBASE_BUCKET)' config.yaml
-          # FILEBASE_ENDPOINT=${{ secrets.FILEBASE_ENDPOINT }} yq e -i '.dfs.filebase.endpoint = env(FILEBASE_ENDPOINT)' config.yaml
-          # FILEBASE_RESOLVER_URL=${{ secrets.FILEBASE_RESOLVER_URL }} yq e -i '.dfs.filebase.dfs_link_resolver = env(FILEBASE_RESOLVER_URL)' config.yaml
-          # yq e -i '.dfs.storj.type = "uplink"' config.yaml
-          # STORJ_CI_ACCESS_KEY=${{ secrets.STORJ_CI_ACCESS_KEY }} yq e -i '.dfs.storj.access_key = env(STORJ_CI_ACCESS_KEY)' config.yaml
-          # STORJ_CI_SECRET_KEY=${{ secrets.STORJ_CI_SECRET_KEY }} yq e -i '.dfs.storj.secret_key = env(STORJ_CI_SECRET_KEY)' config.yaml
-          # STORJ_CI_BUCKET_NAME=${{ secrets.STORJ_CI_BUCKET_NAME }} yq e -i '.dfs.storj.bucket_name = env(STORJ_CI_BUCKET_NAME)' config.yaml
-          # STORJ_CI_ACCESS_GRANT_TOKEN=${{ secrets.STORJ_CI_ACCESS_GRANT_TOKEN }} yq e -i '.dfs.storj.access_grant_token = env(STORJ_CI_ACCESS_GRANT_TOKEN)' config.yaml
-          # STORJ_CI_ENDPOINT=${{ secrets.STORJ_CI_ENDPOINT }} yq e -i '.dfs.storj.endpoint = env(STORJ_CI_ENDPOINT)' config.yaml
-          # STORJ_CI_RESOLVER_ENDPOINT=${{ secrets.STORJ_CI_RESOLVER_ENDPOINT }} yq e -i '.dfs.storj.dfs_link_resolver = env(STORJ_CI_RESOLVER_ENDPOINT)' config.yaml
-          # STORJ_CI_LINK_SHARE_SERVICE_ENDPOINT=${{ secrets.STORJ_CI_LINK_SHARE_SERVICE_ENDPOINT }} yq e -i '.dfs.storj.link_share_service = env(STORJ_CI_LINK_SHARE_SERVICE_ENDPOINT)' config.yaml
           echo "IP=$IP" >> $GITHUB_ENV
           echo "OCI_ROOT_URL=http://$IP:5000" >> $GITHUB_ENV
           DISTRIBUTION_REF="local-distribution:v$(date +%Y%m%d%H%M%S)"
           docker build -f ./Dockerfile -t "${DISTRIBUTION_REF}" .
           make certs
-          docker run --rm -p 5000:5000 \
+          docker run --rm -p 5000:5000 -p 8080:8080 \
             --mount="type=bind,source=${PWD}/config.yaml,target=/home/runner/.openregistry/config.yaml" \
             -v "$PWD/.certs:/home/runner/.certs" \
-            --env="CI_SYS_ADDR=$IP:5000" -d "${DISTRIBUTION_REF}"
+            --env="CI_SYS_ADDR=$IP:5000" --name openregistry -d "${DISTRIBUTION_REF}"
           sleep 5
           curl -XPOST -d ${{ secrets.OPENREGISTRY_SIGNUP_PAYLOAD }} "http://${IP}:5000/auth/signup"
+          docker logs openregistry
       - name: Run OCI Distribution Spec conformance tests
         if: always()
         run: |

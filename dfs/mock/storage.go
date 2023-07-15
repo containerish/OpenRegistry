@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 
@@ -18,6 +20,37 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/spf13/afero"
 )
+
+type mockStorage struct {
+	memFs           afero.Fs
+	uploadSession   map[string]string
+	config          *config.S3CompatibleDFS
+	hostAddr        string
+	serviceEndpoint string
+}
+
+func NewMockStorage(env config.Environment, hostAddr string, cfg *config.S3CompatibleDFS) dfs.DFS {
+	if env != config.CI && env != config.Local {
+		panic("mock storage should only be used for CI or Local environments")
+	}
+
+	parsedHost, err := url.Parse(hostAddr)
+	if err != nil {
+		color.Red("error parsing registry endpoint: %s", err)
+		os.Exit(1)
+	}
+
+	mocker := &mockStorage{
+		memFs:           afero.NewMemMapFs(),
+		uploadSession:   make(map[string]string),
+		config:          cfg,
+		serviceEndpoint: "0.0.0.0:8080",
+		hostAddr:        parsedHost.Hostname(),
+	}
+
+	go mocker.FileServer()
+	return mocker
+}
 
 func (ms *mockStorage) CreateMultipartUpload(layerKey string) (string, error) {
 	sessionId := uuid.NewString()
@@ -142,13 +175,23 @@ func (ms *mockStorage) GetUploadProgress(identifier, uploadID string) (*types.Ob
 	}, nil
 }
 
+func (ms *mockStorage) getServiceEndpoint() string {
+	_, port, err := net.SplitHostPort(ms.serviceEndpoint)
+	if err != nil {
+		color.Red("error splitting mock service host port: %s", err)
+		os.Exit(1)
+	}
+
+	return fmt.Sprintf("http://%s:%s", ms.hostAddr, port)
+}
+
 func (ms *mockStorage) GeneratePresignedURL(ctx context.Context, key string) (string, error) {
 	parts := strings.Split(key, "/")
 	if len(parts) == 1 {
 		key = "layers/" + key
 	}
 
-	preSignedURL := fmt.Sprintf("http://%s/%s", ms.serverEndpoint, key)
+	preSignedURL := fmt.Sprintf("%s/%s", ms.getServiceEndpoint(), key)
 	return preSignedURL, nil
 }
 
@@ -184,31 +227,8 @@ func (ms *mockStorage) FileServer() {
 		return ctx.Blob(http.StatusOK, "", bz)
 	})
 
-	if err := e.Start(ms.serverEndpoint); err != nil {
+	if err := e.Start(ms.serviceEndpoint); err != nil {
 		color.Red("MockStorage service failed: %s", err)
+		os.Exit(1)
 	}
-}
-
-type mockStorage struct {
-	memFs          afero.Fs
-	uploadSession  map[string]string
-	config         *config.S3CompatibleDFS
-	serverEndpoint string
-}
-
-func NewMockStorage(env config.Environment, cfg *config.S3CompatibleDFS) dfs.DFS {
-	if env != config.CI && env != config.Local {
-		panic("mock storage should only be used for CI or Local environments")
-	}
-
-	mocker := &mockStorage{
-		memFs:          afero.NewMemMapFs(),
-		uploadSession:  make(map[string]string),
-		config:         cfg,
-		serverEndpoint: "0.0.0.0:8080",
-	}
-
-	go mocker.FileServer()
-
-	return mocker
 }

@@ -58,7 +58,7 @@ func main() {
 	webauthnServer := auth_server.NewWebauthnServer(cfg, pgStore, logger)
 	healthCheckHandler := healthchecks.NewHealthChecksAPI(pgStore)
 
-	dfs := client.NewDFSBackend(cfg.Environment, &cfg.DFS)
+	dfs := client.NewDFSBackend(cfg.Environment, cfg.Endpoint(), &cfg.DFS)
 	reg, err := registry.NewRegistry(pgStore, dfs, logger, cfg)
 	if err != nil {
 		e.Logger.Errorf("error creating new container registry: %s", err)
