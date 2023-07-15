@@ -52,12 +52,12 @@ jobs:
           cp config.example.yaml config.yaml
           yq e -i '.environment = "ci"' config.yaml
           IP=$IP yq e -i '.database.host = env(IP)' config.yaml
-          yq e -i '.dfs.filebase.enabled = "true"' config.yaml
-          FILEBASE_KEY=${{ secrets.FILEBASE_KEY }} yq e -i '.dfs.filebase.access_key = env(FILEBASE_KEY)' config.yaml
-          FILEBASE_SECRET=${{ secrets.FILEBASE_SECRET }} yq e -i '.dfs.filebase.secret_key = env(FILEBASE_SECRET)' config.yaml
-          FILEBASE_BUCKET=${{ secrets.FILEBASE_BUCKET }} yq e -i '.dfs.filebase.bucket_name = env(FILEBASE_BUCKET)' config.yaml
-          FILEBASE_ENDPOINT=${{ secrets.FILEBASE_ENDPOINT }} yq e -i '.dfs.filebase.endpoint = env(FILEBASE_ENDPOINT)' config.yaml
-          FILEBASE_RESOLVER_URL=${{ secrets.FILEBASE_RESOLVER_URL }} yq e -i '.dfs.filebase.dfs_link_resolver = env(FILEBASE_RESOLVER_URL)' config.yaml
+          yq e -i '.dfs.mock.enabled = "true"' config.yaml
+          # FILEBASE_KEY=${{ secrets.FILEBASE_KEY }} yq e -i '.dfs.filebase.access_key = env(FILEBASE_KEY)' config.yaml
+          # FILEBASE_SECRET=${{ secrets.FILEBASE_SECRET }} yq e -i '.dfs.filebase.secret_key = env(FILEBASE_SECRET)' config.yaml
+          # FILEBASE_BUCKET=${{ secrets.FILEBASE_BUCKET }} yq e -i '.dfs.filebase.bucket_name = env(FILEBASE_BUCKET)' config.yaml
+          # FILEBASE_ENDPOINT=${{ secrets.FILEBASE_ENDPOINT }} yq e -i '.dfs.filebase.endpoint = env(FILEBASE_ENDPOINT)' config.yaml
+          # FILEBASE_RESOLVER_URL=${{ secrets.FILEBASE_RESOLVER_URL }} yq e -i '.dfs.filebase.dfs_link_resolver = env(FILEBASE_RESOLVER_URL)' config.yaml
           # yq e -i '.dfs.storj.type = "uplink"' config.yaml
           # STORJ_CI_ACCESS_KEY=${{ secrets.STORJ_CI_ACCESS_KEY }} yq e -i '.dfs.storj.access_key = env(STORJ_CI_ACCESS_KEY)' config.yaml
           # STORJ_CI_SECRET_KEY=${{ secrets.STORJ_CI_SECRET_KEY }} yq e -i '.dfs.storj.secret_key = env(STORJ_CI_SECRET_KEY)' config.yaml

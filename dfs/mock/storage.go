@@ -13,6 +13,7 @@ import (
 	"github.com/containerish/OpenRegistry/config"
 	"github.com/containerish/OpenRegistry/dfs"
 	"github.com/containerish/OpenRegistry/types"
+	"github.com/fatih/color"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	"github.com/spf13/afero"
@@ -183,7 +184,9 @@ func (ms *mockStorage) FileServer() {
 		return ctx.Blob(http.StatusOK, "", bz)
 	})
 
-	e.Start(ms.serverEndpoint)
+	if err := e.Start(ms.serverEndpoint); err != nil {
+		color.Red("MockStorage service failed: %s", err)
+	}
 }
 
 type mockStorage struct {
