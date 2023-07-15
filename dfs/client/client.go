@@ -6,6 +6,7 @@ import (
 	"github.com/containerish/OpenRegistry/config"
 	"github.com/containerish/OpenRegistry/dfs"
 	"github.com/containerish/OpenRegistry/dfs/filebase"
+	"github.com/containerish/OpenRegistry/dfs/mock"
 	"github.com/containerish/OpenRegistry/dfs/storj"
 	"github.com/containerish/OpenRegistry/dfs/storj/uplink"
 	"github.com/fatih/color"
@@ -27,6 +28,11 @@ func NewDFSBackend(env config.Environment, cfg *config.DFS) dfs.DFS {
 	if cfg.Storj.Enabled && cfg.Storj.Type == "uplink" {
 		color.Green("Storage backend: Storj with Uplink")
 		return uplink.New(env, &cfg.Storj)
+	}
+
+	if cfg.Mock.Enabled {
+		color.Green("Storage backend: Mock Storage")
+		return mock.NewMockStorage(env, &cfg.Mock)
 	}
 
 	log.Fatalln(color.RedString("no supported storage backend is enabled"))
