@@ -43,6 +43,7 @@ type (
 	DFS struct {
 		Filebase S3CompatibleDFS `yaml:"filebase" mapstructure:"filebase"`
 		Storj    Storj           `yaml:"storj" mapstructure:"storj"`
+		Mock     S3CompatibleDFS `yaml:"mock" mapstructure:"mock"`
 	}
 
 	Storj struct {
