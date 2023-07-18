@@ -335,7 +335,7 @@ func (r *registry) MonolithicUpload(ctx echo.Context) error {
 		r.logger.Log(ctx, fmt.Errorf("%s", errMsg)).Send()
 		return echoErr
 	}
-	_ = ctx.Request().Body.Close() // why defer? body is already read :)
+	defer ctx.Request().Body.Close()
 	computedDigest := digest.FromBytes(buf.Bytes())
 
 	if computedDigest.String() != imageDigest {
@@ -534,7 +534,7 @@ func (r *registry) MonolithicPut(ctx echo.Context) error {
 		r.logger.Log(ctx, fmt.Errorf("%s", errMsg)).Send()
 		return echoErr
 	}
-	_ = ctx.Request().Body.Close()
+	defer ctx.Request().Body.Close()
 	ourHash := digest.FromBytes(buf.Bytes())
 
 	dfsLink, err := r.dfs.Upload(ctx.Request().Context(), GetLayerIdentifier(layerKey), ourHash.String(), buf.Bytes())
@@ -618,14 +618,13 @@ func (r *registry) CompleteUpload(ctx echo.Context) error {
 	}
 
 	buf := &bytes.Buffer{}
-	_, err := io.Copy(buf, ctx.Request().Body)
-	if err != nil {
+	if _, err := io.Copy(buf, ctx.Request().Body); err != nil {
 		errMsg := r.errorResponse(RegistryErrorCodeDigestInvalid, err.Error(), nil)
 		echoErr := ctx.JSONBlob(http.StatusBadRequest, errMsg)
 		r.logger.Log(ctx, fmt.Errorf("%s", errMsg)).Send()
 		return echoErr
 	}
-	_ = ctx.Request().Body.Close()
+	defer ctx.Request().Body.Close()
 	checksum := digest.FromBytes(buf.Bytes())
 
 	if buf.Len() > 0 {
@@ -758,7 +757,7 @@ func (r *registry) PushManifest(ctx echo.Context) error {
 			"message": "failed in push manifest while io Copy",
 		})
 	}
-	_ = ctx.Request().Body.Close()
+	defer ctx.Request().Body.Close()
 
 	err = json.Unmarshal(buf.Bytes(), &manifest)
 	if err != nil {

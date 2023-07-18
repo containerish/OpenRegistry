@@ -131,7 +131,6 @@ func (gh *ghAppService) HandleWebhookEvents(ctx echo.Context) error {
 		xHubSignature,
 		[]byte(gh.config.WebhookSecret),
 	)
-
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error": err.Error(),
@@ -139,6 +138,7 @@ func (gh *ghAppService) HandleWebhookEvents(ctx echo.Context) error {
 		gh.logger.Log(ctx, err).Send()
 		return echoErr
 	}
+	defer ctx.Request().Body.Close()
 
 	event, err := github.ParseWebHook(github.WebHookType(ctx.Request()), payload)
 	if err != nil {
@@ -247,6 +247,7 @@ func (gh *ghAppService) CreateInitialPR(ctx echo.Context) error {
 		gh.logger.Log(ctx, err).Send()
 		return echoErr
 	}
+	defer ctx.Request().Body.Close()
 
 	client := gh.refreshGHClient(installationID)
 	repos, _, err := client.Apps.ListRepos(context.Background(), &github.ListOptions{})
