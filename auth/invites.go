@@ -25,6 +25,7 @@ func (a *auth) Invites(ctx echo.Context) error {
 		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
+	defer ctx.Request().Body.Close()
 
 	if list.Emails == "" {
 		err = fmt.Errorf("ERR_EMPTY_LIST")

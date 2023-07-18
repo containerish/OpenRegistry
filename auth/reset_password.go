@@ -37,8 +37,7 @@ func (a *auth) ResetForgottenPassword(ctx echo.Context) error {
 	}
 
 	var pwd *types.Password
-	err := json.NewDecoder(ctx.Request().Body).Decode(&pwd)
-	if err != nil {
+	if err := json.NewDecoder(ctx.Request().Body).Decode(&pwd); err != nil {
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error":   err.Error(),
 			"message": "request body could not be decoded",
@@ -46,7 +45,7 @@ func (a *auth) ResetForgottenPassword(ctx echo.Context) error {
 		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
-	_ = ctx.Request().Body.Close()
+	defer ctx.Request().Body.Close()
 
 	userId := c.ID
 	user, err := a.pgStore.GetUserById(ctx.Request().Context(), userId, true, nil)
@@ -139,7 +138,7 @@ func (a *auth) ResetPassword(ctx echo.Context) error {
 		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
-	_ = ctx.Request().Body.Close()
+	defer ctx.Request().Body.Close()
 
 	userId := c.ID
 	user, err := a.pgStore.GetUserById(ctx.Request().Context(), userId, true, nil)

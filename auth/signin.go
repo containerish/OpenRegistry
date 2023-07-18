@@ -25,6 +25,7 @@ func (a *auth) SignIn(ctx echo.Context) error {
 		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
+	defer ctx.Request().Body.Close()
 
 	err := user.Validate(true)
 	if err != nil {

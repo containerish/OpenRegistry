@@ -86,7 +86,7 @@ func (wa *webauthn_server) BeginRegistration(ctx echo.Context) error {
 		wa.logger.Log(ctx, err).Send()
 		return echoErr
 	}
-	_ = ctx.Request().Body.Close()
+	defer ctx.Request().Body.Close()
 	user.Identities = make(types.Identities)
 
 	err := user.Validate(false)

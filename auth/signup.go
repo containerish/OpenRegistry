@@ -28,7 +28,7 @@ func (a *auth) SignUp(ctx echo.Context) error {
 		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
-	_ = ctx.Request().Body.Close()
+	defer ctx.Request().Body.Close()
 
 	if err := u.Validate(true); err != nil {
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{

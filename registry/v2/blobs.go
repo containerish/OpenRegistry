@@ -101,7 +101,7 @@ func (b *blobs) UploadBlob(ctx echo.Context) error {
 			b.registry.logger.Log(ctx, err).Send()
 			return echoErr
 		}
-		_ = ctx.Request().Body.Close()
+		defer ctx.Request().Body.Close()
 
 		checksum := digest.FromBytes(buf.Bytes())
 
@@ -169,7 +169,7 @@ func (b *blobs) UploadBlob(ctx echo.Context) error {
 		b.registry.logger.Log(ctx, err).Send()
 		return echoErr
 	}
-	_ = ctx.Request().Body.Close()
+	defer ctx.Request().Body.Close()
 
 	checksum := digest.FromBytes(buf.Bytes())
 	b.blobCounter[uploadID]++
