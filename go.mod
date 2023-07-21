@@ -24,7 +24,7 @@ require (
 	github.com/jackc/pgx/v4 v4.18.1
 	github.com/labstack/echo-contrib v0.15.0
 	github.com/labstack/echo-jwt/v4 v4.2.0
-	github.com/labstack/echo/v4 v4.10.2
+	github.com/labstack/echo/v4 v4.11.1
 	github.com/opencontainers/distribution-spec v1.0.1
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/rs/zerolog v1.29.1
@@ -88,7 +88,7 @@ require (
 	github.com/leodido/go-urn v1.2.4 // indirect
 	github.com/magiconair/properties v1.8.7 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
-	github.com/mattn/go-isatty v0.0.18 // indirect
+	github.com/mattn/go-isatty v0.0.19 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.4 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
@@ -100,7 +100,7 @@ require (
 	github.com/prometheus/procfs v0.9.0 // indirect
 	github.com/sendgrid/rest v2.6.9+incompatible // indirect
 	github.com/spacemonkeygo/monkit/v3 v3.0.19 // indirect
-	github.com/spf13/afero v1.9.5 // indirect
+	github.com/spf13/afero v1.9.5
 	github.com/spf13/cast v1.5.1 // indirect
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
