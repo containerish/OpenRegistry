@@ -14,7 +14,7 @@ require (
 	github.com/go-playground/locales v0.14.1
 	github.com/go-playground/universal-translator v0.18.1
 	github.com/go-playground/validator/v10 v10.14.1
-	github.com/go-webauthn/webauthn v0.8.4
+	github.com/go-webauthn/webauthn v0.8.6
 	github.com/golang-jwt/jwt/v5 v5.0.0
 	github.com/google/go-github/v50 v50.2.0
 	github.com/google/uuid v1.3.0
@@ -100,7 +100,7 @@ require (
 	github.com/prometheus/procfs v0.9.0 // indirect
 	github.com/sendgrid/rest v2.6.9+incompatible // indirect
 	github.com/spacemonkeygo/monkit/v3 v3.0.19 // indirect
-	github.com/spf13/afero v1.9.5 // indirect
+	github.com/spf13/afero v1.9.5
 	github.com/spf13/cast v1.5.1 // indirect
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
