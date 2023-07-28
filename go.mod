@@ -5,7 +5,7 @@ go 1.19
 require (
 	github.com/SkynetLabs/go-skynet/v2 v2.0.2
 	github.com/alexliesenfeld/health v0.7.0
-	github.com/aws/aws-sdk-go-v2 v1.19.0
+	github.com/aws/aws-sdk-go-v2 v1.19.1
 	github.com/aws/aws-sdk-go-v2/config v1.18.28
 	github.com/aws/aws-sdk-go-v2/credentials v1.13.27
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.37.0
