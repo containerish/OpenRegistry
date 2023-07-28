@@ -34,13 +34,16 @@ require (
 	golang.org/x/crypto v0.11.0
 	golang.org/x/oauth2 v0.10.0
 	gopkg.in/yaml.v2 v2.4.0
-	storj.io/uplink v1.10.0
+	storj.io/uplink v1.11.0
 )
 
 require (
+	github.com/flynn/noise v1.0.0 // indirect
 	github.com/go-webauthn/x v0.1.4 // indirect
 	github.com/golang-jwt/jwt v3.2.2+incompatible // indirect
 	github.com/golang-jwt/jwt/v4 v4.5.0 // indirect
+	github.com/jtolio/noiseconn v0.0.0-20230111204749-d7ec1a08b0b8 // indirect
+	storj.io/picobuf v0.0.1 // indirect
 )
 
 require (
@@ -99,7 +102,7 @@ require (
 	github.com/prometheus/common v0.40.0 // indirect
 	github.com/prometheus/procfs v0.9.0 // indirect
 	github.com/sendgrid/rest v2.6.9+incompatible // indirect
-	github.com/spacemonkeygo/monkit/v3 v3.0.19 // indirect
+	github.com/spacemonkeygo/monkit/v3 v3.0.20-0.20230227152157-d00b379de191 // indirect
 	github.com/spf13/afero v1.9.5
 	github.com/spf13/cast v1.5.1 // indirect
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
@@ -120,8 +123,8 @@ require (
 	google.golang.org/protobuf v1.31.0
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	storj.io/common v0.0.0-20221123115229-fed3e6651b63 // indirect
-	storj.io/drpc v0.0.32 // indirect
+	storj.io/common v0.0.0-20230602145716-d6ea82d58b3d // indirect
+	storj.io/drpc v0.0.33 // indirect
 )
 
 replace github.com/SkynetLabs/go-skynet/v2 => github.com/containerish/go-skynet/v2 v2.0.2-0.20220629062209-f31ff192458d
