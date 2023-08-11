@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/containerish/OpenRegistry/store/postgres/queries"
-	"github.com/containerish/OpenRegistry/types"
+	v2_types "github.com/containerish/OpenRegistry/store/v2/types"
 	"github.com/jackc/pgx/v4"
 )
 
@@ -21,13 +21,13 @@ func (p *pg) AddSession(ctx context.Context, id, refreshToken, username string) 
 	return nil
 }
 
-func (p *pg) GetSession(ctx context.Context, sessionId string) (*types.Session, error) {
+func (p *pg) GetSession(ctx context.Context, sessionId string) (*v2_types.Session, error) {
 	childCtx, cancel := context.WithTimeout(ctx, time.Second*10)
 	defer cancel()
 
 	row := p.conn.QueryRow(childCtx, queries.GetSession, sessionId)
-	var session types.Session
-	if err := row.Scan(&session.Id, &session.RefreshToken, &session.Owner); err != nil || err == pgx.ErrNoRows {
+	var session v2_types.Session
+	if err := row.Scan(&session.Id, &session.RefreshToken, &session.OwnerID); err != nil || err == pgx.ErrNoRows {
 		return nil, fmt.Errorf("ERROR_SESSION_LOOKUP: %w", err)
 	}
 	return &session, nil

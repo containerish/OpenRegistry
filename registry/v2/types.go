@@ -7,10 +7,10 @@ import (
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/containerish/OpenRegistry/config"
 	dfsImpl "github.com/containerish/OpenRegistry/dfs"
-	"github.com/containerish/OpenRegistry/store/postgres"
+	store_v2 "github.com/containerish/OpenRegistry/store/v2/registry"
 	"github.com/containerish/OpenRegistry/telemetry"
-	"github.com/jackc/pgx/v4"
 	"github.com/labstack/echo/v4"
+	"github.com/uptrace/bun"
 )
 
 /*
@@ -91,7 +91,7 @@ type (
 		b      blobs
 		config *config.OpenRegistryConfig
 		logger telemetry.Logger
-		store  postgres.PersistentStore
+		store  store_v2.RegistryStore
 		dfs    dfsImpl.DFS
 		txnMap map[string]TxnStore
 		mu     *sync.RWMutex
@@ -99,7 +99,7 @@ type (
 	}
 
 	TxnStore struct {
-		txn         pgx.Tx
+		txn         *bun.Tx
 		blobDigests []string
 		timeout     time.Duration
 	}

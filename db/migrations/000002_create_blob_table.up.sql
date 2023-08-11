@@ -4,5 +4,6 @@ CREATE TABLE "blob" (
 	"sky_link" text,
 	"start_range" int,
 	"end_range" int,
-	"created_at" timestamp
+	"created_at" timestamp,
+    "repository_id" uuid references repository(id),
 );

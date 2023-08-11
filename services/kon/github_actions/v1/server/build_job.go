@@ -6,7 +6,7 @@ import (
 
 	connect_go "github.com/bufbuild/connect-go"
 	v1 "github.com/containerish/OpenRegistry/services/kon/github_actions/v1"
-	"github.com/containerish/OpenRegistry/types"
+	"github.com/containerish/OpenRegistry/store/v2/types"
 	"github.com/google/go-github/v50/github"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -202,7 +202,7 @@ func (gha *GitHubActionsServer) ListBuildJobs(
 				Branch:      job.GetHeadBranch(),
 				CommitHash:  job.GetHeadCommit().GetSHA(),
 				TriggeredAt: timestamppb.New(job.GetCreatedAt().UTC()),
-				OwnerId:     user.Id,
+				OwnerId:     user.ID,
 			})
 		}
 	}

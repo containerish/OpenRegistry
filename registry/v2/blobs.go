@@ -49,7 +49,7 @@ func (b *blobs) HEAD(ctx echo.Context) error {
 		return echoErr
 	}
 
-	metadata, err := b.registry.dfs.Metadata(GetLayerIdentifier(layerRef.UUID))
+	metadata, err := b.registry.dfs.Metadata(GetLayerIdentifier(layerRef.ID))
 	if err != nil {
 		details := echo.Map{
 			"error":   err.Error(),

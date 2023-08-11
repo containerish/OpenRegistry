@@ -73,7 +73,7 @@ func (a *auth) ExpireSessions(ctx echo.Context) error {
 		}
 
 		if deleteAllSessions {
-			err = a.pgStore.DeleteAllSessions(ctx.Request().Context(), userId)
+			err = a.sessionStore.DeleteAllSessions(ctx.Request().Context(), userId)
 			if err != nil {
 				echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 					"error":   err.Error(),
@@ -96,7 +96,7 @@ func (a *auth) ExpireSessions(ctx echo.Context) error {
 			a.logger.Log(ctx, err).Send()
 			return echoErr
 		}
-		err = a.pgStore.DeleteSession(ctx.Request().Context(), sessionUUID, userId)
+		err = a.sessionStore.DeleteSession(ctx.Request().Context(), sessionUUID, userId)
 		if err != nil {
 			echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 				"error":   err.Error(),

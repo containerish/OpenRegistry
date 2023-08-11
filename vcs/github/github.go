@@ -9,8 +9,8 @@ import (
 
 	"github.com/bradleyfalzon/ghinstallation/v2"
 	"github.com/containerish/OpenRegistry/config"
+	"github.com/containerish/OpenRegistry/store/v2/types"
 	"github.com/containerish/OpenRegistry/telemetry"
-	"github.com/containerish/OpenRegistry/types"
 	"github.com/containerish/OpenRegistry/vcs"
 	"github.com/google/go-github/v50/github"
 	"github.com/labstack/echo/v4"

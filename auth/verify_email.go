@@ -33,7 +33,7 @@ func (a *auth) VerifyEmail(ctx echo.Context) error {
 		return echoErr
 	}
 
-	userId, err := a.pgStore.GetVerifyEmail(ctx.Request().Context(), token)
+	userId, err := a.emailStore.GetVerifyEmail(ctx.Request().Context(), token)
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error":   err.Error(),
@@ -43,7 +43,7 @@ func (a *auth) VerifyEmail(ctx echo.Context) error {
 		return echoErr
 	}
 
-	user, err := a.pgStore.GetUserById(ctx.Request().Context(), userId, false, nil)
+	user, err := a.pgStore.GetUserByID(ctx.Request().Context(), userId)
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error":   err.Error(),
@@ -55,7 +55,7 @@ func (a *auth) VerifyEmail(ctx echo.Context) error {
 
 	user.IsActive = true
 
-	err = a.pgStore.UpdateUser(ctx.Request().Context(), user)
+	_, err = a.pgStore.UpdateUser(ctx.Request().Context(), user)
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error": err.Error(),
@@ -65,7 +65,7 @@ func (a *auth) VerifyEmail(ctx echo.Context) error {
 		return echoErr
 	}
 
-	err = a.pgStore.DeleteVerifyEmail(ctx.Request().Context(), token)
+	err = a.emailStore.DeleteVerifyEmail(ctx.Request().Context(), token)
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error": err.Error(),
@@ -121,7 +121,7 @@ func (a *auth) VerifyEmail(ctx echo.Context) error {
 		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
-	if err = a.pgStore.AddSession(ctx.Request().Context(), id.String(), refresh, user.Username); err != nil {
+	if err = a.sessionStore.AddSession(ctx.Request().Context(), id.String(), refresh, user.Username); err != nil {
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error":   err.Error(),
 			"message": "error creating session",

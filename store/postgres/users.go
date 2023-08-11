@@ -6,22 +6,22 @@ import (
 	"time"
 
 	"github.com/containerish/OpenRegistry/store/postgres/queries"
-	"github.com/containerish/OpenRegistry/types"
+	v2_types "github.com/containerish/OpenRegistry/store/v2/types"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v4"
 )
 
-func (p *pg) AddUser(ctx context.Context, u *types.User, txn pgx.Tx) error {
+func (p *pg) AddUser(ctx context.Context, u *v2_types.User, txn pgx.Tx) error {
 	childCtx, cancel := context.WithTimeout(ctx, time.Millisecond*100)
 	defer cancel()
 
 	now := time.Now()
-	if u.Id == "" {
+	if u.ID == "" {
 		id, err := uuid.NewRandom()
 		if err != nil {
 			return fmt.Errorf("error creating id for add user: %w", err)
 		}
-		u.Id = id.String()
+		u.ID = id.String()
 	}
 
 	txnExecFn := p.conn.Exec
@@ -32,7 +32,7 @@ func (p *pg) AddUser(ctx context.Context, u *types.User, txn pgx.Tx) error {
 	_, err := txnExecFn(
 		childCtx,
 		queries.AddUser,
-		u.Id,
+		u.ID,
 		u.Username,
 		u.Email,
 		u.Password,
@@ -50,12 +50,12 @@ func (p *pg) AddUser(ctx context.Context, u *types.User, txn pgx.Tx) error {
 	return nil
 }
 
-// GetUser returns a types.User. Any of the following parameters can be used to querying the user:
+// GetUser returns a v2_types.User. Any of the following parameters can be used to querying the user:
 // - user id
 // - user email
 // - user's username
 // It also takes an optional txn field, which can be helpful to query this information from uncommited txns
-func (p *pg) GetUser(ctx context.Context, identifier string, withPassword bool, txn pgx.Tx) (*types.User, error) {
+func (p *pg) GetUser(ctx context.Context, identifier string, withPassword bool, txn pgx.Tx) (*v2_types.User, error) {
 	childCtx, cancel := context.WithTimeout(ctx, time.Millisecond*100)
 	defer cancel()
 
@@ -64,12 +64,12 @@ func (p *pg) GetUser(ctx context.Context, identifier string, withPassword bool, 
 		queryRow = txn.QueryRow
 	}
 
-	var user types.User
+	var user v2_types.User
 	if withPassword {
 		row := queryRow(childCtx, queries.GetUserWithPassword, identifier)
 
 		err := row.Scan(
-			&user.Id,
+			&user.ID,
 			&user.IsActive,
 			&user.Username,
 			&user.Email,
@@ -89,7 +89,7 @@ func (p *pg) GetUser(ctx context.Context, identifier string, withPassword bool, 
 
 	row := queryRow(childCtx, queries.GetUser, identifier)
 	err := row.Scan(
-		&user.Id,
+		&user.ID,
 		&user.IsActive,
 		&user.Username,
 		&user.Email,
@@ -103,18 +103,18 @@ func (p *pg) GetUser(ctx context.Context, identifier string, withPassword bool, 
 		return nil, fmt.Errorf("ERR_GET_USER_FROM_DB: %w", err)
 	}
 	if user.Identities == nil {
-		user.Identities = make(types.Identities)
+		user.Identities = make(v2_types.Identities)
 	}
 
 	return &user, nil
 }
 
-// GetUser returns a types.User. Any of the following parameters can be used to querying the user:
+// GetUser returns a v2_types.User. Any of the following parameters can be used to querying the user:
 // - user id
 // - user email
 // - user's username
 // It also takes an optional txn field, which can be helpful to query this information from uncommited txns
-func (p *pg) GetGitHubUser(ctx context.Context, identifier string, txn pgx.Tx) (*types.User, error) {
+func (p *pg) GetGitHubUser(ctx context.Context, identifier string, txn pgx.Tx) (*v2_types.User, error) {
 	childCtx, cancel := context.WithTimeout(ctx, time.Millisecond*100)
 	defer cancel()
 
@@ -123,10 +123,10 @@ func (p *pg) GetGitHubUser(ctx context.Context, identifier string, txn pgx.Tx) (
 		queryRow = txn.QueryRow
 	}
 
-	var user types.User
+	var user v2_types.User
 	row := queryRow(childCtx, queries.GetGithubUser, identifier)
 	err := row.Scan(
-		&user.Id,
+		&user.ID,
 		&user.Username,
 		&user.Email,
 		&user.GithubConnected,
@@ -138,15 +138,15 @@ func (p *pg) GetGitHubUser(ctx context.Context, identifier string, txn pgx.Tx) (
 	}
 
 	if user.Identities == nil {
-		user.Identities = make(types.Identities)
+		user.Identities = make(v2_types.Identities)
 	}
 
 	return &user, nil
 }
 
-// GetUserById returns a types.User. The parameter used to query the user is userID.
+// GetUserById returns a v2_types.User. The parameter used to query the user is userID.
 // It also takes an optional txn field, which can be helpful to query this information from uncommited txns
-func (p *pg) GetUserById(ctx context.Context, userId string, withPassword bool, txn pgx.Tx) (*types.User, error) {
+func (p *pg) GetUserById(ctx context.Context, userId string, withPassword bool, txn pgx.Tx) (*v2_types.User, error) {
 	childCtx, cancel := context.WithTimeout(ctx, time.Millisecond*100)
 	defer cancel()
 
@@ -158,9 +158,9 @@ func (p *pg) GetUserById(ctx context.Context, userId string, withPassword bool, 
 	if withPassword {
 		row := queryRow(childCtx, queries.GetUserByIdWithPassword, userId)
 
-		var user types.User
+		var user v2_types.User
 		if err := row.Scan(
-			&user.Id,
+			&user.ID,
 			&user.IsActive,
 			&user.Username,
 			&user.Email,
@@ -176,9 +176,9 @@ func (p *pg) GetUserById(ctx context.Context, userId string, withPassword bool, 
 	}
 
 	row := queryRow(childCtx, queries.GetUserById, userId)
-	var user types.User
+	var user v2_types.User
 	err := row.Scan(
-		&user.Id,
+		&user.ID,
 		&user.IsActive,
 		&user.Username,
 		&user.Email,
@@ -191,21 +191,21 @@ func (p *pg) GetUserById(ctx context.Context, userId string, withPassword bool, 
 	}
 
 	if user.Identities == nil {
-		user.Identities = make(types.Identities)
+		user.Identities = make(v2_types.Identities)
 	}
 
 	return &user, nil
 }
 
-func (p *pg) GetUserWithSession(ctx context.Context, sessionId string) (*types.User, error) {
+func (p *pg) GetUserWithSession(ctx context.Context, sessionId string) (*v2_types.User, error) {
 	childCtx, cancel := context.WithTimeout(ctx, time.Millisecond*100)
 	defer cancel()
 
 	row := p.conn.QueryRow(childCtx, queries.GetUserWithSession, sessionId)
 
-	var user types.User
+	var user v2_types.User
 	if err := row.Scan(
-		&user.Id,
+		&user.ID,
 		&user.IsActive,
 		&user.Username,
 		&user.Email,
@@ -215,7 +215,7 @@ func (p *pg) GetUserWithSession(ctx context.Context, sessionId string) (*types.U
 		return nil, fmt.Errorf("ERR_SESSION_NOT_FOUND: %w", err)
 	}
 	if user.Identities == nil {
-		user.Identities = make(types.Identities)
+		user.Identities = make(v2_types.Identities)
 	}
 
 	return &user, nil
@@ -223,8 +223,8 @@ func (p *pg) GetUserWithSession(ctx context.Context, sessionId string) (*types.U
 
 // UpdateUser
 // update users set username = $1, email = $2, updated_at = $3 where username = $4
-func (p *pg) UpdateUser(ctx context.Context, u *types.User) error {
-	if _, err := uuid.Parse(u.Id); err != nil {
+func (p *pg) UpdateUser(ctx context.Context, u *v2_types.User) error {
+	if _, err := uuid.Parse(u.ID); err != nil {
 		return fmt.Errorf("invalid user id")
 	}
 
@@ -240,7 +240,7 @@ func (p *pg) UpdateUser(ctx context.Context, u *types.User) error {
 		u.WebauthnConnected,
 		u.GithubConnected,
 		u.Identities,
-		u.Id,
+		u.ID,
 	)
 	if err != nil {
 		return fmt.Errorf("error updating user: %s", err)

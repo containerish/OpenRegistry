@@ -9,6 +9,7 @@ CREATE TABLE "config" (
 	"size" int,
 	"created_at" timestamp,
 	"updated_at" timestamp,
+  "repository_id" uuid references repository(id),
 	PRIMARY KEY(namespace, reference)
 );
 

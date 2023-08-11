@@ -3,7 +3,7 @@ package vcs
 import (
 	"context"
 
-	"github.com/containerish/OpenRegistry/types"
+	"github.com/containerish/OpenRegistry/store/v2/types"
 	pgx "github.com/jackc/pgx/v4"
 	"github.com/labstack/echo/v4"
 )

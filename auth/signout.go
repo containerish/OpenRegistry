@@ -47,7 +47,7 @@ func (a *auth) SignOut(ctx echo.Context) error {
 	sessionUUID := parts[0]
 	userId := parts[1]
 
-	if err = a.pgStore.DeleteSession(ctx.Request().Context(), sessionUUID, userId); err != nil {
+	if err = a.sessionStore.DeleteSession(ctx.Request().Context(), sessionUUID, userId); err != nil {
 		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error":   err.Error(),
 			"message": "could not delete sessions",

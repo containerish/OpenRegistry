@@ -11,6 +11,7 @@ import (
 	"github.com/containerish/OpenRegistry/config"
 	"github.com/containerish/OpenRegistry/services/email"
 	"github.com/containerish/OpenRegistry/store/postgres"
+	v2_types "github.com/containerish/OpenRegistry/store/v2/types"
 	"github.com/containerish/OpenRegistry/types"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
@@ -19,7 +20,7 @@ import (
 func (a *auth) SignUp(ctx echo.Context) error {
 	ctx.Set(types.HandlerStartTime, time.Now())
 
-	var u types.User
+	var u v2_types.User
 	if err := json.NewDecoder(ctx.Request().Body).Decode(&u); err != nil {
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error":   err.Error(),
@@ -60,8 +61,8 @@ func (a *auth) SignUp(ctx echo.Context) error {
 		return echoErr
 	}
 
-	newUser := &types.User{
-		Id:        id.String(),
+	newUser := &v2_types.User{
+		ID:        id.String(),
 		UpdatedAt: time.Now(),
 		CreatedAt: time.Now(),
 		Password:  u.Password,
@@ -122,7 +123,7 @@ func (a *auth) SignUp(ctx echo.Context) error {
 		return echoErr
 
 	}
-	err = a.pgStore.AddVerifyEmail(ctx.Request().Context(), token.String(), newUser.Id)
+	err = a.emailStore.AddVerifyEmail(ctx.Request().Context(), token.String(), newUser.ID)
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error":   err.Error(),

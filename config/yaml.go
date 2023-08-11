@@ -12,11 +12,14 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-func ReadYamlConfig() (*OpenRegistryConfig, error) {
+func ReadYamlConfig(configPath string) (*OpenRegistryConfig, error) {
 	viper.SetConfigName("config")
 	viper.SetConfigType("yaml")
 	viper.AddConfigPath(".")
 	viper.AddConfigPath("$HOME/.openregistry")
+	if configPath != "" {
+		viper.SetConfigFile(configPath)
+	}
 
 	var cfg OpenRegistryConfig
 	// OPENREGISTRY_CONFIG env variable takes precedence over everything

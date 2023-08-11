@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/containerish/OpenRegistry/config"
+	v2_types "github.com/containerish/OpenRegistry/store/v2/types"
 	"github.com/containerish/OpenRegistry/types"
 	"github.com/fatih/color"
 	"github.com/go-webauthn/webauthn/webauthn"
@@ -30,19 +31,19 @@ type PostgresConnCloser interface {
 }
 
 type UserReader interface {
-	GetUser(ctx context.Context, identifier string, wihtPassword bool, txn pgx.Tx) (*types.User, error)
-	GetUserById(ctx context.Context, userId string, wihtPassword bool, txn pgx.Tx) (*types.User, error)
-	GetUserWithSession(ctx context.Context, sessionId string) (*types.User, error)
+	GetUser(ctx context.Context, identifier string, wihtPassword bool, txn pgx.Tx) (*v2_types.User, error)
+	GetUserById(ctx context.Context, userId string, wihtPassword bool, txn pgx.Tx) (*v2_types.User, error)
+	GetUserWithSession(ctx context.Context, sessionId string) (*v2_types.User, error)
 	IsActive(ctx context.Context, identifier string) bool
 	GetVerifyEmail(ctx context.Context, userId string) (string, error)
 	// ID can be either a username, oauth login (GitHub username) or the user id (uuid)
 	UserExists(ctx context.Context, username, email string) (bool, bool)
-	GetGitHubUser(ctx context.Context, identifier string, txn pgx.Tx) (*types.User, error)
+	GetGitHubUser(ctx context.Context, identifier string, txn pgx.Tx) (*v2_types.User, error)
 }
 
 type UserWriter interface {
-	AddUser(ctx context.Context, u *types.User, txn pgx.Tx) error
-	UpdateUser(ctx context.Context, u *types.User) error
+	AddUser(ctx context.Context, u *v2_types.User, txn pgx.Tx) error
+	UpdateUser(ctx context.Context, u *v2_types.User) error
 	UpdateUserPWD(ctx context.Context, identifier string, newPassword string) error
 	AddSession(ctx context.Context, sessionId, refreshToken, owner string) error
 	AddVerifyEmail(ctx context.Context, userId, token string) error
@@ -90,11 +91,12 @@ type RegistryStore interface {
 	DeleteLayerV2(ctx context.Context, txn pgx.Tx, digest string) error
 	DeleteBlobV2(ctx context.Context, txn pgx.Tx, digest string) error
 	DeleteManifestOrTag(ctx context.Context, txn pgx.Tx, reference string) error
+	SetContainerImageVisibility(ctx context.Context, imageId string, visibility v2_types.RepositoryVisibility) error
 }
 
 type SessionStore interface {
 	AddSession(ctx context.Context, id, refreshToken, username string) error
-	GetSession(ctx context.Context, sessionId string) (*types.Session, error)
+	GetSession(ctx context.Context, sessionId string) (*v2_types.Session, error)
 	DeleteSession(ctx context.Context, sessionId, userId string) error
 	DeleteAllSessions(ctx context.Context, userId string) error
 }

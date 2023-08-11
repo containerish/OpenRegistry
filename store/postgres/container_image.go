@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/containerish/OpenRegistry/store/postgres/queries"
+	types_v2 "github.com/containerish/OpenRegistry/store/v2/types"
 	"github.com/containerish/OpenRegistry/types"
 	"github.com/jackc/pgx/v4"
 	"github.com/labstack/echo/v4"
@@ -518,4 +519,20 @@ func (p *pg) GetImageNamespace(ctx context.Context, search string) ([]*types.Ima
 		result = append(result, &mf)
 	}
 	return result, nil
+}
+
+func (p *pg) SetContainerImageVisibility(
+	ctx context.Context,
+	imageId string,
+	visibility types_v2.RepositoryVisibility,
+) error {
+	childCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	_, err := p.conn.Exec(childCtx, queries.UpdateContainerImageVisibility, visibility.String(), imageId)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

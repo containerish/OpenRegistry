@@ -49,6 +49,9 @@ const (
 	// Catalog is used to list the available repositories
 	Catalog = "/_catalog"
 
+	// PublicCatalog is used to list the available public repositories
+	PublicCatalog = "/_catalog/public"
+
 	// Prefix for Extensions
 	Ext = "/ext"
 
@@ -63,4 +66,6 @@ const (
 	CatalogDetail = C + "/detail"
 
 	RepositoryDetail = C + "/repository"
+
+	ChangeRepositoryVisibility = Ext + "/repository/visibility"
 )

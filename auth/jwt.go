@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/containerish/OpenRegistry/types"
+	"github.com/containerish/OpenRegistry/store/v2/types"
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/oauth2"
 )
@@ -134,7 +134,7 @@ func (a *auth) newServiceToken(u types.User) (string, error) {
 	opts := &CreateClaimOptions{
 		Audience: a.c.Registry.FQDN,
 		Issuer:   OpenRegistryIssuer,
-		Id:       u.Id,
+		Id:       u.ID,
 		TokeType: "service_token",
 		Acl:      acl,
 	}
@@ -211,11 +211,11 @@ func (a *auth) createServiceClaims(u types.User) ServiceClaims {
 		RegisteredClaims: jwt.RegisteredClaims{
 			Audience:  jwt.ClaimStrings{a.c.Endpoint()},
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 750)),
-			ID:        u.Id,
+			ID:        u.ID,
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			Issuer:    "OpenRegistry",
 			NotBefore: jwt.NewNumericDate(time.Now()),
-			Subject:   u.Id,
+			Subject:   u.ID,
 		},
 		Access: AccessList{
 			{
@@ -283,7 +283,7 @@ func (a *auth) newToken(u *types.User) (string, error) {
 	opts := &CreateClaimOptions{
 		Audience: a.c.Registry.FQDN,
 		Issuer:   OpenRegistryIssuer,
-		Id:       u.Id,
+		Id:       u.ID,
 		TokeType: "access_token",
 		Acl:      acl,
 	}

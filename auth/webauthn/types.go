@@ -1,7 +1,7 @@
 package webauthn
 
 import (
-	"github.com/containerish/OpenRegistry/types"
+	"github.com/containerish/OpenRegistry/store/v2/types"
 	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/go-webauthn/webauthn/webauthn"
 	"github.com/google/uuid"
@@ -22,7 +22,7 @@ type (
 // WebAuthnID - User ID according to the Relying Party
 // TODO(jay-dee7): This will panic if the uuid is not in the requited format
 func (u *WebAuthnUser) WebAuthnID() []byte {
-	userID := uuid.MustParse(u.Id)
+	userID := uuid.MustParse(u.ID)
 	return userID[:]
 }
 

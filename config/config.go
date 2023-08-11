@@ -229,9 +229,13 @@ func translateError(err error, trans ut.Translator) error {
 
 func (sc *Store) Endpoint() string {
 	return fmt.Sprintf(
-		"postgres://%s:%s@%s:%d/%s?pool_max_conns=1000&sslmode=disable",
+		"postgres://%s:%s@%s:%d/%s?sslmode=disable",
 		sc.User, sc.Password, sc.Host, sc.Port, sc.Database,
 	)
+	// return fmt.Sprintf(
+	// 	"postgres://%s:%s@%s:%d/%s?pool_max_conns=1000&sslmode=disable",
+	// 	sc.User, sc.Password, sc.Host, sc.Port, sc.Database,
+	// )
 }
 
 func (oc *OpenRegistryConfig) Endpoint() string {

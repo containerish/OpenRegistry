@@ -139,7 +139,17 @@ func (ms *mockStorage) AddImage(ns string, mf, l map[string][]byte) (string, err
 }
 
 func (ms *mockStorage) Metadata(identifier string) (*skynet.Metadata, error) {
-	fd, err := ms.memFs.Open(identifier)
+	var (
+		fd  afero.File
+		err error
+	)
+	parts := strings.Split(identifier, "/")
+	if len(parts) > 1 {
+		fd, err = ms.memFs.Open(parts[1])
+		if err != nil {
+			fd, err = ms.memFs.Open(identifier)
+		}
+	}
 	if err != nil {
 		return nil, err
 	}

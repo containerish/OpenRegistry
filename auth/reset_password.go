@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/containerish/OpenRegistry/services/email"
+	v2_types "github.com/containerish/OpenRegistry/store/v2/types"
 	"github.com/containerish/OpenRegistry/types"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/jackc/pgx/v4"
@@ -48,7 +49,7 @@ func (a *auth) ResetForgottenPassword(ctx echo.Context) error {
 	defer ctx.Request().Body.Close()
 
 	userId := c.ID
-	user, err := a.pgStore.GetUserById(ctx.Request().Context(), userId, true, nil)
+	user, err := a.pgStore.GetUserByID(ctx.Request().Context(), userId)
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusNotFound, echo.Map{
 			"error":   err.Error(),
@@ -58,7 +59,7 @@ func (a *auth) ResetForgottenPassword(ctx echo.Context) error {
 		return echoErr
 	}
 
-	if err = types.ValidatePassword(pwd.NewPassword); err != nil {
+	if err = v2_types.ValidatePassword(pwd.NewPassword); err != nil {
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error": err.Error(),
 			"message": `password must be alphanumeric, at least 8 chars long, must have at least one special character
@@ -141,7 +142,7 @@ func (a *auth) ResetPassword(ctx echo.Context) error {
 	defer ctx.Request().Body.Close()
 
 	userId := c.ID
-	user, err := a.pgStore.GetUserById(ctx.Request().Context(), userId, true, nil)
+	user, err := a.pgStore.GetUserByID(ctx.Request().Context(), userId)
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusNotFound, echo.Map{
 			"error":   err.Error(),
@@ -183,7 +184,7 @@ func (a *auth) ResetPassword(ctx echo.Context) error {
 		return echoErr
 	}
 
-	if err = types.ValidatePassword(pwd.NewPassword); err != nil {
+	if err = v2_types.ValidatePassword(pwd.NewPassword); err != nil {
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error": err.Error(),
 			"message": `password must be alphanumeric, at least 8 chars long, must have at least one special character
@@ -220,7 +221,7 @@ func (a *auth) ForgotPassword(ctx echo.Context) error {
 		return echoErr
 	}
 
-	user, err := a.pgStore.GetUser(ctx.Request().Context(), userEmail, false, nil)
+	user, err := a.pgStore.GetUserByEmail(ctx.Request().Context(), userEmail)
 	if err != nil {
 		if errors.Unwrap(err) == pgx.ErrNoRows {
 			echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
@@ -246,7 +247,7 @@ func (a *auth) ForgotPassword(ctx echo.Context) error {
 	}
 
 	opts := &WebLoginJWTOptions{
-		Id:        user.Id,
+		Id:        user.ID,
 		Username:  user.Username,
 		TokenType: "access_token",
 		Audience:  a.c.Registry.FQDN,

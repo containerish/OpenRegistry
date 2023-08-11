@@ -6,7 +6,7 @@ import (
 
 	connect_go "github.com/bufbuild/connect-go"
 	github_actions_v1 "github.com/containerish/OpenRegistry/services/kon/github_actions/v1"
-	"github.com/containerish/OpenRegistry/types"
+	"github.com/containerish/OpenRegistry/store/v2/types"
 	"github.com/containerish/OpenRegistry/vcs/github"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -110,7 +110,7 @@ func (ghs *GitHubActionsServer) ListProjects(
 		return nil, connect_go.NewError(connect_go.CodeInvalidArgument, err)
 	}
 
-	req.Msg.UserId = user.Id
+	req.Msg.UserId = user.ID
 
 	projects, err := ghs.store.ListProjects(ctx, req.Msg)
 	if err != nil {

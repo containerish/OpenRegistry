@@ -6,6 +6,8 @@ import (
 	"regexp"
 
 	"github.com/containerish/OpenRegistry/registry/v2"
+	registry_store "github.com/containerish/OpenRegistry/store/v2/registry"
+	"github.com/containerish/OpenRegistry/store/v2/types"
 	"github.com/labstack/echo/v4"
 	dist_spec "github.com/opencontainers/distribution-spec/specs-go/v1"
 )
@@ -18,7 +20,7 @@ func registryNamespaceValidator() echo.MiddlewareFunc {
 			username := ctx.Param("username")
 			imageName := ctx.Param("imagename")
 
-			err := dist_spec.ErrorResponse{
+			registryErr := dist_spec.ErrorResponse{
 				Errors: []dist_spec.ErrorInfo{
 					{
 						Code:    registry.RegistryErrorCodeNameInvalid,
@@ -27,7 +29,7 @@ func registryNamespaceValidator() echo.MiddlewareFunc {
 					},
 				},
 			}
-			errBz, _ := json.Marshal(err)
+			errBz, _ := json.Marshal(registryErr)
 
 			namespace := username + "/" + imageName
 			if username == "" || imageName == "" || !nsRegex.MatchString(namespace) {
@@ -60,6 +62,36 @@ func registryReferenceOrTagValidator() echo.MiddlewareFunc {
 
 				errBz, _ := json.Marshal(err)
 				return ctx.JSONBlob(http.StatusBadRequest, errBz)
+			}
+
+			return next(ctx)
+		}
+	}
+}
+
+func progagatRepository(store registry_store.RegistryStore) echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(ctx echo.Context) error {
+			imageName := ctx.Param("imagename")
+
+			user, ok := ctx.Get(string(types.UserContextKey)).(*types.User)
+			if !ok {
+				registryErr := dist_spec.ErrorResponse{
+					Errors: []dist_spec.ErrorInfo{
+						{
+							Code:    registry.RegistryErrorCodeUnauthorized,
+							Message: "Unauthorized",
+							Detail:  "User is not found in request context",
+						},
+					},
+				}
+				errBz, _ := json.Marshal(registryErr)
+				return ctx.JSONBlob(http.StatusBadRequest, errBz)
+			}
+
+			repository, err := store.GetRepositoryByName(ctx.Request().Context(), user.ID, imageName)
+			if err == nil {
+				ctx.Set(string(types.UserRepositoryContextKey), repository)
 			}
 
 			return next(ctx)
