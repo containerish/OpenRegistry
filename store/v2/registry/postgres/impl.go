@@ -57,11 +57,20 @@ func (s *registryStore) GetRepositoryByID(ctx context.Context, id string) (*type
 	return repository, nil
 }
 
-func (s *registryStore) GetRepositoryByNamespace(ctx context.Context, namespace string) (*types.ContainerImageRepository, error) {
+func (s *registryStore) GetRepositoryByNamespace(
+	ctx context.Context,
+	namespace string,
+) (*types.ContainerImageRepository, error) {
 	logEvent := s.logger.Debug().Str("method", "GetRepositoryByNamespace").Str("namespace", namespace)
 
 	repository := &types.ContainerImageRepository{}
-	if err := s.db.NewSelect().Model(repository).Where("name = ?", strings.Split(namespace, "/")[1]).Scan(ctx); err != nil {
+	err := s.
+		db.
+		NewSelect().
+		Model(repository).
+		Where("name = ?", strings.Split(namespace, "/")[1]).
+		Scan(ctx)
+	if err != nil {
 		logEvent.Err(err).Send()
 		return nil, v2.WrapDatabaseError(err, v2.DatabaseOperationRead)
 	}
@@ -70,7 +79,11 @@ func (s *registryStore) GetRepositoryByNamespace(ctx context.Context, namespace 
 	return repository, nil
 }
 
-func (s *registryStore) GetRepositoryByName(ctx context.Context, userId, name string) (*types.ContainerImageRepository, error) {
+func (s *registryStore) GetRepositoryByName(
+	ctx context.Context,
+	userId,
+	name string,
+) (*types.ContainerImageRepository, error) {
 	logEvent := s.logger.Debug().Str("method", "GetRepositoryByNamespace").Str("name", name).Str("user_id", userId)
 
 	var repository types.ContainerImageRepository
@@ -215,8 +228,8 @@ func (s *registryStore) GetPublicRepositories(
 	repoPtrList := make([]*types.ContainerImageRepository, len(repositories))
 
 	for _, repo := range repositories {
-		repo := &repo
-		repoPtrList = append(repoPtrList, repo)
+		repo := repo
+		repoPtrList = append(repoPtrList, &repo)
 	}
 
 	return repoPtrList, nil
@@ -305,7 +318,14 @@ func (s *registryStore) GetImageTags(ctx context.Context, namespace string) ([]s
 	logEvent := s.logger.Debug().Str("methid", "GetImageTags").Str("namespace", namespace)
 	var manifests []*types.ImageManifest
 
-	err := s.db.NewSelect().Model(&manifests).Relation("Repository").Column("reference").Where("name = ?", strings.Split(namespace, "/")[1]).Scan(ctx)
+	err := s.
+		db.
+		NewSelect().
+		Model(&manifests).
+		Relation("Repository").
+		Column("reference").
+		Where("name = ?", strings.Split(namespace, "/")[1]).
+		Scan(ctx)
 	if err != nil {
 		logEvent.Err(err).Send()
 		return nil, v2.WrapDatabaseError(err, v2.DatabaseOperationRead)

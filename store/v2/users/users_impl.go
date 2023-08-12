@@ -122,7 +122,14 @@ func (us *userStore) GetUserByUsernameWithTxn(ctx context.Context, username stri
 // GetUserWithSession implements UserStore.
 func (us *userStore) GetUserWithSession(ctx context.Context, sessionId string) (*types.User, error) {
 	user := &types.User{}
-	if err := us.db.NewSelect().Model(user).Relation("Sessions").Where("sesssion_id = ? ", sessionId).Scan(ctx); err != nil {
+	err := us.
+		db.
+		NewSelect().
+		Model(user).
+		Relation("Sessions").
+		Where("sesssion_id = ? ", sessionId).
+		Scan(ctx)
+	if err != nil {
 		return nil, v2.WrapDatabaseError(err, v2.DatabaseOperationRead)
 	}
 
@@ -162,7 +169,7 @@ func (us *userStore) UserExists(ctx context.Context, username string, email stri
 
 func (us *userStore) githubUserExists(ctx context.Context, username, email string) bool {
 	var exists bool
-	us.
+	err := us.
 		db.
 		NewSelect().
 		Model(&types.User{}).
@@ -172,13 +179,16 @@ func (us *userStore) githubUserExists(ctx context.Context, username, email strin
 			bun.Ident(username),
 		).
 		Scan(ctx, &exists)
+	if err != nil {
+		return false
+	}
 
 	return exists
 }
 
 func (us *userStore) webAuthnUserExists(ctx context.Context, username, email string) bool {
 	var exists bool
-	us.
+	err := us.
 		db.
 		NewSelect().
 		Model(&types.User{}).
@@ -188,6 +198,9 @@ func (us *userStore) webAuthnUserExists(ctx context.Context, username, email str
 			bun.Ident(username),
 		).
 		Scan(ctx, &exists)
+	if err != nil {
+		return false
+	}
 
 	return exists
 }

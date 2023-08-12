@@ -10,6 +10,7 @@ import (
 )
 
 // A collection of migrations.
+// nolint
 var Migrations = migrate.NewMigrations(migrate.WithMigrationsDirectory("store/v2/migrations"))
 
 func PerformMigrations(ctx context.Context, db *bun.DB) {
@@ -25,7 +26,9 @@ func PerformMigrations(ctx context.Context, db *bun.DB) {
 	if err := migrator.Lock(ctx); err != nil {
 		panic(color.RedString("error while locking the database for migrations: %s", err))
 	}
-	defer migrator.Unlock(ctx)
+	defer func() {
+		_ = migrator.Unlock(ctx)
+	}()
 
 	group, err := migrator.Migrate(ctx)
 	if err != nil && !strings.Contains(err.Error(), "there are no migrations") {

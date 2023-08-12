@@ -15,12 +15,14 @@ type (
 	User struct {
 		bun.BaseModel `bun:"table:users,alias:u" json:"-"`
 
-		UpdatedAt           time.Time                   `bun:"updated_at" json:"updated_at,omitempty" validate:"-"`
-		CreatedAt           time.Time                   `bun:"created_at" json:"created_at,omitempty" validate:"-"`
-		Identities          Identities                  `bun:"identities" json:"identities"`
-		ID                  string                      `bun:"id,type:uuid,pk" json:"id,omitempty" validate:"-"`
-		Password            string                      `bun:"password" json:"password,omitempty"`
-		Username            string                      `bun:"username,notnull,unique" json:"username,omitempty" validate:"-"`
+		UpdatedAt  time.Time  `bun:"updated_at" json:"updated_at,omitempty" validate:"-"`
+		CreatedAt  time.Time  `bun:"created_at" json:"created_at,omitempty" validate:"-"`
+		Identities Identities `bun:"identities" json:"identities"`
+		ID         string     `bun:"id,type:uuid,pk" json:"id,omitempty" validate:"-"`
+		Password   string     `bun:"password" json:"password,omitempty"`
+		//nolint
+		Username string `bun:"username,notnull,unique" json:"username,omitempty" validate:"-"`
+		//nolint
 		Email               string                      `bun:"email,notnull,unique" json:"email,omitempty" validate:"email"`
 		Repositories        []*ContainerImageRepository `bun:"rel:has-many,join:id=owner_id"`
 		Sessions            []*Session                  `bun:"rel:has-many,join:id=owner_id"`
@@ -36,12 +38,10 @@ type (
 
 	Session struct {
 		bun.BaseModel `bun:"table:sessions,alias:s" json:"-"`
-
-		// User         *User  `bun:"rel:belongs-to,join:owner_id=id"`
-		User         *User
-		Id           string `bun:"id,type:uuid,pk" json:"id"`
-		RefreshToken string `bun:"refresh_token" json:"refresh_token"`
-		OwnerID      string `bun:"owner_id,type:uuid" json:"-"`
+		User          *User  `bun:"rel:belongs-to,join:owner_id=id"`
+		Id            string `bun:"id,type:uuid,pk" json:"id"`
+		RefreshToken  string `bun:"refresh_token" json:"refresh_token"`
+		OwnerID       string `bun:"owner_id,type:uuid" json:"-"`
 	}
 
 	Identities   map[string]*UserIdentity
@@ -62,7 +62,7 @@ type (
 	}
 )
 
-var (
+const (
 	UserContextKey           ContextKey = "UserContextKey"
 	UserClaimsContextKey     ContextKey = "UserClaimsContextKey"
 	UserRepositoryContextKey ContextKey = "UserRepositoryContextKey"

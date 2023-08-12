@@ -29,7 +29,9 @@ func (rs *registryStore) Ping(ctx context.Context) error {
 	return rs.db.PingContext(ctx)
 }
 
-func NewStore(dsn string, maxOpenConns int, logger telemetry.Logger, env config.Environment) registry_store_v2.RegistryStore {
+func NewStore(
+	dsn string, maxOpenConns int, logger telemetry.Logger, env config.Environment,
+) registry_store_v2.RegistryStore {
 	var (
 		dialect schema.Dialect
 		sqlDB   *sql.DB

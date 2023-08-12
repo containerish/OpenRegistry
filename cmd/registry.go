@@ -38,7 +38,14 @@ func NewRegistryCommand() *cli.Command {
 		Usage:   "start the OpenRegistry server",
 		Flags: []cli.Flag{
 			&cli.BoolFlag{Name: "daemon", Value: false, Usage: "Run the OpenRegistry server in background"},
-			&cli.StringFlag{Name: "config-file", Value: "$HOME/.openregistry/config.yaml", Usage: "Path to the OpenRegistry config file", FilePath: "$HOME/.openregistry/config.yaml", TakesFile: true, Aliases: []string{"c"}},
+			&cli.StringFlag{
+				Name:      "config-file",
+				Value:     "$HOME/.openregistry/config.yaml",
+				Usage:     "Path to the OpenRegistry config file",
+				FilePath:  "$HOME/.openregistry/config.yaml",
+				TakesFile: true,
+				Aliases:   []string{"c"},
+			},
 			&cli.StringFlag{Name: "log-format", Value: "pretty", Usage: "One of: pretty, json"},
 			&cli.StringFlag{Name: "log-level", Value: "info", Usage: "One of: info, debug"},
 		},

@@ -22,7 +22,12 @@ func NewStore(db *bun.DB) WebAuthnStore {
 type WebAuthnStore interface {
 	GetWebAuthnSessionData(ctx context.Context, userId string, sessionType string) (*webauthn.SessionData, error)
 	GetWebAuthnCredentials(ctx context.Context, userId string) (*webauthn.Credential, error)
-	AddWebAuthSessionData(ctx context.Context, userId string, sessionData *webauthn.SessionData, sessionType string) error
+	AddWebAuthSessionData(
+		ctx context.Context,
+		userId string,
+		sessionData *webauthn.SessionData,
+		sessionType string,
+	) error
 	AddWebAuthnCredentials(ctx context.Context, userId string, credential *webauthn.Credential) error
 	RemoveWebAuthSessionData(ctx context.Context, credentialOwnerID string) error
 	WebauthnUserExists(ctx context.Context, email, username string) bool
@@ -55,7 +60,10 @@ func (ws *webauthnStore) GetWebAuthnSessionData(
 	}, nil
 }
 
-func (ws *webauthnStore) GetWebAuthnCredentials(ctx context.Context, credentialOwnerId string) (*webauthn.Credential, error) {
+func (ws *webauthnStore) GetWebAuthnCredentials(
+	ctx context.Context,
+	credentialOwnerId string,
+) (*webauthn.Credential, error) {
 	credential := &types.WebauthnCredential{}
 	_, err := ws.
 		db.
@@ -102,7 +110,11 @@ func (ws *webauthnStore) AddWebAuthSessionData(
 	return nil
 }
 
-func (ws *webauthnStore) AddWebAuthnCredentials(ctx context.Context, userId string, wanCred *webauthn.Credential) error {
+func (ws *webauthnStore) AddWebAuthnCredentials(
+	ctx context.Context,
+	userId string,
+	wanCred *webauthn.Credential,
+) error {
 	credential := types.WebauthnCredential{
 		Authenticator:     wanCred.Authenticator,
 		CredentialOwnerID: userId,
@@ -137,7 +149,7 @@ func (ws *webauthnStore) RemoveWebAuthSessionData(ctx context.Context, credentia
 
 func (ws *webauthnStore) WebauthnUserExists(ctx context.Context, email, username string) bool {
 	var exists bool
-	ws.
+	err := ws.
 		db.
 		NewSelect().
 		Model(&types.User{}).
@@ -147,6 +159,9 @@ func (ws *webauthnStore) WebauthnUserExists(ctx context.Context, email, username
 			bun.Ident(username),
 		).
 		Scan(ctx, &exists)
+	if err != nil {
+		return false
+	}
 
 	return exists
 }

@@ -88,7 +88,13 @@ func (ext *extension) CatalogDetail(ctx echo.Context) error {
 		return echoErr
 	}
 
-	catalogWithDetail, err := ext.store.GetCatalogDetail(ctx.Request().Context(), namespace, int(pageSize), int(offset), sortBy)
+	catalogWithDetail, err := ext.store.GetCatalogDetail(
+		ctx.Request().Context(),
+		namespace,
+		int(pageSize),
+		int(offset),
+		sortBy,
+	)
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error": err.Error(),

@@ -11,15 +11,17 @@ import (
 type WebauthnSession struct {
 	bun.BaseModel `bun:"table:webauthn_session" json:"-"`
 
-	Expires              time.Time                            `bun:"expires" json:"expires"`
-	Extensions           protocol.AuthenticationExtensions    `bun:"extensions,type:jsonb" json:"extensions"`
-	User                 *User                                `bun:"rel:belongs-to,join:user_id=id"`
-	Challege             string                               `bun:"challenge" json:"challenge"`
-	CredentialOwnerID    string                               `bun:"credential_owner_id,type:uuid" json:"credential_owner_id"`
-	UserVerification     protocol.UserVerificationRequirement `bun:"user_verification" json:"user_verification"`
-	SessionType          string                               `bun:"session_type" json:"session_type"`
-	UserID               []byte                               `bun:"user_id" json:"user_id"`
-	AllowedCredentialIDs [][]byte                             `bun:"allowed_credential_ids" json:"allowed_credential_ids"`
+	Expires    time.Time                         `bun:"expires" json:"expires"`
+	Extensions protocol.AuthenticationExtensions `bun:"extensions,type:jsonb" json:"extensions"`
+	User       *User                             `bun:"rel:belongs-to,join:user_id=id"`
+	Challege   string                            `bun:"challenge" json:"challenge"`
+	//nolint
+	CredentialOwnerID string                               `bun:"credential_owner_id,type:uuid" json:"credential_owner_id"`
+	UserVerification  protocol.UserVerificationRequirement `bun:"user_verification" json:"user_verification"`
+	SessionType       string                               `bun:"session_type" json:"session_type"`
+	UserID            []byte                               `bun:"user_id" json:"user_id"`
+	//nolint
+	AllowedCredentialIDs [][]byte `bun:"allowed_credential_ids" json:"allowed_credential_ids"`
 }
 
 type WebauthnCredential struct {
