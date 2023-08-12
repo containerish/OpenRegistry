@@ -49,7 +49,8 @@ func newMigrationsRunCommand() *cli.Command {
 			},
 		},
 		Action: func(ctx *cli.Context) error {
-			db := getOpenRegistryDB(ctx)
+			connector := getOpenRegistryConnector(ctx)
+			db := getOpenRegistryDB(connector)
 			migrations.PerformMigrations(ctx.Context, db)
 			return nil
 		},
@@ -86,13 +87,15 @@ func newDatabaseInitCommand() *cli.Command {
 			},
 		},
 		Action: func(ctx *cli.Context) error {
-			adminDB := getAdminBunDB(ctx)
+			adminConnector := getAdminConnector(ctx)
+			adminDB := getAdminBunDB(adminConnector)
 			_, err := adminDB.Exec("create database open_registry")
 			if err != nil && !strings.Contains(err.Error(), "SQLSTATE=42P04") {
 				return err
 			}
 
-			openRegistryDB := getOpenRegistryDB(ctx)
+			openregistryConnector := getOpenRegistryConnector(ctx)
+			openRegistryDB := getOpenRegistryDB(openregistryConnector)
 
 			migrator := migrations.NewMigrator(openRegistryDB)
 			if err = migrator.Init(ctx.Context); err != nil {
@@ -130,7 +133,11 @@ func newDatabaseInitCommand() *cli.Command {
 			color.Green(`Alter "reference,repository_id" to add unique group constraint done ✔︎`)
 
 			_, err = openRegistryDB.
-				ExecContext(ctx.Context, "GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO open_registry_user")
+				ExecContext(
+					ctx.Context,
+					"GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO ?",
+					bun.Ident(openregistryConnector.Config().User),
+				)
 			if err != nil {
 				return errors.New(
 					color.RedString("Action=GrantPrivleges Created=❌ Error=%s", err),
@@ -149,8 +156,16 @@ func newMigrationsGenrateCommand() *cli.Command {
 		Usage:   "Generate database migration files",
 		Aliases: []string{"gen", "ge"},
 		Flags: []cli.Flag{
-			&cli.StringFlag{Name: "openregistry-db-dsn", Value: "postgres://localhost:5432/open_registry", Required: true},
-			&cli.StringFlag{Name: "name", Value: "column_name", Required: true},
+			&cli.StringFlag{
+				Name:     "openregistry-db-dsn",
+				Value:    "postgres://localhost:5432/open_registry",
+				Required: true,
+			},
+			&cli.StringFlag{
+				Name:     "name",
+				Value:    "column_name",
+				Required: true,
+			},
 			&cli.StringFlag{
 				Name:     "operation",
 				Value:    "add",
@@ -162,7 +177,8 @@ func newMigrationsGenrateCommand() *cli.Command {
 		Action: func(ctx *cli.Context) error {
 			name := ctx.String("name")
 			operation := ctx.String("operation")
-			db := getOpenRegistryDB(ctx)
+			connector := getOpenRegistryConnector(ctx)
+			db := getOpenRegistryDB(connector)
 			migrator := migrations.NewMigrator(db)
 
 			migrationFile, err := migrator.CreateGoMigration(
@@ -185,10 +201,15 @@ func newDatabaseResetCommand() *cli.Command {
 		Aliases: []string{"re"},
 		Usage:   "Re-initialise the database, first delete everything & then create tables, roles, indexes, etc",
 		Flags: []cli.Flag{
-			&cli.StringFlag{Name: "openregistry-db-dsn", Value: "postgres://localhost:5432/open_registry", Required: true},
+			&cli.StringFlag{
+				Name:     "openregistry-db-dsn",
+				Value:    "postgres://localhost:5432/open_registry",
+				Required: true,
+			},
 		},
 		Action: func(ctx *cli.Context) error {
-			db := getOpenRegistryDB(ctx)
+			connector := getOpenRegistryConnector(ctx)
+			db := getOpenRegistryDB(connector)
 
 			return db.ResetModel(
 				ctx.Context,
@@ -205,9 +226,18 @@ func newDatabaseResetCommand() *cli.Command {
 	}
 }
 
-func getOpenRegistryDB(ctx *cli.Context) *bun.DB {
+func getOpenRegistryConnector(ctx *cli.Context) *pgdriver.Connector {
 	dsn := ctx.String("openregistry-db-dsn")
-	sqlDB := sql.OpenDB(pgdriver.NewConnector(pgdriver.WithDSN(dsn), pgdriver.WithInsecure(true)))
+	return pgdriver.NewConnector(pgdriver.WithDSN(dsn), pgdriver.WithInsecure(true))
+}
+
+func getAdminConnector(ctx *cli.Context) *pgdriver.Connector {
+	dsn := ctx.String("admin-db-dsn")
+	return pgdriver.NewConnector(pgdriver.WithDSN(dsn), pgdriver.WithInsecure(true))
+}
+
+func getOpenRegistryDB(connector *pgdriver.Connector) *bun.DB {
+	sqlDB := sql.OpenDB(connector)
 	bunWrappedDB := bun.NewDB(sqlDB, pgdialect.New())
 	if err := bunWrappedDB.Ping(); err != nil {
 		color.Red("error connecting to database: %s", err)
@@ -221,9 +251,8 @@ func getOpenRegistryDB(ctx *cli.Context) *bun.DB {
 	return bunWrappedDB
 }
 
-func getAdminBunDB(ctx *cli.Context) *bun.DB {
-	dsn := ctx.String("admin-db-dsn")
-	sqlDB := sql.OpenDB(pgdriver.NewConnector(pgdriver.WithDSN(dsn), pgdriver.WithInsecure(true)))
+func getAdminBunDB(connector *pgdriver.Connector) *bun.DB {
+	sqlDB := sql.OpenDB(connector)
 	bunWrappedDB := bun.NewDB(sqlDB, pgdialect.New())
 	if err := bunWrappedDB.Ping(); err != nil {
 		color.Red("error connecting to database: %s", err)

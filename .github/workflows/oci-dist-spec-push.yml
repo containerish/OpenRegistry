@@ -13,6 +13,12 @@ concurrency:
   group: push-${{ github.workflow }}-${{ github.head_ref || github.run_id }}
   cancel-in-progress: true
 
+env:
+  PGUSER: postgres
+  POSTGRES_DB: open_registry
+  POSTGRES_PASSWORD: Qwerty@123
+  POSTGRES_USER: postgres
+
 jobs:
   push:
     runs-on: ubuntu-latest
@@ -21,7 +27,7 @@ jobs:
         image: postgres
         env:
           PGUSER: postgres
-          POSTGRES_DB: open_registry
+          POSTGRES_DB: postgres
           POSTGRES_PASSWORD: Qwerty@123
           POSTGRES_USER: postgres
         options: >-
@@ -38,38 +44,27 @@ jobs:
           go-version-file: go.mod
           check-latest: true
           cache-dependency-path: go.sum
-      - name: Install Migrate CLI
-        run: |
-          curl -L https://github.com/golang-migrate/migrate/releases/download/v4.15.1/migrate.linux-amd64.tar.gz | tar xvz
-          sudo mv migrate /usr/bin/migrate
-      - name: Setup PostgreSQL Database
-        run: |
-          IP=`hostname -I | awk '{print $1}'`
-          POSTGRESQL_URL=postgres://$PGUSER:$PGPASSWORD@$IP:5432/$PGDATABASE?sslmode=disable
-          migrate -database ${POSTGRESQL_URL} -path db/migrations up
-        env:
-           PGDATABASE: open_registry
-           PGPASSWORD: Qwerty@123
-           PGUSER: postgres
       - name: Build and configure OpenRegistry container image
         run: |
           IP=`hostname -I | awk '{print $1}'`
-          cp config.example.yaml config.yaml
-          yq e -i '.environment = "ci"' config.yaml
-          IP=$IP yq e -i '.database.host = env(IP)' config.yaml
-          yq e -i '.dfs.mock.enabled = "true"' config.yaml
           echo "IP=$IP" >> $GITHUB_ENV
           echo "OCI_ROOT_URL=http://$IP:5000" >> $GITHUB_ENV
-          DISTRIBUTION_REF="local-distribution:v$(date +%Y%m%d%H%M%S)"
-          docker build -f ./Dockerfile -t "${DISTRIBUTION_REF}" .
+          echo "OPENREGISTRY_DB_DSN=postgres://${PGUSER}:${POSTGRES_PASSWORD}@$IP:5432/${POSTGRES_DB}" >> $GITHUB_ENV
+          echo "ADMIN_DB_DSN=postgres://${PGUSER}:${POSTGRES_PASSWORD}@${IP}:5432/postgres" >> $GITHUB_ENV
+          echo "CI_SYS_ADDR=$IP:5000" >> $GITHUB_ENV
+          cp config.example.yaml config.yaml
+          IP=$IP yq e -i '.database.host = env(IP)' config.yaml
+          PGUSER=$PGUSER yq e -i '.database.username = env(PGUSER)' config.yaml
+          POSTGRES_PASSWORD=$POSTGRES_PASSWORD yq e -i '.database.password = env(POSTGRES_PASSWORD)' config.yaml
+          yq e -i '.environment = "ci"' config.yaml
+          yq e -i '.dfs.mock.enabled = "true"' config.yaml
+          go mod download
+          go build
           make certs
-          docker run --rm -p 5000:5000 -p 8080:8080 \
-            --mount="type=bind,source=${PWD}/config.yaml,target=/home/runner/.openregistry/config.yaml" \
-            -v "$PWD/.certs:/home/runner/.certs" \
-            --env="CI_SYS_ADDR=$IP:5000" --name openregistry -d "${DISTRIBUTION_REF}"
-          sleep 5
+          ./OpenRegistry migrations init --admin-db-dsn=${ADMIN_DB_DSN} --openregistry-db-dsn=${OPENREGISTRY_DB_DSN}
+          nohup ./OpenRegistry start >> openregistry.log &
           curl -XPOST -d ${{ secrets.OPENREGISTRY_SIGNUP_PAYLOAD }} "http://${IP}:5000/auth/signup"
-          docker logs openregistry
+          cat openregistry.log
       - name: Run OCI Distribution Spec conformance tests
         if: always()
         run: |
@@ -92,7 +87,8 @@ jobs:
           OCI_DEBUG: 0
       - name: Setup tmate session if mode is debug and OpenRegistry or OCI Tests Fail
         uses: mxschmitt/action-tmate@v3
-        if:  ${{ always() && (github.event_name == 'workflow_dispatch') && inputs.debug_enabled }}
+        if: always()
+        # if:  ${{ always() && (github.event_name == 'workflow_dispatch') && inputs.debug_enabled }}
       - name: Set output report name
         id: vars
         run: echo "short_commit_hash=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
