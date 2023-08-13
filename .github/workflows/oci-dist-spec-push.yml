@@ -28,8 +28,8 @@ jobs:
         env:
           PGUSER: postgres
           POSTGRES_DB: postgres
-          POSTGRES_PASSWORD: Qwerty@123
           POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: Qwerty@123
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -42,28 +42,29 @@ jobs:
       - uses: actions/setup-go@v4
         with:
           go-version-file: go.mod
-          check-latest: true
           cache-dependency-path: go.sum
       - name: Build and configure OpenRegistry container image
         run: |
           IP=`hostname -I | awk '{print $1}'`
           echo "IP=$IP" >> $GITHUB_ENV
           echo "OCI_ROOT_URL=http://$IP:5000" >> $GITHUB_ENV
-          echo "OPENREGISTRY_DB_DSN=postgres://${PGUSER}:${POSTGRES_PASSWORD}@$IP:5432/${POSTGRES_DB}" >> $GITHUB_ENV
-          echo "ADMIN_DB_DSN=postgres://${PGUSER}:${POSTGRES_PASSWORD}@${IP}:5432/postgres" >> $GITHUB_ENV
-          echo "CI_SYS_ADDR=$IP:5000" >> $GITHUB_ENV
           cp config.example.yaml config.yaml
           IP=$IP yq e -i '.database.host = env(IP)' config.yaml
-          PGUSER=$PGUSER yq e -i '.database.username = env(PGUSER)' config.yaml
-          POSTGRES_PASSWORD=$POSTGRES_PASSWORD yq e -i '.database.password = env(POSTGRES_PASSWORD)' config.yaml
-          yq e -i '.environment = "ci"' config.yaml
           yq e -i '.dfs.mock.enabled = "true"' config.yaml
           go mod download
           go build
           make certs
-          ./OpenRegistry migrations init --admin-db-dsn=${ADMIN_DB_DSN} --openregistry-db-dsn=${OPENREGISTRY_DB_DSN}
+          ./OpenRegistry migrations init \
+            --admin-db="postgres" \
+            --admin-db-username="postgres" \
+            --admin-db-password=${POSTGRES_PASSWORD} \
+            --database=${POSTGRES_DB} \
+            --host=${IP} \
+            --password=${POSTGRES_PASSWORD} \
+            --insecure=true
           nohup ./OpenRegistry start >> openregistry.log &
-          curl -XPOST -d ${{ secrets.OPENREGISTRY_SIGNUP_PAYLOAD }} "http://${IP}:5000/auth/signup"
+          sleep 3
+          curl -XPOST -d '{"email": "johndoe@example.com", "username": "johndoe", "password": "Qwerty@123"}' "http://${IP}:5000/auth/signup"
           cat openregistry.log
       - name: Run OCI Distribution Spec conformance tests
         if: always()
@@ -78,17 +79,16 @@ jobs:
           mkdir -p .out/ && mv {distribution-spec/conformance/report.html,distribution-spec/conformance/junit.xml} .out/
         env:
           OCI_ROOT_URL: ${{ env.OCI_ROOT_URL }}
-          OCI_USERNAME: ${{ secrets.OPENREGISTRY_USERNAME }}
-          OCI_PASSWORD: ${{ secrets.OPENREGISTRY_PASSWORD }}
-          OCI_NAMESPACE: ${{ secrets.OPENREGISTRY_USERNAME }}/distribution-test
+          OCI_USERNAME: johndoe
+          OCI_PASSWORD: Qwerty@123
+          OCI_NAMESPACE: johndoe/distribution-test
           OCI_TEST_PUSH: 1
           OCI_HIDE_SKIPPED_WORKFLOWS: 1
-          OCI_CROSSMOUNT_NAMESPACE: ${{secrets.OPENREGISTRY_USERNAME}}/distribution-cross-mount
+          OCI_CROSSMOUNT_NAMESPACE: johndoe/distribution-cross-mount
           OCI_DEBUG: 0
       - name: Setup tmate session if mode is debug and OpenRegistry or OCI Tests Fail
         uses: mxschmitt/action-tmate@v3
-        if: always()
-        # if:  ${{ always() && (github.event_name == 'workflow_dispatch') && inputs.debug_enabled }}
+        if:  ${{ always() && (github.event_name == 'workflow_dispatch') && inputs.debug_enabled }}
       - name: Set output report name
         id: vars
         run: echo "short_commit_hash=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT

@@ -3,8 +3,6 @@ package config
 import (
 	"crypto/rsa"
 	"fmt"
-	"log"
-	"os"
 	"strings"
 	"time"
 
@@ -247,17 +245,6 @@ func (oc *OpenRegistryConfig) Endpoint() string {
 		return fmt.Sprintf("http://%s:%d", oc.Registry.Host, oc.Registry.Port)
 	case Production, Staging:
 		return fmt.Sprintf("https://%s", oc.Registry.DNSAddress)
-	case CI:
-		ciSysAddr := os.Getenv("CI_SYS_ADDR")
-		if ciSysAddr == "" {
-			log.Fatalln("missing required environment variable: CI_SYS_ADDR")
-		}
-
-		if oc.Registry.TLS.Enabled {
-			return fmt.Sprintf("https://%s", ciSysAddr)
-		}
-
-		return fmt.Sprintf("http://%s", ciSysAddr)
 	default:
 		return fmt.Sprintf("https://%s:%d", oc.Registry.Host, oc.Registry.Port)
 	}
@@ -299,8 +286,6 @@ func environmentFromString(env string) Environment {
 		return Staging
 	case Local.String():
 		return Local
-	case CI.String():
-		return CI
 	default:
 		panic("deployment environment is invalid, allowed values are: PRODUCTION, STAGING, LOCAL, and CI")
 	}
@@ -314,8 +299,6 @@ func (e Environment) String() string {
 		return "STAGING"
 	case Local:
 		return "LOCAL"
-	case CI:
-		return "CI"
 	default:
 		panic("deployment environment is invalid, allowed values are: PRODUCTION, STAGING, LOCAL, and CI")
 	}
