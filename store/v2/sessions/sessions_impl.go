@@ -32,7 +32,12 @@ func (ss *sessionStore) DeleteSession(ctx context.Context, sessionId uuid.UUID, 
 }
 
 // AddSession implements UserStore.
-func (ss *sessionStore) AddSession(ctx context.Context, sessionID uuid.UUID, refreshToken string, ownerID uuid.UUID) error {
+func (ss *sessionStore) AddSession(
+	ctx context.Context,
+	sessionID uuid.UUID,
+	refreshToken string,
+	ownerID uuid.UUID,
+) error {
 	session := &types.Session{
 		Id:           sessionID,
 		RefreshToken: refreshToken,

@@ -18,11 +18,22 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
+const CategoryMigrations = "Migrations"
+
 func NewMigrationsCommand() *cli.Command {
 	return &cli.Command{
-		Name:    "migrations",
-		Aliases: []string{"m"},
-		Usage:   "Run database migrations for OpenRegistry data store",
+		Name:     "migrations",
+		Aliases:  []string{"m"},
+		Usage:    "Run database migrations for OpenRegistry data store",
+		Category: CategoryMigrations,
+		Description: `Perform migrations for the OpenRegistry database like database initialisation, migrations, 
+rollback, reset, etc`,
+		UsageText: `OpenRegistry CLI provides a collection of commands for running database migrations.
+Examples:
+    1. openregistry migrations init --openregistry-db-dsn=<openregistry_db_dsn> --admin-db-dsn=<admin_db_dsn>
+    2. openregistry migrations run --openregistry-db-dsn=<openregistry_db_dsn> 
+    3. openregistry migrations generate --openregistry-db-dsn=<openregistry_db_dsn> 
+    4. openregistry migrations reset --openregistry-db-dsn=<openregistry_db_dsn>`,
 		Subcommands: []*cli.Command{
 			newDatabaseInitCommand(),
 			newMigrationsRunCommand(),
@@ -276,5 +287,74 @@ func parseDatabaseFlags(ctx *cli.Context) *databaseOptions {
 		adminDB:         adminDB,
 		adminUsername:   adminUsername,
 		adminPassword:   adminPassword,
+	}
+}
+
+func getOpenRegistryDatabaseCmdFlags() []cli.Flag {
+	return []cli.Flag{
+		&cli.StringFlag{
+			Name:     "openregistry-db-dsn",
+			Required: false,
+		},
+		&cli.StringFlag{
+			Name:     "database",
+			Value:    "open_registry",
+			Required: false,
+		},
+		&cli.StringFlag{
+			Name:     "host",
+			Value:    "0.0.0.0",
+			Required: false,
+		},
+		&cli.StringFlag{
+			Name:     "port",
+			Value:    "5432",
+			Required: false,
+		},
+		&cli.StringFlag{
+			Name:        "username",
+			Value:       "open_registry_user",
+			DefaultText: "open_registry_user",
+			Required:    false,
+		},
+		&cli.StringFlag{
+			Name:     "password",
+			Value:    "",
+			Required: false,
+		},
+		&cli.DurationFlag{
+			Name:     "timeout",
+			Value:    time.Second * 60,
+			Required: false,
+		},
+		&cli.BoolFlag{
+			Name:     "insecure",
+			Value:    false,
+			Required: false,
+		},
+	}
+}
+
+func getAdminDatabaseFlags() []cli.Flag {
+	return []cli.Flag{
+		&cli.StringFlag{
+			Name:     "admin-db-dsn",
+			Required: false,
+		},
+		&cli.StringFlag{
+			Name:     "admin-db",
+			Value:    "postgres",
+			Required: false,
+		},
+		&cli.StringFlag{
+			Name:     "admin-db-username",
+			Value:    "postgres",
+			Required: false,
+		},
+		&cli.StringFlag{
+			Name:     "admin-db-password",
+			Value:    "",
+			Required: false,
+		},
 	}
 }

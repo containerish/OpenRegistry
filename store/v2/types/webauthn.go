@@ -18,8 +18,9 @@ type WebauthnSession struct {
 	UserVerification     protocol.UserVerificationRequirement `bun:"user_verification" json:"user_verification"`
 	SessionType          string                               `bun:"session_type" json:"session_type"`
 	AllowedCredentialIDs [][]byte                             `bun:"allowed_credential_ids" json:"allowed_credential_ids"`
-	CredentialOwnerID    uuid.UUID                            `bun:"credential_owner_id,type:uuid" json:"credential_owner_id"`
-	UserID               uuid.UUID                            `bun:"user_id,type:uuid" json:"user_id"`
+	//nolint
+	CredentialOwnerID uuid.UUID `bun:"credential_owner_id,type:uuid" json:"credential_owner_id"`
+	UserID            uuid.UUID `bun:"user_id,type:uuid" json:"user_id"`
 }
 
 type WebauthnCredential struct {

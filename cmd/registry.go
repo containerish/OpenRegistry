@@ -31,13 +31,15 @@ import (
 	"golang.org/x/net/http2/h2c"
 )
 
+const CategoryOpenRegistry = "OpenRegistry"
+
 func NewRegistryCommand() *cli.Command {
 	return &cli.Command{
-		Name:    "start",
-		Aliases: []string{"s"},
-		Usage:   "start the OpenRegistry server",
+		Name:     "start",
+		Aliases:  []string{"s"},
+		Usage:    "start the OpenRegistry server",
+		Category: CategoryOpenRegistry,
 		Flags: []cli.Flag{
-			&cli.BoolFlag{Name: "daemon", Value: false, Usage: "Run the OpenRegistry server in background"},
 			&cli.StringFlag{
 				Name:      "config-file",
 				Value:     "$HOME/.openregistry/config.yaml",
@@ -46,6 +48,7 @@ func NewRegistryCommand() *cli.Command {
 				TakesFile: true,
 				Aliases:   []string{"c"},
 			},
+			&cli.BoolFlag{Name: "daemon", Value: false, Usage: "Run the OpenRegistry server in background"},
 			&cli.StringFlag{Name: "log-format", Value: "pretty", Usage: "One of: pretty, json"},
 			&cli.StringFlag{Name: "log-level", Value: "info", Usage: "One of: info, debug"},
 		},
