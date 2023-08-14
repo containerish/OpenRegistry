@@ -10,6 +10,7 @@ import (
 	v2_types "github.com/containerish/OpenRegistry/store/v2/types"
 	"github.com/containerish/OpenRegistry/types"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v4"
 	"github.com/labstack/echo/v4"
 )
@@ -48,7 +49,7 @@ func (a *auth) ResetForgottenPassword(ctx echo.Context) error {
 	}
 	defer ctx.Request().Body.Close()
 
-	userId := c.ID
+	userId := uuid.MustParse(c.ID)
 	user, err := a.pgStore.GetUserByID(ctx.Request().Context(), userId)
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusNotFound, echo.Map{
@@ -141,7 +142,7 @@ func (a *auth) ResetPassword(ctx echo.Context) error {
 	}
 	defer ctx.Request().Body.Close()
 
-	userId := c.ID
+	userId := uuid.MustParse(c.ID)
 	user, err := a.pgStore.GetUserByID(ctx.Request().Context(), userId)
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusNotFound, echo.Map{

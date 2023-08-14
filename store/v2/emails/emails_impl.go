@@ -6,6 +6,7 @@ import (
 	v2 "github.com/containerish/OpenRegistry/store/v2"
 	"github.com/containerish/OpenRegistry/store/v2/types"
 	"github.com/containerish/OpenRegistry/store/v2/users"
+	"github.com/google/uuid"
 	"github.com/uptrace/bun"
 )
 
@@ -19,10 +20,10 @@ func NewStore(db *bun.DB) users.EmailStore {
 	}
 }
 
-func (es *emailStore) AddVerifyEmail(ctx context.Context, userId string, token string) error {
+func (es *emailStore) AddVerifyEmail(ctx context.Context, userID uuid.UUID, token uuid.UUID) error {
 	email := &types.Email{
 		Token:  token,
-		UserId: userId,
+		UserId: userID,
 	}
 
 	if _, err := es.db.NewInsert().Model(email).Exec(ctx); err != nil {
@@ -32,19 +33,19 @@ func (es *emailStore) AddVerifyEmail(ctx context.Context, userId string, token s
 	return nil
 }
 
-func (es *emailStore) DeleteVerifyEmail(ctx context.Context, userId string) error {
-	if _, err := es.db.NewDelete().Model(&types.Email{}).Where("user_id = ?1", userId).Exec(ctx); err != nil {
+func (es *emailStore) DeleteVerifyEmail(ctx context.Context, userID uuid.UUID) error {
+	if _, err := es.db.NewDelete().Model(&types.Email{}).Where("user_id = ?1", userID).Exec(ctx); err != nil {
 		return v2.WrapDatabaseError(err, v2.DatabaseOperationDelete)
 	}
 
 	return nil
 }
 
-func (es *emailStore) GetVerifyEmail(ctx context.Context, userId string) (string, error) {
-	var token string
-	if err := es.db.NewSelect().Model(&types.Email{}).Where("user_id = ?1", userId).Scan(ctx, &token); err != nil {
-		return "", v2.WrapDatabaseError(err, v2.DatabaseOperationRead)
+func (es *emailStore) GetVerifyEmail(ctx context.Context, userID uuid.UUID) (uuid.UUID, error) {
+	email := &types.Email{}
+	if err := es.db.NewSelect().Model(email).Where("user_id = ?1", userID).Scan(ctx); err != nil {
+		return uuid.UUID{}, v2.WrapDatabaseError(err, v2.DatabaseOperationRead)
 	}
 
-	return token, nil
+	return email.Token, nil
 }

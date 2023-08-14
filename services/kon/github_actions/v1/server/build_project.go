@@ -110,7 +110,7 @@ func (ghs *GitHubActionsServer) ListProjects(
 		return nil, connect_go.NewError(connect_go.CodeInvalidArgument, err)
 	}
 
-	req.Msg.UserId = user.ID
+	req.Msg.UserId = user.ID.String()
 
 	projects, err := ghs.store.ListProjects(ctx, req.Msg)
 	if err != nil {

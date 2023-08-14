@@ -152,7 +152,7 @@ func (a *auth) SignIn(ctx echo.Context) error {
 		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
-	if err = a.sessionStore.AddSession(ctx.Request().Context(), id.String(), refresh, userFromDb.Username); err != nil {
+	if err = a.sessionStore.AddSession(ctx.Request().Context(), id, refresh, userFromDb.ID); err != nil {
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error":   err.Error(),
 			"message": "error creating session",

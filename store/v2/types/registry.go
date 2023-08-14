@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/fatih/color"
+	"github.com/google/uuid"
 	"github.com/uptrace/bun"
 )
 
@@ -36,17 +37,17 @@ type ImageManifest struct {
 	CreatedAt     time.Time                 `bun:"created_at,notnull,default:current_timestamp" json:"created_at"`
 	UpdatedAt     time.Time                 `bun:"updated_at,nullzero" json:"updated_at"`
 	Repository    *ContainerImageRepository `bun:"rel:belongs-to,join:repository_id=id"`
-	ID            string                    `bun:"id,pk,type:uuid" json:"id"`
+	DFSLink       string                    `bun:"dfs_link,notnull" json:"dfs_link"`
 	RepositoryID  string                    `bun:"repository_id,type:uuid" json:"repository_id"`
-	OwnerID       string                    `bun:"owner_id,type:uuid" json:"owner_id"`
 	Digest        string                    `bun:"digest,notnull" json:"digest"`
 	MediaType     string                    `bun:"media_type,notnull" json:"media_type"`
-	DFSLink       string                    `bun:"dfs_link,notnull" json:"dfs_link"`
+	ID            string                    `bun:"id,pk,type:uuid" json:"id"`
 	Reference     string                    `bun:"reference,notnull" json:"reference"`
 	Layers        []string                  `bun:"layers,array" json:"layers"`
 	User          User                      `bun:"rel:belongs-to,join:owner_id=id"`
 	SchemaVersion int                       `bun:"schema_version,notnull" json:"schema_version"`
 	Size          uint64                    `bun:"size,notnull" json:"size"`
+	OwnerID       uuid.UUID                 `bun:"owner_id,type:uuid" json:"owner_id"`
 }
 
 type ContainerImageLayer struct {
@@ -75,12 +76,12 @@ type ContainerImageRepository struct {
 	UpdatedAt      time.Time            `bun:"updated_at" json:"updated_at"`
 	MetaTags       map[string]any       `bun:"meta_tags" json:"meta_tags"`
 	User           *User                `bun:"rel:belongs-to,join:owner_id=id"`
-	OwnerID        string               `bun:"owner_id,type:uuid" json:"owner_id"`
 	ID             string               `bun:"id,pk,type:uuid,default:gen_random_uuid()" json:"id"`
 	Name           string               `bun:"name,notnull,unique" json:"name"`
 	Description    string               `bun:"description" json:"description"`
 	ImageManifests []*ImageManifest     `bun:"rel:has-many,join:id=repository_id"`
 	Visibility     RepositoryVisibility `bun:"visibility,notnull" json:"visibility"`
+	OwnerID        uuid.UUID            `bun:"owner_id,type:uuid" json:"owner_id"`
 }
 
 var _ bun.BeforeAppendModelHook = (*ImageManifest)(nil)
@@ -100,8 +101,6 @@ func (cir *ContainerImageRepository) String() string {
 }
 
 func (imf *ImageManifest) BeforeAppendModel(ctx context.Context, query bun.Query) error {
-	color.Yellow("ImageManifest before append hook: %s - \nImageManifest: %s", query, imf)
-
 	switch query.(type) {
 	case *bun.InsertQuery:
 		imf.CreatedAt = time.Now()
@@ -112,8 +111,6 @@ func (imf *ImageManifest) BeforeAppendModel(ctx context.Context, query bun.Query
 	return nil
 }
 func (l *ContainerImageLayer) BeforeAppendModel(ctx context.Context, query bun.Query) error {
-	color.Yellow("ContainerImageLayer before append hook: %s - \nContainerImageLayer: %s", query, l)
-
 	switch query.(type) {
 	case *bun.InsertQuery:
 		l.CreatedAt = time.Now()
@@ -125,8 +122,6 @@ func (l *ContainerImageLayer) BeforeAppendModel(ctx context.Context, query bun.Q
 }
 
 func (cir *ContainerImageRepository) BeforeAppendModel(ctx context.Context, query bun.Query) error {
-	color.Yellow("ContainerImageRepository before append hook: %s - \nContainerImageRepository: %s", query, cir)
-
 	switch query.(type) {
 	case *bun.InsertQuery:
 		cir.CreatedAt = time.Now()

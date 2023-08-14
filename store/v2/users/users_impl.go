@@ -28,13 +28,13 @@ func (us *userStore) Commit(ctx context.Context, txn *bun.Tx) error {
 
 // AddUser implements UserStore.
 func (us *userStore) AddUser(ctx context.Context, user *types.User, txn *bun.Tx) error {
-	if user.ID == "" {
+	if user.ID.String() == "" {
 		id, err := uuid.NewRandom()
 		if err != nil {
 			return v2.WrapDatabaseError(err, v2.DatabaseOperationWrite)
 		}
 
-		user.ID = id.String()
+		user.ID = id
 	}
 
 	execFn := us.db.NewInsert().Model(user)
@@ -50,7 +50,7 @@ func (us *userStore) AddUser(ctx context.Context, user *types.User, txn *bun.Tx)
 }
 
 // DeleteUser implements UserStore.
-func (us *userStore) DeleteUser(ctx context.Context, identifier string) error {
+func (us *userStore) DeleteUser(ctx context.Context, identifier uuid.UUID) error {
 	if _, err := us.db.NewDelete().Model(&types.User{ID: identifier}).WherePK().Exec(ctx); err != nil {
 		return v2.WrapDatabaseError(err, v2.DatabaseOperationDelete)
 	}
@@ -74,7 +74,7 @@ func (us *userStore) GetGitHubUser(ctx context.Context, githubEmail string, txn 
 }
 
 // GetUser implements UserStore.
-func (us *userStore) GetUserByID(ctx context.Context, id string) (*types.User, error) {
+func (us *userStore) GetUserByID(ctx context.Context, id uuid.UUID) (*types.User, error) {
 	user := &types.User{ID: id}
 	if err := us.db.NewSelect().Model(user).WherePK().Scan(ctx); err != nil {
 		return nil, v2.WrapDatabaseError(err, v2.DatabaseOperationRead)
@@ -101,7 +101,7 @@ func (us *userStore) GetUserByEmail(ctx context.Context, email string) (*types.U
 	return user, nil
 }
 
-func (us *userStore) GetUserByIDWithTxn(ctx context.Context, id string, txn *bun.Tx) (*types.User, error) {
+func (us *userStore) GetUserByIDWithTxn(ctx context.Context, id uuid.UUID, txn *bun.Tx) (*types.User, error) {
 	user := &types.User{ID: id}
 	if err := txn.NewSelect().NewSelect().Model(user).WherePK().Scan(ctx); err != nil {
 		return nil, v2.WrapDatabaseError(err, v2.DatabaseOperationRead)
@@ -137,7 +137,7 @@ func (us *userStore) GetUserWithSession(ctx context.Context, sessionId string) (
 }
 
 // IsActive implements UserStore.
-func (us *userStore) IsActive(ctx context.Context, id string) bool {
+func (us *userStore) IsActive(ctx context.Context, id uuid.UUID) bool {
 	isActive := false
 	_ = us.db.NewSelect().Model(&types.User{ID: id}).WherePK().Scan(ctx, &isActive)
 	return isActive
@@ -153,7 +153,7 @@ func (us *userStore) UpdateUser(ctx context.Context, user *types.User) (*types.U
 }
 
 // UpdateUserPWD implements UserStore.
-func (us *userStore) UpdateUserPWD(ctx context.Context, id string, newPassword string) error {
+func (us *userStore) UpdateUserPWD(ctx context.Context, id uuid.UUID, newPassword string) error {
 	_, err := us.db.NewUpdate().Model(&types.User{ID: id}).Set("password = ?", newPassword).WherePK().Exec(ctx)
 	if err != nil {
 		return v2.WrapDatabaseError(err, v2.DatabaseOperationUpdate)

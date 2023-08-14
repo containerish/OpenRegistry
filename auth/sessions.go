@@ -47,8 +47,24 @@ func (a *auth) ExpireSessions(ctx echo.Context) error {
 		return echoErr
 	}
 
-	sessionUUID := parts[0]
-	userId := parts[1]
+	sessionUUID, err := uuid.Parse(parts[0])
+	if err != nil {
+		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
+			"error":   err.Error(),
+			"message": "invalid session id",
+		})
+		a.logger.Log(ctx, err).Send()
+		return echoErr
+	}
+	userId, err := uuid.Parse(parts[1])
+	if err != nil {
+		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
+			"error":   err.Error(),
+			"message": "invalid user id",
+		})
+		a.logger.Log(ctx, err).Send()
+		return echoErr
+	}
 
 	var deleteAllSessions bool
 	queryParamDeleteAll := ctx.QueryParam("delete_all")
@@ -58,15 +74,6 @@ func (a *auth) ExpireSessions(ctx echo.Context) error {
 			echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 				"error":   err.Error(),
 				"message": "delete_all must be a boolean",
-			})
-			a.logger.Log(ctx, err).Send()
-			return echoErr
-		}
-		_, err = uuid.Parse(userId)
-		if err != nil {
-			echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
-				"error":   err.Error(),
-				"message": "invalid user id",
 			})
 			a.logger.Log(ctx, err).Send()
 			return echoErr
@@ -86,16 +93,7 @@ func (a *auth) ExpireSessions(ctx echo.Context) error {
 
 	}
 
-	if sessionUUID != "" {
-		_, err = uuid.Parse(sessionUUID)
-		if err != nil {
-			echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
-				"error":   err.Error(),
-				"message": "invalid session id",
-			})
-			a.logger.Log(ctx, err).Send()
-			return echoErr
-		}
+	if sessionUUID.String() != "" {
 		err = a.sessionStore.DeleteSession(ctx.Request().Context(), sessionUUID, userId)
 		if err != nil {
 			echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{

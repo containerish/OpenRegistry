@@ -13,8 +13,8 @@ import (
 func (a *auth) VerifyEmail(ctx echo.Context) error {
 	ctx.Set(types.HandlerStartTime, time.Now())
 
-	token := ctx.QueryParam("token")
-	if token == "" {
+	rawToken := ctx.QueryParam("token")
+	if rawToken == "" {
 		err := fmt.Errorf("EMPTY_TOKEN")
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error":   err.Error(),
@@ -24,7 +24,8 @@ func (a *auth) VerifyEmail(ctx echo.Context) error {
 		return echoErr
 	}
 
-	if _, err := uuid.Parse(token); err != nil {
+	token, err := uuid.Parse(rawToken)
+	if err != nil {
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error":   err.Error(),
 			"message": "error parsing token",
@@ -121,7 +122,7 @@ func (a *auth) VerifyEmail(ctx echo.Context) error {
 		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
-	if err = a.sessionStore.AddSession(ctx.Request().Context(), id.String(), refresh, user.Username); err != nil {
+	if err = a.sessionStore.AddSession(ctx.Request().Context(), id, refresh, user.ID); err != nil {
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error":   err.Error(),
 			"message": "error creating session",

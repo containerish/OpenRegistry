@@ -11,6 +11,7 @@ import (
 
 	"github.com/containerish/OpenRegistry/store/v2/types"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 	"golang.org/x/oauth2"
 )
 
@@ -90,11 +91,11 @@ func (a *auth) keyIDEncode(b []byte) string {
 	return buf.String()
 }
 
-func (a *auth) SignOAuthToken(userId string, payload *oauth2.Token) (string, string, error) {
+func (a *auth) SignOAuthToken(userId uuid.UUID, payload *oauth2.Token) (string, string, error) {
 	return a.newOAuthToken(userId, payload)
 }
 
-func (a *auth) newOAuthToken(userId string, payload *oauth2.Token) (string, string, error) {
+func (a *auth) newOAuthToken(userId uuid.UUID, payload *oauth2.Token) (string, string, error) {
 	accessClaims := a.createOAuthClaims(userId, payload)
 	refreshClaims := a.createRefreshClaims(userId)
 
@@ -134,7 +135,7 @@ func (a *auth) newServiceToken(u types.User) (string, error) {
 	opts := &CreateClaimOptions{
 		Audience: a.c.Registry.FQDN,
 		Issuer:   OpenRegistryIssuer,
-		Id:       u.ID,
+		Id:       u.ID.String(),
 		TokeType: "service_token",
 		Acl:      acl,
 	}
@@ -211,11 +212,11 @@ func (a *auth) createServiceClaims(u types.User) ServiceClaims {
 		RegisteredClaims: jwt.RegisteredClaims{
 			Audience:  jwt.ClaimStrings{a.c.Endpoint()},
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 750)),
-			ID:        u.ID,
+			ID:        u.ID.String(),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			Issuer:    "OpenRegistry",
 			NotBefore: jwt.NewNumericDate(time.Now()),
-			Subject:   u.ID,
+			Subject:   u.ID.String(),
 		},
 		Access: AccessList{
 			{
@@ -229,34 +230,34 @@ func (a *auth) createServiceClaims(u types.User) ServiceClaims {
 	return claims
 }
 
-func (a *auth) createOAuthClaims(userId string, token *oauth2.Token) PlatformClaims {
+func (a *auth) createOAuthClaims(userId uuid.UUID, token *oauth2.Token) PlatformClaims {
 	claims := PlatformClaims{
 		OauthPayload: token,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Audience:  jwt.ClaimStrings{a.c.Endpoint()},
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 750)),
-			ID:        userId,
+			ID:        userId.String(),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			Issuer:    "OpenRegistry",
 			NotBefore: jwt.NewNumericDate(time.Now()),
-			Subject:   userId,
+			Subject:   userId.String(),
 		},
 	}
 
 	return claims
 }
 
-func (a *auth) createRefreshClaims(userId string) RefreshClaims {
+func (a *auth) createRefreshClaims(userId uuid.UUID) RefreshClaims {
 	claims := RefreshClaims{
-		ID: userId,
+		ID: userId.String(),
 		RegisteredClaims: jwt.RegisteredClaims{
 			Audience:  jwt.ClaimStrings{a.c.Endpoint()},
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 750)), // Refresh tokens can live longer
-			ID:        userId,
+			ID:        userId.String(),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			Issuer:    "OpenRegistry",
 			NotBefore: jwt.NewNumericDate(time.Now()),
-			Subject:   userId,
+			Subject:   userId.String(),
 		},
 	}
 
@@ -283,7 +284,7 @@ func (a *auth) newToken(u *types.User) (string, error) {
 	opts := &CreateClaimOptions{
 		Audience: a.c.Registry.FQDN,
 		Issuer:   OpenRegistryIssuer,
-		Id:       u.ID,
+		Id:       u.ID.String(),
 		TokeType: "access_token",
 		Acl:      acl,
 	}

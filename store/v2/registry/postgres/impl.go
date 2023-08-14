@@ -81,10 +81,10 @@ func (s *registryStore) GetRepositoryByNamespace(
 
 func (s *registryStore) GetRepositoryByName(
 	ctx context.Context,
-	userId,
+	userId uuid.UUID,
 	name string,
 ) (*types.ContainerImageRepository, error) {
-	logEvent := s.logger.Debug().Str("method", "GetRepositoryByNamespace").Str("name", name).Str("user_id", userId)
+	logEvent := s.logger.Debug().Str("method", "GetRepositoryByNamespace").Str("name", name).Str("user_id", userId.String())
 
 	var repository types.ContainerImageRepository
 	err := s.

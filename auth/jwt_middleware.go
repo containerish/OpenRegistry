@@ -9,6 +9,7 @@ import (
 	"github.com/containerish/OpenRegistry/store/v2/types"
 	"github.com/fatih/color"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 	echo_jwt "github.com/labstack/echo-jwt/v4"
 	"github.com/labstack/echo/v4"
 )
@@ -55,7 +56,7 @@ func (a *auth) JWT() echo.MiddlewareFunc {
 			if token, tokenOk := ctx.Get("user").(*jwt.Token); tokenOk {
 				claims, claimsOk := token.Claims.(*Claims)
 				if claimsOk {
-					user, _ := a.pgStore.GetUserByID(ctx.Request().Context(), claims.ID)
+					user, _ := a.pgStore.GetUserByID(ctx.Request().Context(), uuid.MustParse(claims.ID))
 					ctx.Set(string(types.UserClaimsContextKey), claims)
 					ctx.Set(string(types.UserContextKey), user)
 				}
@@ -100,7 +101,7 @@ func (a *auth) ACL() echo.MiddlewareFunc {
 			username := ctx.Param("username")
 			color.Cyan("user claims - username: %s - claims: %s", username, claims.ID)
 
-			user, err := a.pgStore.GetUserByID(ctx.Request().Context(), claims.ID)
+			user, err := a.pgStore.GetUserByID(ctx.Request().Context(), uuid.MustParse(claims.ID))
 			if err != nil {
 				echoErr := ctx.NoContent(http.StatusUnauthorized)
 				a.logger.Log(ctx, err).Send()

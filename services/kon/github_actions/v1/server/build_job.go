@@ -202,7 +202,7 @@ func (gha *GitHubActionsServer) ListBuildJobs(
 				Branch:      job.GetHeadBranch(),
 				CommitHash:  job.GetHeadCommit().GetSHA(),
 				TriggeredAt: timestamppb.New(job.GetCreatedAt().UTC()),
-				OwnerId:     user.ID,
+				OwnerId:     user.ID.String(),
 			})
 		}
 	}

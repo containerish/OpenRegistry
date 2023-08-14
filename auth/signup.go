@@ -62,7 +62,7 @@ func (a *auth) SignUp(ctx echo.Context) error {
 	}
 
 	newUser := &v2_types.User{
-		ID:        id.String(),
+		ID:        id,
 		UpdatedAt: time.Now(),
 		CreatedAt: time.Now(),
 		Password:  u.Password,
@@ -123,7 +123,7 @@ func (a *auth) SignUp(ctx echo.Context) error {
 		return echoErr
 
 	}
-	err = a.emailStore.AddVerifyEmail(ctx.Request().Context(), token.String(), newUser.ID)
+	err = a.emailStore.AddVerifyEmail(ctx.Request().Context(), token, newUser.ID)
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error":   err.Error(),

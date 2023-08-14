@@ -16,12 +16,12 @@ func (p *pg) AddUser(ctx context.Context, u *v2_types.User, txn pgx.Tx) error {
 	defer cancel()
 
 	now := time.Now()
-	if u.ID == "" {
+	if u.ID.String() == "" {
 		id, err := uuid.NewRandom()
 		if err != nil {
 			return fmt.Errorf("error creating id for add user: %w", err)
 		}
-		u.ID = id.String()
+		u.ID = id
 	}
 
 	txnExecFn := p.conn.Exec
@@ -224,7 +224,7 @@ func (p *pg) GetUserWithSession(ctx context.Context, sessionId string) (*v2_type
 // UpdateUser
 // update users set username = $1, email = $2, updated_at = $3 where username = $4
 func (p *pg) UpdateUser(ctx context.Context, u *v2_types.User) error {
-	if _, err := uuid.Parse(u.ID); err != nil {
+	if _, err := uuid.Parse(u.ID.String()); err != nil {
 		return fmt.Errorf("invalid user id")
 	}
 

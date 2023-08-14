@@ -17,6 +17,7 @@ import (
 	webauthn_store "github.com/containerish/OpenRegistry/store/v2/webauthn"
 	"github.com/containerish/OpenRegistry/telemetry"
 	"github.com/containerish/OpenRegistry/types"
+	"github.com/fatih/color"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	"github.com/uptrace/bun"
@@ -111,7 +112,7 @@ func (wa *webauthn_server) BeginRegistration(ctx echo.Context) error {
 	}
 
 	wa.invalidateExistingRequests(ctx.Request().Context(), user.Username)
-	txn, err := wa.usersStore.NewTxn(ctx.Request().Context())
+	txn, err := wa.usersStore.NewTxn(context.Background())
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error":   err.Error(),
@@ -128,11 +129,11 @@ func (wa *webauthn_server) BeginRegistration(ctx echo.Context) error {
 
 	_, err = wa.usersStore.GetUserByEmail(ctx.Request().Context(), user.Email)
 	if err != nil && strings.Contains(err.Error(), "no rows in result set") {
-		user.ID = uuid.NewString()
+		user.ID = uuid.New()
 		user.IsActive = true
 		user.WebauthnConnected = true
 		user.Identities[v2_types.IdentityProviderWebauthn] = &v2_types.UserIdentity{
-			ID:       user.ID,
+			ID:       user.ID.String(),
 			Username: user.Username,
 			Email:    user.Email,
 		}
@@ -285,6 +286,7 @@ func (wa *webauthn_server) FinishRegistration(ctx echo.Context) error {
 		})
 		return echoErr
 	}
+	color.Red("User before finish txn: %#v", user)
 
 	opts := &webauthn.FinishRegistrationOpts{
 		RequestBody: ctx.Request().Body,
@@ -440,10 +442,10 @@ func (wa *webauthn_server) FinishLogin(ctx echo.Context) error {
 		wa.logger.Log(ctx, err).Send()
 		return echoErr
 	}
-	id := uuid.NewString()
+	id := uuid.New()
 	sessionId := fmt.Sprintf("%s:%s", id, user.ID)
 
-	if err = wa.sessionStore.AddSession(ctx.Request().Context(), id, refreshToken, user.Username); err != nil {
+	if err = wa.sessionStore.AddSession(ctx.Request().Context(), id, refreshToken, user.ID); err != nil {
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error":   err.Error(),
 			"message": "error creating session",

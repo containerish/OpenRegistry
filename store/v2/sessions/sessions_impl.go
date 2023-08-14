@@ -5,6 +5,7 @@ import (
 
 	v2 "github.com/containerish/OpenRegistry/store/v2"
 	"github.com/containerish/OpenRegistry/store/v2/types"
+	"github.com/google/uuid"
 	"github.com/uptrace/bun"
 )
 
@@ -13,8 +14,8 @@ type sessionStore struct {
 }
 
 // DeleteAllSessions implements UserStore.
-func (ss *sessionStore) DeleteAllSessions(ctx context.Context, userId string) error {
-	if _, err := ss.db.NewDelete().Model(&types.Session{}).Where("owner_id = ?", userId).Exec(ctx); err != nil {
+func (ss *sessionStore) DeleteAllSessions(ctx context.Context, userID uuid.UUID) error {
+	if _, err := ss.db.NewDelete().Model(&types.Session{}).Where("owner_id = ?", userID).Exec(ctx); err != nil {
 		return v2.WrapDatabaseError(err, v2.DatabaseOperationDelete)
 	}
 
@@ -22,8 +23,8 @@ func (ss *sessionStore) DeleteAllSessions(ctx context.Context, userId string) er
 }
 
 // DeleteSession implements UserStore.
-func (ss *sessionStore) DeleteSession(ctx context.Context, sessionId string, userId string) error {
-	if _, err := ss.db.NewDelete().Model(&types.Session{}).WherePK(sessionId).Exec(ctx); err != nil {
+func (ss *sessionStore) DeleteSession(ctx context.Context, sessionId uuid.UUID, userID uuid.UUID) error {
+	if _, err := ss.db.NewDelete().Model(&types.Session{Id: sessionId}).WherePK().Exec(ctx); err != nil {
 		return v2.WrapDatabaseError(err, v2.DatabaseOperationDelete)
 	}
 
@@ -31,11 +32,11 @@ func (ss *sessionStore) DeleteSession(ctx context.Context, sessionId string, use
 }
 
 // AddSession implements UserStore.
-func (ss *sessionStore) AddSession(ctx context.Context, sessionId string, refreshToken string, owner string) error {
+func (ss *sessionStore) AddSession(ctx context.Context, sessionID uuid.UUID, refreshToken string, ownerID uuid.UUID) error {
 	session := &types.Session{
-		Id:           sessionId,
+		Id:           sessionID,
 		RefreshToken: refreshToken,
-		OwnerID:      owner,
+		OwnerID:      ownerID,
 	}
 
 	if _, err := ss.db.NewInsert().Model(session).Exec(ctx); err != nil {

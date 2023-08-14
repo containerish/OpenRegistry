@@ -5,7 +5,9 @@ import (
 
 	v2 "github.com/containerish/OpenRegistry/store/v2"
 	"github.com/containerish/OpenRegistry/store/v2/types"
+	"github.com/fatih/color"
 	"github.com/go-webauthn/webauthn/webauthn"
+	"github.com/google/uuid"
 	"github.com/uptrace/bun"
 )
 
@@ -20,31 +22,32 @@ func NewStore(db *bun.DB) WebAuthnStore {
 }
 
 type WebAuthnStore interface {
-	GetWebAuthnSessionData(ctx context.Context, userId string, sessionType string) (*webauthn.SessionData, error)
-	GetWebAuthnCredentials(ctx context.Context, userId string) (*webauthn.Credential, error)
+	GetWebAuthnSessionData(ctx context.Context, userID uuid.UUID, sessionType string) (*webauthn.SessionData, error)
+	GetWebAuthnCredentials(ctx context.Context, userID uuid.UUID) (*webauthn.Credential, error)
 	AddWebAuthSessionData(
 		ctx context.Context,
-		userId string,
+		userID uuid.UUID,
 		sessionData *webauthn.SessionData,
 		sessionType string,
 	) error
-	AddWebAuthnCredentials(ctx context.Context, userId string, credential *webauthn.Credential) error
-	RemoveWebAuthSessionData(ctx context.Context, credentialOwnerID string) error
+	AddWebAuthnCredentials(ctx context.Context, userID uuid.UUID, credential *webauthn.Credential) error
+	RemoveWebAuthSessionData(ctx context.Context, credentialOwnerID uuid.UUID) error
 	WebauthnUserExists(ctx context.Context, email, username string) bool
 }
 
 func (ws *webauthnStore) GetWebAuthnSessionData(
 	ctx context.Context,
-	userId string,
+	userId uuid.UUID,
 	sessionType string,
 ) (*webauthn.SessionData, error) {
 	session := &types.WebauthnSession{}
 
+	color.Red("user id in GetWebAuthnSessionData: %s", userId)
 	_, err := ws.
 		db.
 		NewSelect().
 		Model(session).
-		Where("credential_owner_id = ?1 and session_type = ?2", bun.Ident(userId), bun.Ident(sessionType)).
+		Where("credential_owner_id = ? and session_type = ?", userId, sessionType).
 		Exec(ctx)
 	if err != nil {
 		return nil, v2.WrapDatabaseError(err, v2.DatabaseOperationRead)
@@ -52,7 +55,7 @@ func (ws *webauthnStore) GetWebAuthnSessionData(
 
 	return &webauthn.SessionData{
 		Challenge:            session.Challege,
-		UserID:               session.UserID,
+		UserID:               session.UserID[:],
 		AllowedCredentialIDs: session.AllowedCredentialIDs,
 		Expires:              session.Expires,
 		UserVerification:     session.UserVerification,
@@ -62,7 +65,7 @@ func (ws *webauthnStore) GetWebAuthnSessionData(
 
 func (ws *webauthnStore) GetWebAuthnCredentials(
 	ctx context.Context,
-	credentialOwnerId string,
+	credentialOwnerId uuid.UUID,
 ) (*webauthn.Credential, error) {
 	credential := &types.WebauthnCredential{}
 	_, err := ws.
@@ -88,10 +91,12 @@ func (ws *webauthnStore) GetWebAuthnCredentials(
 
 func (ws *webauthnStore) AddWebAuthSessionData(
 	ctx context.Context,
-	userId string,
+	userId uuid.UUID,
 	sessionData *webauthn.SessionData,
 	sessionType string,
 ) error {
+	userIDFromSession, _ := uuid.FromBytes(sessionData.UserID)
+
 	session := &types.WebauthnSession{
 		Expires:              sessionData.Expires,
 		Extensions:           sessionData.Extensions,
@@ -99,9 +104,10 @@ func (ws *webauthnStore) AddWebAuthSessionData(
 		CredentialOwnerID:    userId,
 		UserVerification:     sessionData.UserVerification,
 		SessionType:          sessionType,
-		UserID:               sessionData.UserID,
+		UserID:               userIDFromSession,
 		AllowedCredentialIDs: sessionData.AllowedCredentialIDs,
 	}
+	color.Blue("session data to store: %#v", session)
 
 	if _, err := ws.db.NewInsert().Model(session).Exec(ctx); err != nil {
 		return v2.WrapDatabaseError(err, v2.DatabaseOperationWrite)
@@ -112,7 +118,7 @@ func (ws *webauthnStore) AddWebAuthSessionData(
 
 func (ws *webauthnStore) AddWebAuthnCredentials(
 	ctx context.Context,
-	userId string,
+	userId uuid.UUID,
 	wanCred *webauthn.Credential,
 ) error {
 	credential := types.WebauthnCredential{
@@ -132,7 +138,7 @@ func (ws *webauthnStore) AddWebAuthnCredentials(
 	return nil
 }
 
-func (ws *webauthnStore) RemoveWebAuthSessionData(ctx context.Context, credentialOwnerID string) error {
+func (ws *webauthnStore) RemoveWebAuthSessionData(ctx context.Context, credentialOwnerID uuid.UUID) error {
 	_, err := ws.
 		db.
 		NewDelete().

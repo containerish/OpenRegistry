@@ -12,6 +12,7 @@ import (
 	"github.com/fatih/color"
 	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/go-webauthn/webauthn/webauthn"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v4"
 )
 
@@ -36,7 +37,7 @@ type (
 		// or if the received data is invalid in FinishLogin/FinishRegistration.
 		// The client is responsible for calling this method because it's possible that all of the Webauthn APIs succeed but
 		// some custom logic fails which would require the client to rollback
-		RemoveSessionData(ctx context.Context, userId string) error
+		RemoveSessionData(ctx context.Context, userId uuid.UUID) error
 	}
 
 	webAuthnService struct {
@@ -216,23 +217,23 @@ type FinishRegistrationOpts struct {
 func (wa *webAuthnService) FinishRegistration(ctx context.Context, opts *FinishRegistrationOpts) error {
 	sessionData, err := wa.store.GetWebAuthnSessionData(ctx, opts.User.ID, "registration")
 	if err != nil {
-		return err
+		return fmt.Errorf("ERR_WEBAUTHN_GET_SESSION: %w", err)
 	}
 
 	parsedResponse, err := protocol.ParseCredentialCreationResponseBody(opts.RequestBody)
 	if err != nil {
-		return err
+		return fmt.Errorf("ERR_WEBAUTHN_PARSE_CREATION_REQUEST: %w", err)
 	}
 
 	credentials, err := wa.core.CreateCredential(opts.User, *sessionData, parsedResponse)
 	if err != nil {
-		return err
+		return fmt.Errorf("ERR_WEBAUTHN_CREATE_CREDENTIAL: %w", err)
 	}
 
 	// append the credential to the User.credentials field
 	opts.User.AddWebAuthNCredential(credentials)
 	if err = wa.store.AddWebAuthnCredentials(ctx, opts.User.ID, credentials); err != nil {
-		return err
+		return fmt.Errorf("ERR_WEBAUTHN_ADD_CREDENTIAL: %w", err)
 	}
 
 	return nil
@@ -271,7 +272,7 @@ func (wa *webAuthnService) BeginLogin(
 	return credentialAssertionOpts, nil
 }
 
-func (wa *webAuthnService) RemoveSessionData(ctx context.Context, userId string) error {
+func (wa *webAuthnService) RemoveSessionData(ctx context.Context, userId uuid.UUID) error {
 	return wa.store.RemoveWebAuthSessionData(ctx, userId)
 }
 

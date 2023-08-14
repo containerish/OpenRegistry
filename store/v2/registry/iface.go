@@ -5,6 +5,7 @@ import (
 
 	store_v2 "github.com/containerish/OpenRegistry/store/v2"
 	"github.com/containerish/OpenRegistry/store/v2/types"
+	"github.com/google/uuid"
 	"github.com/uptrace/bun"
 )
 
@@ -45,5 +46,5 @@ type RegistryStore interface {
 	GetRepositoryByID(ctx context.Context, ID string) (*types.ContainerImageRepository, error)
 	GetRepositoryByNamespace(ctx context.Context, namespace string) (*types.ContainerImageRepository, error)
 	RepositoryExists(ctx context.Context, name string) bool
-	GetRepositoryByName(ctx context.Context, userId, name string) (*types.ContainerImageRepository, error)
+	GetRepositoryByName(ctx context.Context, userId uuid.UUID, name string) (*types.ContainerImageRepository, error)
 }

@@ -260,9 +260,9 @@ func (a *auth) finishGitHubCallback(ctx echo.Context, user *v2_types.User, oauth
 
 	err = a.sessionStore.AddSession(
 		ctx.Request().Context(),
-		sessionId.String(),
+		sessionId,
 		refreshToken,
-		user.Identities.GetGitHubIdentity().Username,
+		user.ID,
 	)
 	if err != nil {
 		return err
@@ -287,7 +287,7 @@ func (a *auth) storeGitHubUserIfDoesntExist(ctx context.Context, pgErr error, us
 		if err != nil {
 			return err
 		}
-		user.ID = id.String()
+		user.ID = id
 		if err = user.Validate(false); err != nil {
 			return err
 		}

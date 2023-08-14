@@ -13,21 +13,18 @@ import (
 
 type (
 	User struct {
-		bun.BaseModel `bun:"table:users,alias:u" json:"-"`
-
-		UpdatedAt  time.Time  `bun:"updated_at" json:"updated_at,omitempty" validate:"-"`
-		CreatedAt  time.Time  `bun:"created_at" json:"created_at,omitempty" validate:"-"`
-		Identities Identities `bun:"identities" json:"identities"`
-		ID         string     `bun:"id,type:uuid,pk" json:"id,omitempty" validate:"-"`
-		Password   string     `bun:"password" json:"password,omitempty"`
-		//nolint
-		Username string `bun:"username,notnull,unique" json:"username,omitempty" validate:"-"`
-		//nolint
+		bun.BaseModel       `bun:"table:users,alias:u" json:"-"`
+		UpdatedAt           time.Time                   `bun:"updated_at" json:"updated_at,omitempty" validate:"-"`
+		CreatedAt           time.Time                   `bun:"created_at" json:"created_at,omitempty" validate:"-"`
+		Identities          Identities                  `bun:"identities" json:"identities"`
+		Username            string                      `bun:"username,notnull,unique" json:"username,omitempty" validate:"-"`
+		Password            string                      `bun:"password" json:"password,omitempty"`
 		Email               string                      `bun:"email,notnull,unique" json:"email,omitempty" validate:"email"`
 		Repositories        []*ContainerImageRepository `bun:"rel:has-many,join:id=owner_id"`
 		Sessions            []*Session                  `bun:"rel:has-many,join:id=owner_id"`
 		WebauthnSessions    []*WebauthnSession          `bun:"rel:has-many,join:id=user_id"`
 		WebauthnCredentials []*WebauthnCredential       `bun:"rel:has-many,join:id=credential_owner_id"`
+		ID                  uuid.UUID                   `bun:"id,type:uuid,pk" json:"id,omitempty" validate:"-"`
 		IsActive            bool                        `bun:"is_active" json:"is_active,omitempty" validate:"-"`
 		WebauthnConnected   bool                        `bun:"webauthn_connected" json:"webauthn_connected"`
 		GithubConnected     bool                        `bun:"github_connected" json:"github_connected"`
@@ -38,10 +35,11 @@ type (
 
 	Session struct {
 		bun.BaseModel `bun:"table:sessions,alias:s" json:"-"`
-		User          *User  `bun:"rel:belongs-to,join:owner_id=id"`
-		Id            string `bun:"id,type:uuid,pk" json:"id"`
-		RefreshToken  string `bun:"refresh_token" json:"refresh_token"`
-		OwnerID       string `bun:"owner_id,type:uuid" json:"-"`
+
+		User         *User     `bun:"rel:belongs-to,join:owner_id=id"`
+		RefreshToken string    `bun:"refresh_token" json:"refresh_token"`
+		Id           uuid.UUID `bun:"id,type:uuid,pk" json:"id"`
+		OwnerID      uuid.UUID `bun:"owner_id,type:uuid" json:"-"`
 	}
 
 	Identities   map[string]*UserIdentity
@@ -57,8 +55,8 @@ type (
 	Email struct {
 		bun.BaseModel `bun:"table:emails" json:"-"`
 
-		Token  string `bun:"token" json:"-"`
-		UserId string `bun:"user_id,type:uuid" json:"-"`
+		Token  uuid.UUID `bun:"token,pk,type:uuid" json:"-"`
+		UserId uuid.UUID `bun:"user_id,type:uuid" json:"-"`
 	}
 )
 
@@ -78,7 +76,7 @@ func (u *User) Bytes() ([]byte, error) {
 
 func (*User) NewUserFromGitHubUser(ghUser github.User) *User {
 	return &User{
-		ID:              uuid.NewString(),
+		ID:              uuid.New(),
 		Username:        ghUser.GetLogin(),
 		Email:           ghUser.GetEmail(),
 		IsActive:        true,
