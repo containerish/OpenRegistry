@@ -105,13 +105,16 @@ type (
 	}
 
 	Store struct {
-		Kind     string `yaml:"kind" mapstructure:"kind" validate:"required"`
-		User     string `yaml:"username" mapstructure:"username" validate:"required"`
-		Host     string `yaml:"host" mapstructure:"host" validate:"required"`
-		Password string `yaml:"password" mapstructure:"password" validate:"required"`
-		Database string `yaml:"name" mapstructure:"name" validate:"required"`
-		Port     int    `yaml:"port" mapstructure:"port" validate:"required"`
+		Kind               StoreKind `yaml:"kind" mapstructure:"kind" validate:"required"`
+		User               string    `yaml:"username" mapstructure:"username" validate:"required"`
+		Host               string    `yaml:"host" mapstructure:"host" validate:"required"`
+		Password           string    `yaml:"password" mapstructure:"password" validate:"required"`
+		Database           string    `yaml:"name" mapstructure:"name" validate:"required"`
+		MaxOpenConnections int       `yaml:"max_open_connections" mapstructure:"max_open_connections" validate:"-"`
+		Port               int       `yaml:"port" mapstructure:"port" validate:"required"`
 	}
+
+	StoreKind string
 
 	GithubOAuth struct {
 		ClientID     string `yaml:"client_id" mapstructure:"client_id" validate:"required"`
@@ -160,6 +163,11 @@ type (
 		JWTSigningPubKey     *rsa.PublicKey  `yaml:"pub_key" mapstructure:"pub_key"`
 		Enabled              bool            `yaml:"enabled" mapstructure:"enabled"`
 	}
+)
+
+const (
+	StoreKindPostgres StoreKind = "postgres"
+	StoreKindSQLite   StoreKind = "sqlite"
 )
 
 func (r *Registry) Address() string {
@@ -230,10 +238,6 @@ func (sc *Store) Endpoint() string {
 		"postgres://%s:%s@%s:%d/%s?sslmode=disable",
 		sc.User, sc.Password, sc.Host, sc.Port, sc.Database,
 	)
-	// return fmt.Sprintf(
-	// 	"postgres://%s:%s@%s:%d/%s?pool_max_conns=1000&sslmode=disable",
-	// 	sc.User, sc.Password, sc.Host, sc.Port, sc.Database,
-	// )
 }
 
 func (oc *OpenRegistryConfig) Endpoint() string {

@@ -5,13 +5,29 @@ import (
 
 	store_v2 "github.com/containerish/OpenRegistry/store/v2"
 	"github.com/containerish/OpenRegistry/store/v2/types"
+	"github.com/containerish/OpenRegistry/telemetry"
 	"github.com/google/uuid"
 	"github.com/uptrace/bun"
 )
 
+type registryStore struct {
+	db     *bun.DB
+	logger telemetry.Logger
+}
+
+func NewStore(
+	db *bun.DB,
+	logger telemetry.Logger,
+) RegistryStore {
+	store := registryStore{
+		db:     db,
+		logger: logger,
+	}
+
+	return &store
+}
+
 type RegistryBaseStore interface {
-	DB() *bun.DB
-	Ping(ctx context.Context) error
 	SetLayer(ctx context.Context, txn *bun.Tx, l *types.ContainerImageLayer) error
 	GetLayer(ctx context.Context, digest string) (*types.ContainerImageLayer, error)
 	SetManifest(ctx context.Context, txn *bun.Tx, im *types.ImageManifest) error

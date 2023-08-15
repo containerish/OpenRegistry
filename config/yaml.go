@@ -4,6 +4,7 @@ import (
 	"crypto/rsa"
 	"fmt"
 	"os"
+	"runtime"
 	"strings"
 
 	"github.com/fatih/color"
@@ -61,6 +62,7 @@ func ReadYamlConfig(configPath string) (*OpenRegistryConfig, error) {
 		return nil, fmt.Errorf("ERR_UNMARSHAL_CONFIG: %w", err)
 	}
 
+	setDefaultsForDatabaseStore(&cfg)
 	setDefaultsForStorageBackend(&cfg)
 
 	githubConfig := cfg.Integrations.GetGithubConfig()
@@ -135,5 +137,11 @@ func setDefaultsForStorageBackend(cfg *OpenRegistryConfig) {
 		if cfg.DFS.Storj.MinChunkSize == 0 {
 			cfg.DFS.Storj.MinChunkSize = fiveMBInBytes
 		}
+	}
+}
+
+func setDefaultsForDatabaseStore(cfg *OpenRegistryConfig) {
+	if cfg.StoreConfig.MaxOpenConnections == 0 {
+		cfg.StoreConfig.MaxOpenConnections = runtime.NumCPU() * 6
 	}
 }

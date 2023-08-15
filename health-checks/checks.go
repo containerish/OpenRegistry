@@ -9,7 +9,7 @@ import (
 )
 
 func NewHealthChecksAPI(pgPing postgres.PostgresPing) http.HandlerFunc {
-	cacheOpt := health.WithCacheDuration(time.Second * 5)
+	cacheOpt := health.WithCacheDuration(time.Second * 30)
 	timeoutOpt := health.WithTimeout(time.Second * 10)
 	dbHealthOpt := health.WithCheck(health.Check{
 		Name:               "database",

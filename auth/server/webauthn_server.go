@@ -25,7 +25,6 @@ import (
 
 type (
 	webauthn_server struct {
-		// store    postgres.PersistentStore
 		store        webauthn_store.WebAuthnStore
 		sessionStore users.SessionStore
 		usersStore   users.UserStore

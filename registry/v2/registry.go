@@ -20,7 +20,6 @@ import (
 	types_v2 "github.com/containerish/OpenRegistry/store/v2/types"
 	"github.com/containerish/OpenRegistry/telemetry"
 	"github.com/containerish/OpenRegistry/types"
-	"github.com/fatih/color"
 	"github.com/labstack/echo/v4"
 	"github.com/opencontainers/go-digest"
 )
@@ -751,11 +750,10 @@ func (r *registry) PushManifest(ctx echo.Context) error {
 
 	repository := r.GetRepositoryFromCtx(ctx)
 	repositoryExists := r.store.RepositoryExists(ctx.Request().Context(), strings.Split(namespace, "/")[1])
-	color.Green("repository: %#v \n repositoryExists: %v", repository, repositoryExists)
 	if repository == nil || !repositoryExists {
-		repositoryID, err := CreateIdentifier()
-		if err != nil {
-			errMsg := r.errorResponse(RegistryErrorCodeUnknown, err.Error(), echo.Map{
+		repositoryID, idErr := CreateIdentifier()
+		if idErr != nil {
+			errMsg := r.errorResponse(RegistryErrorCodeUnknown, idErr.Error(), echo.Map{
 				"reason": "ERR_CREATE_UNIQUE_REPOSITORY_IDENTIFIER",
 			})
 			echoErr := ctx.JSONBlob(http.StatusInternalServerError, errMsg)
@@ -764,7 +762,6 @@ func (r *registry) PushManifest(ctx echo.Context) error {
 
 		}
 
-		color.HiWhite("namespace=%s", namespace)
 		repository = &types_v2.ContainerImageRepository{
 			CreatedAt:  time.Now(),
 			OwnerID:    user.ID,
@@ -772,30 +769,16 @@ func (r *registry) PushManifest(ctx echo.Context) error {
 			Name:       strings.Split(namespace, "/")[1],
 			Visibility: types_v2.RepositoryVisibilityPrivate,
 		}
-		err = r.store.CreateRepository(ctx.Request().Context(), repository)
-		color.White("create_repository_err: %s", err)
-		if err != nil {
+		idErr = r.store.CreateRepository(ctx.Request().Context(), repository)
+		if idErr != nil {
 			echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
-				"error":   err.Error(),
+				"error":   idErr.Error(),
 				"message": "error creating new repository",
 			})
-			r.logger.Log(ctx, err).Send()
+			r.logger.Log(ctx, idErr).Send()
 			return echoErr
 		}
 	}
-
-	color.Cyan("user in ctx: id=%s email=%s", user.ID, user.Email)
-	//
-	// c, ok := token.Claims
-	// if !ok {
-	// 	err := fmt.Errorf("ERR_INVALID_CLAIMS")
-	// 	echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
-	// 		"error":   err.Error(),
-	// 		"message": "invalid claims in JWT",
-	// 	})
-	// 	r.logger.Log(ctx, err).Send()
-	// 	return echoErr
-	// }
 
 	var manifest ImageManifest
 	buf := &bytes.Buffer{}
@@ -840,20 +823,6 @@ func (r *registry) PushManifest(ctx echo.Context) error {
 		return echoErr
 	}
 
-	// mfc := types.ConfigV2{
-	// 	UUID:      uuid,
-	// 	Namespace: namespace,
-	// 	Reference: ref,
-	// 	Digest:    dig.String(),
-	// 	DFSLink:   dfsLink,
-	// 	MediaType: contentType,
-	// 	Layers:    layerIDs,
-	// 	Size:      0,
-	// 	CreatedAt: time.Now(),
-	// 	UpdatedAt: time.Now(),
-	// }
-
-	// _ = mfc
 	val := &types_v2.ImageManifest{
 		CreatedAt:     time.Now(),
 		UpdatedAt:     time.Now(),
@@ -964,7 +933,6 @@ func (r *registry) DeleteTagOrManifest(ctx echo.Context) error {
 			ref = reqURI[5]
 		}
 	}
-	// txnOp, _ := r.store.NewTxn(ctx.Request().Context())
 	if err := r.store.DeleteManifestOrTag(ctx.Request().Context(), ref); err != nil {
 		details := map[string]interface{}{
 			"namespace": namespace,
@@ -976,7 +944,6 @@ func (r *registry) DeleteTagOrManifest(ctx echo.Context) error {
 		return echoErr
 	}
 
-	// err := r.store.Commit(ctx.Request().Context(), txnOp)
 	echoErr := ctx.NoContent(http.StatusAccepted)
 	r.logger.Log(ctx, echoErr).Send()
 	return echoErr
@@ -986,14 +953,6 @@ func (r *registry) DeleteLayer(ctx echo.Context) error {
 	ctx.Set(types.HandlerStartTime, time.Now())
 
 	dig := ctx.Param("digest")
-	// layer, err := r.store.GetLayer(ctx.Request().Context(), dig)
-	// if err != nil {
-	// 	errMsg := r.errorResponse(RegistryErrorCodeBlobUnknown, err.Error(), nil)
-	// 	echoErr := ctx.JSONBlob(http.StatusNotFound, errMsg)
-	// 	r.logger.Log(ctx, fmt.Errorf("%s", errMsg)).Send()
-	// 	return echoErr
-	// }
-	// blobs := layer.BlobDigests
 
 	txnOp, _ := r.store.NewTxn(context.Background())
 	err := r.store.DeleteLayerByDigestWithTxn(ctx.Request().Context(), txnOp, dig)
@@ -1004,14 +963,6 @@ func (r *registry) DeleteLayer(ctx echo.Context) error {
 		return echoErr
 	}
 
-	// for i := range blobs {
-	// 	if err = r.store.DeleteBlobV2(ctx.Request().Context(), txnOp, blobs[i]); err != nil {
-	// 		errMsg := r.errorResponse(RegistryErrorCodeBlobUnknown, err.Error(), nil)
-	// 		echoErr := ctx.JSONBlob(http.StatusInternalServerError, errMsg)
-	// 		r.logger.Log(ctx, fmt.Errorf("%s", errMsg)).Send()
-	// 		return echoErr
-	// 	}
-	// }
 	err = r.store.Commit(ctx.Request().Context(), txnOp)
 	echoErr := ctx.NoContent(http.StatusAccepted)
 	r.logger.Log(ctx, err).Send()

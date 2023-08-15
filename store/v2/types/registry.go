@@ -62,11 +62,11 @@ type ContainerImageLayer struct {
 	Size      uint64    `bun:"size,default:0" json:"size"`
 }
 
-type RepositoryVisibility int
+type RepositoryVisibility string
 
 const (
-	RepositoryVisibilityPublic  RepositoryVisibility = 1
-	RepositoryVisibilityPrivate RepositoryVisibility = 2
+	RepositoryVisibilityPublic  RepositoryVisibility = "Public"
+	RepositoryVisibilityPrivate RepositoryVisibility = "Private"
 )
 
 type ContainerImageRepository struct {
@@ -79,8 +79,8 @@ type ContainerImageRepository struct {
 	ID             string               `bun:"id,pk,type:uuid,default:gen_random_uuid()" json:"id"`
 	Name           string               `bun:"name,notnull,unique" json:"name"`
 	Description    string               `bun:"description" json:"description"`
-	ImageManifests []*ImageManifest     `bun:"rel:has-many,join:id=repository_id"`
 	Visibility     RepositoryVisibility `bun:"visibility,notnull" json:"visibility"`
+	ImageManifests []*ImageManifest     `bun:"rel:has-many,join:id=repository_id"`
 	OwnerID        uuid.UUID            `bun:"owner_id,type:uuid" json:"owner_id"`
 }
 

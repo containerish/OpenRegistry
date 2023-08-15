@@ -16,8 +16,9 @@ import (
 	github_actions_server "github.com/containerish/OpenRegistry/services/kon/github_actions/v1/server"
 	"github.com/containerish/OpenRegistry/store/postgres"
 	build_automation_store "github.com/containerish/OpenRegistry/store/postgres/build_automation"
+	store_v2 "github.com/containerish/OpenRegistry/store/v2"
 	"github.com/containerish/OpenRegistry/store/v2/emails"
-	store_v2 "github.com/containerish/OpenRegistry/store/v2/registry/postgres"
+	registry_store "github.com/containerish/OpenRegistry/store/v2/registry"
 	"github.com/containerish/OpenRegistry/store/v2/sessions"
 	"github.com/containerish/OpenRegistry/store/v2/users"
 	"github.com/containerish/OpenRegistry/store/v2/webauthn"
@@ -84,11 +85,12 @@ func RunRegistryServer(ctx *cli.Context) {
 	defer pgStore.Close()
 	_ = pgStore
 
-	pgStoreV2 := store_v2.NewStore(cfg.StoreConfig.Endpoint(), 5, logger, cfg.Environment)
-	usersStore := users.NewStore(pgStoreV2.DB(), logger)
-	sessionsStore := sessions.NewStore(pgStoreV2.DB())
-	webauthnStore := webauthn.NewStore(pgStoreV2.DB())
-	emailStore := emails.NewStore(pgStoreV2.DB())
+	rawDB := store_v2.NewDB(cfg.StoreConfig, cfg.Environment)
+	registryStore := registry_store.NewStore(rawDB, logger)
+	usersStore := users.NewStore(rawDB, logger)
+	sessionsStore := sessions.NewStore(rawDB)
+	webauthnStore := webauthn.NewStore(rawDB)
+	emailStore := emails.NewStore(rawDB)
 
 	buildAutomationStore, err := build_automation_store.New(&cfg.StoreConfig)
 	if err != nil {
@@ -99,22 +101,22 @@ func RunRegistryServer(ctx *cli.Context) {
 
 	authSvc := auth.New(cfg, usersStore, sessionsStore, emailStore, logger)
 	webauthnServer := auth_server.NewWebauthnServer(cfg, webauthnStore, sessionsStore, usersStore, logger)
-	healthCheckHandler := healthchecks.NewHealthChecksAPI(pgStoreV2)
+	healthCheckHandler := healthchecks.NewHealthChecksAPI(&store_v2.DBPinger{DB: rawDB})
 
 	dfs := client.NewDFSBackend(cfg.Environment, cfg.Endpoint(), &cfg.DFS)
-	reg, err := registry.NewRegistry(pgStoreV2, dfs, logger, cfg)
+	reg, err := registry.NewRegistry(registryStore, dfs, logger, cfg)
 	if err != nil {
 		e.Logger.Errorf("error creating new container registry: %s", err)
 		return
 	}
 
-	ext, err := extensions.New(pgStoreV2, logger)
+	ext, err := extensions.New(registryStore, logger)
 	if err != nil {
 		e.Logger.Errorf("error creating new container registry extensions api: %s", err)
 		return
 	}
 
-	router.Register(cfg, e, reg, authSvc, webauthnServer, ext, pgStoreV2)
+	router.Register(cfg, e, reg, authSvc, webauthnServer, ext, registryStore)
 	router.RegisterHealthCheckEndpoint(e, healthCheckHandler)
 	if cfg.Integrations.GetGithubConfig() != nil && cfg.Integrations.GetGithubConfig().Enabled {
 		ghApp, err := github.NewGithubApp(

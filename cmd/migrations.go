@@ -220,7 +220,6 @@ func createOpenRegistryDatabase(ctx *cli.Context, opts *databaseOptions) (*bun.D
 		ExecContext(
 			ctx.Context,
 			"GRANT ALL PRIVILEGES ON DATABASE ?0 to ?1",
-			// "GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO ?",
 			bun.Ident(opts.database),
 			bun.Ident(opts.username),
 		)
@@ -235,7 +234,6 @@ func createOpenRegistryDatabase(ctx *cli.Context, opts *databaseOptions) (*bun.D
 	_, err = adminDB.
 		ExecContext(
 			ctx.Context,
-			// "GRANT ALL ON SCHEMA public to ?",
 			"GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO ?",
 			bun.Ident(opts.username),
 		)

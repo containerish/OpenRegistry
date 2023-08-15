@@ -1,4 +1,4 @@
-package postgres
+package registry
 
 import (
 	"context"
@@ -9,7 +9,6 @@ import (
 
 	v2 "github.com/containerish/OpenRegistry/store/v2"
 	"github.com/containerish/OpenRegistry/store/v2/types"
-	"github.com/fatih/color"
 	"github.com/google/uuid"
 	"github.com/uptrace/bun"
 	"github.com/uptrace/bun/dialect/feature"
@@ -96,7 +95,6 @@ func (s *registryStore) GetRepositoryByName(
 		db.
 		NewSelect().
 		Model(&repository).
-		// Where("name = ?1 AND owner_id = ?2", bun.Ident(userId), bun.Ident(name)).
 		WhereGroup(" AND ", func(sq *bun.SelectQuery) *bun.SelectQuery {
 			return sq.Where("name = ?", name)
 		}).
@@ -182,33 +180,19 @@ func (s *registryStore) GetCatalog(
 	pageSize int,
 	offset int,
 ) ([]string, error) {
-	// var catalog []types.ImageManifest
 	var catalog []types.ContainerImageRepository
 
 	repositoryName := strings.Split(namespace, "/")[1]
-	color.Red("repository name: %s - %s", repositoryName, namespace)
 	err := s.
 		db.
 		NewSelect().
 		Model(&catalog).
 		Relation("ImageManifests").
-		Where("name = ?", repositoryName).
+		Where("name = ? and visibility = ?", repositoryName, types.RepositoryVisibilityPublic).
 		Scan(ctx)
 	if err != nil {
 		return nil, v2.WrapDatabaseError(err, v2.DatabaseOperationRead)
 	}
-	// err = s.
-	// 	db.
-	// 	NewSelect().
-	// 	Model(&catalog).
-	// 	Column("namespace").
-	// 	Limit(pageSize).
-	// 	Offset(offset).
-	// 	Scan(ctx)
-	//
-	// if err != nil {
-	// 	return nil, v2.WrapDatabaseError(err, v2.DatabaseOperationRead)
-	// }
 
 	namespaceList := make([]string, len(catalog))
 	for i, m := range catalog {
@@ -503,10 +487,6 @@ func (s *registryStore) SetManifest(ctx context.Context, txn *bun.Tx, im *types.
 		fmt.Errorf("DB_ERR: InsertOnUpdate feature not available"),
 		v2.DatabaseOperationWrite,
 	)
-}
-
-func (s *registryStore) DB() *bun.DB {
-	return s.db
 }
 
 // NewTxn implements registry.RegistryStore.

@@ -1,14 +1,11 @@
-package postgres
+package v2
 
 import (
 	"context"
 	"database/sql"
 	"os"
-	"strings"
 
 	"github.com/containerish/OpenRegistry/config"
-	registry_store_v2 "github.com/containerish/OpenRegistry/store/v2/registry"
-	"github.com/containerish/OpenRegistry/telemetry"
 	"github.com/fatih/color"
 	"github.com/uptrace/bun"
 	"github.com/uptrace/bun/dialect/pgdialect"
@@ -19,27 +16,17 @@ import (
 	"github.com/uptrace/bun/schema"
 )
 
-type registryStore struct {
-	rawDB  *sql.DB
-	db     *bun.DB
-	logger telemetry.Logger
-}
-
-func (rs *registryStore) Ping(ctx context.Context) error {
-	return rs.db.PingContext(ctx)
-}
-
-func NewStore(
-	dsn string, maxOpenConns int, logger telemetry.Logger, env config.Environment,
-) registry_store_v2.RegistryStore {
+func NewDB(cfg config.Store, env config.Environment) *bun.DB {
 	var (
 		dialect schema.Dialect
 		sqlDB   *sql.DB
 	)
-	if strings.HasPrefix(dsn, "postgres://") {
+
+	switch cfg.Kind {
+	case config.StoreKindPostgres:
 		dialect = pgdialect.New()
-		sqlDB = sql.OpenDB(pgdriver.NewConnector(pgdriver.WithDSN(dsn)))
-	} else {
+		sqlDB = sql.OpenDB(pgdriver.NewConnector(pgdriver.WithDSN(cfg.Endpoint())))
+	case config.StoreKindSQLite:
 		dialect = sqlitedialect.New()
 		sqliteDB, err := sql.Open(sqliteshim.ShimName, "file::memory:?cache=shared")
 		if err != nil {
@@ -47,10 +34,13 @@ func NewStore(
 			os.Exit(1101)
 		}
 		sqlDB = sqliteDB
+	default:
+		color.Red("Invalid store kind: %s", cfg.Kind)
+		os.Exit(1101)
 	}
 
-	sqlDB.SetMaxIdleConns(maxOpenConns)
-	sqlDB.SetMaxOpenConns(maxOpenConns)
+	sqlDB.SetMaxIdleConns(cfg.MaxOpenConnections)
+	sqlDB.SetMaxOpenConns(cfg.MaxOpenConnections)
 
 	bunWrappedDB := bun.NewDB(sqlDB, dialect)
 	if err := bunWrappedDB.Ping(); err != nil {
@@ -58,18 +48,20 @@ func NewStore(
 		os.Exit(1100)
 	}
 
-	store := registryStore{
-		rawDB:  sqlDB,
-		db:     bunWrappedDB,
-		logger: logger,
-	}
-
-	if env == config.Local {
+	if env == config.Local || env == config.Staging {
 		bunWrappedDB.AddQueryHook(bundebug.NewQueryHook(
 			bundebug.WithVerbose(true),
 			bundebug.FromEnv("BUNDEBUG"),
 		))
 	}
 
-	return &store
+	return bunWrappedDB
+}
+
+type DBPinger struct {
+	DB *bun.DB
+}
+
+func (p *DBPinger) Ping(ctx context.Context) error {
+	return p.DB.PingContext(ctx)
 }

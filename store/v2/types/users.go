@@ -13,7 +13,8 @@ import (
 
 type (
 	User struct {
-		bun.BaseModel       `bun:"table:users,alias:u" json:"-"`
+		bun.BaseModel `bun:"table:users,alias:u" json:"-"`
+
 		UpdatedAt           time.Time                   `bun:"updated_at" json:"updated_at,omitempty" validate:"-"`
 		CreatedAt           time.Time                   `bun:"created_at" json:"created_at,omitempty" validate:"-"`
 		Identities          Identities                  `bun:"identities" json:"identities"`

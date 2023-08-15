@@ -1,12 +1,19 @@
 package main
 
 import (
+	"fmt"
+	"log"
 	"os"
-	"time"
 
 	"github.com/containerish/OpenRegistry/cmd"
-	"github.com/fatih/color"
 	"github.com/urfave/cli/v2"
+)
+
+var (
+	//nolint
+	GitCommit string
+	//nolint
+	Version string
 )
 
 func main() {
@@ -19,7 +26,12 @@ func main() {
 				Email: "team@cntr.sh",
 			},
 		},
-		Compiled: time.Now(),
+		Metadata: map[string]interface{}{
+			"something": "here",
+		},
+		UseShortOptionHandling: true,
+		Suggest:                true,
+		Version:                renderVersion(),
 		Description: `This CLI program can be used to manage an OpenRegistry instance.
 You can perform actions such as datastore migrations, rollbacks, starting the registry server,
 running OCI tests against the server, etc`,
@@ -33,7 +45,12 @@ running OCI tests against the server, etc`,
 	}
 
 	if err := app.Run(os.Args); err != nil {
-		color.Red(err.Error())
-		os.Exit(1)
+		log.Fatal(err)
 	}
+}
+
+func renderVersion() string {
+	return fmt.Sprintf(`
+Version: %s
+Commit: %s`, Version, GitCommit)
 }
