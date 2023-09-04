@@ -133,4 +133,8 @@ func setDefaultsForStorageBackend(cfg *OpenRegistryConfig) {
 			cfg.DFS.Storj.MinChunkSize = fiveMBInBytes
 		}
 	}
+
+	if cfg.StoreConfig.SSLMode == "" {
+		cfg.StoreConfig.SSLMode = "disable"
+	}
 }

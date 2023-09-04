@@ -112,6 +112,7 @@ type (
 		Host     string `yaml:"host" mapstructure:"host" validate:"required"`
 		Password string `yaml:"password" mapstructure:"password" validate:"required"`
 		Database string `yaml:"name" mapstructure:"name" validate:"required"`
+		SSLMode  string `yaml:"ssl_mode" mapstructure:"ssl_mode" validate:"-"`
 		Port     int    `yaml:"port" mapstructure:"port" validate:"required"`
 	}
 
@@ -178,6 +179,7 @@ func NewStoreConfig() (*Store, error) {
 		Database: viper.GetString("DB_NAME"),
 		Host:     viper.GetString("DB_HOST"),
 		Port:     viper.GetInt("DB_PORT"),
+		SSLMode:  viper.GetString("DB_SSL_MODE"),
 	}
 
 	return storeConfig, nil
@@ -228,10 +230,12 @@ func translateError(err error, trans ut.Translator) error {
 }
 
 func (sc *Store) Endpoint() string {
-	return fmt.Sprintf(
-		"postgres://%s:%s@%s:%d/%s?pool_max_conns=1000&sslmode=disable",
-		sc.User, sc.Password, sc.Host, sc.Port, sc.Database,
+	pgurl := fmt.Sprintf(
+		"postgres://%s:%s@%s:%d/%s?pool_max_conns=1000&sslmode=%s",
+		sc.User, sc.Password, sc.Host, sc.Port, sc.Database, sc.SSLMode,
 	)
+
+	return pgurl
 }
 
 func (oc *OpenRegistryConfig) Endpoint() string {
