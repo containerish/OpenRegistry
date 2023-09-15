@@ -9,7 +9,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/config v1.18.39
 	github.com/aws/aws-sdk-go-v2/credentials v1.13.37
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.38.5
-	github.com/bradleyfalzon/ghinstallation/v2 v2.6.0
+	github.com/bradleyfalzon/ghinstallation/v2 v2.7.0
 	github.com/fatih/color v1.15.0
 	github.com/go-playground/locales v0.14.1
 	github.com/go-playground/universal-translator v0.18.1
@@ -42,6 +42,7 @@ require (
 	github.com/go-webauthn/x v0.1.4 // indirect
 	github.com/golang-jwt/jwt v3.2.2+incompatible // indirect
 	github.com/golang-jwt/jwt/v4 v4.5.0 // indirect
+	github.com/google/go-github/v55 v55.0.0 // indirect
 	github.com/jtolio/noiseconn v0.0.0-20230111204749-d7ec1a08b0b8 // indirect
 	storj.io/picobuf v0.0.1 // indirect
 )
@@ -72,7 +73,6 @@ require (
 	github.com/gabriel-vasile/mimetype v1.4.2 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
-	github.com/google/go-github/v53 v53.2.0 // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/google/go-tpm v0.9.0 // indirect
 	github.com/hashicorp/errwrap v1.0.0 // indirect
