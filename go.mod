@@ -13,7 +13,7 @@ require (
 	github.com/fatih/color v1.15.0
 	github.com/go-playground/locales v0.14.1
 	github.com/go-playground/universal-translator v0.18.1
-	github.com/go-playground/validator/v10 v10.15.3
+	github.com/go-playground/validator/v10 v10.15.4
 	github.com/go-webauthn/webauthn v0.8.6
 	github.com/golang-jwt/jwt/v5 v5.0.0
 	github.com/google/go-github/v50 v50.2.0
