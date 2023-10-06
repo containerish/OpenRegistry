@@ -31,7 +31,7 @@ require (
 	github.com/sendgrid/sendgrid-go v3.13.0+incompatible
 	github.com/spf13/viper v1.16.0
 	github.com/valyala/fasttemplate v1.2.2
-	golang.org/x/crypto v0.13.0
+	golang.org/x/crypto v0.14.0
 	golang.org/x/oauth2 v0.12.0
 	gopkg.in/yaml.v2 v2.4.0
 	storj.io/uplink v1.12.0
@@ -114,9 +114,9 @@ require (
 	github.com/zeebo/blake3 v0.2.3 // indirect
 	github.com/zeebo/errs v1.3.0 // indirect
 	gitlab.com/NebulousLabs/errors v0.0.0-20171229012116-7ead97ef90b8 // indirect
-	golang.org/x/net v0.15.0
+	golang.org/x/net v0.16.0
 	golang.org/x/sync v0.3.0 // indirect
-	golang.org/x/sys v0.12.0 // indirect
+	golang.org/x/sys v0.13.0 // indirect
 	golang.org/x/text v0.13.0 // indirect
 	golang.org/x/time v0.3.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
