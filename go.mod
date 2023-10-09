@@ -34,7 +34,7 @@ require (
 	golang.org/x/crypto v0.14.0
 	golang.org/x/oauth2 v0.12.0
 	gopkg.in/yaml.v2 v2.4.0
-	storj.io/uplink v1.12.0
+	storj.io/uplink v1.12.1
 )
 
 require (
@@ -102,7 +102,7 @@ require (
 	github.com/prometheus/common v0.40.0 // indirect
 	github.com/prometheus/procfs v0.9.0 // indirect
 	github.com/sendgrid/rest v2.6.9+incompatible // indirect
-	github.com/spacemonkeygo/monkit/v3 v3.0.20-0.20230227152157-d00b379de191 // indirect
+	github.com/spacemonkeygo/monkit/v3 v3.0.22 // indirect
 	github.com/spf13/afero v1.10.0
 	github.com/spf13/cast v1.5.1 // indirect
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
@@ -123,7 +123,7 @@ require (
 	google.golang.org/protobuf v1.31.0
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	storj.io/common v0.0.0-20230907123639-5fd0608fd947 // indirect
+	storj.io/common v0.0.0-20230920095429-0ce0a575e6f8 // indirect
 	storj.io/drpc v0.0.33 // indirect
 )
 
