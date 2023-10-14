@@ -119,7 +119,7 @@ require (
 	github.com/zeebo/blake3 v0.2.3 // indirect
 	github.com/zeebo/errs v1.3.0 // indirect
 	gitlab.com/NebulousLabs/errors v0.0.0-20171229012116-7ead97ef90b8 // indirect
-	golang.org/x/net v0.16.0
+	golang.org/x/net v0.17.0
 	golang.org/x/sync v0.3.0 // indirect
 	golang.org/x/sys v0.13.0 // indirect
 	golang.org/x/text v0.13.0 // indirect
