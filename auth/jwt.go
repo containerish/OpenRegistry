@@ -236,7 +236,7 @@ func (a *auth) newToken(u *types.User) (string, error) {
 		Audience: a.c.Registry.FQDN,
 		Issuer:   OpenRegistryIssuer,
 		Id:       u.ID.String(),
-		TokeType: "access_token",
+		TokeType: AccessCookieKey,
 		Acl:      acl,
 	}
 	claims := CreateClaims(opts)

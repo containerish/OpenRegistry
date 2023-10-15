@@ -73,7 +73,7 @@ func (p *pg) ListProjects(
     workflow_file,
     environment_variables
     from build_projects where owner=$1`
-	rows, err := p.conn.Query(ctx, query, project.GetUserId())
+	rows, err := p.conn.Query(ctx, query, project.GetOwnerId())
 	if err != nil {
 		return nil, fmt.Errorf("ERR_LIST_PROJECTS: %w", err)
 	}
@@ -116,7 +116,7 @@ func (p *pg) StoreProject(ctx context.Context, project *github_actions_v1.Create
 		query,
 		project.GetId(),
 		project.GetProjectName(),
-		project.GetOwner(),
+		project.GetOwnerId(),
 		project.GetProductionBranch(),
 		project.GetCreatedAt().AsTime(),
 		project.GetBuildSettings().GetBuildTool(),

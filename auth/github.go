@@ -271,8 +271,8 @@ func (a *auth) finishGitHubCallback(ctx echo.Context, user *v2_types.User, oauth
 	val := fmt.Sprintf("%s:%s", sessionId, user.ID)
 
 	sessionCookie := a.createCookie(ctx, "session_id", val, false, time.Now().Add(time.Hour*750))
-	accessCookie := a.createCookie(ctx, "access_token", accessToken, true, time.Now().Add(time.Hour*750))
-	refreshCookie := a.createCookie(ctx, "refresh_token", refreshToken, true, time.Now().Add(time.Hour*750))
+	accessCookie := a.createCookie(ctx, AccessCookieKey, accessToken, true, time.Now().Add(time.Hour*750))
+	refreshCookie := a.createCookie(ctx, RefreshCookKey, refreshToken, true, time.Now().Add(time.Hour*750))
 
 	ctx.SetCookie(accessCookie)
 	ctx.SetCookie(refreshCookie)

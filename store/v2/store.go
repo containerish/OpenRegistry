@@ -50,7 +50,7 @@ func NewDB(cfg config.Store, env config.Environment) *bun.DB {
 
 	if env == config.Local || env == config.Staging {
 		bunWrappedDB.AddQueryHook(bundebug.NewQueryHook(
-			bundebug.WithVerbose(true),
+			bundebug.WithVerbose(false),
 			bundebug.FromEnv("BUNDEBUG"),
 		))
 	}

@@ -64,8 +64,10 @@ const (
 
 	// API to get detailed catalog information
 	CatalogDetail = C + "/detail"
+	UserCatalog   = C + "/user"
 
 	RepositoryDetail = C + "/repository"
 
 	ChangeRepositoryVisibility = Ext + "/repository/visibility"
+	CreateRepository           = Ext + "/repository/create"
 )

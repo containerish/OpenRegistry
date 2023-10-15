@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/containerish/OpenRegistry/store/v2/registry"
+	"github.com/containerish/OpenRegistry/store/v2/types"
 	"github.com/containerish/OpenRegistry/telemetry"
-	"github.com/containerish/OpenRegistry/types"
 	"github.com/labstack/echo/v4"
 )
 
@@ -17,6 +17,7 @@ type Extenion interface {
 	RepositoryDetail(ctx echo.Context) error
 	ChangeContainerImageVisibility(ctx echo.Context) error
 	PublicCatalog(ctx echo.Context) error
+	GetUserCatalog(ctx echo.Context) error
 }
 
 type extension struct {
@@ -103,6 +104,10 @@ func (ext *extension) CatalogDetail(ctx echo.Context) error {
 		return echoErr
 	}
 
+	if catalogWithDetail == nil {
+		catalogWithDetail = make([]*types.ContainerImageRepository, 0)
+	}
+
 	echoErr := ctx.JSON(http.StatusOK, echo.Map{
 		"repositories": catalogWithDetail,
 		"total":        total,
@@ -187,7 +192,7 @@ func (ext *extension) PublicCatalog(ctx echo.Context) error {
 		offset = int(o)
 	}
 
-	repositories, err := ext.store.GetPublicRepositories(ctx.Request().Context(), pageSize, offset)
+	repositories, total, err := ext.store.GetPublicRepositories(ctx.Request().Context(), pageSize, offset)
 	if err != nil {
 		return ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error": err.Error(),
@@ -196,5 +201,75 @@ func (ext *extension) PublicCatalog(ctx echo.Context) error {
 
 	return ctx.JSON(http.StatusOK, echo.Map{
 		"repositories": repositories,
+		"total":        total,
+	})
+}
+
+func (ext *extension) GetUserCatalog(ctx echo.Context) error {
+	user, ok := ctx.Get(string(types.UserContextKey)).(*types.User)
+	if !ok {
+		errMsg := fmt.Errorf("missing user in request context")
+		echoErr := ctx.JSON(http.StatusUnauthorized, echo.Map{
+			"error":   "unauthorized",
+			"message": errMsg.Error(),
+		})
+		ext.logger.Log(ctx, errMsg).Send()
+		return echoErr
+	}
+
+	queryParamPageSize := ctx.QueryParam("n")
+	queryParamOffset := ctx.QueryParam("last")
+	queryParamVisibility := ctx.QueryParam("visibility")
+	var pageSize int
+	var offset int
+	if queryParamPageSize != "" {
+		ps, err := strconv.ParseInt(ctx.QueryParam("n"), 10, 64)
+		if err != nil {
+			echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
+				"error": err.Error(),
+			})
+			ext.logger.Log(ctx, err).Send()
+			return echoErr
+		}
+		pageSize = int(ps)
+	}
+
+	if queryParamOffset != "" {
+		o, err := strconv.ParseInt(ctx.QueryParam("last"), 10, 64)
+		if err != nil {
+			echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
+				"error": err.Error(),
+			})
+			ext.logger.Log(ctx, err).Send()
+			return echoErr
+		}
+		offset = int(o)
+	}
+
+	var visibility types.RepositoryVisibility
+	if queryParamVisibility == types.RepositoryVisibilityPublic.String() {
+		visibility = types.RepositoryVisibilityPublic
+	} else if queryParamVisibility == types.RepositoryVisibilityPrivate.String() {
+		visibility = types.RepositoryVisibilityPrivate
+	}
+
+	repositories, total, err := ext.
+		store.
+		GetUserRepositories(
+			ctx.Request().Context(),
+			user.ID,
+			visibility,
+			pageSize,
+			offset,
+		)
+	if err != nil {
+		return ctx.JSON(http.StatusInternalServerError, echo.Map{
+			"error": err.Error(),
+		})
+	}
+
+	return ctx.JSON(http.StatusOK, echo.Map{
+		"repositories": repositories,
+		"total":        total,
 	})
 }

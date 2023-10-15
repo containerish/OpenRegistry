@@ -751,7 +751,7 @@ func (r *registry) PushManifest(ctx echo.Context) error {
 	repository := r.GetRepositoryFromCtx(ctx)
 	repositoryExists := r.store.RepositoryExists(ctx.Request().Context(), strings.Split(namespace, "/")[1])
 	if repository == nil || !repositoryExists {
-		repositoryID, idErr := CreateIdentifier()
+		repositoryID, idErr := NewUUID()
 		if idErr != nil {
 			errMsg := r.errorResponse(RegistryErrorCodeUnknown, idErr.Error(), echo.Map{
 				"reason": "ERR_CREATE_UNIQUE_REPOSITORY_IDENTIFIER",
@@ -813,7 +813,7 @@ func (r *registry) PushManifest(ctx echo.Context) error {
 		layerIDs = append(layerIDs, layer.Digest)
 	}
 
-	uuid, err := CreateIdentifier()
+	uuid, err := NewUUID()
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error": err.Error(),
@@ -834,7 +834,6 @@ func (r *registry) PushManifest(ctx echo.Context) error {
 		DFSLink:       dfsLink,
 		Reference:     ref,
 		Layers:        layerIDs,
-		User:          types_v2.User{},
 		SchemaVersion: 2,
 		Size:          0,
 	}

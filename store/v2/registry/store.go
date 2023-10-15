@@ -47,19 +47,31 @@ type RegistryStore interface {
 	GetCatalog(ctx context.Context, namespace string, pageSize int, offset int) ([]string, error)
 	GetCatalogDetail(
 		ctx context.Context, namespace string, pageSize int, offset int, sortBy string,
-	) ([]*types.ImageManifest, error)
-	GetRepoDetail(ctx context.Context, namespace string, pageSize int, offset int) (*types.ContainerImageRepository, error)
+	) ([]*types.ContainerImageRepository, error)
+	GetRepoDetail(
+		ctx context.Context,
+		namespace string,
+		pageSize int,
+		offset int,
+	) (*types.ContainerImageRepository, error)
 	GetCatalogCount(ctx context.Context, ns string) (int64, error)
 	GetImageNamespace(ctx context.Context, search string) ([]*types.ImageManifest, error)
 	DeleteLayerByDigest(ctx context.Context, digest string) error
-	GetPublicRepositories(ctx context.Context, pageSize int, offset int) ([]*types.ContainerImageRepository, error)
+	GetPublicRepositories(ctx context.Context, pageSize int, offset int) ([]*types.ContainerImageRepository, int, error)
+	GetUserRepositories(
+		ctx context.Context,
+		userID uuid.UUID,
+		visibility types.RepositoryVisibility,
+		pageSize int,
+		offset int,
+	) ([]*types.ContainerImageRepository, int, error)
 	DeleteLayerByDigestWithTxn(ctx context.Context, txn *bun.Tx, digest string) error
 	DeleteManifestOrTag(ctx context.Context, reference string) error
 	DeleteManifestOrTagWithTxn(ctx context.Context, txn *bun.Tx, reference string) error
 	SetContainerImageVisibility(ctx context.Context, imageId string, visibility types.RepositoryVisibility) error
 
 	CreateRepository(ctx context.Context, repository *types.ContainerImageRepository) error
-	GetRepositoryByID(ctx context.Context, ID string) (*types.ContainerImageRepository, error)
+	GetRepositoryByID(ctx context.Context, ID uuid.UUID) (*types.ContainerImageRepository, error)
 	GetRepositoryByNamespace(ctx context.Context, namespace string) (*types.ContainerImageRepository, error)
 	RepositoryExists(ctx context.Context, name string) bool
 	GetRepositoryByName(ctx context.Context, userId uuid.UUID, name string) (*types.ContainerImageRepository, error)

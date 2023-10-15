@@ -42,20 +42,20 @@ func (ws *webauthnStore) GetWebAuthnSessionData(
 ) (*webauthn.SessionData, error) {
 	session := &types.WebauthnSession{}
 
-	color.Red("user id in GetWebAuthnSessionData: %s", userId)
-	_, err := ws.
+	err := ws.
 		db.
 		NewSelect().
 		Model(session).
 		Where("credential_owner_id = ? and session_type = ?", userId, sessionType).
-		Exec(ctx)
+		Scan(ctx)
 	if err != nil {
 		return nil, v2.WrapDatabaseError(err, v2.DatabaseOperationRead)
 	}
 
+	color.Red("user id in GetWebAuthnSessionData: %s - userId=%#v", userId, session)
 	return &webauthn.SessionData{
 		Challenge:            session.Challege,
-		UserID:               session.UserID[:],
+		UserID:               session.CredentialOwnerID[:],
 		AllowedCredentialIDs: session.AllowedCredentialIDs,
 		Expires:              session.Expires,
 		UserVerification:     session.UserVerification,
@@ -68,12 +68,12 @@ func (ws *webauthnStore) GetWebAuthnCredentials(
 	credentialOwnerId uuid.UUID,
 ) (*webauthn.Credential, error) {
 	credential := &types.WebauthnCredential{}
-	_, err := ws.
+	err := ws.
 		db.
 		NewSelect().
 		Model(credential).
 		Where("credential_owner_id = ?", credentialOwnerId).
-		Exec(ctx)
+		Scan(ctx)
 
 	if err != nil {
 		return nil, v2.WrapDatabaseError(err, v2.DatabaseOperationRead)
@@ -98,6 +98,7 @@ func (ws *webauthnStore) AddWebAuthSessionData(
 	userIDFromSession, _ := uuid.FromBytes(sessionData.UserID)
 
 	session := &types.WebauthnSession{
+		ID:                   uuid.New(),
 		Expires:              sessionData.Expires,
 		Extensions:           sessionData.Extensions,
 		Challege:             sessionData.Challenge,
@@ -121,7 +122,7 @@ func (ws *webauthnStore) AddWebAuthnCredentials(
 	userId uuid.UUID,
 	wanCred *webauthn.Credential,
 ) error {
-	credential := types.WebauthnCredential{
+	credential := &types.WebauthnCredential{
 		Authenticator:     wanCred.Authenticator,
 		CredentialOwnerID: userId,
 		AttestationType:   wanCred.AttestationType,

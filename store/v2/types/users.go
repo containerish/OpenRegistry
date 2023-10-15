@@ -17,14 +17,14 @@ type (
 
 		UpdatedAt           time.Time                   `bun:"updated_at" json:"updated_at,omitempty" validate:"-"`
 		CreatedAt           time.Time                   `bun:"created_at" json:"created_at,omitempty" validate:"-"`
-		Identities          Identities                  `bun:"identities" json:"identities"`
+		Identities          Identities                  `bun:"identities" json:"identities,omitempty"`
 		Username            string                      `bun:"username,notnull,unique" json:"username,omitempty" validate:"-"`
 		Password            string                      `bun:"password" json:"password,omitempty"`
 		Email               string                      `bun:"email,notnull,unique" json:"email,omitempty" validate:"email"`
-		Repositories        []*ContainerImageRepository `bun:"rel:has-many,join:id=owner_id"`
-		Sessions            []*Session                  `bun:"rel:has-many,join:id=owner_id"`
-		WebauthnSessions    []*WebauthnSession          `bun:"rel:has-many,join:id=user_id"`
-		WebauthnCredentials []*WebauthnCredential       `bun:"rel:has-many,join:id=credential_owner_id"`
+		Repositories        []*ContainerImageRepository `bun:"rel:has-many,join:id=owner_id" json:"-"`
+		Sessions            []*Session                  `bun:"rel:has-many,join:id=owner_id" json:"-"`
+		WebauthnSessions    []*WebauthnSession          `bun:"rel:has-many,join:id=user_id" json:"-"`
+		WebauthnCredentials []*WebauthnCredential       `bun:"rel:has-many,join:id=credential_owner_id" json:"-"`
 		ID                  uuid.UUID                   `bun:"id,type:uuid,pk" json:"id,omitempty" validate:"-"`
 		IsActive            bool                        `bun:"is_active" json:"is_active,omitempty" validate:"-"`
 		WebauthnConnected   bool                        `bun:"webauthn_connected" json:"webauthn_connected"`

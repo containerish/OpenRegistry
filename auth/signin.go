@@ -109,7 +109,7 @@ func (a *auth) SignIn(ctx echo.Context) error {
 	accessTokenOpts := &WebLoginJWTOptions{
 		Id:        userFromDb.ID,
 		Username:  userFromDb.Username,
-		TokenType: "access_token",
+		TokenType: AccessCookieKey,
 		Audience:  a.c.Registry.FQDN,
 		Privkey:   a.c.Registry.Auth.JWTSigningPrivateKey,
 		Pubkey:    a.c.Registry.Auth.JWTSigningPubKey,
@@ -127,7 +127,7 @@ func (a *auth) SignIn(ctx echo.Context) error {
 	refreshTokenOpts := &WebLoginJWTOptions{
 		Id:        userFromDb.ID,
 		Username:  userFromDb.Username,
-		TokenType: "refresh_token",
+		TokenType: RefreshCookKey,
 		Audience:  a.c.Registry.FQDN,
 		Privkey:   a.c.Registry.Auth.JWTSigningPrivateKey,
 		Pubkey:    a.c.Registry.Auth.JWTSigningPubKey,
@@ -163,8 +163,8 @@ func (a *auth) SignIn(ctx echo.Context) error {
 
 	sessionId := fmt.Sprintf("%s:%s", id, userFromDb.ID)
 	sessionCookie := a.createCookie(ctx, "session_id", sessionId, false, time.Now().Add(time.Hour*750))
-	accessCookie := a.createCookie(ctx, "access_token", access, true, time.Now().Add(time.Hour*750))
-	refreshCookie := a.createCookie(ctx, "refresh_token", refresh, true, time.Now().Add(time.Hour*750))
+	accessCookie := a.createCookie(ctx, AccessCookieKey, access, true, time.Now().Add(time.Hour*750))
+	refreshCookie := a.createCookie(ctx, RefreshCookKey, refresh, true, time.Now().Add(time.Hour*750))
 
 	ctx.SetCookie(accessCookie)
 	ctx.SetCookie(refreshCookie)

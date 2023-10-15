@@ -121,19 +121,19 @@ func (us *userStore) GetUserByUsernameWithTxn(ctx context.Context, username stri
 
 // GetUserWithSession implements UserStore.
 func (us *userStore) GetUserWithSession(ctx context.Context, sessionId string) (*types.User, error) {
-	user := &types.User{}
+	session := &types.Session{Id: uuid.MustParse(sessionId)}
 	err := us.
 		db.
 		NewSelect().
-		Model(user).
-		Relation("Sessions").
-		Where("sesssion_id = ? ", sessionId).
+		Model(session).
+		Relation("User").
+		WherePK().
 		Scan(ctx)
 	if err != nil {
 		return nil, v2.WrapDatabaseError(err, v2.DatabaseOperationRead)
 	}
 
-	return user, nil
+	return session.User, nil
 }
 
 // IsActive implements UserStore.

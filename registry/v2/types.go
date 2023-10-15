@@ -278,4 +278,7 @@ type Registry interface {
 
 	// MonolithicPut is used as the second operation for MonolithicUpload with POST + Put
 	MonolithicPut(ctx echo.Context) error
+
+	// Create Repository
+	CreateRepository(ctx echo.Context) error
 }

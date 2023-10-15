@@ -69,7 +69,7 @@ func Register(
 
 	RegisterNSRoutes(nsRouter, reg, registryStore)
 	RegisterAuthRoutes(authRouter, authSvc)
-	Extensions(v2Router, reg, ext, authSvc.JWT())
+	Extensions(v2Router, reg, ext)
 	RegisterWebauthnRoutes(webauthnRouter, webauthnServer)
 
 	//catch-all will redirect user back to web interface
@@ -164,7 +164,9 @@ func Extensions(group *echo.Group, reg registry.Registry, ext extensions.Extenio
 	group.Add(http.MethodGet, Search, reg.GetImageNamespace)
 	group.Add(http.MethodGet, CatalogDetail, ext.CatalogDetail, middlewares...)
 	group.Add(http.MethodGet, RepositoryDetail, ext.RepositoryDetail, middlewares...)
+	group.Add(http.MethodGet, UserCatalog, ext.GetUserCatalog, middlewares...)
 	group.Add(http.MethodPost, ChangeRepositoryVisibility, ext.ChangeContainerImageVisibility, middlewares...)
+	group.Add(http.MethodPost, CreateRepository, reg.CreateRepository, middlewares...)
 }
 
 func RegisterHealthCheckEndpoint(e *echo.Echo, fn http.HandlerFunc) {

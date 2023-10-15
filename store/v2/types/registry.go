@@ -18,11 +18,11 @@ const (
 func (v RepositoryVisibility) String() string {
 	switch v {
 	case RepositoryVisibilityPrivate:
-		return "RepositoryVisibilityPrivate"
+		return "Private"
 	case RepositoryVisibilityPublic:
-		return "RepositoryVisibilityPublic"
+		return "Public"
 	default:
-		return "RepositoryVisibilityPrivate"
+		return "Private"
 	}
 }
 
@@ -36,17 +36,17 @@ type ImageManifest struct {
 
 	CreatedAt     time.Time                 `bun:"created_at,notnull,default:current_timestamp" json:"created_at"`
 	UpdatedAt     time.Time                 `bun:"updated_at,nullzero" json:"updated_at"`
-	Repository    *ContainerImageRepository `bun:"rel:belongs-to,join:repository_id=id"`
-	DFSLink       string                    `bun:"dfs_link,notnull" json:"dfs_link"`
-	RepositoryID  string                    `bun:"repository_id,type:uuid" json:"repository_id"`
+	Repository    *ContainerImageRepository `bun:"rel:belongs-to,join:repository_id=id" json:"-"`
+	User          *User                     `bun:"rel:belongs-to,join:owner_id=id" json:"-"`
 	Digest        string                    `bun:"digest,notnull" json:"digest"`
 	MediaType     string                    `bun:"media_type,notnull" json:"media_type"`
-	ID            string                    `bun:"id,pk,type:uuid" json:"id"`
 	Reference     string                    `bun:"reference,notnull" json:"reference"`
+	DFSLink       string                    `bun:"dfs_link,notnull" json:"dfs_link"`
 	Layers        []string                  `bun:"layers,array" json:"layers"`
-	User          User                      `bun:"rel:belongs-to,join:owner_id=id"`
 	SchemaVersion int                       `bun:"schema_version,notnull" json:"schema_version"`
 	Size          uint64                    `bun:"size,notnull" json:"size"`
+	RepositoryID  uuid.UUID                 `bun:"repository_id,type:uuid" json:"repository_id"`
+	ID            uuid.UUID                 `bun:"id,pk,type:uuid" json:"id"`
 	OwnerID       uuid.UUID                 `bun:"owner_id,type:uuid" json:"owner_id"`
 }
 
@@ -75,12 +75,14 @@ type ContainerImageRepository struct {
 	CreatedAt      time.Time            `bun:"created_at" json:"created_at"`
 	UpdatedAt      time.Time            `bun:"updated_at" json:"updated_at"`
 	MetaTags       map[string]any       `bun:"meta_tags" json:"meta_tags"`
-	User           *User                `bun:"rel:belongs-to,join:owner_id=id"`
-	ID             string               `bun:"id,pk,type:uuid,default:gen_random_uuid()" json:"id"`
-	Name           string               `bun:"name,notnull,unique" json:"name"`
+	User           *User                `bun:"rel:belongs-to,join:owner_id=id" json:"-"`
+	Project        *RepositoryBuild     `bun:"rel:has-one,join:id=repository_id" json:"-"`
 	Description    string               `bun:"description" json:"description"`
 	Visibility     RepositoryVisibility `bun:"visibility,notnull" json:"visibility"`
-	ImageManifests []*ImageManifest     `bun:"rel:has-many,join:id=repository_id"`
+	Name           string               `bun:"name,notnull,unique" json:"name"`
+	ImageManifests []*ImageManifest     `bun:"rel:has-many,join:id=repository_id" json:"image_manifests,omitempty"`
+	Builds         []*RepositoryBuild   `bun:"rel:has-many,join:id=repository_id" json:"-"`
+	ID             uuid.UUID            `bun:"id,pk,type:uuid,default:gen_random_uuid()" json:"id"`
 	OwnerID        uuid.UUID            `bun:"owner_id,type:uuid" json:"owner_id"`
 }
 

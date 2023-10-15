@@ -138,11 +138,11 @@ type CreateClaimOptions struct {
 func CreateClaims(opts *CreateClaimOptions) Claims {
 	tokenLife := time.Now().Add(time.Minute * 10)
 	switch opts.TokeType {
-	case "access_token":
+	case AccessCookieKey:
 		// TODO (jay-dee7)
 		// token can live for month now, but must be addressed when we implement PASETO
 		tokenLife = time.Now().Add(time.Hour * 750)
-	case "refresh_token":
+	case RefreshCookKey:
 		tokenLife = time.Now().Add(time.Hour * 750)
 	case "service":
 		tokenLife = time.Now().Add(time.Hour * 750)

@@ -80,7 +80,7 @@ func (a *auth) RenewAccessToken(ctx echo.Context) error {
 	opts := &WebLoginJWTOptions{
 		Id:        userId,
 		Username:  user.Username,
-		TokenType: "access_token",
+		TokenType: AccessCookieKey,
 		Audience:  a.c.Registry.FQDN,
 		Privkey:   a.c.Registry.Auth.JWTSigningPrivateKey,
 		Pubkey:    a.c.Registry.Auth.JWTSigningPubKey,
@@ -95,7 +95,7 @@ func (a *auth) RenewAccessToken(ctx echo.Context) error {
 		return echoErr
 	}
 
-	accessCookie := a.createCookie(ctx, "access_token", tokenString, true, time.Now().Add(time.Hour))
+	accessCookie := a.createCookie(ctx, AccessCookieKey, tokenString, true, time.Now().Add(time.Hour))
 	ctx.SetCookie(accessCookie)
 	err = ctx.NoContent(http.StatusNoContent)
 	a.logger.Log(ctx, err).Send()

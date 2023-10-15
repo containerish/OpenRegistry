@@ -94,6 +94,20 @@ func (fb *filebase) UploadPart(
 	}, nil
 }
 
+func (fb *filebase) retryCompleteMultipartUpload(ctx context.Context, input *s3.CompleteMultipartUploadInput) error {
+	var err error
+
+	for i := 0; i < 3; i++ {
+		_, err = fb.client.CompleteMultipartUpload(ctx, input)
+		if err == nil {
+			return nil
+		}
+		time.Sleep(time.Second * 3)
+	}
+
+	return err
+}
+
 // ctx is used for handling any request cancellations.
 // @param uploadId: string is the ID of the layer being uploaded
 func (fb *filebase) CompleteMultipartUpload(
@@ -111,7 +125,7 @@ func (fb *filebase) CompleteMultipartUpload(
 		return "", fmt.Errorf("ERR_FILEBASE_DIGEST_PARSE: %w", err)
 	}
 
-	_, err = fb.client.CompleteMultipartUpload(ctx, &s3.CompleteMultipartUploadInput{
+	err = fb.retryCompleteMultipartUpload(ctx, &s3.CompleteMultipartUploadInput{
 		Key:             &layerKey,
 		Bucket:          &fb.bucket,
 		UploadId:        &uploadId,

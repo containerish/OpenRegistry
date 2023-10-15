@@ -15,8 +15,8 @@ import (
 	"github.com/containerish/OpenRegistry/router"
 	github_actions_server "github.com/containerish/OpenRegistry/services/kon/github_actions/v1/server"
 	"github.com/containerish/OpenRegistry/store/postgres"
-	build_automation_store "github.com/containerish/OpenRegistry/store/postgres/build_automation"
 	store_v2 "github.com/containerish/OpenRegistry/store/v2"
+	"github.com/containerish/OpenRegistry/store/v2/automation"
 	"github.com/containerish/OpenRegistry/store/v2/emails"
 	registry_store "github.com/containerish/OpenRegistry/store/v2/registry"
 	"github.com/containerish/OpenRegistry/store/v2/sessions"
@@ -92,7 +92,8 @@ func RunRegistryServer(ctx *cli.Context) {
 	webauthnStore := webauthn.NewStore(rawDB)
 	emailStore := emails.NewStore(rawDB)
 
-	buildAutomationStore, err := build_automation_store.New(&cfg.StoreConfig)
+	// buildAutomationStore, err := build_automation_store.New(&cfg.StoreConfig)
+	buildAutomationStore, err := automation.New(rawDB, logger)
 	if err != nil {
 		color.Red("ERR_BUILD_AUTOMATION_PG_CONN: %s", err.Error())
 		return
@@ -118,6 +119,7 @@ func RunRegistryServer(ctx *cli.Context) {
 
 	router.Register(cfg, e, reg, authSvc, webauthnServer, ext, registryStore)
 	router.RegisterHealthCheckEndpoint(e, healthCheckHandler)
+
 	if cfg.Integrations.GetGithubConfig() != nil && cfg.Integrations.GetGithubConfig().Enabled {
 		ghApp, err := github.NewGithubApp(
 			cfg.Integrations.GetGithubConfig(),

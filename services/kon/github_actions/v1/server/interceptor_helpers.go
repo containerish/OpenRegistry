@@ -15,9 +15,9 @@ import (
 )
 
 func getTokenFromReq(req connect.AnyRequest, jwtSigningPubKey *rsa.PublicKey) (string, error) {
-	token, err := tryTokenFromReqCookies(req)
+	token, err := tryTokenFromReqHeaders(req, jwtSigningPubKey)
 	if err != nil {
-		token, err = tryTokenFromReqHeaders(req, jwtSigningPubKey)
+		token, err = tryTokenFromReqCookies(req)
 		if err != nil {
 			return "", err
 		}

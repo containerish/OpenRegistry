@@ -146,6 +146,21 @@ func createOpenRegistryTables(ctx *cli.Context, db *bun.DB) error {
 		)
 	}
 	color.Green(`Table "emails" created ✔︎`)
+	_, err = db.NewCreateTable().Model(&types.RepositoryBuild{}).Table().IfNotExists().Exec(ctx.Context)
+	if err != nil {
+		return errors.New(
+			color.RedString("Table=repository_builds Created=❌ Error=%s", err),
+		)
+	}
+	color.Green(`Table "repository_builds" created ✔︎`)
+
+	_, err = db.NewCreateTable().Model(&types.RepositoryBuildProject{}).Table().IfNotExists().Exec(ctx.Context)
+	if err != nil {
+		return errors.New(
+			color.RedString("Table=repository_build_projects Created=❌ Error=%s", err),
+		)
+	}
+	color.Green(`Table "repository_build_projects" created ✔︎`)
 
 	return nil
 }

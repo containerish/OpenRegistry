@@ -14,7 +14,7 @@ import (
 func (p *pg) BulkDeleteBuildJobs(ctx context.Context, req *gha_v1.BulkDeleteBuildJobsRequest) error {
 	query := `delete from build_jobs where id in $1 and owner=$2`
 
-	_, err := p.conn.Exec(ctx, query, req.GetJobIds(), req.GetOwnerId())
+	_, err := p.conn.Exec(ctx, query, req.GetJobIds(), req.GetRepositoryId())
 	if err != nil {
 		return fmt.Errorf("ERR_BULK_DELETE_JOBS: %w", err)
 	}
@@ -26,7 +26,7 @@ func (p *pg) BulkDeleteBuildJobs(ctx context.Context, req *gha_v1.BulkDeleteBuil
 func (p *pg) DeleteJob(ctx context.Context, req *gha_v1.DeleteJobRequest) error {
 	query := `delete from build_jobs where id=$1 and owner=$1`
 
-	_, err := p.conn.Exec(ctx, query, req.GetRunId(), req.GetOwnerId())
+	_, err := p.conn.Exec(ctx, query, req.GetRunId(), req.GetRepositoryId())
 	if err != nil {
 		return fmt.Errorf("ERR_DELETE_JOB: %w", err)
 	}
@@ -120,7 +120,7 @@ func (p *pg) StoreJob(ctx context.Context, req *gha_v1.StoreJobRequest) error {
 		req.GetBranch(),
 		req.GetCommitHash(),
 		// req.GetTriggeredAt().AsTime(),
-		req.GetOwnerId(),
+		req.GetRepositoryId(),
 	)
 	if err != nil {
 		return fmt.Errorf("ERR_STORE_BUILD_JOB: %w", err)

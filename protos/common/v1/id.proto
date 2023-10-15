@@ -1,0 +1,8 @@
+syntax = "proto3";
+
+package common.v1;
+option go_package = "github.com/containerish/OpenRegistry/common/v1;common_v1";
+
+message UUID {
+    string value = 1;
+} 

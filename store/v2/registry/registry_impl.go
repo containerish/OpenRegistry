@@ -30,8 +30,8 @@ func (s *registryStore) RepositoryExists(ctx context.Context, name string) bool 
 func (s *registryStore) CreateRepository(ctx context.Context, repository *types.ContainerImageRepository) error {
 	logEvent := s.logger.Debug().Str("method", "CreateRepository").Str("name", repository.Name)
 
-	if repository.ID == "" {
-		repository.ID = uuid.NewString()
+	if len(repository.ID) == 0 {
+		repository.ID = uuid.New()
 	}
 
 	if _, err := s.db.NewInsert().Model(repository).Exec(ctx); err != nil {
@@ -43,10 +43,10 @@ func (s *registryStore) CreateRepository(ctx context.Context, repository *types.
 	return nil
 }
 
-func (s *registryStore) GetRepositoryByID(ctx context.Context, id string) (*types.ContainerImageRepository, error) {
-	logEvent := s.logger.Debug().Str("method", "GetRepositoryByID").Str("id", id)
+func (s *registryStore) GetRepositoryByID(ctx context.Context, ID uuid.UUID) (*types.ContainerImageRepository, error) {
+	logEvent := s.logger.Debug().Str("method", "GetRepositoryByID").Str("id", ID.String())
 
-	repository := &types.ContainerImageRepository{ID: id}
+	repository := &types.ContainerImageRepository{ID: ID}
 	if err := s.db.NewSelect().Model(repository).WherePK().Scan(ctx); err != nil {
 		logEvent.Err(err).Send()
 		return nil, v2.WrapDatabaseError(err, v2.DatabaseOperationRead)
@@ -196,7 +196,7 @@ func (s *registryStore) GetCatalog(
 
 	namespaceList := make([]string, len(catalog))
 	for i, m := range catalog {
-		namespaceList[i] = m.ID
+		namespaceList[i] = m.ID.String()
 	}
 
 	return namespaceList, nil
@@ -206,34 +206,76 @@ func (s *registryStore) GetPublicRepositories(
 	ctx context.Context,
 	pageSize int,
 	offset int,
-) ([]*types.ContainerImageRepository, error) {
-	repositories := []types.ContainerImageRepository{}
+) ([]*types.ContainerImageRepository, int, error) {
+	repositories := []*types.ContainerImageRepository{}
 
-	err := s.db.NewSelect().Model(&repositories).Where("visibility = ?", types.RepositoryVisibilityPublic).Scan(ctx)
+	total, err := s.
+		db.
+		NewSelect().
+		Model(&repositories).
+		Where("visibility = ?", types.RepositoryVisibilityPublic).
+		ScanAndCount(ctx)
 	if err != nil {
-		return nil, v2.WrapDatabaseError(err, v2.DatabaseOperationRead)
+		return nil, 0, v2.WrapDatabaseError(err, v2.DatabaseOperationRead)
 	}
 
-	repoPtrList := make([]*types.ContainerImageRepository, len(repositories))
+	return repositories, total, nil
+}
 
-	for _, repo := range repositories {
-		repo := repo
-		repoPtrList = append(repoPtrList, &repo)
+func (s *registryStore) GetUserRepositories(
+	ctx context.Context,
+	userID uuid.UUID,
+	visibility types.RepositoryVisibility,
+	pageSize int,
+	offset int,
+) ([]*types.ContainerImageRepository, int, error) {
+	repositories := []*types.ContainerImageRepository{}
+
+	total, err := s.
+		db.
+		NewSelect().
+		Model(&repositories).
+		WhereGroup(" AND ", func(q *bun.SelectQuery) *bun.SelectQuery {
+			if visibility != "" {
+				return q.Where("visibility = ?", visibility)
+			}
+
+			return q.
+				Where("visibility = ?", types.RepositoryVisibilityPublic).
+				WhereOr("visibility = ?", types.RepositoryVisibilityPrivate)
+		}).
+		WhereGroup(" AND ", func(q *bun.SelectQuery) *bun.SelectQuery {
+			return q.Where("owner_id = ?", userID)
+		}).
+		ScanAndCount(ctx)
+	if err != nil {
+		return nil, 0, v2.WrapDatabaseError(err, v2.DatabaseOperationRead)
 	}
 
-	return repoPtrList, nil
+	return repositories, total, nil
 }
 
 // GetCatalogCount implements registry.RegistryStore.
 func (s *registryStore) GetCatalogCount(ctx context.Context, namespace string) (int64, error) {
 	logEvent := s.logger.Debug().Str("method", "GetCatalogCount").Str("namespace", namespace)
-	count, err := s.
+	parts := strings.Split(namespace, "/")
+	repositoryName := ""
+	if len(parts) == 2 {
+		repositoryName = parts[1]
+	}
+
+	stmnt := s.
 		db.
 		NewSelect().
 		Model(&types.ImageManifest{}).
 		Relation("Repository").
-		Where("name = ?", strings.Split(namespace, "/")[1]).
-		Count(ctx)
+		Where("visibility = ?", types.RepositoryVisibilityPublic)
+
+	if repositoryName != "" {
+		stmnt.Where("name = ?", repositoryName)
+	}
+
+	count, err := stmnt.Count(ctx)
 	if err != nil {
 		logEvent.Err(err).Send()
 		return 0, v2.WrapDatabaseError(err, v2.DatabaseOperationRead)
@@ -250,27 +292,36 @@ func (s *registryStore) GetCatalogDetail(
 	pageSize int,
 	offset int,
 	sortBy string,
-) ([]*types.ImageManifest, error) {
+) ([]*types.ContainerImageRepository, error) {
 	logEvent := s.logger.Debug().Str("method", "GetCatalogDetail").Str("namespace", namespace)
-	var manifestList []*types.ImageManifest
-	repositoryName := strings.Split(namespace, "/")[1]
-	err := s.
+	var repositoryList []*types.ContainerImageRepository
+	parts := strings.Split(namespace, "/")
+	repositoryName := ""
+	if len(parts) == 2 {
+		repositoryName = parts[1]
+	}
+
+	stmnt := s.
 		db.
 		NewSelect().
-		Model(manifestList).
-		Relation("Repository").
-		Where("name = ?", repositoryName).
+		Model(&repositoryList).
+		Relation("ImageManifests").
 		Limit(pageSize).
 		Offset(offset).
-		Scan(ctx)
+		Where("visibility = ?", types.RepositoryVisibilityPublic)
 
+	if repositoryName != "" {
+		stmnt.Where("name = ?", repositoryName)
+	}
+
+	err := stmnt.Scan(ctx)
 	if err != nil {
 		logEvent.Err(err).Send()
 		return nil, v2.WrapDatabaseError(err, v2.DatabaseOperationRead)
 	}
 
 	logEvent.Bool("success", true).Send()
-	return manifestList, nil
+	return repositoryList, nil
 }
 
 // GetContentHashById implements registry.RegistryStore.
@@ -397,6 +448,7 @@ func (s *registryStore) GetRepoDetail(
 		db.
 		NewSelect().
 		Model(&repoDetail).
+		Relation("ImageManifests").
 		Where("name = ?", repositoryName).
 		Limit(pageSize).
 		Offset(offset).
@@ -452,8 +504,8 @@ func (s *registryStore) SetLayer(ctx context.Context, txn *bun.Tx, l *types.Cont
 // SetManifest implements registry.RegistryStore.
 func (s *registryStore) SetManifest(ctx context.Context, txn *bun.Tx, im *types.ImageManifest) error {
 	logEvent := s.logger.Debug().Str("method", "SetManifest")
-	if im.ID == "" {
-		im.ID = uuid.NewString()
+	if im.ID.String() == "" {
+		im.ID = uuid.New()
 	}
 
 	if s.db.HasFeature(feature.InsertOnConflict) {

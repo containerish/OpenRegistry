@@ -17,7 +17,6 @@ import (
 	webauthn_store "github.com/containerish/OpenRegistry/store/v2/webauthn"
 	"github.com/containerish/OpenRegistry/telemetry"
 	"github.com/containerish/OpenRegistry/types"
-	"github.com/fatih/color"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	"github.com/uptrace/bun"
@@ -285,7 +284,6 @@ func (wa *webauthn_server) FinishRegistration(ctx echo.Context) error {
 		})
 		return echoErr
 	}
-	color.Red("User before finish txn: %#v", user)
 
 	opts := &webauthn.FinishRegistrationOpts{
 		RequestBody: ctx.Request().Body,
@@ -407,7 +405,7 @@ func (wa *webauthn_server) FinishLogin(ctx echo.Context) error {
 	accessTokenOpts := &auth.WebLoginJWTOptions{
 		Id:        user.ID,
 		Username:  username,
-		TokenType: "access_token",
+		TokenType: auth.AccessCookieKey,
 		Audience:  wa.cfg.Registry.FQDN,
 		Privkey:   wa.cfg.Registry.Auth.JWTSigningPrivateKey,
 		Pubkey:    wa.cfg.Registry.Auth.JWTSigningPubKey,
@@ -416,7 +414,7 @@ func (wa *webauthn_server) FinishLogin(ctx echo.Context) error {
 	refreshTokenOpts := &auth.WebLoginJWTOptions{
 		Id:        user.ID,
 		Username:  username,
-		TokenType: "refresh_token",
+		TokenType: auth.RefreshCookKey,
 		Audience:  wa.cfg.Registry.FQDN,
 		Privkey:   wa.cfg.Registry.Auth.JWTSigningPrivateKey,
 		Pubkey:    wa.cfg.Registry.Auth.JWTSigningPubKey,
@@ -472,7 +470,7 @@ func (wa *webauthn_server) FinishLogin(ctx echo.Context) error {
 
 	accessTokenCookie := auth.CreateCookie(&auth.CreateCookieOptions{
 		ExpiresAt:   time.Now().Add(time.Hour * 750),
-		Name:        "access_token",
+		Name:        auth.AccessCookieKey,
 		Value:       accessToken,
 		FQDN:        domain,
 		Environment: wa.cfg.Environment,
@@ -481,7 +479,7 @@ func (wa *webauthn_server) FinishLogin(ctx echo.Context) error {
 
 	refreshTokenCookie := auth.CreateCookie(&auth.CreateCookieOptions{
 		ExpiresAt:   time.Now().Add(time.Hour * 750), //one month
-		Name:        "refresh_token",
+		Name:        auth.RefreshCookKey,
 		Value:       refreshToken,
 		FQDN:        domain,
 		Environment: wa.cfg.Environment,

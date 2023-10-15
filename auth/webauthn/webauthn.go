@@ -2,10 +2,10 @@ package webauthn
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"log"
+	"strings"
 
 	"github.com/containerish/OpenRegistry/config"
 	webauthn_store "github.com/containerish/OpenRegistry/store/v2/webauthn"
@@ -13,7 +13,6 @@ import (
 	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/go-webauthn/webauthn/webauthn"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v4"
 )
 
 type (
@@ -167,7 +166,7 @@ func (wa *webAuthnService) BeginRegistration(
 	user *WebAuthnUser,
 ) (*protocol.CredentialCreation, error) {
 	creds, err := wa.store.GetWebAuthnCredentials(ctx, user.ID)
-	if err != nil && errors.Unwrap(err) != pgx.ErrNoRows {
+	if err != nil && !strings.Contains(err.Error(), "no rows in result set") {
 		return nil, err
 	}
 
@@ -197,9 +196,10 @@ func (wa *webAuthnService) BeginRegistration(
 	if err != nil {
 		return nil, fmt.Errorf("ERR_WEB_AUTHN_BEGIN_REGISTRATION: %w", err)
 	}
+
 	// store session data in DB
 	if err = wa.store.AddWebAuthSessionData(ctx, user.ID, sessionData, "registration"); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("ERR_WEB_AUTHN_ADD_SESSION: %w", err)
 	}
 
 	return credentialCreation, err

@@ -15,8 +15,8 @@ import (
 )
 
 const (
-	AccessCookieKey = "access"
-	RefreshCookKey  = "refresh"
+	AccessCookieKey = "access_token"
+	RefreshCookKey  = "refresh_token"
 	QueryToken      = "token"
 )
 
@@ -28,9 +28,14 @@ func (a *auth) JWT() echo.MiddlewareFunc {
 				return false
 			}
 
+			if strings.HasPrefix(ctx.Request().RequestURI, "/v2/ext") {
+				return false
+			}
+
 			// if JWT_AUTH is not set, we don't need to perform JWT authentication
 			jwtAuth, ok := ctx.Get(JWT_AUTH_KEY).(bool)
 			if !ok {
+				a.logger.Debug().Str("method", "JWT").Str("type", "middleware").Bool("skip", true).Send()
 				return true
 			}
 
@@ -38,6 +43,7 @@ func (a *auth) JWT() echo.MiddlewareFunc {
 				return false
 			}
 
+			a.logger.Debug().Str("method", "JWT").Str("type", "middleware").Bool("skip", true).Send()
 			return true
 		},
 		ErrorHandler: func(ctx echo.Context, err error) error {
@@ -46,6 +52,7 @@ func (a *auth) JWT() echo.MiddlewareFunc {
 				"error":   err.Error(),
 				"message": "missing authentication information",
 			})
+			a.logger.Debug().Err(err).Send()
 			a.logger.Log(ctx, err).Send()
 			return echoErr
 		},
@@ -59,8 +66,12 @@ func (a *auth) JWT() echo.MiddlewareFunc {
 					user, _ := a.pgStore.GetUserByID(ctx.Request().Context(), uuid.MustParse(claims.ID))
 					ctx.Set(string(types.UserClaimsContextKey), claims)
 					ctx.Set(string(types.UserContextKey), user)
+					a.logger.Debug().Str("method", "jwt_success_handler").Bool("success", true).Send()
+					return
 				}
 			}
+
+			a.logger.Debug().Str("method", "jwt_success_handler").Bool("success", false).Send()
 		},
 		SigningKey:    a.c.Registry.Auth.JWTSigningPrivateKey,
 		SigningKeys:   map[string]interface{}{},

@@ -250,7 +250,7 @@ func (a *auth) ForgotPassword(ctx echo.Context) error {
 	opts := &WebLoginJWTOptions{
 		Id:        user.ID,
 		Username:  user.Username,
-		TokenType: "access_token",
+		TokenType: AccessCookieKey,
 		Audience:  a.c.Registry.FQDN,
 		Privkey:   a.c.Registry.Auth.JWTSigningPrivateKey,
 		Pubkey:    a.c.Registry.Auth.JWTSigningPubKey,
