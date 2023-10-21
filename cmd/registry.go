@@ -14,7 +14,6 @@ import (
 	"github.com/containerish/OpenRegistry/registry/v2/extensions"
 	"github.com/containerish/OpenRegistry/router"
 	github_actions_server "github.com/containerish/OpenRegistry/services/kon/github_actions/v1/server"
-	"github.com/containerish/OpenRegistry/store/postgres"
 	store_v2 "github.com/containerish/OpenRegistry/store/v2"
 	"github.com/containerish/OpenRegistry/store/v2/automation"
 	"github.com/containerish/OpenRegistry/store/v2/emails"
@@ -77,14 +76,6 @@ func RunRegistryServer(ctx *cli.Context) {
 	logger := telemetry.ZLogger(fluentBitCollector, cfg.Environment)
 	e := echo.New()
 
-	pgStore, err := postgres.New(&cfg.StoreConfig)
-	if err != nil {
-		color.Red("ERR_PG_CONN: %s", err.Error())
-		return
-	}
-	defer pgStore.Close()
-	_ = pgStore
-
 	rawDB := store_v2.NewDB(cfg.StoreConfig, cfg.Environment)
 	registryStore := registry_store.NewStore(rawDB, logger)
 	usersStore := users.NewStore(rawDB, logger)
@@ -92,7 +83,6 @@ func RunRegistryServer(ctx *cli.Context) {
 	webauthnStore := webauthn.NewStore(rawDB)
 	emailStore := emails.NewStore(rawDB)
 
-	// buildAutomationStore, err := build_automation_store.New(&cfg.StoreConfig)
 	buildAutomationStore, err := automation.New(rawDB, logger)
 	if err != nil {
 		color.Red("ERR_BUILD_AUTOMATION_PG_CONN: %s", err.Error())
@@ -123,7 +113,7 @@ func RunRegistryServer(ctx *cli.Context) {
 	if cfg.Integrations.GetGithubConfig() != nil && cfg.Integrations.GetGithubConfig().Enabled {
 		ghApp, err := github.NewGithubApp(
 			cfg.Integrations.GetGithubConfig(),
-			pgStore,
+			usersStore,
 			logger,
 			cfg.WebAppConfig.AllowedEndpoints,
 			cfg.Environment,
@@ -140,7 +130,7 @@ func RunRegistryServer(ctx *cli.Context) {
 			&cfg.Registry.Auth,
 			logger,
 			buildAutomationStore,
-			pgStore,
+			usersStore,
 		)
 		go func() {
 			hostPort := fmt.Sprintf("%s:%d", ghConfig.Host, ghConfig.Port)

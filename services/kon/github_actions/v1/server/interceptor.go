@@ -31,7 +31,7 @@ func NewGitHubAppUsernameInterceptor(
 				return nil, err
 			}
 
-			user, err := ghStore.GetUserById(ctx, userID, false, nil)
+			user, err := ghStore.GetUserByID(ctx, userID)
 			if err != nil {
 				logEvent.Str("error", err.Error()).Send()
 				return nil, connect.NewError(connect.CodeFailedPrecondition, err)
@@ -57,7 +57,7 @@ func PopulateContextWithUserInterceptor(
 				logEvent.Err(err).Send()
 				return nil, err
 			}
-			user, err := ghStore.GetUserById(ctx, userID, false, nil)
+			user, err := ghStore.GetUserByID(ctx, userID)
 			if err != nil {
 				logEvent.Err(err).Send()
 				return nil, connect.NewError(connect.CodeFailedPrecondition, err)
@@ -97,7 +97,7 @@ func (i *githubAppStreamingInterceptor) WrapUnary(next connect.UnaryFunc) connec
 			return nil, connect.NewError(connect.CodeUnauthenticated, err)
 		}
 
-		user, err := i.store.GetUserById(ctx, userID, false, nil)
+		user, err := i.store.GetUserByID(ctx, userID)
 		if err != nil {
 			logEvent.Str("error", err.Error()).Send()
 			return nil, connect.NewError(connect.CodeFailedPrecondition, err)
@@ -158,7 +158,7 @@ func (i *githubAppStreamingInterceptor) WrapStreamingHandler(
 			logEvent.Err(err).Send()
 			return connect.NewError(connect.CodeUnauthenticated, err)
 		}
-		user, err := i.store.GetUserById(ctx, userID, false, nil)
+		user, err := i.store.GetUserByID(ctx, userID)
 		if err != nil {
 			logEvent.Str("error", err.Error()).Send()
 			return connect.NewError(connect.CodeFailedPrecondition, err)

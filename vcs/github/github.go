@@ -13,6 +13,7 @@ import (
 	"github.com/containerish/OpenRegistry/telemetry"
 	"github.com/containerish/OpenRegistry/vcs"
 	"github.com/google/go-github/v50/github"
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 )
 
@@ -106,7 +107,15 @@ func (gh *ghAppService) getUsernameMiddleware() echo.MiddlewareFunc {
 				return echoErr
 			}
 			userID := strings.Split(sessionID, ":")[1]
-			user, err := gh.store.GetUserById(c.Request().Context(), userID, false, nil)
+			parsedID, err := uuid.Parse(userID)
+			if err != nil {
+				echoErr := c.JSON(http.StatusForbidden, echo.Map{
+					"error": err.Error(),
+				})
+				gh.logger.Log(c, err).Send()
+				return echoErr
+			}
+			user, err := gh.store.GetUserByID(c.Request().Context(), parsedID)
 			if err != nil {
 				echoErr := c.JSON(http.StatusNotAcceptable, echo.Map{
 					"error": err.Error(),
