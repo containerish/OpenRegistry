@@ -152,7 +152,7 @@ func (p *pg) GetBlob(ctx context.Context, digest string) ([]*types.Blob, error) 
 		if err := rows.Scan(
 			&blob.UUID,
 			&blob.Digest,
-			&blob.Skylink,
+			&blob.DFSLink,
 			&blob.RangeStart,
 			&blob.RangeEnd,
 			&blob.CreatedAt,
@@ -170,7 +170,7 @@ func (p *pg) SetBlob(ctx context.Context, txn pgx.Tx, b *types.Blob) error {
 	childCtx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 
-	_, err := txn.Exec(childCtx, queries.SetBlob, b.UUID, b.Digest, b.Skylink, b.RangeStart, b.RangeEnd, b.CreatedAt)
+	_, err := txn.Exec(childCtx, queries.SetBlob, b.UUID, b.Digest, b.DFSLink, b.RangeStart, b.RangeEnd, b.CreatedAt)
 
 	return err
 

@@ -4,10 +4,9 @@ import (
 	"context"
 	"io"
 
-	"github.com/SkynetLabs/go-skynet/v2"
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/containerish/OpenRegistry/config"
-	"github.com/containerish/OpenRegistry/types"
+	"github.com/containerish/OpenRegistry/store/v2/types"
 )
 
 type DFS interface {
@@ -34,10 +33,10 @@ type DFS interface {
 		completedParts []s3types.CompletedPart,
 	) (string, error)
 	Download(ctx context.Context, path string) (io.ReadCloser, error)
-	DownloadDir(skynetLink, dir string) error
+	DownloadDir(dfsLink, dir string) error
 	List(path string) ([]*types.Metadata, error)
 	AddImage(ns string, mf, l map[string][]byte) (string, error)
-	Metadata(skylink string) (*skynet.Metadata, error)
+	Metadata(dfsLink string) (*types.ObjectMetadata, error)
 	GetUploadProgress(identifier, uploadID string) (*types.ObjectMetadata, error)
 	AbortMultipartUpload(ctx context.Context, layerKey string, uploadId string) error
 	GeneratePresignedURL(ctx context.Context, key string) (string, error)

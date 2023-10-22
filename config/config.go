@@ -17,7 +17,6 @@ import (
 
 type (
 	OpenRegistryConfig struct {
-		SkynetConfig   Skynet         `yaml:"skynet" mapstructure:"skynet" validate:"-"`
 		WebAppConfig   WebAppConfig   `yaml:"web_app" mapstructure:"web_app"`
 		OAuth          OAuth          `yaml:"oauth" mapstructure:"oauth" validate:"-"`
 		StoreConfig    Store          `yaml:"database" mapstructure:"database" validate:"required"`
@@ -86,13 +85,6 @@ type (
 		PrivateKey string `yaml:"priv_key" mapstructure:"priv_key"`
 		PubKey     string `yaml:"pub_key" mapstructure:"pub_key"`
 		Enabled    bool   `yaml:"enabled" mapstructure:"enabled"`
-	}
-
-	Skynet struct {
-		SkynetPortalURL string `yaml:"portal_url" mapstructure:"portal_url" validate:"-"`
-		EndpointPath    string `yaml:"endpoint_path" mapstructure:"endpoint_path"`
-		ApiKey          string `yaml:"api_key" mapstructure:"api_key"`
-		CustomUserAgent string `yaml:"custom_user_agent" mapstructure:"custom_user_agent"`
 	}
 
 	Log struct {

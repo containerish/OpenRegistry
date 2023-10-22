@@ -7,13 +7,12 @@ import (
 	"io"
 	"time"
 
-	"github.com/SkynetLabs/go-skynet/v2"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/containerish/OpenRegistry/config"
 	"github.com/containerish/OpenRegistry/dfs"
-	"github.com/containerish/OpenRegistry/types"
+	"github.com/containerish/OpenRegistry/store/v2/types"
 	"github.com/opencontainers/go-digest"
 )
 
@@ -208,7 +207,7 @@ func (fb *filebase) Download(ctx context.Context, path string) (io.ReadCloser, e
 
 	return resp.Body, nil
 }
-func (fb *filebase) DownloadDir(skynetLink, dir string) error {
+func (fb *filebase) DownloadDir(dfsLink, dir string) error {
 	return nil
 }
 func (fb *filebase) List(path string) ([]*types.Metadata, error) {
@@ -221,7 +220,7 @@ func (fb *filebase) AddImage(ns string, mf, l map[string][]byte) (string, error)
 // Metadata API returns the HEADERS for an object. This object can be a manifest or a layer.
 // This API is usually a little behind when it comes to fetching the details for an uploaded object.
 // This is why we put it in a retry loop and break it as soon as we get the data
-func (fb *filebase) Metadata(identifier string) (*skynet.Metadata, error) {
+func (fb *filebase) Metadata(identifier string) (*types.ObjectMetadata, error) {
 	var resp *s3.HeadObjectOutput
 	var err error
 
@@ -248,10 +247,10 @@ func (fb *filebase) Metadata(identifier string) (*skynet.Metadata, error) {
 		cid = identifier
 	}
 
-	return &skynet.Metadata{
+	return &types.ObjectMetadata{
 		ContentType:   *resp.ContentType,
 		Etag:          *resp.ETag,
-		Skylink:       cid,
+		DFSLink:       cid,
 		ContentLength: int(resp.ContentLength),
 	}, nil
 }

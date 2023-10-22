@@ -10,11 +10,10 @@ import (
 	"os"
 	"strings"
 
-	skynet "github.com/SkynetLabs/go-skynet/v2"
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/containerish/OpenRegistry/config"
 	"github.com/containerish/OpenRegistry/dfs"
-	"github.com/containerish/OpenRegistry/types"
+	types "github.com/containerish/OpenRegistry/store/v2/types"
 	"github.com/fatih/color"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
@@ -126,7 +125,7 @@ func (ms *mockStorage) Download(ctx context.Context, path string) (io.ReadCloser
 	return fd, nil
 }
 
-func (ms *mockStorage) DownloadDir(skynetLink, dir string) error {
+func (ms *mockStorage) DownloadDir(dfsLink, dir string) error {
 	return nil
 }
 
@@ -138,7 +137,7 @@ func (ms *mockStorage) AddImage(ns string, mf, l map[string][]byte) (string, err
 	return "", nil
 }
 
-func (ms *mockStorage) Metadata(identifier string) (*skynet.Metadata, error) {
+func (ms *mockStorage) Metadata(identifier string) (*types.ObjectMetadata, error) {
 	var (
 		fd  afero.File
 		err error
@@ -160,10 +159,10 @@ func (ms *mockStorage) Metadata(identifier string) (*skynet.Metadata, error) {
 	}
 	fd.Close()
 
-	return &skynet.Metadata{
+	return &types.ObjectMetadata{
 		ContentType:   "",
 		Etag:          "",
-		Skylink:       identifier,
+		DFSLink:       identifier,
 		ContentLength: int(stat.Size()),
 	}, nil
 

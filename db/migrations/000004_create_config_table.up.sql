@@ -3,7 +3,7 @@ CREATE TABLE "config" (
 	"namespace" text NOT NULL,
 	"reference" text NOT NULL,
 	"digest" text NOT NULL,
-	"sky_link" text,
+	"dfs_link" text,
 	"media_type" text,
 	"layers" text[],
 	"size" int,

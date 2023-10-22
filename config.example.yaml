@@ -20,7 +20,6 @@ registry:
     services:
       - github
       - token
-      - skynet_homescreen
   auth:
     enabled: false
     priv_key: .certs/registry.local

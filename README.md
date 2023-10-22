@@ -22,7 +22,7 @@ The specification provides similar capabilities as that of the Docker Registry H
 ## Why OpenRegistry?
 For the longest time, we have relied on DockerHub to host and distribute our container images (both private and public). OpenRegistry tries to provide a decentralized alternative to that by running a community driven container registry, for People by People.
 
-OpenRegitry uses AkashNetwork as it's compute layer and SkyNet for storage. Since AkashNetwork provides a spot like compute market, fault tolerance, Scalability and Resiliency are our priorities from day one.
+OpenRegitry uses [Akash Network](https://akash.network) as it's compute layer and IPFS, Filebase, or Storj for storage. Since AkashNetwork provides a spot like compute market, fault tolerance, Scalability and Resiliency are our priorities from day one.
 	
 ## Getting Started
 Working with OpenRegistry is no different than working with any other container registry. Following are the steps to get started:
