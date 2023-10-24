@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/containerish/OpenRegistry/store/v2/types"
-	"github.com/fatih/color"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	echo_jwt "github.com/labstack/echo-jwt/v4"
@@ -110,7 +109,6 @@ func (a *auth) ACL() echo.MiddlewareFunc {
 			}
 
 			username := ctx.Param("username")
-			color.Cyan("user claims - username: %s - claims: %s", username, claims.ID)
 
 			user, err := a.pgStore.GetUserByID(ctx.Request().Context(), uuid.MustParse(claims.ID))
 			if err != nil {

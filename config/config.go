@@ -17,13 +17,13 @@ import (
 
 type (
 	OpenRegistryConfig struct {
-		WebAppConfig   WebAppConfig   `yaml:"web_app" mapstructure:"web_app"`
 		OAuth          OAuth          `yaml:"oauth" mapstructure:"oauth" validate:"-"`
-		StoreConfig    Store          `yaml:"database" mapstructure:"database" validate:"required"`
-		LogConfig      Log            `yaml:"log_service" mapstructure:"log_service"`
 		Email          Email          `yaml:"email" mapstructure:"email" validate:"-"`
+		WebAppConfig   WebAppConfig   `yaml:"web_app" mapstructure:"web_app"`
 		Integrations   Integrations   `yaml:"integrations" mapstructure:"integrations"`
 		Registry       Registry       `yaml:"registry" mapstructure:"registry" validate:"required"`
+		Telemetry      Telemetry      `yaml:"telemetry" mapstructure:"telemetry"`
+		StoreConfig    Store          `yaml:"database" mapstructure:"database" validate:"required"`
 		DFS            DFS            `yaml:"dfs" mapstructure:"dfs"`
 		WebAuthnConfig WebAuthnConfig `yaml:"web_authn_config" mapstructure:"web_authn_config"`
 		Environment    Environment    `yaml:"environment" mapstructure:"environment" validate:"required"`
@@ -87,15 +87,6 @@ type (
 		Enabled    bool   `yaml:"enabled" mapstructure:"enabled"`
 	}
 
-	Log struct {
-		Service    string `yaml:"name" mapstructure:"name"`
-		Endpoint   string `yaml:"endpoint" mapstructure:"endpoint"`
-		AuthMethod string `yaml:"auth_method" mapstructure:"auth_method"`
-		Username   string `yaml:"username" mapstructure:"username"`
-		Password   string `yaml:"password" mapstructure:"password"`
-		Enabled    bool   `yaml:"enabled" mapstructure:"enabled"`
-	}
-
 	Store struct {
 		Kind               StoreKind `yaml:"kind" mapstructure:"kind" validate:"required"`
 		User               string    `yaml:"username" mapstructure:"username" validate:"required"`
@@ -154,6 +145,40 @@ type (
 		JWTSigningPrivateKey *rsa.PrivateKey `yaml:"priv_key" mapstructure:"priv_key"`
 		JWTSigningPubKey     *rsa.PublicKey  `yaml:"pub_key" mapstructure:"pub_key"`
 		Enabled              bool            `yaml:"enabled" mapstructure:"enabled"`
+	}
+
+	Otel struct {
+		Enabled bool `yaml:"enabled" mapstructure:"enabled"`
+	}
+
+	AxiomConfig struct {
+		Dataset        string `yaml:"dataset" mapstructure:"dataset"`
+		APIKey         string `yaml:"api_key" mapstructure:"api_key"`
+		OrganizationID string `yaml:"organization_id" mapstructure:"organization_id"`
+		Enabled        bool   `yaml:"enabled" mapstructure:"enabled"`
+	}
+
+	FluentBitConfig struct {
+		Endpoint   string `yaml:"endpoint" mapstructure:"endpoint"`
+		AuthMethod string `yaml:"auth_method" mapstructure:"auth_method"`
+		Username   string `yaml:"username" mapstructure:"username"`
+		Password   string `yaml:"password" mapstructure:"password"`
+		Enabled    bool   `yaml:"enabled" mapstructure:"enabled"`
+	}
+
+	Logging struct {
+		Axiom            AxiomConfig     `yaml:"axiom" mapstructure:"axiom"`
+		Level            string          `yaml:"level" mapstructure:"level"`
+		FluentBit        FluentBitConfig `yaml:"fluent_bit" mapstructure:"fluent_bit"`
+		Pretty           bool            `yaml:"pretty" mapstructure:"pretty"`
+		RemoteForwarding bool            `yaml:"remote_forwarding" mapstructure:"remote_forwarding"`
+		Enabled          bool            `yaml:"enabled" mapstructure:"enabled"`
+	}
+
+	Telemetry struct {
+		Logging Logging `yaml:"logging" mapstructure:"logging"`
+		Otel    Otel    `yaml:"otel" mapstructure:"otel"`
+		Enabled bool    `yaml:"enabled" mapstructure:"enabled"`
 	}
 )
 

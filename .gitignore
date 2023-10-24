@@ -22,3 +22,5 @@ config.yml.bak
 *.cert
 *.log
 *.DS_Store
+*.test
+telemetry/*.yml

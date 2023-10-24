@@ -22,7 +22,7 @@ import (
 	"github.com/containerish/OpenRegistry/store/v2/users"
 	"github.com/containerish/OpenRegistry/store/v2/webauthn"
 	"github.com/containerish/OpenRegistry/telemetry"
-	fluentbit "github.com/containerish/OpenRegistry/telemetry/fluent-bit"
+	"github.com/containerish/OpenRegistry/telemetry/otel"
 	"github.com/containerish/OpenRegistry/vcs/github"
 	"github.com/fatih/color"
 	"github.com/labstack/echo/v4"
@@ -67,13 +67,7 @@ func RunRegistryServer(ctx *cli.Context) {
 		os.Exit(1)
 	}
 
-	fluentBitCollector, err := fluentbit.New(cfg)
-	if err != nil {
-		color.Red("error initializing fluentbit collector: %s\n", err)
-		os.Exit(1)
-	}
-
-	logger := telemetry.ZLogger(fluentBitCollector, cfg.Environment)
+	logger := telemetry.ZLogger(cfg.Environment, cfg.Telemetry)
 	e := echo.New()
 
 	rawDB := store_v2.NewDB(cfg.StoreConfig, cfg.Environment)
@@ -139,6 +133,11 @@ func RunRegistryServer(ctx *cli.Context) {
 				color.Red("gRPC listen error: %s", err)
 			}
 		}()
+	}
+
+	otelShutdownFunc := otel.ConfigureOtel(cfg.Telemetry, "openregistry-api", e)
+	if otelShutdownFunc != nil {
+		defer otelShutdownFunc()
 	}
 
 	color.Red("error initialising OpenRegistry Server: %s", buildHTTPServer(cfg, e))
