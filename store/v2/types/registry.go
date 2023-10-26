@@ -2,6 +2,7 @@ package types
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -26,65 +27,117 @@ func (v RepositoryVisibility) String() string {
 	}
 }
 
-type ContainerImageVisibilityChangeRequest struct {
-	ImageManifestUUID string               `json:"image_manifest_uuid"`
-	Visibility        RepositoryVisibility `json:"visibility_mode"`
+type (
+	ContainerImageVisibilityChangeRequest struct {
+		ImageManifestUUID string               `json:"image_manifest_uuid"`
+		Visibility        RepositoryVisibility `json:"visibility_mode"`
+	}
+
+	ImageManifest struct {
+		bun.BaseModel `bun:"table:image_manifests,alias:m" json:"-"`
+		CreatedAt     time.Time                 `bun:"created_at,notnull,default:current_timestamp" json:"created_at"`
+		UpdatedAt     time.Time                 `bun:"updated_at,nullzero" json:"updated_at"`
+		Repository    *ContainerImageRepository `bun:"rel:belongs-to,join:repository_id=id" json:"-"`
+		User          *User                     `bun:"rel:belongs-to,join:owner_id=id" json:"-"`
+		Subject       map[string]any            `bun:"subject,type:jsonb" json:"subject"`
+		Digest        string                    `bun:"digest,notnull" json:"digest"`
+		Reference     string                    `bun:"reference,notnull" json:"reference"`
+		MediaType     string                    `bun:"media_type,notnull" json:"media_type"`
+		DFSLink       string                    `bun:"dfs_link,notnull" json:"dfs_link"`
+		Layers        []string                  `bun:"layers,array" json:"layers"`
+		SchemaVersion int                       `bun:"schema_version,notnull" json:"schema_version"`
+		Size          uint64                    `bun:"size,notnull" json:"size"`
+		RepositoryID  uuid.UUID                 `bun:"repository_id,type:uuid" json:"repository_id"`
+		ID            uuid.UUID                 `bun:"id,pk,type:uuid" json:"id"`
+		OwnerID       uuid.UUID                 `bun:"owner_id,type:uuid" json:"owner_id"`
+	}
+
+	ContainerImageLayer struct {
+		bun.BaseModel `bun:"table:layers,alias:l" json:"-"`
+
+		CreatedAt time.Time `bun:"created_at,notnull,default:current_timestamp" json:"created_at"`
+		UpdatedAt time.Time `bun:"updated_at,nullzero" json:"updated_at"`
+		ID        string    `bun:"id,pk,type:uuid" json:"id"`
+		Digest    string    `bun:"digest,notnull,unique" json:"digest"`
+		MediaType string    `bun:"media_type,notnull" json:"media_type"`
+		DFSLink   string    `bun:"dfs_link" json:"dfs_link"`
+		Size      uint64    `bun:"size,default:0" json:"size"`
+	}
+
+	ContainerImageRepository struct {
+		bun.BaseModel `bun:"table:repositories,alias:r" json:"-"`
+
+		CreatedAt      time.Time            `bun:"created_at" json:"created_at"`
+		UpdatedAt      time.Time            `bun:"updated_at" json:"updated_at"`
+		MetaTags       map[string]any       `bun:"meta_tags" json:"meta_tags"`
+		User           *User                `bun:"rel:belongs-to,join:owner_id=id" json:"-"`
+		Project        *RepositoryBuild     `bun:"rel:has-one,join:id=repository_id" json:"-"`
+		Description    string               `bun:"description" json:"description"`
+		Visibility     RepositoryVisibility `bun:"visibility,notnull" json:"visibility"`
+		Name           string               `bun:"name,notnull,unique" json:"name"`
+		ImageManifests []*ImageManifest     `bun:"rel:has-many,join:id=repository_id" json:"image_manifests,omitempty"`
+		Builds         []*RepositoryBuild   `bun:"rel:has-many,join:id=repository_id" json:"-"`
+		ID             uuid.UUID            `bun:"id,pk,type:uuid,default:gen_random_uuid()" json:"id"`
+		OwnerID        uuid.UUID            `bun:"owner_id,type:uuid" json:"owner_id"`
+	}
+
+	RepositoryVisibility string
+
+	ReferrerManifest struct {
+		Annotations         map[string]string `json:"annotations,omitempty"`
+		MediaType           string            `json:"mediaType"`
+		Digest              string            `json:"digest"`
+		ArtifactType        string            `json:"artifactType,omitempty"`
+		NewUnspecifiedField string            `json:"newUnspecifiedField,omitempty"`
+		Size                int               `json:"size"`
+	}
+
+	Referrer struct {
+		MediaType     string             `json:"mediaType"`
+		Manifests     []ReferrerManifest `json:"manifests"`
+		SchemaVersion int                `json:"schemaVersion"`
+	}
+)
+
+func (rm *ReferrerManifest) ToGoMap() map[string]any {
+	if rm == nil {
+		return nil
+	}
+
+	m := map[string]any{
+		"annotations":         rm.Annotations,
+		"mediaType":           rm.MediaType,
+		"digest":              rm.Digest,
+		"artifactType":        rm.ArtifactType,
+		"newUnspecifiedField": rm.NewUnspecifiedField,
+		"size":                rm.Size,
+	}
+
+	return m
 }
 
-type ImageManifest struct {
-	bun.BaseModel `bun:"table:image_manifests,alias:m" json:"-"`
+func (imf *ImageManifest) GetSubject() *ReferrerManifest {
+	if imf.Subject == nil {
+		return nil
+	}
 
-	CreatedAt     time.Time                 `bun:"created_at,notnull,default:current_timestamp" json:"created_at"`
-	UpdatedAt     time.Time                 `bun:"updated_at,nullzero" json:"updated_at"`
-	Repository    *ContainerImageRepository `bun:"rel:belongs-to,join:repository_id=id" json:"-"`
-	User          *User                     `bun:"rel:belongs-to,join:owner_id=id" json:"-"`
-	Digest        string                    `bun:"digest,notnull" json:"digest"`
-	MediaType     string                    `bun:"media_type,notnull" json:"media_type"`
-	Reference     string                    `bun:"reference,notnull" json:"reference"`
-	DFSLink       string                    `bun:"dfs_link,notnull" json:"dfs_link"`
-	Layers        []string                  `bun:"layers,array" json:"layers"`
-	SchemaVersion int                       `bun:"schema_version,notnull" json:"schema_version"`
-	Size          uint64                    `bun:"size,notnull" json:"size"`
-	RepositoryID  uuid.UUID                 `bun:"repository_id,type:uuid" json:"repository_id"`
-	ID            uuid.UUID                 `bun:"id,pk,type:uuid" json:"id"`
-	OwnerID       uuid.UUID                 `bun:"owner_id,type:uuid" json:"owner_id"`
+	bz, err := json.Marshal(imf.Subject)
+	if err != nil {
+		return nil
+	}
+
+	var refManifest ReferrerManifest
+	if err = json.Unmarshal(bz, &refManifest); err == nil {
+		return &refManifest
+	}
+
+	return nil
 }
-
-type ContainerImageLayer struct {
-	bun.BaseModel `bun:"table:layers,alias:l" json:"-"`
-
-	CreatedAt time.Time `bun:"created_at,notnull,default:current_timestamp" json:"created_at"`
-	UpdatedAt time.Time `bun:"updated_at,nullzero" json:"updated_at"`
-	ID        string    `bun:"id,pk,type:uuid" json:"id"`
-	Digest    string    `bun:"digest,notnull,unique" json:"digest"`
-	MediaType string    `bun:"media_type,notnull" json:"media_type"`
-	DFSLink   string    `bun:"dfs_link" json:"dfs_link"`
-	Size      uint64    `bun:"size,default:0" json:"size"`
-}
-
-type RepositoryVisibility string
 
 const (
 	RepositoryVisibilityPublic  RepositoryVisibility = "Public"
 	RepositoryVisibilityPrivate RepositoryVisibility = "Private"
 )
-
-type ContainerImageRepository struct {
-	bun.BaseModel `bun:"table:repositories,alias:r" json:"-"`
-
-	CreatedAt      time.Time            `bun:"created_at" json:"created_at"`
-	UpdatedAt      time.Time            `bun:"updated_at" json:"updated_at"`
-	MetaTags       map[string]any       `bun:"meta_tags" json:"meta_tags"`
-	User           *User                `bun:"rel:belongs-to,join:owner_id=id" json:"-"`
-	Project        *RepositoryBuild     `bun:"rel:has-one,join:id=repository_id" json:"-"`
-	Description    string               `bun:"description" json:"description"`
-	Visibility     RepositoryVisibility `bun:"visibility,notnull" json:"visibility"`
-	Name           string               `bun:"name,notnull,unique" json:"name"`
-	ImageManifests []*ImageManifest     `bun:"rel:has-many,join:id=repository_id" json:"image_manifests,omitempty"`
-	Builds         []*RepositoryBuild   `bun:"rel:has-many,join:id=repository_id" json:"-"`
-	ID             uuid.UUID            `bun:"id,pk,type:uuid,default:gen_random_uuid()" json:"id"`
-	OwnerID        uuid.UUID            `bun:"owner_id,type:uuid" json:"owner_id"`
-}
 
 var _ bun.BeforeAppendModelHook = (*ImageManifest)(nil)
 var _ bun.BeforeAppendModelHook = (*ContainerImageLayer)(nil)

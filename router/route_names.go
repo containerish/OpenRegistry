@@ -46,6 +46,8 @@ const (
 	// this is also a part of catalog api
 	TagsList = "/tags/list"
 
+	GetReferrers = "/referrers/:digest"
+
 	// Catalog is used to list the available repositories
 	Catalog = "/_catalog"
 

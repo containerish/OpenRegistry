@@ -556,3 +556,27 @@ func (s *registryStore) Abort(ctx context.Context, txn *bun.Tx) error {
 func (s *registryStore) Commit(ctx context.Context, txn *bun.Tx) error {
 	return txn.Commit()
 }
+
+func (s *registryStore) GetReferrers(
+	ctx context.Context,
+	digest string,
+	artifactTypes ...string,
+) (*types.ReferrerManifest, error) {
+	var mf types.ImageManifest
+	q := s.
+		db.
+		NewSelect().
+		Model(&mf).
+		Column("subject").
+		Where("subject ->>'digest' = ?", bun.Ident(digest))
+
+	if len(artifactTypes) > 0 {
+		q.Where("subject ->>'artifactType' in (?)", bun.In(artifactTypes))
+	}
+
+	if err := q.Scan(ctx); err != nil {
+		return nil, err
+	}
+
+	return mf.GetSubject(), nil
+}

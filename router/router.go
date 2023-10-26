@@ -149,6 +149,8 @@ func RegisterNSRoutes(nsRouter *echo.Group, reg registry.Registry, registryStore
 	///GET /v2/<name>/tags/list
 	nsRouter.Add(http.MethodGet, TagsList, reg.ListTags)
 
+	///GET /v2/<name>/tags/list
+	nsRouter.Add(http.MethodGet, GetReferrers, reg.GetReferrers)
 	/// mf/sha -> mf/latest
 	nsRouter.Add(http.MethodDelete, BlobsDigest, reg.DeleteLayer)
 	nsRouter.Add(http.MethodDelete, ManifestsReference, reg.DeleteTagOrManifest, registryReferenceOrTagValidator())

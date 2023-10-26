@@ -8,6 +8,7 @@ import (
 	"github.com/containerish/OpenRegistry/config"
 	dfsImpl "github.com/containerish/OpenRegistry/dfs"
 	store_v2 "github.com/containerish/OpenRegistry/store/v2/registry"
+	"github.com/containerish/OpenRegistry/store/v2/types"
 	"github.com/containerish/OpenRegistry/telemetry"
 	"github.com/labstack/echo/v4"
 	"github.com/uptrace/bun"
@@ -84,6 +85,7 @@ const (
 	RegistryErrorCodeUnauthorized        = "UNAUTHORIZED"          // authentication is required
 	RegistryErrorCodeDenied              = "DENIED"                // request access to resource is denied
 	RegistryErrorCodeUnsupported         = "UNSUPPORTED"           // operation is not supported
+	RegistryErrorCodeReferrerUnknown     = "REFERRER_UNKOWN"
 )
 
 type (
@@ -131,10 +133,11 @@ type (
 	}
 
 	ImageManifest struct {
-		Config        Config `json:"config"`
-		MediaType     string `json:"mediaType"`
-		Layers        Layers `json:"layers"`
-		SchemaVersion int    `json:"schemaVersion"`
+		Subject       *types.ReferrerManifest `json:"subject"`
+		MediaType     string                  `json:"mediaType"`
+		Config        Config                  `json:"config"`
+		Layers        Layers                  `json:"layers"`
+		SchemaVersion int                     `json:"schemaVersion"`
 	}
 
 	Layers []struct {
@@ -281,4 +284,6 @@ type Registry interface {
 
 	// Create Repository
 	CreateRepository(ctx echo.Context) error
+
+	GetReferrers(ctx echo.Context) error
 }

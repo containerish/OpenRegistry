@@ -33,6 +33,7 @@ type RegistryBaseStore interface {
 	SetManifest(ctx context.Context, txn *bun.Tx, im *types.ImageManifest) error
 	GetManifest(ctx context.Context, ref string) (*types.ImageManifest, error)
 	GetManifestByReference(ctx context.Context, namespace string, ref string) (*types.ImageManifest, error)
+	GetReferrers(ctx context.Context, digest string, artifactTypes ...string) (*types.ReferrerManifest, error)
 }
 
 type RegistryStore interface {

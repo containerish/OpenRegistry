@@ -838,6 +838,12 @@ func (r *registry) PushManifest(ctx echo.Context) error {
 		Size:          0,
 	}
 
+	if manifest.Subject != nil && manifest.Subject.Digest != "" {
+		// we got a manifest with a subject
+		val.Subject = manifest.Subject.ToGoMap()
+		ctx.Response().Header().Set("OCI-Subject", manifest.Subject.Digest)
+	}
+
 	txnOp, err := r.store.NewTxn(context.Background())
 	if err != nil {
 		errMsg := r.errorResponse(RegistryErrorCodeUnknown, err.Error(), echo.Map{
@@ -1026,4 +1032,27 @@ func (r *registry) GetRepositoryFromCtx(ctx echo.Context) *types_v2.ContainerIma
 		return repository
 	}
 	return nil
+}
+
+func (r *registry) GetReferrers(ctx echo.Context) error {
+	ctx.Set("start", time.Now())
+
+	digest := ctx.Param("digest")
+	artifactType := ctx.QueryParams().Get("artifactType")
+	if artifactType != "" {
+		ctx.Response().Header().Set("OCI-Filters-Applied", artifactType)
+	}
+
+	referrer, err := r.store.GetReferrers(ctx.Request().Context(), digest, artifactType)
+	if err != nil {
+		ctx.Response().Header().Set("content-type", "application/vnd.oci.image.index.v1+json")
+		echoErr := ctx.JSON(http.StatusOK, echo.Map{})
+		r.logger.Log(ctx, nil).Bool("referrersFound", false).Str("artifactType", artifactType).Str("digest", digest).Send()
+		return echoErr
+	}
+
+	ctx.Response().Header().Set("content-type", "application/vnd.oci.image.index.v1+json")
+	echoErr := ctx.JSON(http.StatusOK, referrer)
+	r.logger.Log(ctx, nil).Bool("referrersFound", true).Str("artifactType", artifactType).Str("digest", digest).Send()
+	return echoErr
 }
