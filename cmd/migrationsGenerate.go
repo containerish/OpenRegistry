@@ -15,18 +15,20 @@ func newMigrationsGenrateCommand() *cli.Command {
 		Usage:    "Generate database migration files",
 		Aliases:  []string{"gen", "ge"},
 		Category: CategoryMigrations,
-		Flags:    getMigrationGenerateCmdFlags(),
+		Flags:    append(getOpenRegistryDatabaseCmdFlags(), getMigrationGenerateCmdFlags()...),
 		Action:   migrationGenerateCmd,
 	}
 }
 
 func migrationGenerateCmd(ctx *cli.Context) error {
+	opts := parseDatabaseFlags(ctx)
+	openRegistryDB, err := createOpenRegistryDatabase(ctx, opts)
+	if err != nil {
+		return err
+	}
 	name := ctx.String("name")
 	operation := ctx.String("operation")
-	opts := parseDatabaseFlags(ctx)
-	connector := getDBConnectorFromCtx(false, opts)
-	db := getOpenRegistryDB(connector)
-	migrator := migrations.NewMigrator(db)
+	migrator := migrations.NewMigrator(openRegistryDB)
 
 	migrationFile, err := migrator.CreateGoMigration(
 		ctx.Context,
@@ -42,11 +44,6 @@ func migrationGenerateCmd(ctx *cli.Context) error {
 
 func getMigrationGenerateCmdFlags() []cli.Flag {
 	return []cli.Flag{
-		&cli.StringFlag{
-			Name:     "openregistry-db-dsn",
-			Value:    "postgres://localhost:5432/open_registry",
-			Required: true,
-		},
 		&cli.StringFlag{
 			Name:     "name",
 			Value:    "column_name",
