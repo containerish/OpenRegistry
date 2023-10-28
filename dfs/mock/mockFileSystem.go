@@ -20,15 +20,15 @@ import (
 	"github.com/spf13/afero"
 )
 
-type memMappedMockStorage struct {
-	memFs           afero.Fs
+type fileBasedMockStorage struct {
+	fs              afero.Fs
 	uploadSession   map[string]string
 	config          *config.S3CompatibleDFS
 	hostAddr        string
 	serviceEndpoint string
 }
 
-func newMemMappedMockStorage(env config.Environment, hostAddr string, cfg *config.S3CompatibleDFS) dfs.DFS {
+func newFileBasedMockStorage(env config.Environment, hostAddr string, cfg *config.S3CompatibleDFS) dfs.DFS {
 	if env != config.CI && env != config.Local {
 		panic("mock storage should only be used for CI or Local environments")
 	}
@@ -39,8 +39,9 @@ func newMemMappedMockStorage(env config.Environment, hostAddr string, cfg *confi
 		os.Exit(1)
 	}
 
-	mocker := &memMappedMockStorage{
-		memFs:           afero.NewMemMapFs(),
+	_ = os.MkdirAll(".mock-fs", os.ModePerm)
+	mocker := &fileBasedMockStorage{
+		fs:              afero.NewBasePathFs(afero.NewOsFs(), ".mock-fs"),
 		uploadSession:   make(map[string]string),
 		config:          cfg,
 		serviceEndpoint: "0.0.0.0:8080",
@@ -51,13 +52,13 @@ func newMemMappedMockStorage(env config.Environment, hostAddr string, cfg *confi
 	return mocker
 }
 
-func (ms *memMappedMockStorage) CreateMultipartUpload(layerKey string) (string, error) {
+func (ms *fileBasedMockStorage) CreateMultipartUpload(layerKey string) (string, error) {
 	sessionId := uuid.NewString()
 	ms.uploadSession[sessionId] = sessionId
 	return sessionId, nil
 }
 
-func (ms *memMappedMockStorage) UploadPart(
+func (ms *fileBasedMockStorage) UploadPart(
 	ctx context.Context,
 	uploadId string,
 	layerKey string,
@@ -66,7 +67,12 @@ func (ms *memMappedMockStorage) UploadPart(
 	content io.ReadSeeker,
 	contentLength int64,
 ) (s3types.CompletedPart, error) {
-	fd, err := ms.memFs.OpenFile(layerKey, os.O_RDWR|os.O_CREATE, os.ModePerm)
+	idParts := strings.Split(layerKey, "/")
+	if len(idParts) > 1 {
+		_ = ms.fs.MkdirAll(strings.Join(idParts[:len(idParts)-1], "/"), os.ModePerm)
+	}
+	fd, err := ms.fs.OpenFile(layerKey, os.O_RDWR|os.O_CREATE, os.ModePerm)
+
 	if err != nil {
 		return s3types.CompletedPart{}, err
 	}
@@ -87,7 +93,7 @@ func (ms *memMappedMockStorage) UploadPart(
 	}, nil
 }
 
-func (ms *memMappedMockStorage) CompleteMultipartUpload(
+func (ms *fileBasedMockStorage) CompleteMultipartUpload(
 	ctx context.Context,
 	uploadId string,
 	layerKey string,
@@ -98,26 +104,29 @@ func (ms *memMappedMockStorage) CompleteMultipartUpload(
 	return layerKey, nil
 }
 
-func (ms *memMappedMockStorage) Upload(ctx context.Context, identifier, digest string, content []byte) (string, error) {
-	fd, err := ms.memFs.Create(identifier)
+func (ms *fileBasedMockStorage) Upload(ctx context.Context, identifier, digest string, content []byte) (string, error) {
+	idParts := strings.Split(identifier, "/")
+	if len(idParts) > 1 {
+		_ = ms.fs.MkdirAll(strings.Join(idParts[:len(idParts)-1], "/"), os.ModePerm)
+	}
+	fd, err := ms.fs.Create(identifier)
 	if err != nil {
 		return "", err
 	}
 
-	bz, _ := io.ReadAll(fd)
-	if _, err = fd.Write(bz); err != nil {
+	if _, err = fd.Write(content); err != nil {
 		return "", err
 	}
 	if err = fd.Sync(); err != nil {
 		return "", err
 	}
-	fd.Close()
+	defer fd.Close()
 
 	return identifier, nil
 }
 
-func (ms *memMappedMockStorage) Download(ctx context.Context, path string) (io.ReadCloser, error) {
-	fd, err := ms.memFs.Open(path)
+func (ms *fileBasedMockStorage) Download(ctx context.Context, path string) (io.ReadCloser, error) {
+	fd, err := ms.fs.Open(path)
 	if err != nil {
 		return nil, err
 	}
@@ -125,28 +134,28 @@ func (ms *memMappedMockStorage) Download(ctx context.Context, path string) (io.R
 	return fd, nil
 }
 
-func (ms *memMappedMockStorage) DownloadDir(dfsLink, dir string) error {
+func (ms *fileBasedMockStorage) DownloadDir(dfsLink, dir string) error {
 	return nil
 }
 
-func (ms *memMappedMockStorage) List(path string) ([]*types.Metadata, error) {
+func (ms *fileBasedMockStorage) List(path string) ([]*types.Metadata, error) {
 	return nil, nil
 }
 
-func (ms *memMappedMockStorage) AddImage(ns string, mf, l map[string][]byte) (string, error) {
+func (ms *fileBasedMockStorage) AddImage(ns string, mf, l map[string][]byte) (string, error) {
 	return "", nil
 }
 
-func (ms *memMappedMockStorage) Metadata(identifier string) (*types.ObjectMetadata, error) {
+func (ms *fileBasedMockStorage) Metadata(identifier string) (*types.ObjectMetadata, error) {
 	var (
 		fd  afero.File
 		err error
 	)
 	parts := strings.Split(identifier, "/")
 	if len(parts) > 1 {
-		fd, err = ms.memFs.Open(parts[1])
+		fd, err = ms.fs.Open(parts[1])
 		if err != nil {
-			fd, err = ms.memFs.Open(identifier)
+			fd, err = ms.fs.Open(identifier)
 		}
 	}
 	if err != nil {
@@ -168,8 +177,8 @@ func (ms *memMappedMockStorage) Metadata(identifier string) (*types.ObjectMetada
 
 }
 
-func (ms *memMappedMockStorage) GetUploadProgress(identifier, uploadID string) (*types.ObjectMetadata, error) {
-	fd, err := ms.memFs.Open(identifier)
+func (ms *fileBasedMockStorage) GetUploadProgress(identifier, uploadID string) (*types.ObjectMetadata, error) {
+	fd, err := ms.fs.Open(identifier)
 	if err != nil {
 		return nil, err
 	}
@@ -184,7 +193,7 @@ func (ms *memMappedMockStorage) GetUploadProgress(identifier, uploadID string) (
 	}, nil
 }
 
-func (ms *memMappedMockStorage) getServiceEndpoint() string {
+func (ms *fileBasedMockStorage) getServiceEndpoint() string {
 	_, port, err := net.SplitHostPort(ms.serviceEndpoint)
 	if err != nil {
 		color.Red("error splitting mock service host port: %s", err)
@@ -194,7 +203,7 @@ func (ms *memMappedMockStorage) getServiceEndpoint() string {
 	return fmt.Sprintf("http://%s:%s", ms.hostAddr, port)
 }
 
-func (ms *memMappedMockStorage) GeneratePresignedURL(ctx context.Context, key string) (string, error) {
+func (ms *fileBasedMockStorage) GeneratePresignedURL(ctx context.Context, key string) (string, error) {
 	parts := strings.Split(key, "/")
 	if len(parts) == 1 {
 		key = "layers/" + key
@@ -204,8 +213,8 @@ func (ms *memMappedMockStorage) GeneratePresignedURL(ctx context.Context, key st
 	return preSignedURL, nil
 }
 
-func (ms *memMappedMockStorage) AbortMultipartUpload(ctx context.Context, layerKey string, uploadId string) error {
-	if err := ms.memFs.Remove(layerKey); err != nil {
+func (ms *fileBasedMockStorage) AbortMultipartUpload(ctx context.Context, layerKey string, uploadId string) error {
+	if err := ms.fs.Remove(layerKey); err != nil {
 		return err
 	}
 
@@ -213,18 +222,18 @@ func (ms *memMappedMockStorage) AbortMultipartUpload(ctx context.Context, layerK
 	return nil
 }
 
-func (ms *memMappedMockStorage) Config() *config.S3CompatibleDFS {
+func (ms *fileBasedMockStorage) Config() *config.S3CompatibleDFS {
 	return ms.config
 }
 
-func (ms *memMappedMockStorage) FileServer() {
+func (ms *fileBasedMockStorage) FileServer() {
 	e := echo.New()
 	e.HideBanner = true
 	e.HidePort = true
 
 	e.Add(http.MethodGet, "/:uuid", func(ctx echo.Context) error {
 		fileID := ctx.Param("uuid")
-		fd, err := ms.memFs.Open(fileID)
+		fd, err := ms.fs.Open(fileID)
 		if err != nil {
 			return ctx.JSON(http.StatusBadRequest, echo.Map{
 				"error": err.Error(),

@@ -24,3 +24,4 @@ config.yml.bak
 *.DS_Store
 *.test
 telemetry/*.yml
+/.mock-fs

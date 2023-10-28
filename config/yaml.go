@@ -3,6 +3,7 @@ package config
 import (
 	"crypto/rsa"
 	"fmt"
+	"log"
 	"os"
 	"runtime"
 	"strings"
@@ -49,6 +50,8 @@ func ReadYamlConfig(configPath string) (*OpenRegistryConfig, error) {
 	if authConfig == nil {
 		return nil, fmt.Errorf("missing registry.auth config")
 	}
+
+	parseAndSetMockStorageDriverOptions(&cfg)
 
 	privKey, pubKey, err := getRSAKeyPairFromViperConfig(authConfig)
 	if err != nil {
@@ -144,4 +147,21 @@ func setDefaultsForDatabaseStore(cfg *OpenRegistryConfig) {
 	if cfg.StoreConfig.MaxOpenConnections == 0 {
 		cfg.StoreConfig.MaxOpenConnections = runtime.NumCPU() * 6
 	}
+}
+
+func parseAndSetMockStorageDriverOptions(cfg *OpenRegistryConfig) {
+	mockDFSType := viper.GetString("dfs.mock.type")
+	if mockDFSType == "MemMapped" {
+		viper.Set("dfs.mock.type", MockStorageBackendMemMapped)
+		cfg.DFS.Mock.Type = MockStorageBackendMemMapped
+		return
+	}
+
+	if mockDFSType == "FS" {
+		viper.Set("dfs.mock.type", MockStorageBackendFileBased)
+		cfg.DFS.Mock.Type = MockStorageBackendFileBased
+		return
+	}
+
+	log.Fatalln(color.RedString("invalid option for 'dfs.mock.type', supported options are: 'MemMapped' or 'FS'"))
 }

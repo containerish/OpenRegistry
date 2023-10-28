@@ -22,10 +22,10 @@ type (
 		WebAppConfig   WebAppConfig   `yaml:"web_app" mapstructure:"web_app"`
 		Integrations   Integrations   `yaml:"integrations" mapstructure:"integrations"`
 		Registry       Registry       `yaml:"registry" mapstructure:"registry" validate:"required"`
-		Telemetry      Telemetry      `yaml:"telemetry" mapstructure:"telemetry"`
 		StoreConfig    Store          `yaml:"database" mapstructure:"database" validate:"required"`
-		DFS            DFS            `yaml:"dfs" mapstructure:"dfs"`
+		Telemetry      Telemetry      `yaml:"telemetry" mapstructure:"telemetry"`
 		WebAuthnConfig WebAuthnConfig `yaml:"web_authn_config" mapstructure:"web_authn_config"`
+		DFS            DFS            `yaml:"dfs" mapstructure:"dfs"`
 		Environment    Environment    `yaml:"environment" mapstructure:"environment" validate:"required"`
 		Debug          bool           `yaml:"debug" mapstructure:"debug"`
 	}
@@ -66,7 +66,12 @@ type (
 		ChunkSize       int    `yaml:"chunk_size" mapstructure:"chunk_size"`
 		MinChunkSize    uint64 `yaml:"min_chunk_size" mapstructure:"min_chunk_size"`
 		Enabled         bool   `yaml:"enabled" mapstructure:"enabled"`
+
+		// this field is only used by the mock storage driver
+		Type MockStorageBackend `yaml:"type" mapstructure:"type"`
 	}
+
+	MockStorageBackend int
 
 	// just so that we can retrieve values easily
 	Integrations []*Integration
@@ -185,6 +190,9 @@ type (
 const (
 	StoreKindPostgres StoreKind = "postgres"
 	StoreKindSQLite   StoreKind = "sqlite"
+
+	MockStorageBackendMemMapped MockStorageBackend = iota + 1
+	MockStorageBackendFileBased
 )
 
 func (r *Registry) Address() string {
