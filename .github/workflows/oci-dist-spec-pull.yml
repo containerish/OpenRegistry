@@ -51,6 +51,7 @@ jobs:
           cp config.example.yaml config.yaml
           IP=$IP yq e -i '.database.host = env(IP)' config.yaml
           yq e -i '.dfs.mock.enabled = "true"' config.yaml
+          yq e -i '.dfs.mock.type = "FS"' config.yaml
           go mod download
           go build
           make certs

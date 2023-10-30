@@ -163,5 +163,9 @@ func parseAndSetMockStorageDriverOptions(cfg *OpenRegistryConfig) {
 		return
 	}
 
-	log.Fatalln(color.RedString("invalid option for 'dfs.mock.type', supported options are: 'MemMapped' or 'FS'"))
+	log.Fatalln(
+		color.RedString(
+			"invalid option for 'dfs.mock.type' \"%s\", supported options are: 'MemMapped' or 'FS'", mockDFSType,
+		),
+	)
 }

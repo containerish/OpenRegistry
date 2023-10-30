@@ -31,7 +31,7 @@ oauth:
 dfs:
   mock:
     enabled: true
-    type: "s3"
+    type: "MemMapped"
     access_key: <access-key>
     secret_key: <access-secret-key>
     endpoint: <s3-compatible-api-endpoint>
@@ -39,7 +39,6 @@ dfs:
     dfs_link_resolver: <optional-dfs-link-resolver-url>
   filebase:
     enabled: false
-    type: "s3"
     access_key: <access-key>
     secret_key: <access-secret-key>
     endpoint: <s3-compatible-api-endpoint>
