@@ -33,7 +33,12 @@ type RegistryBaseStore interface {
 	SetManifest(ctx context.Context, txn *bun.Tx, im *types.ImageManifest) error
 	GetManifest(ctx context.Context, ref string) (*types.ImageManifest, error)
 	GetManifestByReference(ctx context.Context, namespace string, ref string) (*types.ImageManifest, error)
-	GetReferrers(ctx context.Context, digest string, artifactTypes ...string) (*types.ReferrerManifest, error)
+	GetReferrers(
+		ctx context.Context,
+		ns string,
+		digest string,
+		artifactTypes []string,
+	) ([]*types.ImageManifestSubject, error)
 }
 
 type RegistryStore interface {
@@ -43,6 +48,7 @@ type RegistryStore interface {
 	// The base registry store methods
 	RegistryBaseStore
 
+	GetImageSizeByLayerIds(ctx context.Context, layerIDs []string) (uint64, error)
 	GetContentHashById(ctx context.Context, uuid string) (string, error)
 	GetImageTags(ctx context.Context, namespace string) ([]string, error)
 	GetCatalog(ctx context.Context, namespace string, pageSize int, offset int) ([]string, error)

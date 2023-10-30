@@ -2,6 +2,8 @@ package types
 
 import (
 	"context"
+	"database/sql"
+	"database/sql/driver"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -35,32 +37,57 @@ type (
 
 	ImageManifest struct {
 		bun.BaseModel `bun:"table:image_manifests,alias:m" json:"-"`
-		CreatedAt     time.Time                 `bun:"created_at,notnull,default:current_timestamp" json:"created_at"`
-		UpdatedAt     time.Time                 `bun:"updated_at,nullzero" json:"updated_at"`
+
+		CreatedAt     time.Time                 `bun:"created_at,notnull,default:current_timestamp" json:"createdAt"`
+		UpdatedAt     time.Time                 `bun:"updated_at,nullzero" json:"updatedAt"`
 		Repository    *ContainerImageRepository `bun:"rel:belongs-to,join:repository_id=id" json:"-"`
 		User          *User                     `bun:"rel:belongs-to,join:owner_id=id" json:"-"`
-		Subject       map[string]any            `bun:"subject,type:jsonb" json:"subject"`
-		Digest        string                    `bun:"digest,notnull" json:"digest"`
+		Subject       *ImageManifestSubject     `bun:"embed:subject_" json:"subject,omitempty"`
+		Config        *ImageManifestConfig      `bun:"embed:config_" json:"config"`
 		Reference     string                    `bun:"reference,notnull" json:"reference"`
-		MediaType     string                    `bun:"media_type,notnull" json:"media_type"`
-		DFSLink       string                    `bun:"dfs_link,notnull" json:"dfs_link"`
-		Layers        []string                  `bun:"layers,array" json:"layers"`
-		SchemaVersion int                       `bun:"schema_version,notnull" json:"schema_version"`
+		Digest        string                    `bun:"digest,notnull" json:"digest"`
+		MediaType     string                    `bun:"media_type,notnull" json:"mediaType"`
+		ArtifactType  string                    `bun:"artifact_type" json:"artifactType,omitempty"`
+		Layers        ImageManifestLayers       `bun:"layers,type:jsonb" json:"layers"`
+		SchemaVersion int                       `bun:"schema_version,notnull" json:"schemaVersion"`
 		Size          uint64                    `bun:"size,notnull" json:"size"`
-		RepositoryID  uuid.UUID                 `bun:"repository_id,type:uuid" json:"repository_id"`
+		RepositoryID  uuid.UUID                 `bun:"repository_id,type:uuid" json:"repositoryId"`
 		ID            uuid.UUID                 `bun:"id,pk,type:uuid" json:"id"`
-		OwnerID       uuid.UUID                 `bun:"owner_id,type:uuid" json:"owner_id"`
+		OwnerID       uuid.UUID                 `bun:"owner_id,type:uuid" json:"ownerId"`
 	}
+
+	ImageManifestSubject struct {
+		Annotations         map[string]string `bun:"type:jsonb,nullzero" json:"annotations,omitempty"`
+		MediaType           string            `json:"mediaType"`
+		Digest              string            `json:"digest"`
+		ArtifactType        string            `json:"artifactType,omitempty"`
+		NewUnspecifiedField string            `json:"newUnspecifiedField,omitempty"`
+		Size                uint64            `json:"size"`
+	}
+
+	ImageManifestConfig struct {
+		MediaType string `json:"mediaType"`
+		Digest    string `json:"digest"`
+		Size      uint64 `json:"size"`
+	}
+
+	ImageManifestLayer struct {
+		MediaType string `json:"mediaType"`
+		Digest    string `json:"digest"`
+		Size      uint64 `json:"size"`
+	}
+
+	ImageManifestLayers []*ImageManifestLayer
 
 	ContainerImageLayer struct {
 		bun.BaseModel `bun:"table:layers,alias:l" json:"-"`
 
-		CreatedAt time.Time `bun:"created_at,notnull,default:current_timestamp" json:"created_at"`
-		UpdatedAt time.Time `bun:"updated_at,nullzero" json:"updated_at"`
+		CreatedAt time.Time `bun:"created_at,notnull,default:current_timestamp" json:"createdA"`
+		UpdatedAt time.Time `bun:"updated_at,nullzero" json:"updatedAt"`
 		ID        string    `bun:"id,pk,type:uuid" json:"id"`
 		Digest    string    `bun:"digest,notnull,unique" json:"digest"`
-		MediaType string    `bun:"media_type,notnull" json:"media_type"`
-		DFSLink   string    `bun:"dfs_link" json:"dfs_link"`
+		MediaType string    `bun:"media_type,notnull" json:"mediaType"`
+		DFSLink   string    `bun:"dfs_link" json:"dfsLink"`
 		Size      uint64    `bun:"size,default:0" json:"size"`
 	}
 
@@ -83,55 +110,70 @@ type (
 
 	RepositoryVisibility string
 
-	ReferrerManifest struct {
-		Annotations         map[string]string `json:"annotations,omitempty"`
-		MediaType           string            `json:"mediaType"`
-		Digest              string            `json:"digest"`
-		ArtifactType        string            `json:"artifactType,omitempty"`
-		NewUnspecifiedField string            `json:"newUnspecifiedField,omitempty"`
-		Size                int               `json:"size"`
-	}
-
-	Referrer struct {
-		MediaType     string             `json:"mediaType"`
-		Manifests     []ReferrerManifest `json:"manifests"`
-		SchemaVersion int                `json:"schemaVersion"`
+	ReferrerImageIndex struct {
+		MediaType     string                  `json:"mediaType"`
+		Manifests     []*ImageManifestSubject `json:"manifests"`
+		SchemaVersion int                     `json:"schemaVersion"`
 	}
 )
 
-func (rm *ReferrerManifest) ToGoMap() map[string]any {
-	if rm == nil {
-		return nil
+var _ driver.Valuer = (*ImageManifestLayers)(nil)
+var _ sql.Scanner = (*ImageManifestLayers)(nil)
+
+func (l ImageManifestLayers) Value() (driver.Value, error) {
+	if len(l) == 0 {
+		return nil, nil
 	}
 
-	m := map[string]any{
-		"annotations":         rm.Annotations,
-		"mediaType":           rm.MediaType,
-		"digest":              rm.Digest,
-		"artifactType":        rm.ArtifactType,
-		"newUnspecifiedField": rm.NewUnspecifiedField,
-		"size":                rm.Size,
+	bz, err := json.Marshal(l)
+	if err != nil {
+		return nil, err
 	}
 
-	return m
+	return json.RawMessage(bz), nil
 }
 
-func (imf *ImageManifest) GetSubject() *ReferrerManifest {
-	if imf.Subject == nil {
+func (l *ImageManifestLayers) Scan(input any) error {
+	if input == nil {
 		return nil
 	}
 
-	bz, err := json.Marshal(imf.Subject)
-	if err != nil {
-		return nil
+	bz, ok := input.([]byte)
+	if !ok {
+		return fmt.Errorf("Scan: expected []byte, got %T", input)
 	}
 
-	var refManifest ReferrerManifest
-	if err = json.Unmarshal(bz, &refManifest); err == nil {
-		return &refManifest
+	if err := json.Unmarshal(bz, l); err != nil {
+		return fmt.Errorf("ERR_UNMARSHAL_MANIFEST: %w", err)
 	}
 
 	return nil
+}
+
+// ToOCISubject is a convenience method that returns a new copy of teh ImageManifest type, which only has the fields
+// required by the OCI Image Manifest type
+func (m *ImageManifest) ToOCISubject() []byte {
+	if m == nil {
+		return nil
+	}
+
+	manifest := map[string]any{
+		"config":        m.Config,
+		"mediaType":     m.MediaType,
+		"layers":        m.Layers,
+		"schemaVersion": m.SchemaVersion,
+	}
+
+	if m.ArtifactType != "" {
+		manifest["artifactType"] = m.ArtifactType
+	}
+
+	if m.Subject != nil {
+		manifest["subject"] = m.Subject
+	}
+
+	bz, _ := json.MarshalIndent(manifest, "", "\t")
+	return bz
 }
 
 const (

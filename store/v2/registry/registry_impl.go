@@ -113,18 +113,19 @@ func (s *registryStore) GetRepositoryByName(
 
 func (s *registryStore) DeleteLayerByDigestWithTxn(ctx context.Context, txn *bun.Tx, digest string) error {
 	logEvent := s.logger.Debug().Str("method", "DeleteLayerByDigestWithTxn").Str("digest", digest)
+
 	_, err := txn.NewDelete().Model(&types.ContainerImageLayer{}).Where("digest = ?", digest).Exec(ctx)
 	if err != nil {
 		logEvent.Err(err).Send()
 		return v2.WrapDatabaseError(err, v2.DatabaseOperationDelete)
 	}
 
-	logEvent.Bool("success", true).Send()
 	return nil
 }
 
 func (s *registryStore) DeleteLayerByDigest(ctx context.Context, digest string) error {
 	logEvent := s.logger.Debug().Str("method", "DeleteLayerByDigest").Str("digest", digest)
+
 	_, err := s.db.NewDelete().Model(&types.ContainerImageLayer{}).Where("digest = ?", digest).Exec(ctx)
 	if err != nil {
 		logEvent.Err(err).Send()
@@ -138,6 +139,7 @@ func (s *registryStore) DeleteLayerByDigest(ctx context.Context, digest string) 
 // DeleteManifestOrTag implements registry.RegistryStore.
 func (s *registryStore) DeleteManifestOrTag(ctx context.Context, reference string) error {
 	logEvent := s.logger.Debug().Str("method", "DeleteManifestOrTag").Str("reference", reference)
+
 	_, err := s.
 		db.
 		NewDelete().
@@ -157,6 +159,7 @@ func (s *registryStore) DeleteManifestOrTag(ctx context.Context, reference strin
 
 func (s *registryStore) DeleteManifestOrTagWithTxn(ctx context.Context, txn *bun.Tx, reference string) error {
 	logEvent := s.logger.Debug().Str("method", "DeleteManifestOrTagWithTxn").Str("reference", reference)
+
 	_, err := txn.
 		NewDelete().
 		Model(&types.ImageManifest{}).
@@ -373,9 +376,9 @@ func (s *registryStore) GetImageTags(ctx context.Context, namespace string) ([]s
 
 	logEvent.Bool("success", true).Send()
 
-	tags := make([]string, len(manifests))
-	for i, manifest := range manifests {
-		tags[i] = manifest.Reference
+	tags := make([]string, 0)
+	for _, manifest := range manifests {
+		tags = append(tags, manifest.Reference)
 	}
 
 	return tags, nil
@@ -415,8 +418,8 @@ func (s *registryStore) GetManifestByReference(
 	ref string,
 ) (*types.ImageManifest, error) {
 	logEvent := s.logger.Debug().Str("method", "GetManifestByReference").Str("whereClause", "reference")
-	var manifest types.ImageManifest
 
+	var manifest types.ImageManifest
 	err := s.
 		db.
 		NewSelect().
@@ -559,24 +562,68 @@ func (s *registryStore) Commit(ctx context.Context, txn *bun.Tx) error {
 
 func (s *registryStore) GetReferrers(
 	ctx context.Context,
+	namespace string,
 	digest string,
-	artifactTypes ...string,
-) (*types.ReferrerManifest, error) {
-	var mf types.ImageManifest
+	artifactTypes []string,
+) ([]*types.ImageManifestSubject, error) {
+	var manifestList []*types.ImageManifest
+	// we return an empty list on error
+	subjectList := []*types.ImageManifestSubject{}
+
 	q := s.
 		db.
 		NewSelect().
-		Model(&mf).
-		Column("subject").
-		Where("subject ->>'digest' = ?", bun.Ident(digest))
+		Model(&manifestList)
 
 	if len(artifactTypes) > 0 {
-		q.Where("subject ->>'artifactType' in (?)", bun.In(artifactTypes))
+		q.Where("subject_digest = ? AND artifact_type in (?)", digest, bun.In(artifactTypes))
+	} else {
+		q.Where("subject_digest = ?", digest)
 	}
+
+	nsParts := strings.Split(namespace, "/")
+	if len(nsParts) != 2 {
+		return subjectList, fmt.Errorf("GetReferrers: invalid namespace format")
+	}
+
+	username, repoName := nsParts[0], nsParts[1]
+	q.Relation("Repository", func(sq *bun.SelectQuery) *bun.SelectQuery {
+		return sq.ExcludeColumn("*").Where("name = ?", repoName)
+	}).Relation("User", func(sq *bun.SelectQuery) *bun.SelectQuery {
+		return sq.Where("username = ?", username).ExcludeColumn("*")
+	})
 
 	if err := q.Scan(ctx); err != nil {
-		return nil, err
+		return subjectList, err
 	}
 
-	return mf.GetSubject(), nil
+	seenMap := map[string]struct{}{}
+	for _, m := range manifestList {
+		if m.Subject != nil {
+			if _, ok := seenMap[m.Subject.Digest]; ok {
+				continue
+			}
+
+			seenMap[m.Subject.Digest] = struct{}{}
+			subjectList = append(subjectList, m.Subject)
+		}
+	}
+
+	return subjectList, nil
+}
+
+func (s *registryStore) GetImageSizeByLayerIds(ctx context.Context, layerIDs []string) (uint64, error) {
+	var size uint64
+	err := s.
+		db.
+		NewSelect().
+		Model(&types.ContainerImageLayer{}).
+		ColumnExpr("sum(size)").
+		Where("digest in (?)", bun.In(layerIDs)).
+		Scan(ctx, &size)
+	if err != nil {
+		return 0, err
+	}
+
+	return size, nil
 }
