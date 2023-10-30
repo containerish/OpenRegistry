@@ -126,11 +126,11 @@ func (b *blobs) UploadBlob(ctx echo.Context) error {
 
 		b.mu.Lock()
 		b.layerParts[uploadID] = append(b.layerParts[uploadID], part)
+		b.layerLengthCounter[uploadID] = int64(buf.Len())
 		b.mu.Unlock()
 
 		locationHeader := fmt.Sprintf("/v2/%s/blobs/uploads/%s", namespace, identifier)
 		ctx.Response().Header().Set("Location", locationHeader)
-		b.layerLengthCounter[uploadID] = int64(buf.Len())
 		ctx.Response().Header().Set("Range", fmt.Sprintf("0-%d", b.layerLengthCounter[uploadID]-1))
 		err = ctx.NoContent(http.StatusAccepted)
 		b.registry.logger.Log(ctx, err).Send()
