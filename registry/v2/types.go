@@ -8,7 +8,6 @@ import (
 	"github.com/containerish/OpenRegistry/config"
 	dfsImpl "github.com/containerish/OpenRegistry/dfs"
 	store_v2 "github.com/containerish/OpenRegistry/store/v2/registry"
-	"github.com/containerish/OpenRegistry/store/v2/types"
 	"github.com/containerish/OpenRegistry/telemetry"
 	"github.com/labstack/echo/v4"
 	"github.com/uptrace/bun"
@@ -115,41 +114,6 @@ type (
 		blobCounter        map[string]int64
 		layerLengthCounter map[string]int64
 		layerParts         map[string][]s3types.CompletedPart
-	}
-
-	ManifestList struct {
-		MediaType string `json:"mediaType"`
-		Manifests []struct {
-			MediaType string `json:"mediaType"`
-			Digest    string `json:"digest"`
-			Platform  struct {
-				Architecture string   `json:"architecture"`
-				Os           string   `json:"os"`
-				Features     []string `json:"features"`
-			} `json:"platform"`
-			Size int `json:"size"`
-		} `json:"manifests"`
-		SchemaVersion int `json:"schemaVersion"`
-	}
-
-	ImageManifest struct {
-		Subject       *types.ReferrerManifest `json:"subject"`
-		MediaType     string                  `json:"mediaType"`
-		Config        Config                  `json:"config"`
-		Layers        Layers                  `json:"layers"`
-		SchemaVersion int                     `json:"schemaVersion"`
-	}
-
-	Layers []struct {
-		MediaType string `json:"mediaType"`
-		Digest    string `json:"digest"`
-		Size      int    `json:"size"`
-	}
-
-	Config struct {
-		MediaType string `json:"mediaType"`
-		Digest    string `json:"digest"`
-		Size      int    `json:"size"`
 	}
 )
 
@@ -285,5 +249,96 @@ type Registry interface {
 	// Create Repository
 	CreateRepository(ctx echo.Context) error
 
-	GetReferrers(ctx echo.Context) error
+	ListReferrers(ctx echo.Context) error
+}
+
+// reference: https://github.com/opencontainers/image-spec/blob/main/media-types.md#oci-image-media-types
+type OCIMediaTypeV1 int
+type DockerDistributionMediaType OCIMediaTypeV1
+
+const (
+	// application/vnd.oci.descriptor.v1+json
+	OCIMediaTypeV1ContentDescriptor OCIMediaTypeV1 = iota + 1
+	// application/vnd.oci.layout.header.v1+json
+	OCIMediaTypeV1LayoutHeader
+	// application/vnd.oci.image.index.v1+json
+	OCIMediaTypeV1ImageIndex
+	// application/vnd.oci.image.manifest.v1+json
+	OCIMediaTypeV1ImageManifest
+	// application/vnd.oci.image.config.v1+json
+	OCIMediaTypeV1ImageConfig
+	// application/vnd.oci.image.layer.v1.tar
+	OCIMediaTypeV1LayerTar
+	// application/vnd.oci.image.layer.v1.tar+gzip
+	OCIMediaTypeV1LayerGzip
+	// application/vnd.oci.image.layer.v1.tar+zstd
+	OCIMediaTypeV1LayerZStd
+	// application/vnd.oci.empty.v1+json
+	OCIMediaTypeV1Empty
+)
+
+const (
+	// application/vnd.docker.distribution.manifest.list.v2+json
+	DistributionV2ManifestList DockerDistributionMediaType = iota + 1
+	// application/vnd.docker.distribution.manifest.v2+json
+	DistributionV2Manifest
+	// application/vnd.docker.image.rootfs.diff.tar.gzip
+	DistributionV2ImageRootFS
+	// application/vnd.docker.container.image.v1+json
+	DistributionV1Image
+)
+
+func (m OCIMediaTypeV1) String() string {
+	switch m {
+	case OCIMediaTypeV1ContentDescriptor:
+		return "application/vnd.oci.descriptor.v1+json"
+	case OCIMediaTypeV1LayoutHeader:
+		return "application/vnd.oci.layout.header.v1+json"
+	case OCIMediaTypeV1ImageIndex:
+		return "application/vnd.oci.image.index.v1+json"
+	case OCIMediaTypeV1ImageManifest:
+		return "application/vnd.oci.image.manifest.v1+json"
+	case OCIMediaTypeV1ImageConfig:
+		return "application/vnd.oci.image.config.v1+json"
+	case OCIMediaTypeV1LayerTar:
+		return "application/vnd.oci.image.layer.v1.tar"
+	case OCIMediaTypeV1LayerGzip:
+		return "application/vnd.oci.image.layer.v1.tar+gzip"
+	case OCIMediaTypeV1LayerZStd:
+		return "application/vnd.oci.image.layer.v1.tar+zstd"
+	case OCIMediaTypeV1Empty:
+		return "application/vnd.oci.empty.v1+json"
+	default:
+		return "application/vnd.oci.empty.v1+json"
+	}
+}
+
+func (m DockerDistributionMediaType) String() string {
+	switch m {
+	case DistributionV2ManifestList:
+		return "application/vnd.docker.distribution.manifest.list.v2+json"
+	case DistributionV2Manifest:
+		return "application/vnd.docker.distribution.manifest.v2+json"
+	case DistributionV2ImageRootFS:
+		return "application/vnd.docker.image.rootfs.diff.tar.gzip"
+	case DistributionV1Image:
+		return "application/vnd.docker.container.image.v1+json"
+	default:
+		return "application/vnd.oci.empty.v1+json"
+	}
+}
+
+type OCIFilter int
+
+const (
+	OCIFilterArtifactType OCIFilter = iota + 1
+)
+
+func (f OCIFilter) String() string {
+	switch f {
+	case OCIFilterArtifactType:
+		return "artifactType"
+	default:
+		return ""
+	}
 }
