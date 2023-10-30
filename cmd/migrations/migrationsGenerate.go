@@ -1,4 +1,4 @@
-package cmd
+package migrations
 
 import (
 	"fmt"
@@ -11,12 +11,11 @@ import (
 
 func newMigrationsGenrateCommand() *cli.Command {
 	return &cli.Command{
-		Name:     "generate",
-		Usage:    "Generate database migration files",
-		Aliases:  []string{"gen", "ge"},
-		Category: CategoryMigrations,
-		Flags:    append(getOpenRegistryDatabaseCmdFlags(), getMigrationGenerateCmdFlags()...),
-		Action:   migrationGenerateCmd,
+		Name:    "generate",
+		Usage:   "Generate database migration files",
+		Aliases: []string{"gen", "ge"},
+		Flags:   append(getOpenRegistryDatabaseCmdFlags(), getMigrationGenerateCmdFlags()...),
+		Action:  migrationGenerateCmd,
 	}
 }
 

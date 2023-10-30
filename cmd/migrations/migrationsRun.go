@@ -1,4 +1,4 @@
-package cmd
+package migrations
 
 import (
 	"github.com/containerish/OpenRegistry/store/v2/migrations"
@@ -7,13 +7,12 @@ import (
 
 func newMigrationsRunCommand() *cli.Command {
 	return &cli.Command{
-		Name:     "run",
-		Usage:    "Run any new migrations",
-		Flags:    getOpenRegistryDatabaseCmdFlags(),
-		Category: CategoryMigrations,
+		Name:  "run",
+		Usage: "Run any new migrations",
+		Flags: getOpenRegistryDatabaseCmdFlags(),
 		Action: func(ctx *cli.Context) error {
 			opts := parseDatabaseFlags(ctx)
-			connector := getDBConnectorFromCtx(false, opts)
+			connector := getOpenRegistryDBConnectorFromCtx(opts)
 			db := getOpenRegistryDB(connector)
 			migrations.PerformMigrations(ctx.Context, db)
 			return nil

@@ -1,4 +1,4 @@
-package cmd
+package migrations
 
 import (
 	"errors"
@@ -10,13 +10,12 @@ import (
 
 func newMigrationsRollbackCommand() *cli.Command {
 	return &cli.Command{
-		Name:     "rollback",
-		Usage:    "Rollback the latest migrations",
-		Flags:    getOpenRegistryDatabaseCmdFlags(),
-		Category: CategoryMigrations,
+		Name:  "rollback",
+		Usage: "Rollback the latest migrations",
+		Flags: getOpenRegistryDatabaseCmdFlags(),
 		Action: func(ctx *cli.Context) error {
 			opts := parseDatabaseFlags(ctx)
-			connector := getDBConnectorFromCtx(false, opts)
+			connector := getOpenRegistryDBConnectorFromCtx(opts)
 			db := getOpenRegistryDB(connector)
 
 			migrator := migrations.NewMigrator(db)

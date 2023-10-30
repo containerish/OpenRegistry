@@ -1,4 +1,4 @@
-package cmd
+package migrations
 
 import (
 	"github.com/containerish/OpenRegistry/store/v2/types"
@@ -7,18 +7,17 @@ import (
 
 func newDatabaseResetCommand() *cli.Command {
 	return &cli.Command{
-		Name:     "reset",
-		Aliases:  []string{"re"},
-		Usage:    "Re-initialise the database, first delete everything & then create tables, roles, indexes, etc",
-		Flags:    getOpenRegistryDatabaseCmdFlags(),
-		Category: CategoryMigrations,
-		Action:   migrationResetCmd,
+		Name:    "reset",
+		Aliases: []string{"re"},
+		Usage:   "Re-initialise the database, first delete everything & then create tables, roles, indexes, etc",
+		Flags:   getOpenRegistryDatabaseCmdFlags(),
+		Action:  migrationResetCmd,
 	}
 }
 
 func migrationResetCmd(ctx *cli.Context) error {
 	opts := parseDatabaseFlags(ctx)
-	connector := getDBConnectorFromCtx(false, opts)
+	connector := getOpenRegistryDBConnectorFromCtx(opts)
 	db := getOpenRegistryDB(connector)
 
 	return db.ResetModel(

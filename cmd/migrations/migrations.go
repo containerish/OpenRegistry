@@ -1,4 +1,4 @@
-package cmd
+package migrations
 
 import (
 	"crypto/tls"
@@ -14,18 +14,17 @@ import (
 	"github.com/uptrace/bun"
 	"github.com/uptrace/bun/dialect/pgdialect"
 	"github.com/uptrace/bun/driver/pgdriver"
-	"github.com/uptrace/bun/extra/bundebug"
 	"github.com/urfave/cli/v2"
 )
 
-const CategoryMigrations = "Migrations"
+// const CategoryMigrations = "Migrations"
 
 func NewMigrationsCommand() *cli.Command {
 	return &cli.Command{
-		Name:     "migrations",
-		Aliases:  []string{"m"},
-		Usage:    "Run database migrations for OpenRegistry data store",
-		Category: CategoryMigrations,
+		Name:    "migrations",
+		Aliases: []string{"m"},
+		Usage:   "Run database migrations for OpenRegistry data store",
+		// Category: CategoryMigrations,
 		Description: `Perform migrations for the OpenRegistry database like database initialisation, migrations, 
 rollback, reset, etc`,
 		UsageText: `OpenRegistry CLI provides a collection of commands for running database migrations.
@@ -41,9 +40,7 @@ Examples:
 			newMigrationsGenrateCommand(),
 			newDatabaseResetCommand(),
 		},
-		Action: func(ctx *cli.Context) error {
-			return nil
-		},
+		Action: nil,
 	}
 }
 
@@ -51,13 +48,9 @@ func getOpenRegistryDB(connector *pgdriver.Connector) *bun.DB {
 	sqlDB := sql.OpenDB(connector)
 	bunWrappedDB := bun.NewDB(sqlDB, pgdialect.New())
 	if err := bunWrappedDB.Ping(); err != nil {
-		color.Red("error connecting to database: %s", err)
+		color.Red("error connecting to open_registry database: %s", err)
 		os.Exit(1100)
 	}
-	bunWrappedDB.AddQueryHook(bundebug.NewQueryHook(
-		bundebug.WithVerbose(true),
-		bundebug.FromEnv("BUNDEBUG"),
-	))
 
 	return bunWrappedDB
 }
@@ -66,13 +59,9 @@ func getAdminBunDB(connector *pgdriver.Connector) *bun.DB {
 	sqlDB := sql.OpenDB(connector)
 	bunWrappedDB := bun.NewDB(sqlDB, pgdialect.New())
 	if err := bunWrappedDB.Ping(); err != nil {
-		color.Red("error connecting to database: %s", err)
+		color.Red("error connecting to admin (postgres) database: %s", err)
 		os.Exit(1100)
 	}
-	bunWrappedDB.AddQueryHook(bundebug.NewQueryHook(
-		bundebug.WithVerbose(true),
-		bundebug.FromEnv("BUNDEBUG"),
-	))
 
 	return bunWrappedDB
 }
@@ -165,33 +154,28 @@ func createOpenRegistryTables(ctx *cli.Context, db *bun.DB) error {
 	return nil
 }
 
-func getDBConnectorFromCtx(isAdmin bool, opts *databaseOptions) *pgdriver.Connector {
-	if opts.openRegistryDSN != "" && opts.adminDSN != "" {
-		panic("found DSN for both, openregistry and admin db, but only one should be present")
+func getAdminDBConnectorFromCtx(opts *databaseOptions) *pgdriver.Connector {
+	if opts.adminDSN != "" {
+		return pgdriver.NewConnector(pgdriver.WithDSN(opts.adminDSN), pgdriver.WithInsecure(opts.insecure))
 	}
 
-	dsn := opts.openRegistryDSN
-	if dsn == "" {
-		dsn = opts.adminDSN
-	}
+	return pgdriver.NewConnector(
+		pgdriver.WithNetwork("tcp"),
+		pgdriver.WithAddr(opts.address),
+		//nolint
+		pgdriver.WithTLSConfig(&tls.Config{InsecureSkipVerify: opts.insecure}),
+		pgdriver.WithInsecure(opts.insecure),
+		pgdriver.WithUser(opts.adminUsername),
+		pgdriver.WithTimeout(opts.timeout),
+		pgdriver.WithDatabase(opts.adminDB),
+		pgdriver.WithPassword(opts.adminPassword),
+		pgdriver.WithApplicationName("OpenRegistry"),
+	)
+}
 
-	if dsn != "" {
-		return pgdriver.NewConnector(pgdriver.WithDSN(dsn), pgdriver.WithInsecure(opts.insecure))
-	}
-
-	if isAdmin {
-		return pgdriver.NewConnector(
-			pgdriver.WithNetwork("tcp"),
-			pgdriver.WithAddr(opts.address),
-			//nolint
-			pgdriver.WithTLSConfig(&tls.Config{InsecureSkipVerify: opts.insecure}),
-			pgdriver.WithInsecure(opts.insecure),
-			pgdriver.WithUser(opts.adminUsername),
-			pgdriver.WithTimeout(opts.timeout),
-			pgdriver.WithDatabase(opts.adminDB),
-			pgdriver.WithPassword(opts.adminPassword),
-			pgdriver.WithApplicationName("OpenRegistry"),
-		)
+func getOpenRegistryDBConnectorFromCtx(opts *databaseOptions) *pgdriver.Connector {
+	if opts.openRegistryDSN != "" {
+		return pgdriver.NewConnector(pgdriver.WithDSN(opts.openRegistryDSN), pgdriver.WithInsecure(opts.insecure))
 	}
 
 	return pgdriver.NewConnector(
@@ -209,7 +193,7 @@ func getDBConnectorFromCtx(isAdmin bool, opts *databaseOptions) *pgdriver.Connec
 }
 
 func createOpenRegistryDatabase(ctx *cli.Context, opts *databaseOptions) (*bun.DB, error) {
-	adminConnector := getDBConnectorFromCtx(true, opts)
+	adminConnector := getAdminDBConnectorFromCtx(opts)
 	adminDB := getAdminBunDB(adminConnector)
 
 	_, err := adminDB.ExecContext(
@@ -245,7 +229,7 @@ func createOpenRegistryDatabase(ctx *cli.Context, opts *databaseOptions) (*bun.D
 	}
 	color.Green(`Action "GrantDBPrivleges" succeeded ✔︎`)
 
-	openregistryDB := getOpenRegistryDB(getDBConnectorFromCtx(false, opts))
+	openregistryDB := getOpenRegistryDB(getOpenRegistryDBConnectorFromCtx(opts))
 	_, err = adminDB.
 		ExecContext(
 			ctx.Context,
@@ -276,31 +260,21 @@ type databaseOptions struct {
 }
 
 func parseDatabaseFlags(ctx *cli.Context) *databaseOptions {
-	address := net.JoinHostPort(ctx.String("host"), ctx.String("port"))
-	database := ctx.String("database")
-	username := ctx.String("username")
-	password := ctx.String("password")
-	timeout := ctx.Duration("timeout")
-	insecure := ctx.Bool("insecure")
-	openRegistryDSN := ctx.String("openregistry-db-dsn")
-	adminDsn := ctx.String("admin-db-dsn")
-	adminDB := ctx.String("admin-db")
-	adminUsername := ctx.String("admin-db-username")
-	adminPassword := ctx.String("admin-db-password")
-
-	return &databaseOptions{
-		address:         address,
-		database:        database,
-		username:        username,
-		password:        password,
-		timeout:         timeout,
-		insecure:        insecure,
-		openRegistryDSN: openRegistryDSN,
-		adminDSN:        adminDsn,
-		adminDB:         adminDB,
-		adminUsername:   adminUsername,
-		adminPassword:   adminPassword,
+	opts := &databaseOptions{
+		address:         net.JoinHostPort(ctx.String("host"), ctx.String("port")),
+		database:        ctx.String("database"),
+		username:        ctx.String("username"),
+		password:        ctx.String("password"),
+		timeout:         ctx.Duration("timeout"),
+		insecure:        ctx.Bool("insecure"),
+		openRegistryDSN: ctx.String("openregistry-db-dsn"),
+		adminDSN:        ctx.String("admin-db-dsn"),
+		adminDB:         ctx.String("admin-db"),
+		adminUsername:   ctx.String("admin-db-username"),
+		adminPassword:   ctx.String("admin-db-password"),
 	}
+
+	return opts
 }
 
 func getOpenRegistryDatabaseCmdFlags() []cli.Flag {

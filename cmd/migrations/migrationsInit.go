@@ -1,7 +1,8 @@
-package cmd
+package migrations
 
 import (
 	"errors"
+	"strings"
 
 	"github.com/containerish/OpenRegistry/store/v2/migrations"
 	"github.com/fatih/color"
@@ -10,11 +11,10 @@ import (
 
 func newDatabaseInitCommand() *cli.Command {
 	return &cli.Command{
-		Name:     "init",
-		Usage:    "Initialise the database, create tables, roles, indexes, etc",
-		Category: CategoryMigrations,
-		Flags:    append(getOpenRegistryDatabaseCmdFlags(), getAdminDatabaseFlags()...),
-		Action:   databaseInitCmd,
+		Name:   "init",
+		Usage:  "Initialise the database, create tables, roles, indexes, etc",
+		Flags:  append(getOpenRegistryDatabaseCmdFlags(), getAdminDatabaseFlags()...),
+		Action: databaseInitCmd,
 	}
 }
 
@@ -43,7 +43,7 @@ func databaseInitCmd(ctx *cli.Context) error {
 		ctx.Context,
 		"alter table repositories add constraint fk_owner_id foreign key (owner_id) references users(id)",
 	)
-	if err != nil {
+	if err != nil && !strings.Contains(err.Error(), "SQLSTATE=42710") {
 		return errors.New(
 			color.RedString("Table=repositories Alter=❌ Error=%s", err),
 		)
