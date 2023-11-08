@@ -7,6 +7,7 @@ import (
 	"github.com/containerish/OpenRegistry/store/v2/types"
 	"github.com/containerish/OpenRegistry/telemetry"
 	"github.com/google/uuid"
+	img_spec_v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/uptrace/bun"
 )
 
@@ -38,7 +39,7 @@ type RegistryBaseStore interface {
 		ns string,
 		digest string,
 		artifactTypes []string,
-	) ([]*types.ImageManifestSubject, error)
+	) (*img_spec_v1.Index, error)
 }
 
 type RegistryStore interface {

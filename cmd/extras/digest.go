@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/fatih/color"
-	"github.com/opencontainers/go-digest"
+	oci_digest "github.com/opencontainers/go-digest"
 	"github.com/urfave/cli/v2"
 )
 
@@ -45,21 +45,23 @@ func generateDigest(ctx *cli.Context) error {
 		digestType = "CANONICAL"
 	}
 
-	manifestContent, err := json.MarshalIndent(input, "", "\t")
+	// inputBz := bytes.TrimSpace([]byte(input))
+
+	manifestContent, err := json.Marshal([]byte(input))
 	if err != nil {
 		return fmt.Errorf(color.RedString("generateDigest: ERR_MARSHAL_INDENT: %s", err))
 	}
 
-	var inputDigest digest.Digest
+	var inputDigest oci_digest.Digest
 	switch digestType {
 	case "SHA256":
-		inputDigest = digest.SHA256.FromBytes(manifestContent)
+		inputDigest = oci_digest.SHA256.FromBytes(manifestContent)
 	case "SHA512":
-		inputDigest = digest.SHA512.FromBytes(manifestContent)
+		inputDigest = oci_digest.SHA512.FromBytes(manifestContent)
 	default:
-		inputDigest = digest.Canonical.FromBytes(manifestContent)
+		inputDigest = oci_digest.Canonical.FromBytes(manifestContent)
 	}
 
-	color.Green("%s", inputDigest)
+	color.Green("input=\n%s\ndigest=%s", manifestContent, inputDigest)
 	return nil
 }

@@ -9,7 +9,11 @@ import (
 
 	v2 "github.com/containerish/OpenRegistry/store/v2"
 	"github.com/containerish/OpenRegistry/store/v2/types"
+	"github.com/fatih/color"
 	"github.com/google/uuid"
+	oci_digest "github.com/opencontainers/go-digest"
+	img_spec "github.com/opencontainers/image-spec/specs-go"
+	img_spec_v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/uptrace/bun"
 	"github.com/uptrace/bun/dialect/feature"
 )
@@ -565,51 +569,201 @@ func (s *registryStore) GetReferrers(
 	namespace string,
 	digest string,
 	artifactTypes []string,
-) ([]*types.ImageManifestSubject, error) {
-	var manifestList []*types.ImageManifest
+) (*img_spec_v1.Index, error) {
+	var manifests []*types.ImageManifest
 	// we return an empty list on error
-	subjectList := []*types.ImageManifestSubject{}
+	imgIndex := &img_spec_v1.Index{
+		Versioned: img_spec.Versioned{
+			SchemaVersion: 2,
+		},
+		MediaType: img_spec_v1.MediaTypeImageIndex,
+	}
+	nsParts := strings.Split(namespace, "/")
+	if len(nsParts) != 2 {
+		return imgIndex, fmt.Errorf("GetReferrers: invalid namespace format")
+	}
+
+	username, repoName := nsParts[0], nsParts[1]
 
 	q := s.
 		db.
 		NewSelect().
-		Model(&manifestList)
+		Model(&manifests).
+		WhereOr("COALESCE(subject_digest, '') = '' AND digest = ?", digest).
+		WhereOr("subject_digest = ?", digest).
+		Relation("Repository", func(sq *bun.SelectQuery) *bun.SelectQuery {
+			return sq.ExcludeColumn("*").Where("name = ?", repoName)
+		}).
+		Relation("User", func(sq *bun.SelectQuery) *bun.SelectQuery {
+			return sq.ExcludeColumn("*").Where("username = ?", username)
+		})
 
 	if len(artifactTypes) > 0 {
-		q.Where("subject_digest = ? AND artifact_type in (?)", digest, bun.In(artifactTypes))
-	} else {
-		q.Where("subject_digest = ?", digest)
+		q.
+			WhereOr("artifact_type IN (?)", bun.In(artifactTypes))
+		// WhereOr("artifact_type = '' AND config_artifact_type IN (?)", bun.In(artifactTypes))
 	}
 
-	nsParts := strings.Split(namespace, "/")
-	if len(nsParts) != 2 {
-		return subjectList, fmt.Errorf("GetReferrers: invalid namespace format")
-	}
-
-	username, repoName := nsParts[0], nsParts[1]
-	q.Relation("Repository", func(sq *bun.SelectQuery) *bun.SelectQuery {
-		return sq.ExcludeColumn("*").Where("name = ?", repoName)
-	}).Relation("User", func(sq *bun.SelectQuery) *bun.SelectQuery {
-		return sq.Where("username = ?", username).ExcludeColumn("*")
-	})
+	color.Magenta("query: %s", q.String())
 
 	if err := q.Scan(ctx); err != nil {
-		return subjectList, err
+		return imgIndex, nil
 	}
 
-	seenMap := map[string]struct{}{}
-	for _, m := range manifestList {
-		if m.Subject != nil {
-			if _, ok := seenMap[m.Subject.Digest]; ok {
-				continue
+	// q := s.
+	// 	db.
+	// 	NewSelect().
+	// 	Model(&manifestList)
+	//
+	// // Find OCI Distribution Spec < 1.1 manifests to provide backword compatibility
+	// // Reference - https://github.com/opencontainers/distribution-spec/blob/main/spec.md#enabling-the-referrers-api
+	// q.WhereGroup(" OR ", func(sq *bun.SelectQuery) *bun.SelectQuery {
+	// 	return sq.
+	// 		// for all new manifests with subject (OCI v1.1+), we set subject digest and manifest artifactType values
+	// 		Where("subject_digest = '' AND artifact_type = '' AND digest = ?", digest)
+	// }).WhereGroup(" OR ", func(sq *bun.SelectQuery) *bun.SelectQuery {
+	// 	return sq.Where("subject_digest = ?", digest)
+	// })
+	//
+	// if len(artifactTypes) > 0 {
+	// 	q.WhereGroup(" AND ", func(sq *bun.SelectQuery) *bun.SelectQuery {
+	// 		return sq.Where("artifact_type in (?) or artifact_type = ''", bun.In(artifactTypes))
+	// 	})
+	// }
+
+	// color.Magenta("GetReferrers: oldManifestsQuery: %s", oldMfQ.String())
+	// color.Magenta("GetReferrers: newManifestsQuery: %s", newMfQ.String())
+	// q.Relation("Repository", func(sq *bun.SelectQuery) *bun.SelectQuery {
+	// 	return sq.ExcludeColumn("*").Where("name = ?", repoName)
+	// }).Relation("User", func(sq *bun.SelectQuery) *bun.SelectQuery {
+	// 	return sq.Where("username = ?", username).ExcludeColumn("*")
+	// })
+
+	// eChan := make(chan error)
+	// go func() {
+	// 	wg.Wait()
+	// 	close(eChan)
+	// }()
+	//
+	// go func() {
+	// 	defer wg.Done()
+	// 	if err := oldMfQ.Scan(ctx); err != nil {
+	// 		eChan <- err
+	// 		return
+	// 	}
+	// }()
+	//
+	// go func() {
+	// 	defer wg.Done()
+	// 	if err := newMfQ.Scan(ctx); err != nil {
+	// 		eChan <- err
+	// 		return
+	// 	}
+	// }()
+	//
+	// mErr := &multierror.Error{}
+	// for err := range eChan {
+	// 	if err != nil {
+	// 		mErr.Errors = append(mErr.Errors, err)
+	// 	}
+	// }
+	// if mErr.ErrorOrNil() != nil {
+	// 	return imgIndex, mErr
+	// }
+
+	// obz, _ := json.MarshalIndent(oldManifests, "", "\t")
+	// nbz, _ := json.MarshalIndent(manifests, "", "\t")
+	// color.Blue("OldManifests: \n%s\nNewManifests: \n%s", obz, nbz)
+
+	// seenMap := map[string]struct{}{}
+	// for _, m := range append(oldManifests, newManifests...) {
+	//
+	// 	mapKey := fmt.Sprintf("%s_%s", m.MediaType, m.Digest)
+	//
+	// 	if m.Subject != nil {
+	// 		mapKey = fmt.Sprintf("%s_%s_%s", m.MediaType, m.Digest, m.Subject.MediaType)
+	// 	} else if m.Config != nil {
+	// 		mapKey = fmt.Sprintf("%s_%s", m.Config.MediaType, m.Config.Digest)
+	// 	}
+	// 	if _, ok := seenMap[mapKey]; ok {
+	// 		continue
+	// 	}
+	// 	if m.Subject != nil {
+	// 		seenMap[mapKey] = struct{}{}
+	// 		subjectList = append(subjectList, m.Subject)
+	// 		continue
+	// 	}
+	//
+	// seenMap[mapKey] = struct{}{}
+	// 	subjectList = append(subjectList, &types.OCIDescriptor{
+	// 		MediaType: m.MediaType,
+	// 		Digest:    oci_digest.FromString(m.Digest),
+	// 		Size:      int64(m.Size),
+	// 	})
+	// }
+
+	// combinedManifests := append(oldManifests, manifests...)
+	var descriptors []img_spec_v1.Descriptor
+
+	for _, m := range manifests {
+		d, err := oci_digest.Parse(m.Digest)
+		if err != nil {
+			continue
+		}
+
+		if !s.descriptorFound(descriptors, d.String()) {
+			if m.Subject != nil {
+				descriptors = append(descriptors, img_spec_v1.Descriptor{
+					MediaType:    m.MediaType,
+					Digest:       d,
+					Size:         int64(m.Size),
+					ArtifactType: m.ArtifactType,
+				})
+			} else {
+				artifactType := m.ArtifactType
+				if artifactType == "" {
+					artifactType = m.Config.ArtifactType
+				}
+
+				descriptors = append(descriptors, img_spec_v1.Descriptor{
+					MediaType:    m.MediaType,
+					Digest:       d,
+					Size:         int64(m.Size),
+					ArtifactType: artifactType,
+				})
 			}
 
-			seenMap[m.Subject.Digest] = struct{}{}
-			subjectList = append(subjectList, m.Subject)
+		}
+
+		// switch m.MediaType {
+		// case img_spec_v1.MediaTypeImageManifest:
+		// case img_spec_v1.MediaTypeImageIndex:
+		// 	descriptors = append(descriptors, img_spec_v1.Descriptor{
+		// 		Annotations:  m.Subject.Annotations,
+		// 		MediaType:    m.MediaType,
+		// 		Digest:       oci_digest.FromString(m.Digest),
+		// 		Size:         int64(m.Size),
+		// 		ArtifactType: m.ArtifactType,
+		// 	})
+		// default:
+		// 	color.Red("----------------------------- FOUND_INVALID_MEDIA_TYPE -------------------------------------")
+		// }
+	}
+
+	imgIndex.Manifests = descriptors
+	return imgIndex, nil
+}
+
+func (s *registryStore) descriptorFound(descriptors []img_spec_v1.Descriptor, digest string) bool {
+	color.Yellow("total descriptors: %d", len(descriptors))
+	for _, d := range descriptors {
+		color.Yellow("d.digest=%s - digest=%s - matched: %v", d.Digest.String(), digest, d.Digest.String() == digest)
+		if d.Digest.String() == digest {
+			return true
 		}
 	}
 
-	return subjectList, nil
+	return false
 }
 
 func (s *registryStore) GetImageSizeByLayerIds(ctx context.Context, layerIDs []string) (uint64, error) {

@@ -10,6 +10,7 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/google/uuid"
+	img_spec_v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/uptrace/bun"
 )
 
@@ -42,8 +43,8 @@ type (
 		UpdatedAt     time.Time                 `bun:"updated_at,nullzero" json:"updatedAt"`
 		Repository    *ContainerImageRepository `bun:"rel:belongs-to,join:repository_id=id" json:"-"`
 		User          *User                     `bun:"rel:belongs-to,join:owner_id=id" json:"-"`
-		Subject       *ImageManifestSubject     `bun:"embed:subject_" json:"subject,omitempty"`
-		Config        *ImageManifestConfig      `bun:"embed:config_" json:"config"`
+		Subject       *img_spec_v1.Descriptor   `bun:"embed:subject_" json:"subject,omitempty"`
+		Config        *img_spec_v1.Descriptor   `bun:"embed:config_" json:"config"`
 		Reference     string                    `bun:"reference,notnull" json:"reference"`
 		Digest        string                    `bun:"digest,notnull" json:"digest"`
 		MediaType     string                    `bun:"media_type,notnull" json:"mediaType"`
@@ -56,28 +57,26 @@ type (
 		OwnerID       uuid.UUID                 `bun:"owner_id,type:uuid" json:"ownerId"`
 	}
 
-	ImageManifestSubject struct {
-		Annotations         map[string]string `bun:"type:jsonb,nullzero" json:"annotations,omitempty"`
-		MediaType           string            `json:"mediaType"`
-		Digest              string            `json:"digest"`
-		ArtifactType        string            `json:"artifactType,omitempty"`
-		NewUnspecifiedField string            `json:"newUnspecifiedField,omitempty"`
-		Size                uint64            `json:"size"`
+	// ImageManifestSubject struct {
+	// 	NewUnspecifiedField string `json:"newUnspecifiedField,omitempty"`
+	// 	OCIDescriptor
+	// }
+
+	Platform struct {
+		Architecture string   `json:"architecture,omitempty"`
+		Variant      string   `json:"variant,omitempty"`
+		OS           string   `json:"os,omitempty"`
+		OSVersion    string   `json:"os.version,omitempty"`
+		OSFeatures   []string `json:"os.features,omitempty"`
 	}
 
-	ImageManifestConfig struct {
-		MediaType string `json:"mediaType"`
-		Digest    string `json:"digest"`
-		Size      uint64 `json:"size"`
+	ImageManifestPlatformOS struct {
+		Name     string   `json:"name"`
+		Version  string   `json:"version"`
+		Features []string `json:"features"`
 	}
 
-	ImageManifestLayer struct {
-		MediaType string `json:"mediaType"`
-		Digest    string `json:"digest"`
-		Size      uint64 `json:"size"`
-	}
-
-	ImageManifestLayers []*ImageManifestLayer
+	ImageManifestLayers []*img_spec_v1.Descriptor
 
 	ContainerImageLayer struct {
 		bun.BaseModel `bun:"table:layers,alias:l" json:"-"`
@@ -109,12 +108,6 @@ type (
 	}
 
 	RepositoryVisibility string
-
-	ReferrerImageIndex struct {
-		MediaType     string                  `json:"mediaType"`
-		Manifests     []*ImageManifestSubject `json:"manifests"`
-		SchemaVersion int                     `json:"schemaVersion"`
-	}
 )
 
 var _ driver.Valuer = (*ImageManifestLayers)(nil)

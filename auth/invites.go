@@ -6,7 +6,9 @@ import (
 	"net/http"
 	"regexp"
 	"strings"
+	"time"
 
+	"github.com/containerish/OpenRegistry/types"
 	"github.com/labstack/echo/v4"
 )
 
@@ -15,6 +17,8 @@ type List struct {
 }
 
 func (a *auth) Invites(ctx echo.Context) error {
+	ctx.Set(types.HandlerStartTime, time.Now())
+
 	var list List
 	err := json.NewDecoder(ctx.Request().Body).Decode(&list)
 	if err != nil {

@@ -12,7 +12,7 @@ import (
 	"github.com/containerish/OpenRegistry/types"
 	"github.com/fatih/color"
 	"github.com/labstack/echo/v4"
-	"github.com/opencontainers/go-digest"
+	oci_digest "github.com/opencontainers/go-digest"
 )
 
 func (b *blobs) errorResponse(code, msg string, detail map[string]interface{}) []byte {
@@ -103,14 +103,14 @@ func (b *blobs) UploadBlob(ctx echo.Context) error {
 		}
 		defer ctx.Request().Body.Close()
 
-		checksum := digest.FromBytes(buf.Bytes())
+		digest := oci_digest.FromBytes(buf.Bytes())
 
 		b.blobCounter[uploadID]++
 		part, err := b.registry.dfs.UploadPart(
 			ctx.Request().Context(),
 			uploadID,
 			GetLayerIdentifier(layerKey),
-			checksum.String(),
+			digest.String(),
 			b.blobCounter[uploadID],
 			bytes.NewReader(buf.Bytes()),
 			int64(buf.Len()),
@@ -171,13 +171,13 @@ func (b *blobs) UploadBlob(ctx echo.Context) error {
 	}
 	defer ctx.Request().Body.Close()
 
-	checksum := digest.FromBytes(buf.Bytes())
+	digest := oci_digest.FromBytes(buf.Bytes())
 	b.blobCounter[uploadID]++
 	part, err := b.registry.dfs.UploadPart(
 		ctx.Request().Context(),
 		uploadID,
 		GetLayerIdentifier(layerKey),
-		checksum.String(),
+		digest.String(),
 		b.blobCounter[uploadID],
 		bytes.NewReader(buf.Bytes()),
 		int64(buf.Len()),

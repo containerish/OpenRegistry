@@ -23,6 +23,7 @@ import (
 	"github.com/containerish/OpenRegistry/types"
 	"github.com/labstack/echo/v4"
 	oci_digest "github.com/opencontainers/go-digest"
+	img_spec_v1 "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 func NewRegistry(
@@ -205,6 +206,7 @@ func (r *registry) List(ctx echo.Context) error {
 // GET /v2/<name>/manifests/<reference>
 func (r *registry) PullManifest(ctx echo.Context) error {
 	ctx.Set(types.HandlerStartTime, time.Now())
+
 	namespace := ctx.Get(string(RegistryNamespace)).(string)
 	ref := ctx.Param("reference")
 
@@ -698,6 +700,7 @@ func (r *registry) PushImage(ctx echo.Context) error {
 // Path: /v2/<namespace>/manifests/<reference>
 func (r *registry) PushManifest(ctx echo.Context) error {
 	ctx.Set(types.HandlerStartTime, time.Now())
+
 	namespace := ctx.Get(string(RegistryNamespace)).(string)
 	ref := ctx.Param("reference")
 
@@ -753,6 +756,7 @@ func (r *registry) PushManifest(ctx echo.Context) error {
 		})
 	}
 	defer ctx.Request().Body.Close()
+
 	digest := oci_digest.FromBytes(buf.Bytes())
 
 	uuid, err := NewUUID()
@@ -783,13 +787,13 @@ func (r *registry) PushManifest(ctx echo.Context) error {
 	}
 
 	if manifest.MediaType == "" {
-		manifest.MediaType = OCIMediaTypeV1ImageManifest.String()
+		manifest.MediaType = img_spec_v1.MediaTypeImageManifest
 	}
 
 	var layerIDs []string
 
 	for _, layer := range manifest.Layers {
-		layerIDs = append(layerIDs, layer.Digest)
+		layerIDs = append(layerIDs, layer.Digest.String())
 	}
 
 	size, err := r.store.GetImageSizeByLayerIds(ctx.Request().Context(), layerIDs)
@@ -845,8 +849,8 @@ func (r *registry) setPushManifestHaeders(
 	ctx.Response().Header().Set("Content-Type", manifest.MediaType)
 
 	// set OCI-Subject header if we get a manifest with a subject
-	if manifest.Subject != nil && manifest.Subject.Digest != "" {
-		ctx.Response().Header().Set("OCI-Subject", manifest.Subject.Digest)
+	if manifest.Subject != nil {
+		ctx.Response().Header().Set("OCI-Subject", manifest.Subject.Digest.String())
 	}
 }
 
@@ -945,11 +949,16 @@ func (r *registry) DeleteLayer(ctx echo.Context) error {
 // Should also look into 401 Code
 // https://docs.docker.com/registry/spec/api/
 func (r *registry) ApiVersion(ctx echo.Context) error {
+	ctx.Set(types.HandlerStartTime, time.Now())
+
 	ctx.Response().Header().Set(HeaderDockerDistributionApiVersion, "registry/2.0")
-	return ctx.String(http.StatusOK, "OK\n")
+	echoErr := ctx.String(http.StatusOK, "OK\n")
+	r.logger.Log(ctx, nil).Send()
+	return echoErr
 }
 
 func (r *registry) GetImageNamespace(ctx echo.Context) error {
+	ctx.Set(types.HandlerStartTime, time.Now())
 
 	searchQuery := ctx.QueryParam("search_query")
 	if searchQuery == "" {
@@ -997,6 +1006,7 @@ func (r *registry) GetRepositoryFromCtx(ctx echo.Context) *types_v2.ContainerIma
 }
 
 func (r *registry) ListReferrers(ctx echo.Context) error {
+	ctx.Set(types.HandlerStartTime, time.Now())
 	ctx.Set("start", time.Now())
 
 	namespace := ctx.Get(string(RegistryNamespace)).(string)
@@ -1019,19 +1029,14 @@ func (r *registry) ListReferrers(ctx echo.Context) error {
 				filterValues = append(filterValues, filter)
 			}
 		}
-		ctx.Response().Header().Set("OCI-Filters-Applied", OCIFilterArtifactType.String())
+		ctx.Response().Header().Set("OCI-Filters-Applied", "artifactType")
 	}
 
-	refIndex := types_v2.ReferrerImageIndex{
-		SchemaVersion: 2,
-		MediaType:     OCIMediaTypeV1ImageIndex.String(),
-	}
-
-	refIndex.Manifests, err = r.store.GetReferrers(ctx.Request().Context(), namespace, digest, filterValues)
+	ctx.Response().Header().Set("content-type", img_spec_v1.MediaTypeImageIndex)
+	refIndex, err := r.store.GetReferrers(ctx.Request().Context(), namespace, digest, filterValues)
 	if err != nil {
-		ctx.Response().Header().Set("content-type", OCIMediaTypeV1ImageIndex.String())
 		echoErr := ctx.JSON(http.StatusOK, refIndex)
-		r.logger.Log(ctx, nil).
+		r.logger.Log(ctx, err).
 			Bool("referrersFound", false).
 			Str("artifactType", artifactType).
 			Str("digest", digest).
@@ -1039,7 +1044,6 @@ func (r *registry) ListReferrers(ctx echo.Context) error {
 		return echoErr
 	}
 
-	ctx.Response().Header().Set("content-type", OCIMediaTypeV1ImageIndex.String())
 	echoErr := ctx.JSON(http.StatusOK, refIndex)
 	r.logger.Log(ctx, nil).
 		Bool("referrersFound", true).

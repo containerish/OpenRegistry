@@ -23,6 +23,8 @@ const (
 func (a *auth) JWT() echo.MiddlewareFunc {
 	return echo_jwt.WithConfig(echo_jwt.Config{
 		Skipper: func(ctx echo.Context) bool {
+			ctx.Set(types.HandlerStartTime, time.Now())
+
 			if strings.HasPrefix(ctx.Request().RequestURI, "/auth") {
 				return false
 			}
@@ -46,7 +48,6 @@ func (a *auth) JWT() echo.MiddlewareFunc {
 			return true
 		},
 		ErrorHandler: func(ctx echo.Context, err error) error {
-			ctx.Set(types.HandlerStartTime, time.Now())
 			echoErr := ctx.JSON(http.StatusUnauthorized, echo.Map{
 				"error":   err.Error(),
 				"message": "missing authentication information",
@@ -131,6 +132,7 @@ func (a *auth) JWTRest() echo.MiddlewareFunc {
 	return echo_jwt.WithConfig(echo_jwt.Config{
 		ErrorHandler: func(ctx echo.Context, err error) error {
 			ctx.Set(types.HandlerStartTime, time.Now())
+
 			echoErr := ctx.JSON(http.StatusUnauthorized, echo.Map{
 				"error":   err.Error(),
 				"message": "missing authentication information",

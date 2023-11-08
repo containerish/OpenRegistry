@@ -85,6 +85,7 @@ func (wa *webauthn_server) webAuthNTxnCleanup() {
 
 func (wa *webauthn_server) BeginRegistration(ctx echo.Context) error {
 	ctx.Set(types.HandlerStartTime, time.Now())
+
 	user := v2_types.User{}
 
 	if err := json.NewDecoder(ctx.Request().Body).Decode(&user); err != nil {
@@ -195,6 +196,8 @@ func (wa *webauthn_server) BeginRegistration(ctx echo.Context) error {
 }
 
 func (wa *webauthn_server) RollbackRegistration(ctx echo.Context) error {
+	ctx.Set(types.HandlerStartTime, time.Now())
+
 	username := ctx.QueryParam("username")
 	meta, ok := wa.txnStore[username]
 	if !ok {
@@ -226,6 +229,8 @@ func (wa *webauthn_server) RollbackRegistration(ctx echo.Context) error {
 }
 
 func (wa *webauthn_server) RollbackSessionData(ctx echo.Context) error {
+	ctx.Set(types.HandlerStartTime, time.Now())
+
 	username := ctx.QueryParam("username")
 	if username == "" {
 		return ctx.JSON(http.StatusBadRequest, echo.Map{

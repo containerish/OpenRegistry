@@ -13,7 +13,7 @@ import (
 	"github.com/containerish/OpenRegistry/config"
 	"github.com/containerish/OpenRegistry/dfs"
 	"github.com/containerish/OpenRegistry/store/v2/types"
-	"github.com/opencontainers/go-digest"
+	oci_digest "github.com/opencontainers/go-digest"
 )
 
 type filebase struct {
@@ -119,7 +119,7 @@ func (fb *filebase) CompleteMultipartUpload(
 	ctx, cancel := context.WithTimeout(ctx, time.Minute*5)
 	defer cancel()
 
-	dig, err := digest.Parse(layerDigest)
+	digest, err := oci_digest.Parse(layerDigest)
 	if err != nil {
 		return "", fmt.Errorf("ERR_FILEBASE_DIGEST_PARSE: %w", err)
 	}
@@ -128,7 +128,7 @@ func (fb *filebase) CompleteMultipartUpload(
 		Key:             &layerKey,
 		Bucket:          &fb.bucket,
 		UploadId:        &uploadId,
-		ChecksumSHA256:  aws.String(dig.Encoded()),
+		ChecksumSHA256:  aws.String(digest.Encoded()),
 		MultipartUpload: &s3types.CompletedMultipartUpload{Parts: completedParts},
 	})
 	if err != nil {

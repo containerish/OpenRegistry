@@ -29,6 +29,7 @@ require (
 	github.com/labstack/echo/v4 v4.11.3
 	github.com/opencontainers/distribution-spec v1.0.1
 	github.com/opencontainers/go-digest v1.0.0
+	github.com/opencontainers/image-spec v1.1.0-rc5
 	github.com/rs/zerolog v1.31.0
 	github.com/sendgrid/sendgrid-go v3.13.0+incompatible
 	github.com/spf13/viper v1.17.0

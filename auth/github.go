@@ -22,6 +22,7 @@ import (
 
 func (a *auth) LoginWithGithub(ctx echo.Context) error {
 	ctx.Set(types.HandlerStartTime, time.Now())
+
 	state, err := uuid.NewRandom()
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{

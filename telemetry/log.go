@@ -8,6 +8,7 @@ import (
 
 	"github.com/axiomhq/axiom-go/axiom"
 	"github.com/containerish/OpenRegistry/config"
+	"github.com/containerish/OpenRegistry/types"
 	"github.com/fatih/color"
 	"github.com/labstack/echo/v4"
 	"github.com/rs/zerolog"
@@ -89,7 +90,7 @@ func setupLogger(config config.Logging) zerolog.Logger {
 
 func (l *logger) Log(ctx echo.Context, errMsg error) *zerolog.Event {
 	stop := time.Now()
-	start, ok := ctx.Get("start").(time.Time)
+	start, ok := ctx.Get(types.HandlerStartTime).(time.Time)
 	if !ok {
 		start = stop
 	}

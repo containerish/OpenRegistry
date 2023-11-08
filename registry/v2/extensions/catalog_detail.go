@@ -164,6 +164,8 @@ func (ext *extension) RepositoryDetail(ctx echo.Context) error {
 }
 
 func (ext *extension) PublicCatalog(ctx echo.Context) error {
+	ctx.Set(types.HandlerStartTime, time.Now())
+
 	queryParamPageSize := ctx.QueryParam("n")
 	queryParamOffset := ctx.QueryParam("last")
 	var pageSize int
@@ -206,6 +208,8 @@ func (ext *extension) PublicCatalog(ctx echo.Context) error {
 }
 
 func (ext *extension) GetUserCatalog(ctx echo.Context) error {
+	ctx.Set(types.HandlerStartTime, time.Now())
+
 	user, ok := ctx.Get(string(types.UserContextKey)).(*types.User)
 	if !ok {
 		errMsg := fmt.Errorf("missing user in request context")

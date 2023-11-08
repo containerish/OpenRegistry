@@ -14,7 +14,6 @@ import (
 )
 
 func (a *auth) ExpireSessions(ctx echo.Context) error {
-	//queryParamSessionId := ctx.QueryParam("session_id")
 	ctx.Set(types.HandlerStartTime, time.Now())
 
 	sessionCookie, err := ctx.Cookie("session_id")
