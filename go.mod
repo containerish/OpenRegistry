@@ -24,7 +24,7 @@ require (
 	github.com/jackc/pgx/v4 v4.18.1
 	github.com/labstack/echo-contrib v0.15.0
 	github.com/labstack/echo-jwt/v4 v4.2.0
-	github.com/labstack/echo/v4 v4.11.2
+	github.com/labstack/echo/v4 v4.11.3
 	github.com/opencontainers/distribution-spec v1.0.1
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/rs/zerolog v1.31.0
