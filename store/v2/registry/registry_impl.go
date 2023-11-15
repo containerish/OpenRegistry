@@ -3,6 +3,7 @@ package registry
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -589,22 +590,43 @@ func (s *registryStore) GetReferrers(
 		db.
 		NewSelect().
 		Model(&manifests).
-		WhereOr("COALESCE(subject_digest, '') = '' AND digest = ?", digest).
-		WhereOr("subject_digest = ?", digest).
+		// WhereOr("COALESCE(subject_digest, '') = '' AND digest = ?", digest).
+		// WhereOr("subject_digest = ?", digest)
+
+		WhereGroup(" OR ", func(sq *bun.SelectQuery) *bun.SelectQuery {
+			return sq.Where("subject_digest = ?", digest)
+			// return sq.WhereOr("COALESCE(subject_digest, '') = '' AND digest = ?", digest).
+			// 	WhereOr("subject_digest = ?", digest)
+		})
+
+	if len(artifactTypes) > 0 {
+		color.Yellow("ArtifactType: %s", artifactTypes)
+
+		var mfl []*types.ImageManifest
+		s.db.NewSelect().Model(&mfl).Scan(ctx)
+		bz, _ := json.MarshalIndent(mfl, "", "\t")
+		color.Green("Available manifests: \n%s", bz)
+		// q.
+		// 	WhereOr("artifact_type IN (?)", bun.In(artifactTypes)).
+		// 	WhereOr("COALESCE(artifact_type, '') = '' AND config_media_type IN (?)", bun.In(artifactTypes))
+
+		q.WhereGroup(" AND ", func(sq *bun.SelectQuery) *bun.SelectQuery {
+			return sq.WhereOr("artifact_type IN (?)", bun.In(artifactTypes)).
+				WhereOr("COALESCE(artifact_type, '') = '' AND config_media_type IN (?)", bun.In(artifactTypes))
+		})
+
+		// WhereOr("artifact_type = '' AND config_artifact_type IN (?)", bun.In(artifactTypes))
+	}
+
+	color.Magenta("query: %s", q.String())
+
+	q.
 		Relation("Repository", func(sq *bun.SelectQuery) *bun.SelectQuery {
 			return sq.ExcludeColumn("*").Where("name = ?", repoName)
 		}).
 		Relation("User", func(sq *bun.SelectQuery) *bun.SelectQuery {
 			return sq.ExcludeColumn("*").Where("username = ?", username)
 		})
-
-	if len(artifactTypes) > 0 {
-		q.
-			WhereOr("artifact_type IN (?)", bun.In(artifactTypes))
-		// WhereOr("artifact_type = '' AND config_artifact_type IN (?)", bun.In(artifactTypes))
-	}
-
-	color.Magenta("query: %s", q.String())
 
 	if err := q.Scan(ctx); err != nil {
 		return imgIndex, nil
@@ -707,6 +729,7 @@ func (s *registryStore) GetReferrers(
 
 	for _, m := range manifests {
 		d, err := oci_digest.Parse(m.Digest)
+		// skip any invalid digest, though there shouldn't be any invalid digests, ideally.
 		if err != nil {
 			continue
 		}
@@ -720,16 +743,21 @@ func (s *registryStore) GetReferrers(
 					ArtifactType: m.ArtifactType,
 				})
 			} else {
-				artifactType := m.ArtifactType
-				if artifactType == "" {
-					artifactType = m.Config.ArtifactType
+				if m.ArtifactType == "" {
+					m.ArtifactType = m.Config.MediaType
 				}
+				//
+				//
+				// artifactType := m.ArtifactType
+				// if artifactType == "" {
+				// 	artifactType = m.Config.ArtifactType
+				// }
 
 				descriptors = append(descriptors, img_spec_v1.Descriptor{
 					MediaType:    m.MediaType,
 					Digest:       d,
 					Size:         int64(m.Size),
-					ArtifactType: artifactType,
+					ArtifactType: m.ArtifactType,
 				})
 			}
 
