@@ -3,7 +3,6 @@ package registry
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -600,12 +599,6 @@ func (s *registryStore) GetReferrers(
 		})
 
 	if len(artifactTypes) > 0 {
-		color.Yellow("ArtifactType: %s", artifactTypes)
-
-		var mfl []*types.ImageManifest
-		s.db.NewSelect().Model(&mfl).Scan(ctx)
-		bz, _ := json.MarshalIndent(mfl, "", "\t")
-		color.Green("Available manifests: \n%s", bz)
 		// q.
 		// 	WhereOr("artifact_type IN (?)", bun.In(artifactTypes)).
 		// 	WhereOr("COALESCE(artifact_type, '') = '' AND config_media_type IN (?)", bun.In(artifactTypes))
@@ -629,7 +622,7 @@ func (s *registryStore) GetReferrers(
 		})
 
 	if err := q.Scan(ctx); err != nil {
-		return imgIndex, nil
+		return imgIndex, err
 	}
 
 	// q := s.
@@ -783,9 +776,7 @@ func (s *registryStore) GetReferrers(
 }
 
 func (s *registryStore) descriptorFound(descriptors []img_spec_v1.Descriptor, digest string) bool {
-	color.Yellow("total descriptors: %d", len(descriptors))
 	for _, d := range descriptors {
-		color.Yellow("d.digest=%s - digest=%s - matched: %v", d.Digest.String(), digest, d.Digest.String() == digest)
 		if d.Digest.String() == digest {
 			return true
 		}
