@@ -101,3 +101,6 @@ jobs:
             /home/runner/work/OpenRegistry/distribution-spec/conformance/report.html
             /home/runner/work/OpenRegistry/distribution-spec/conformance/junit.xml
         if: always()
+      - name: Update Status Badge
+        if: ${{ success() }}
+        run: echo "::set-output name=status::success"
