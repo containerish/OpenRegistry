@@ -1,7 +1,8 @@
 name: OCI Distribution Spec
 
 on:
-  workflow_call:
+  pull_request:
+  workflow_dispatch:
     inputs:
       debug_enabled:
         type: boolean
@@ -20,7 +21,7 @@ env:
   POSTGRES_USER: postgres
 
 jobs:
-  push:
+  Push:
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -100,7 +101,4 @@ jobs:
           path: |
             /home/runner/work/OpenRegistry/distribution-spec/conformance/report.html
             /home/runner/work/OpenRegistry/distribution-spec/conformance/junit.xml
-        if: always()
-      - name: Update Status Badge
-        if: ${{ success() }}
-        run: echo "::set-output name=status::success"
+        if: success()

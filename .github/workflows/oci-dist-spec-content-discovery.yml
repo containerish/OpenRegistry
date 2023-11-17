@@ -1,7 +1,8 @@
 name: OCI Distribution Spec
 
 on:
-  workflow_call:
+  pull_request:
+  workflow_dispatch:
     inputs:
       debug_enabled:
         type: boolean
@@ -20,7 +21,7 @@ env:
   POSTGRES_USER: postgres
 
 jobs:
-  content-discovery:
+  Content-discovery:
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -38,7 +39,7 @@ jobs:
         ports:
           - 5432:5432
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: actions/setup-go@v4
         with:
           go-version-file: go.mod
@@ -70,6 +71,7 @@ jobs:
       - name: Run OCI Distribution Spec conformance tests
         if: always()
         run: |
+          cd ../
           git clone https://github.com/opencontainers/distribution-spec.git
           pushd distribution-spec/conformance
           git checkout v1.1.0-rc.3
@@ -97,4 +99,4 @@ jobs:
         with:
           name: oci-distribution-content-discovery-report-${{ steps.vars.outputs.short_commit_hash }}
           path: .out/
-        if: always()
+        if: success()

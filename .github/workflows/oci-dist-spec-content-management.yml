@@ -1,7 +1,8 @@
 name: OCI Distribution Spec
 
 on:
-  workflow_call:
+  pull_request:
+  workflow_dispatch:
     inputs:
       debug_enabled:
         type: boolean
@@ -20,7 +21,7 @@ env:
   POSTGRES_USER: postgres
 
 jobs:
-  content-management:
+  Content-management:
     runs-on: ubuntu-latest
     services:
       postgres:
