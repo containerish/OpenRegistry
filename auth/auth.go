@@ -6,7 +6,7 @@ import (
 
 	"github.com/containerish/OpenRegistry/config"
 	"github.com/containerish/OpenRegistry/services/email"
-	"github.com/containerish/OpenRegistry/store/v2/users"
+	"github.com/containerish/OpenRegistry/store/v1/users"
 	"github.com/containerish/OpenRegistry/telemetry"
 	gh "github.com/google/go-github/v50/github"
 	"github.com/labstack/echo/v4"

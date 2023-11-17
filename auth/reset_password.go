@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/containerish/OpenRegistry/services/email"
-	v2_types "github.com/containerish/OpenRegistry/store/v2/types"
+	v2_types "github.com/containerish/OpenRegistry/store/v1/types"
 	"github.com/containerish/OpenRegistry/types"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"

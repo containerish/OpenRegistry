@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/containerish/OpenRegistry/config"
-	webauthn_store "github.com/containerish/OpenRegistry/store/v2/webauthn"
+	webauthn_store "github.com/containerish/OpenRegistry/store/v1/webauthn"
 	"github.com/fatih/color"
 	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/go-webauthn/webauthn/webauthn"

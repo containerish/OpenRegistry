@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"time"
 
-	v2_types "github.com/containerish/OpenRegistry/store/v2/types"
+	v2_types "github.com/containerish/OpenRegistry/store/v1/types"
 	"github.com/containerish/OpenRegistry/types"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v4"

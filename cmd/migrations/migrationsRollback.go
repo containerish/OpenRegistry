@@ -3,7 +3,7 @@ package migrations
 import (
 	"errors"
 
-	"github.com/containerish/OpenRegistry/store/v2/migrations"
+	"github.com/containerish/OpenRegistry/store/v1/migrations"
 	"github.com/fatih/color"
 	"github.com/urfave/cli/v2"
 )

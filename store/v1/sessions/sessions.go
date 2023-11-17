@@ -1,7 +1,7 @@
 package sessions
 
 import (
-	"github.com/containerish/OpenRegistry/store/v2/users"
+	"github.com/containerish/OpenRegistry/store/v1/users"
 	"github.com/uptrace/bun"
 )
 

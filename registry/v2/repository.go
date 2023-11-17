@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/containerish/OpenRegistry/store/v2/types"
+	"github.com/containerish/OpenRegistry/store/v1/types"
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"

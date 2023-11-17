@@ -1,7 +1,7 @@
 package webauthn
 
 import (
-	"github.com/containerish/OpenRegistry/store/v2/types"
+	"github.com/containerish/OpenRegistry/store/v1/types"
 	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/go-webauthn/webauthn/webauthn"
 )

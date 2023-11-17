@@ -10,7 +10,7 @@ import (
 	"github.com/containerish/OpenRegistry/config"
 	"github.com/containerish/OpenRegistry/registry/v2"
 	"github.com/containerish/OpenRegistry/registry/v2/extensions"
-	registry_store "github.com/containerish/OpenRegistry/store/v2/registry"
+	registry_store "github.com/containerish/OpenRegistry/store/v1/registry"
 	"github.com/google/uuid"
 	"github.com/labstack/echo-contrib/prometheus"
 	"github.com/labstack/echo/v4"

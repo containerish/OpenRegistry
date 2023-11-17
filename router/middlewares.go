@@ -7,8 +7,8 @@ import (
 	"regexp"
 
 	"github.com/containerish/OpenRegistry/registry/v2"
-	registry_store "github.com/containerish/OpenRegistry/store/v2/registry"
-	"github.com/containerish/OpenRegistry/store/v2/types"
+	registry_store "github.com/containerish/OpenRegistry/store/v1/registry"
+	"github.com/containerish/OpenRegistry/store/v1/types"
 	"github.com/labstack/echo/v4"
 	dist_spec "github.com/opencontainers/distribution-spec/specs-go/v1"
 )

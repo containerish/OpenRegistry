@@ -7,7 +7,7 @@ import (
 
 	common_v1 "github.com/containerish/OpenRegistry/common/v1"
 	gha_v1 "github.com/containerish/OpenRegistry/services/kon/github_actions/v1"
-	"github.com/containerish/OpenRegistry/store/v2/types"
+	"github.com/containerish/OpenRegistry/store/v1/types"
 	"github.com/google/uuid"
 	"github.com/uptrace/bun"
 	durationpb "google.golang.org/protobuf/types/known/durationpb"

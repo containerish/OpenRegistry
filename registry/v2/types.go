@@ -7,7 +7,7 @@ import (
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/containerish/OpenRegistry/config"
 	dfsImpl "github.com/containerish/OpenRegistry/dfs"
-	store_v2 "github.com/containerish/OpenRegistry/store/v2/registry"
+	store_v2 "github.com/containerish/OpenRegistry/store/v1/registry"
 	"github.com/containerish/OpenRegistry/telemetry"
 	"github.com/labstack/echo/v4"
 	"github.com/uptrace/bun"

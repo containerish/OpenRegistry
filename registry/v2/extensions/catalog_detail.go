@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/containerish/OpenRegistry/store/v2/registry"
-	"github.com/containerish/OpenRegistry/store/v2/types"
+	"github.com/containerish/OpenRegistry/store/v1/registry"
+	"github.com/containerish/OpenRegistry/store/v1/types"
 	"github.com/containerish/OpenRegistry/telemetry"
 	"github.com/labstack/echo/v4"
 )

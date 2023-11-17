@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/containerish/OpenRegistry/config"
-	v2_types "github.com/containerish/OpenRegistry/store/v2/types"
+	v2_types "github.com/containerish/OpenRegistry/store/v1/types"
 	"github.com/containerish/OpenRegistry/types"
 	"github.com/google/go-github/v53/github"
 	"github.com/google/uuid"

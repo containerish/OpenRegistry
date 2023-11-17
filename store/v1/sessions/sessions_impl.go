@@ -3,8 +3,8 @@ package sessions
 import (
 	"context"
 
-	v2 "github.com/containerish/OpenRegistry/store/v2"
-	"github.com/containerish/OpenRegistry/store/v2/types"
+	v2 "github.com/containerish/OpenRegistry/store/v1"
+	"github.com/containerish/OpenRegistry/store/v1/types"
 	"github.com/google/uuid"
 	"github.com/uptrace/bun"
 )

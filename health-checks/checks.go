@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/alexliesenfeld/health"
-	store_v2 "github.com/containerish/OpenRegistry/store/v2"
+	store_v2 "github.com/containerish/OpenRegistry/store/v1"
 )
 
 func NewHealthChecksAPI(pgPing store_v2.PostgresPing) http.HandlerFunc {

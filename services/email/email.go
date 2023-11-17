@@ -2,7 +2,7 @@ package email
 
 import (
 	"github.com/containerish/OpenRegistry/config"
-	"github.com/containerish/OpenRegistry/store/v2/types"
+	"github.com/containerish/OpenRegistry/store/v1/types"
 	"github.com/sendgrid/sendgrid-go"
 	"github.com/sendgrid/sendgrid-go/helpers/mail"
 )

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/containerish/OpenRegistry/store/v2/types"
+	"github.com/containerish/OpenRegistry/store/v1/types"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	echo_jwt "github.com/labstack/echo-jwt/v4"

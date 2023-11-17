@@ -10,7 +10,7 @@ import (
 	"github.com/containerish/OpenRegistry/config"
 	github_actions_v1 "github.com/containerish/OpenRegistry/services/kon/github_actions/v1"
 	connect_v1 "github.com/containerish/OpenRegistry/services/kon/github_actions/v1/github_actions_v1connect"
-	"github.com/containerish/OpenRegistry/store/v2/automation"
+	"github.com/containerish/OpenRegistry/store/v1/automation"
 	"github.com/containerish/OpenRegistry/telemetry"
 	"github.com/containerish/OpenRegistry/vcs"
 	"github.com/fatih/color"

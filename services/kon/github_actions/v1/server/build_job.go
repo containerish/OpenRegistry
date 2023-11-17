@@ -7,7 +7,7 @@ import (
 	connect_go "github.com/bufbuild/connect-go"
 	common_v1 "github.com/containerish/OpenRegistry/common/v1"
 	v1 "github.com/containerish/OpenRegistry/services/kon/github_actions/v1"
-	"github.com/containerish/OpenRegistry/store/v2/types"
+	"github.com/containerish/OpenRegistry/store/v1/types"
 	"github.com/google/go-github/v50/github"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 )

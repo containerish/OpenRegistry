@@ -3,8 +3,8 @@ package registry
 import (
 	"context"
 
-	store_v2 "github.com/containerish/OpenRegistry/store/v2"
-	"github.com/containerish/OpenRegistry/store/v2/types"
+	store_v2 "github.com/containerish/OpenRegistry/store/v1"
+	"github.com/containerish/OpenRegistry/store/v1/types"
 	"github.com/containerish/OpenRegistry/telemetry"
 	"github.com/google/uuid"
 	img_spec_v1 "github.com/opencontainers/image-spec/specs-go/v1"

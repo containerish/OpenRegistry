@@ -3,8 +3,8 @@ package webauthn
 import (
 	"context"
 
-	v2 "github.com/containerish/OpenRegistry/store/v2"
-	"github.com/containerish/OpenRegistry/store/v2/types"
+	v2 "github.com/containerish/OpenRegistry/store/v1"
+	"github.com/containerish/OpenRegistry/store/v1/types"
 	"github.com/fatih/color"
 	"github.com/go-webauthn/webauthn/webauthn"
 	"github.com/google/uuid"

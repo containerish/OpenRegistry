@@ -10,8 +10,8 @@ import (
 
 	"github.com/containerish/OpenRegistry/config"
 	"github.com/containerish/OpenRegistry/services/email"
-	store_err "github.com/containerish/OpenRegistry/store/v2"
-	v2_types "github.com/containerish/OpenRegistry/store/v2/types"
+	store_err "github.com/containerish/OpenRegistry/store/v1"
+	v2_types "github.com/containerish/OpenRegistry/store/v1/types"
 	"github.com/containerish/OpenRegistry/types"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"

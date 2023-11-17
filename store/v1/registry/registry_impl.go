@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	v2 "github.com/containerish/OpenRegistry/store/v2"
-	"github.com/containerish/OpenRegistry/store/v2/types"
+	v2 "github.com/containerish/OpenRegistry/store/v1"
+	"github.com/containerish/OpenRegistry/store/v1/types"
 	"github.com/google/uuid"
 	oci_digest "github.com/opencontainers/go-digest"
 	img_spec "github.com/opencontainers/image-spec/specs-go"

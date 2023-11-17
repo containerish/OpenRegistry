@@ -3,7 +3,7 @@ package vcs
 import (
 	"context"
 
-	"github.com/containerish/OpenRegistry/store/v2/types"
+	"github.com/containerish/OpenRegistry/store/v1/types"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 )

@@ -3,9 +3,9 @@ package emails
 import (
 	"context"
 
-	v2 "github.com/containerish/OpenRegistry/store/v2"
-	"github.com/containerish/OpenRegistry/store/v2/types"
-	"github.com/containerish/OpenRegistry/store/v2/users"
+	v2 "github.com/containerish/OpenRegistry/store/v1"
+	"github.com/containerish/OpenRegistry/store/v1/types"
+	"github.com/containerish/OpenRegistry/store/v1/users"
 	"github.com/google/uuid"
 	"github.com/uptrace/bun"
 )

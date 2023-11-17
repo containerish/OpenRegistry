@@ -1,7 +1,7 @@
 package migrations
 
 import (
-	"github.com/containerish/OpenRegistry/store/v2/types"
+	"github.com/containerish/OpenRegistry/store/v1/types"
 	"github.com/urfave/cli/v2"
 )
 
