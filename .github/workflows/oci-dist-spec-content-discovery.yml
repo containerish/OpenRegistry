@@ -2,6 +2,9 @@ name: OCI Distribution Spec - Content Discovery
 
 on:
   pull_request:
+  push:
+    branches:
+      - main
   workflow_dispatch:
     inputs:
       debug_enabled:
