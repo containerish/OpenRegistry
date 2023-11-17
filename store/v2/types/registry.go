@@ -45,10 +45,11 @@ type (
 		User          *User                     `bun:"rel:belongs-to,join:owner_id=id" json:"-"`
 		Subject       *img_spec_v1.Descriptor   `bun:"embed:subject_" json:"subject,omitempty"`
 		Config        *img_spec_v1.Descriptor   `bun:"embed:config_" json:"config"`
-		Reference     string                    `bun:"reference,notnull" json:"reference"`
+		Annotations   map[string]string         `bun:"annotations,type:jsonb" json:"annotations,omitempty"`
 		Digest        string                    `bun:"digest,notnull" json:"digest"`
 		MediaType     string                    `bun:"media_type,notnull" json:"mediaType"`
 		ArtifactType  string                    `bun:"artifact_type" json:"artifactType,omitempty"`
+		Reference     string                    `bun:"reference,notnull" json:"reference"`
 		Layers        ImageManifestLayers       `bun:"layers,type:jsonb" json:"layers"`
 		SchemaVersion int                       `bun:"schema_version,notnull" json:"schemaVersion"`
 		Size          uint64                    `bun:"size,notnull" json:"size"`

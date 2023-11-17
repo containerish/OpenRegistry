@@ -9,7 +9,6 @@ import (
 
 	v2 "github.com/containerish/OpenRegistry/store/v2"
 	"github.com/containerish/OpenRegistry/store/v2/types"
-	"github.com/fatih/color"
 	"github.com/google/uuid"
 	oci_digest "github.com/opencontainers/go-digest"
 	img_spec "github.com/opencontainers/image-spec/specs-go"
@@ -589,29 +588,16 @@ func (s *registryStore) GetReferrers(
 		db.
 		NewSelect().
 		Model(&manifests).
-		// WhereOr("COALESCE(subject_digest, '') = '' AND digest = ?", digest).
-		// WhereOr("subject_digest = ?", digest)
-
 		WhereGroup(" OR ", func(sq *bun.SelectQuery) *bun.SelectQuery {
 			return sq.Where("subject_digest = ?", digest)
-			// return sq.WhereOr("COALESCE(subject_digest, '') = '' AND digest = ?", digest).
-			// 	WhereOr("subject_digest = ?", digest)
 		})
 
 	if len(artifactTypes) > 0 {
-		// q.
-		// 	WhereOr("artifact_type IN (?)", bun.In(artifactTypes)).
-		// 	WhereOr("COALESCE(artifact_type, '') = '' AND config_media_type IN (?)", bun.In(artifactTypes))
-
 		q.WhereGroup(" AND ", func(sq *bun.SelectQuery) *bun.SelectQuery {
 			return sq.WhereOr("artifact_type IN (?)", bun.In(artifactTypes)).
 				WhereOr("COALESCE(artifact_type, '') = '' AND config_media_type IN (?)", bun.In(artifactTypes))
 		})
-
-		// WhereOr("artifact_type = '' AND config_artifact_type IN (?)", bun.In(artifactTypes))
 	}
-
-	color.Magenta("query: %s", q.String())
 
 	q.
 		Relation("Repository", func(sq *bun.SelectQuery) *bun.SelectQuery {
@@ -625,99 +611,6 @@ func (s *registryStore) GetReferrers(
 		return imgIndex, err
 	}
 
-	// q := s.
-	// 	db.
-	// 	NewSelect().
-	// 	Model(&manifestList)
-	//
-	// // Find OCI Distribution Spec < 1.1 manifests to provide backword compatibility
-	// // Reference - https://github.com/opencontainers/distribution-spec/blob/main/spec.md#enabling-the-referrers-api
-	// q.WhereGroup(" OR ", func(sq *bun.SelectQuery) *bun.SelectQuery {
-	// 	return sq.
-	// 		// for all new manifests with subject (OCI v1.1+), we set subject digest and manifest artifactType values
-	// 		Where("subject_digest = '' AND artifact_type = '' AND digest = ?", digest)
-	// }).WhereGroup(" OR ", func(sq *bun.SelectQuery) *bun.SelectQuery {
-	// 	return sq.Where("subject_digest = ?", digest)
-	// })
-	//
-	// if len(artifactTypes) > 0 {
-	// 	q.WhereGroup(" AND ", func(sq *bun.SelectQuery) *bun.SelectQuery {
-	// 		return sq.Where("artifact_type in (?) or artifact_type = ''", bun.In(artifactTypes))
-	// 	})
-	// }
-
-	// color.Magenta("GetReferrers: oldManifestsQuery: %s", oldMfQ.String())
-	// color.Magenta("GetReferrers: newManifestsQuery: %s", newMfQ.String())
-	// q.Relation("Repository", func(sq *bun.SelectQuery) *bun.SelectQuery {
-	// 	return sq.ExcludeColumn("*").Where("name = ?", repoName)
-	// }).Relation("User", func(sq *bun.SelectQuery) *bun.SelectQuery {
-	// 	return sq.Where("username = ?", username).ExcludeColumn("*")
-	// })
-
-	// eChan := make(chan error)
-	// go func() {
-	// 	wg.Wait()
-	// 	close(eChan)
-	// }()
-	//
-	// go func() {
-	// 	defer wg.Done()
-	// 	if err := oldMfQ.Scan(ctx); err != nil {
-	// 		eChan <- err
-	// 		return
-	// 	}
-	// }()
-	//
-	// go func() {
-	// 	defer wg.Done()
-	// 	if err := newMfQ.Scan(ctx); err != nil {
-	// 		eChan <- err
-	// 		return
-	// 	}
-	// }()
-	//
-	// mErr := &multierror.Error{}
-	// for err := range eChan {
-	// 	if err != nil {
-	// 		mErr.Errors = append(mErr.Errors, err)
-	// 	}
-	// }
-	// if mErr.ErrorOrNil() != nil {
-	// 	return imgIndex, mErr
-	// }
-
-	// obz, _ := json.MarshalIndent(oldManifests, "", "\t")
-	// nbz, _ := json.MarshalIndent(manifests, "", "\t")
-	// color.Blue("OldManifests: \n%s\nNewManifests: \n%s", obz, nbz)
-
-	// seenMap := map[string]struct{}{}
-	// for _, m := range append(oldManifests, newManifests...) {
-	//
-	// 	mapKey := fmt.Sprintf("%s_%s", m.MediaType, m.Digest)
-	//
-	// 	if m.Subject != nil {
-	// 		mapKey = fmt.Sprintf("%s_%s_%s", m.MediaType, m.Digest, m.Subject.MediaType)
-	// 	} else if m.Config != nil {
-	// 		mapKey = fmt.Sprintf("%s_%s", m.Config.MediaType, m.Config.Digest)
-	// 	}
-	// 	if _, ok := seenMap[mapKey]; ok {
-	// 		continue
-	// 	}
-	// 	if m.Subject != nil {
-	// 		seenMap[mapKey] = struct{}{}
-	// 		subjectList = append(subjectList, m.Subject)
-	// 		continue
-	// 	}
-	//
-	// seenMap[mapKey] = struct{}{}
-	// 	subjectList = append(subjectList, &types.OCIDescriptor{
-	// 		MediaType: m.MediaType,
-	// 		Digest:    oci_digest.FromString(m.Digest),
-	// 		Size:      int64(m.Size),
-	// 	})
-	// }
-
-	// combinedManifests := append(oldManifests, manifests...)
 	var descriptors []img_spec_v1.Descriptor
 
 	for _, m := range manifests {
@@ -727,62 +620,35 @@ func (s *registryStore) GetReferrers(
 			continue
 		}
 
-		if !s.descriptorFound(descriptors, d.String()) {
-			if m.Subject != nil {
-				descriptors = append(descriptors, img_spec_v1.Descriptor{
-					MediaType:    m.MediaType,
-					Digest:       d,
-					Size:         int64(m.Size),
-					ArtifactType: m.ArtifactType,
-				})
-			} else {
-				if m.ArtifactType == "" {
-					m.ArtifactType = m.Config.MediaType
-				}
-				//
-				//
-				// artifactType := m.ArtifactType
-				// if artifactType == "" {
-				// 	artifactType = m.Config.ArtifactType
-				// }
-
-				descriptors = append(descriptors, img_spec_v1.Descriptor{
-					MediaType:    m.MediaType,
-					Digest:       d,
-					Size:         int64(m.Size),
-					ArtifactType: m.ArtifactType,
-				})
+		if m.Subject != nil {
+			descriptor := img_spec_v1.Descriptor{
+				MediaType:    m.MediaType,
+				Digest:       d,
+				Size:         int64(m.Size),
+				ArtifactType: m.ArtifactType,
+				Annotations:  m.Annotations,
 			}
 
+			descriptors = append(descriptors, descriptor)
+		} else {
+			if m.ArtifactType == "" {
+				m.ArtifactType = m.Config.MediaType
+			}
+			descriptor := img_spec_v1.Descriptor{
+				MediaType:    m.MediaType,
+				Digest:       d,
+				Size:         int64(m.Size),
+				ArtifactType: m.ArtifactType,
+				Annotations:  m.Annotations,
+			}
+
+			descriptors = append(descriptors, descriptor)
 		}
 
-		// switch m.MediaType {
-		// case img_spec_v1.MediaTypeImageManifest:
-		// case img_spec_v1.MediaTypeImageIndex:
-		// 	descriptors = append(descriptors, img_spec_v1.Descriptor{
-		// 		Annotations:  m.Subject.Annotations,
-		// 		MediaType:    m.MediaType,
-		// 		Digest:       oci_digest.FromString(m.Digest),
-		// 		Size:         int64(m.Size),
-		// 		ArtifactType: m.ArtifactType,
-		// 	})
-		// default:
-		// 	color.Red("----------------------------- FOUND_INVALID_MEDIA_TYPE -------------------------------------")
-		// }
 	}
 
 	imgIndex.Manifests = descriptors
 	return imgIndex, nil
-}
-
-func (s *registryStore) descriptorFound(descriptors []img_spec_v1.Descriptor, digest string) bool {
-	for _, d := range descriptors {
-		if d.Digest.String() == digest {
-			return true
-		}
-	}
-
-	return false
 }
 
 func (s *registryStore) GetImageSizeByLayerIds(ctx context.Context, layerIDs []string) (uint64, error) {

@@ -695,6 +695,7 @@ func (r *registry) PushImage(ctx echo.Context) error {
 
 // References:
 // - https://github.com/opencontainers/distribution-spec/blob/main/spec.md#pushing-manifests
+// - https://github.com/opencontainers/distribution-spec/blob/main/spec.md#pushing-manifests-with-subject
 // - https://github.com/opencontainers/image-spec/blob/main/manifest.md#image-manifest-property-descriptions
 // Method: PUT
 // Path: /v2/<namespace>/manifests/<reference>
@@ -1005,9 +1006,11 @@ func (r *registry) GetRepositoryFromCtx(ctx echo.Context) *types_v2.ContainerIma
 	return nil
 }
 
+// Reference:
+// - https://github.com/opencontainers/distribution-spec/blob/main/spec.md#enabling-the-referrers-api
+// - https://github.com/opencontainers/distribution-spec/blob/main/spec.md#listing-referrers
 func (r *registry) ListReferrers(ctx echo.Context) error {
 	ctx.Set(types.HandlerStartTime, time.Now())
-	ctx.Set("start", time.Now())
 
 	namespace := ctx.Get(string(RegistryNamespace)).(string)
 	digest := ctx.Param("digest")
