@@ -11,3 +11,7 @@ type PgTxnHandler interface {
 	Abort(ctx context.Context, txn *bun.Tx) error
 	Commit(ctx context.Context, txn *bun.Tx) error
 }
+
+type PostgresPing interface {
+	Ping(ctx context.Context) error
+}

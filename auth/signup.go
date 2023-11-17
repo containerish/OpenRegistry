@@ -10,7 +10,7 @@ import (
 
 	"github.com/containerish/OpenRegistry/config"
 	"github.com/containerish/OpenRegistry/services/email"
-	"github.com/containerish/OpenRegistry/store/postgres"
+	store_err "github.com/containerish/OpenRegistry/store/v2"
 	v2_types "github.com/containerish/OpenRegistry/store/v2/types"
 	"github.com/containerish/OpenRegistry/types"
 	"github.com/google/uuid"
@@ -78,7 +78,7 @@ func (a *auth) SignUp(ctx echo.Context) error {
 
 	err = a.pgStore.AddUser(ctx.Request().Context(), newUser, nil)
 	if err != nil {
-		if strings.Contains(err.Error(), postgres.ErrDuplicateConstraintUsername) {
+		if strings.Contains(err.Error(), store_err.ErrDuplicateConstraintUsername) {
 			echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 				"error":   err.Error(),
 				"message": "username already exists",
@@ -87,7 +87,7 @@ func (a *auth) SignUp(ctx echo.Context) error {
 			return echoErr
 		}
 
-		if strings.Contains(err.Error(), postgres.ErrDuplicateConstraintEmail) {
+		if strings.Contains(err.Error(), store_err.ErrDuplicateConstraintEmail) {
 			echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 				"error":   err.Error(),
 				"message": "this email already taken, try sign in?",
