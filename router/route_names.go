@@ -46,8 +46,13 @@ const (
 	// this is also a part of catalog api
 	TagsList = "/tags/list"
 
+	GetReferrers = "/referrers/:digest"
+
 	// Catalog is used to list the available repositories
 	Catalog = "/_catalog"
+
+	// PublicCatalog is used to list the available public repositories
+	PublicCatalog = "/_catalog/public"
 
 	// Prefix for Extensions
 	Ext = "/ext"
@@ -61,6 +66,10 @@ const (
 
 	// API to get detailed catalog information
 	CatalogDetail = C + "/detail"
+	UserCatalog   = C + "/user"
 
 	RepositoryDetail = C + "/repository"
+
+	ChangeRepositoryVisibility = Ext + "/repository/visibility"
+	CreateRepository           = Ext + "/repository/create"
 )

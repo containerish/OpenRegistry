@@ -12,7 +12,7 @@ import (
 	"github.com/containerish/OpenRegistry/types"
 	"github.com/fatih/color"
 	"github.com/labstack/echo/v4"
-	"github.com/opencontainers/go-digest"
+	oci_digest "github.com/opencontainers/go-digest"
 )
 
 func (b *blobs) errorResponse(code, msg string, detail map[string]interface{}) []byte {
@@ -49,7 +49,7 @@ func (b *blobs) HEAD(ctx echo.Context) error {
 		return echoErr
 	}
 
-	metadata, err := b.registry.dfs.Metadata(GetLayerIdentifier(layerRef.UUID))
+	metadata, err := b.registry.dfs.Metadata(GetLayerIdentifier(layerRef.ID))
 	if err != nil {
 		details := echo.Map{
 			"error":   err.Error(),
@@ -103,14 +103,14 @@ func (b *blobs) UploadBlob(ctx echo.Context) error {
 		}
 		defer ctx.Request().Body.Close()
 
-		checksum := digest.FromBytes(buf.Bytes())
+		digest := oci_digest.FromBytes(buf.Bytes())
 
 		b.blobCounter[uploadID]++
 		part, err := b.registry.dfs.UploadPart(
 			ctx.Request().Context(),
 			uploadID,
 			GetLayerIdentifier(layerKey),
-			checksum.String(),
+			digest.String(),
 			b.blobCounter[uploadID],
 			bytes.NewReader(buf.Bytes()),
 			int64(buf.Len()),
@@ -126,11 +126,11 @@ func (b *blobs) UploadBlob(ctx echo.Context) error {
 
 		b.mu.Lock()
 		b.layerParts[uploadID] = append(b.layerParts[uploadID], part)
+		b.layerLengthCounter[uploadID] = int64(buf.Len())
 		b.mu.Unlock()
 
 		locationHeader := fmt.Sprintf("/v2/%s/blobs/uploads/%s", namespace, identifier)
 		ctx.Response().Header().Set("Location", locationHeader)
-		b.layerLengthCounter[uploadID] = int64(buf.Len())
 		ctx.Response().Header().Set("Range", fmt.Sprintf("0-%d", b.layerLengthCounter[uploadID]-1))
 		err = ctx.NoContent(http.StatusAccepted)
 		b.registry.logger.Log(ctx, err).Send()
@@ -171,13 +171,13 @@ func (b *blobs) UploadBlob(ctx echo.Context) error {
 	}
 	defer ctx.Request().Body.Close()
 
-	checksum := digest.FromBytes(buf.Bytes())
+	digest := oci_digest.FromBytes(buf.Bytes())
 	b.blobCounter[uploadID]++
 	part, err := b.registry.dfs.UploadPart(
 		ctx.Request().Context(),
 		uploadID,
 		GetLayerIdentifier(layerKey),
-		checksum.String(),
+		digest.String(),
 		b.blobCounter[uploadID],
 		bytes.NewReader(buf.Bytes()),
 		int64(buf.Len()),

@@ -1,6 +1,6 @@
 name: golangci-lint
 on:
-  workflow_call:
+  pull_request:
 
 concurrency:
   group: linter-${{ github.workflow }}-${{ github.head_ref || github.run_id }}

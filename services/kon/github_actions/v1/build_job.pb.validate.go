@@ -57,7 +57,68 @@ func (m *BulkDeleteBuildJobsRequest) validate(all bool) error {
 
 	var errors []error
 
-	// no validation rules for OwnerId
+	if all {
+		switch v := interface{}(m.GetRepositoryId()).(type) {
+		case interface{ ValidateAll() error }:
+			if err := v.ValidateAll(); err != nil {
+				errors = append(errors, BulkDeleteBuildJobsRequestValidationError{
+					field:  "RepositoryId",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		case interface{ Validate() error }:
+			if err := v.Validate(); err != nil {
+				errors = append(errors, BulkDeleteBuildJobsRequestValidationError{
+					field:  "RepositoryId",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		}
+	} else if v, ok := interface{}(m.GetRepositoryId()).(interface{ Validate() error }); ok {
+		if err := v.Validate(); err != nil {
+			return BulkDeleteBuildJobsRequestValidationError{
+				field:  "RepositoryId",
+				reason: "embedded message failed validation",
+				cause:  err,
+			}
+		}
+	}
+
+	for idx, item := range m.GetJobIds() {
+		_, _ = idx, item
+
+		if all {
+			switch v := interface{}(item).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, BulkDeleteBuildJobsRequestValidationError{
+						field:  fmt.Sprintf("JobIds[%v]", idx),
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, BulkDeleteBuildJobsRequestValidationError{
+						field:  fmt.Sprintf("JobIds[%v]", idx),
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(item).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return BulkDeleteBuildJobsRequestValidationError{
+					field:  fmt.Sprintf("JobIds[%v]", idx),
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	}
 
 	// no validation rules for Repo
 
@@ -268,7 +329,34 @@ func (m *TriggerBuildRequest) validate(all bool) error {
 
 	var errors []error
 
-	// no validation rules for RunId
+	if all {
+		switch v := interface{}(m.GetRunId()).(type) {
+		case interface{ ValidateAll() error }:
+			if err := v.ValidateAll(); err != nil {
+				errors = append(errors, TriggerBuildRequestValidationError{
+					field:  "RunId",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		case interface{ Validate() error }:
+			if err := v.Validate(); err != nil {
+				errors = append(errors, TriggerBuildRequestValidationError{
+					field:  "RunId",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		}
+	} else if v, ok := interface{}(m.GetRunId()).(interface{ Validate() error }); ok {
+		if err := v.Validate(); err != nil {
+			return TriggerBuildRequestValidationError{
+				field:  "RunId",
+				reason: "embedded message failed validation",
+				cause:  err,
+			}
+		}
+	}
 
 	if all {
 		switch v := interface{}(m.GetTriggeredAt()).(type) {
@@ -299,7 +387,34 @@ func (m *TriggerBuildRequest) validate(all bool) error {
 		}
 	}
 
-	// no validation rules for OwnerId
+	if all {
+		switch v := interface{}(m.GetRepositoryId()).(type) {
+		case interface{ ValidateAll() error }:
+			if err := v.ValidateAll(); err != nil {
+				errors = append(errors, TriggerBuildRequestValidationError{
+					field:  "RepositoryId",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		case interface{ Validate() error }:
+			if err := v.Validate(); err != nil {
+				errors = append(errors, TriggerBuildRequestValidationError{
+					field:  "RepositoryId",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		}
+	} else if v, ok := interface{}(m.GetRepositoryId()).(interface{ Validate() error }); ok {
+		if err := v.Validate(); err != nil {
+			return TriggerBuildRequestValidationError{
+				field:  "RepositoryId",
+				reason: "embedded message failed validation",
+				cause:  err,
+			}
+		}
+	}
 
 	// no validation rules for Repo
 
@@ -509,7 +624,34 @@ func (m *CancelBuildRequest) validate(all bool) error {
 
 	var errors []error
 
-	// no validation rules for JobId
+	if all {
+		switch v := interface{}(m.GetJobId()).(type) {
+		case interface{ ValidateAll() error }:
+			if err := v.ValidateAll(); err != nil {
+				errors = append(errors, CancelBuildRequestValidationError{
+					field:  "JobId",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		case interface{ Validate() error }:
+			if err := v.Validate(); err != nil {
+				errors = append(errors, CancelBuildRequestValidationError{
+					field:  "JobId",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		}
+	} else if v, ok := interface{}(m.GetJobId()).(interface{ Validate() error }); ok {
+		if err := v.Validate(); err != nil {
+			return CancelBuildRequestValidationError{
+				field:  "JobId",
+				reason: "embedded message failed validation",
+				cause:  err,
+			}
+		}
+	}
 
 	// no validation rules for RunId
 
@@ -542,7 +684,34 @@ func (m *CancelBuildRequest) validate(all bool) error {
 		}
 	}
 
-	// no validation rules for OwnerId
+	if all {
+		switch v := interface{}(m.GetRepositoryId()).(type) {
+		case interface{ ValidateAll() error }:
+			if err := v.ValidateAll(); err != nil {
+				errors = append(errors, CancelBuildRequestValidationError{
+					field:  "RepositoryId",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		case interface{ Validate() error }:
+			if err := v.Validate(); err != nil {
+				errors = append(errors, CancelBuildRequestValidationError{
+					field:  "RepositoryId",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		}
+	} else if v, ok := interface{}(m.GetRepositoryId()).(interface{ Validate() error }); ok {
+		if err := v.Validate(); err != nil {
+			return CancelBuildRequestValidationError{
+				field:  "RepositoryId",
+				reason: "embedded message failed validation",
+				cause:  err,
+			}
+		}
+	}
 
 	// no validation rules for Repo
 
@@ -752,9 +921,63 @@ func (m *GetBuildJobRequest) validate(all bool) error {
 
 	var errors []error
 
-	// no validation rules for JobId
+	if all {
+		switch v := interface{}(m.GetJobId()).(type) {
+		case interface{ ValidateAll() error }:
+			if err := v.ValidateAll(); err != nil {
+				errors = append(errors, GetBuildJobRequestValidationError{
+					field:  "JobId",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		case interface{ Validate() error }:
+			if err := v.Validate(); err != nil {
+				errors = append(errors, GetBuildJobRequestValidationError{
+					field:  "JobId",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		}
+	} else if v, ok := interface{}(m.GetJobId()).(interface{ Validate() error }); ok {
+		if err := v.Validate(); err != nil {
+			return GetBuildJobRequestValidationError{
+				field:  "JobId",
+				reason: "embedded message failed validation",
+				cause:  err,
+			}
+		}
+	}
 
-	// no validation rules for OwnerId
+	if all {
+		switch v := interface{}(m.GetRepositoryId()).(type) {
+		case interface{ ValidateAll() error }:
+			if err := v.ValidateAll(); err != nil {
+				errors = append(errors, GetBuildJobRequestValidationError{
+					field:  "RepositoryId",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		case interface{ Validate() error }:
+			if err := v.Validate(); err != nil {
+				errors = append(errors, GetBuildJobRequestValidationError{
+					field:  "RepositoryId",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		}
+	} else if v, ok := interface{}(m.GetRepositoryId()).(interface{ Validate() error }); ok {
+		if err := v.Validate(); err != nil {
+			return GetBuildJobRequestValidationError{
+				field:  "RepositoryId",
+				reason: "embedded message failed validation",
+				cause:  err,
+			}
+		}
+	}
 
 	// no validation rules for Repo
 
@@ -860,7 +1083,34 @@ func (m *GetBuildJobResponse) validate(all bool) error {
 
 	var errors []error
 
-	// no validation rules for Id
+	if all {
+		switch v := interface{}(m.GetId()).(type) {
+		case interface{ ValidateAll() error }:
+			if err := v.ValidateAll(); err != nil {
+				errors = append(errors, GetBuildJobResponseValidationError{
+					field:  "Id",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		case interface{ Validate() error }:
+			if err := v.Validate(); err != nil {
+				errors = append(errors, GetBuildJobResponseValidationError{
+					field:  "Id",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		}
+	} else if v, ok := interface{}(m.GetId()).(interface{ Validate() error }); ok {
+		if err := v.Validate(); err != nil {
+			return GetBuildJobResponseValidationError{
+				field:  "Id",
+				reason: "embedded message failed validation",
+				cause:  err,
+			}
+		}
+	}
 
 	// no validation rules for LogsUrl
 
@@ -930,7 +1180,34 @@ func (m *GetBuildJobResponse) validate(all bool) error {
 		}
 	}
 
-	// no validation rules for OwnerId
+	if all {
+		switch v := interface{}(m.GetRepositoryId()).(type) {
+		case interface{ ValidateAll() error }:
+			if err := v.ValidateAll(); err != nil {
+				errors = append(errors, GetBuildJobResponseValidationError{
+					field:  "RepositoryId",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		case interface{ Validate() error }:
+			if err := v.Validate(); err != nil {
+				errors = append(errors, GetBuildJobResponseValidationError{
+					field:  "RepositoryId",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		}
+	} else if v, ok := interface{}(m.GetRepositoryId()).(interface{ Validate() error }); ok {
+		if err := v.Validate(); err != nil {
+			return GetBuildJobResponseValidationError{
+				field:  "RepositoryId",
+				reason: "embedded message failed validation",
+				cause:  err,
+			}
+		}
+	}
 
 	if len(errors) > 0 {
 		return GetBuildJobResponseMultiError(errors)
@@ -1036,7 +1313,34 @@ func (m *DeleteJobRequest) validate(all bool) error {
 
 	// no validation rules for RunId
 
-	// no validation rules for OwnerId
+	if all {
+		switch v := interface{}(m.GetRepositoryId()).(type) {
+		case interface{ ValidateAll() error }:
+			if err := v.ValidateAll(); err != nil {
+				errors = append(errors, DeleteJobRequestValidationError{
+					field:  "RepositoryId",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		case interface{ Validate() error }:
+			if err := v.Validate(); err != nil {
+				errors = append(errors, DeleteJobRequestValidationError{
+					field:  "RepositoryId",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		}
+	} else if v, ok := interface{}(m.GetRepositoryId()).(interface{ Validate() error }); ok {
+		if err := v.Validate(); err != nil {
+			return DeleteJobRequestValidationError{
+				field:  "RepositoryId",
+				reason: "embedded message failed validation",
+				cause:  err,
+			}
+		}
+	}
 
 	// no validation rules for Repo
 
@@ -1246,6 +1550,35 @@ func (m *StoreJobResponse) validate(all bool) error {
 
 	// no validation rules for Message
 
+	if all {
+		switch v := interface{}(m.GetId()).(type) {
+		case interface{ ValidateAll() error }:
+			if err := v.ValidateAll(); err != nil {
+				errors = append(errors, StoreJobResponseValidationError{
+					field:  "Id",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		case interface{ Validate() error }:
+			if err := v.Validate(); err != nil {
+				errors = append(errors, StoreJobResponseValidationError{
+					field:  "Id",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		}
+	} else if v, ok := interface{}(m.GetId()).(interface{ Validate() error }); ok {
+		if err := v.Validate(); err != nil {
+			return StoreJobResponseValidationError{
+				field:  "Id",
+				reason: "embedded message failed validation",
+				cause:  err,
+			}
+		}
+	}
+
 	if len(errors) > 0 {
 		return StoreJobResponseMultiError(errors)
 	}
@@ -1416,7 +1749,34 @@ func (m *StoreJobRequest) validate(all bool) error {
 		}
 	}
 
-	// no validation rules for OwnerId
+	if all {
+		switch v := interface{}(m.GetRepositoryId()).(type) {
+		case interface{ ValidateAll() error }:
+			if err := v.ValidateAll(); err != nil {
+				errors = append(errors, StoreJobRequestValidationError{
+					field:  "RepositoryId",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		case interface{ Validate() error }:
+			if err := v.Validate(); err != nil {
+				errors = append(errors, StoreJobRequestValidationError{
+					field:  "RepositoryId",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		}
+	} else if v, ok := interface{}(m.GetRepositoryId()).(interface{ Validate() error }); ok {
+		if err := v.Validate(); err != nil {
+			return StoreJobRequestValidationError{
+				field:  "RepositoryId",
+				reason: "embedded message failed validation",
+				cause:  err,
+			}
+		}
+	}
 
 	if len(errors) > 0 {
 		return StoreJobRequestMultiError(errors)
@@ -1520,7 +1880,34 @@ func (m *ListBuildJobsRequest) validate(all bool) error {
 
 	// no validation rules for Id
 
-	// no validation rules for OwnerId
+	if all {
+		switch v := interface{}(m.GetRepositoryId()).(type) {
+		case interface{ ValidateAll() error }:
+			if err := v.ValidateAll(); err != nil {
+				errors = append(errors, ListBuildJobsRequestValidationError{
+					field:  "RepositoryId",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		case interface{ Validate() error }:
+			if err := v.Validate(); err != nil {
+				errors = append(errors, ListBuildJobsRequestValidationError{
+					field:  "RepositoryId",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		}
+	} else if v, ok := interface{}(m.GetRepositoryId()).(interface{ Validate() error }); ok {
+		if err := v.Validate(); err != nil {
+			return ListBuildJobsRequestValidationError{
+				field:  "RepositoryId",
+				reason: "embedded message failed validation",
+				cause:  err,
+			}
+		}
+	}
 
 	// no validation rules for Repo
 

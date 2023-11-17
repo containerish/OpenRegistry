@@ -3,8 +3,6 @@ package config
 import (
 	"crypto/rsa"
 	"fmt"
-	"log"
-	"os"
 	"strings"
 	"time"
 
@@ -19,16 +17,15 @@ import (
 
 type (
 	OpenRegistryConfig struct {
-		SkynetConfig   Skynet         `yaml:"skynet" mapstructure:"skynet" validate:"-"`
-		WebAppConfig   WebAppConfig   `yaml:"web_app" mapstructure:"web_app"`
 		OAuth          OAuth          `yaml:"oauth" mapstructure:"oauth" validate:"-"`
-		StoreConfig    Store          `yaml:"database" mapstructure:"database" validate:"required"`
-		LogConfig      Log            `yaml:"log_service" mapstructure:"log_service"`
 		Email          Email          `yaml:"email" mapstructure:"email" validate:"-"`
+		WebAppConfig   WebAppConfig   `yaml:"web_app" mapstructure:"web_app"`
 		Integrations   Integrations   `yaml:"integrations" mapstructure:"integrations"`
 		Registry       Registry       `yaml:"registry" mapstructure:"registry" validate:"required"`
-		DFS            DFS            `yaml:"dfs" mapstructure:"dfs"`
+		StoreConfig    Store          `yaml:"database" mapstructure:"database" validate:"required"`
+		Telemetry      Telemetry      `yaml:"telemetry" mapstructure:"telemetry"`
 		WebAuthnConfig WebAuthnConfig `yaml:"web_authn_config" mapstructure:"web_authn_config"`
+		DFS            DFS            `yaml:"dfs" mapstructure:"dfs"`
 		Environment    Environment    `yaml:"environment" mapstructure:"environment" validate:"required"`
 		Debug          bool           `yaml:"debug" mapstructure:"debug"`
 	}
@@ -41,8 +38,8 @@ type (
 	}
 
 	DFS struct {
-		Filebase S3CompatibleDFS `yaml:"filebase" mapstructure:"filebase"`
 		Storj    Storj           `yaml:"storj" mapstructure:"storj"`
+		Filebase S3CompatibleDFS `yaml:"filebase" mapstructure:"filebase"`
 		Mock     S3CompatibleDFS `yaml:"mock" mapstructure:"mock"`
 	}
 
@@ -69,7 +66,12 @@ type (
 		ChunkSize       int    `yaml:"chunk_size" mapstructure:"chunk_size"`
 		MinChunkSize    uint64 `yaml:"min_chunk_size" mapstructure:"min_chunk_size"`
 		Enabled         bool   `yaml:"enabled" mapstructure:"enabled"`
+
+		// this field is only used by the mock storage driver
+		Type MockStorageBackend `yaml:"type" mapstructure:"type"`
 	}
+
+	MockStorageBackend int
 
 	// just so that we can retrieve values easily
 	Integrations []*Integration
@@ -90,30 +92,17 @@ type (
 		Enabled    bool   `yaml:"enabled" mapstructure:"enabled"`
 	}
 
-	Skynet struct {
-		SkynetPortalURL string `yaml:"portal_url" mapstructure:"portal_url" validate:"-"`
-		EndpointPath    string `yaml:"endpoint_path" mapstructure:"endpoint_path"`
-		ApiKey          string `yaml:"api_key" mapstructure:"api_key"`
-		CustomUserAgent string `yaml:"custom_user_agent" mapstructure:"custom_user_agent"`
-	}
-
-	Log struct {
-		Service    string `yaml:"name" mapstructure:"name"`
-		Endpoint   string `yaml:"endpoint" mapstructure:"endpoint"`
-		AuthMethod string `yaml:"auth_method" mapstructure:"auth_method"`
-		Username   string `yaml:"username" mapstructure:"username"`
-		Password   string `yaml:"password" mapstructure:"password"`
-		Enabled    bool   `yaml:"enabled" mapstructure:"enabled"`
-	}
-
 	Store struct {
-		Kind     string `yaml:"kind" mapstructure:"kind" validate:"required"`
-		User     string `yaml:"username" mapstructure:"username" validate:"required"`
-		Host     string `yaml:"host" mapstructure:"host" validate:"required"`
-		Password string `yaml:"password" mapstructure:"password" validate:"required"`
-		Database string `yaml:"name" mapstructure:"name" validate:"required"`
-		Port     int    `yaml:"port" mapstructure:"port" validate:"required"`
+		Kind               StoreKind `yaml:"kind" mapstructure:"kind" validate:"required"`
+		User               string    `yaml:"username" mapstructure:"username" validate:"required"`
+		Host               string    `yaml:"host" mapstructure:"host" validate:"required"`
+		Password           string    `yaml:"password" mapstructure:"password" validate:"required"`
+		Database           string    `yaml:"name" mapstructure:"name" validate:"required"`
+		MaxOpenConnections int       `yaml:"max_open_connections" mapstructure:"max_open_connections" validate:"-"`
+		Port               int       `yaml:"port" mapstructure:"port" validate:"required"`
 	}
+
+	StoreKind string
 
 	GithubOAuth struct {
 		ClientID     string `yaml:"client_id" mapstructure:"client_id" validate:"required"`
@@ -162,6 +151,48 @@ type (
 		JWTSigningPubKey     *rsa.PublicKey  `yaml:"pub_key" mapstructure:"pub_key"`
 		Enabled              bool            `yaml:"enabled" mapstructure:"enabled"`
 	}
+
+	Otel struct {
+		Enabled bool `yaml:"enabled" mapstructure:"enabled"`
+	}
+
+	AxiomConfig struct {
+		Dataset        string `yaml:"dataset" mapstructure:"dataset"`
+		APIKey         string `yaml:"api_key" mapstructure:"api_key"`
+		OrganizationID string `yaml:"organization_id" mapstructure:"organization_id"`
+		Enabled        bool   `yaml:"enabled" mapstructure:"enabled"`
+	}
+
+	FluentBitConfig struct {
+		Endpoint   string `yaml:"endpoint" mapstructure:"endpoint"`
+		AuthMethod string `yaml:"auth_method" mapstructure:"auth_method"`
+		Username   string `yaml:"username" mapstructure:"username"`
+		Password   string `yaml:"password" mapstructure:"password"`
+		Enabled    bool   `yaml:"enabled" mapstructure:"enabled"`
+	}
+
+	Logging struct {
+		Axiom            AxiomConfig     `yaml:"axiom" mapstructure:"axiom"`
+		Level            string          `yaml:"level" mapstructure:"level"`
+		FluentBit        FluentBitConfig `yaml:"fluent_bit" mapstructure:"fluent_bit"`
+		Pretty           bool            `yaml:"pretty" mapstructure:"pretty"`
+		RemoteForwarding bool            `yaml:"remote_forwarding" mapstructure:"remote_forwarding"`
+		Enabled          bool            `yaml:"enabled" mapstructure:"enabled"`
+	}
+
+	Telemetry struct {
+		Logging Logging `yaml:"logging" mapstructure:"logging"`
+		Otel    Otel    `yaml:"otel" mapstructure:"otel"`
+		Enabled bool    `yaml:"enabled" mapstructure:"enabled"`
+	}
+)
+
+const (
+	StoreKindPostgres StoreKind = "postgres"
+	StoreKindSQLite   StoreKind = "sqlite"
+
+	MockStorageBackendMemMapped MockStorageBackend = iota + 1
+	MockStorageBackendFileBased
 )
 
 func (r *Registry) Address() string {
@@ -229,7 +260,7 @@ func translateError(err error, trans ut.Translator) error {
 
 func (sc *Store) Endpoint() string {
 	return fmt.Sprintf(
-		"postgres://%s:%s@%s:%d/%s?pool_max_conns=1000&sslmode=disable",
+		"postgres://%s:%s@%s:%d/%s?sslmode=disable",
 		sc.User, sc.Password, sc.Host, sc.Port, sc.Database,
 	)
 }
@@ -243,17 +274,6 @@ func (oc *OpenRegistryConfig) Endpoint() string {
 		return fmt.Sprintf("http://%s:%d", oc.Registry.Host, oc.Registry.Port)
 	case Production, Staging:
 		return fmt.Sprintf("https://%s", oc.Registry.DNSAddress)
-	case CI:
-		ciSysAddr := os.Getenv("CI_SYS_ADDR")
-		if ciSysAddr == "" {
-			log.Fatalln("missing required environment variable: CI_SYS_ADDR")
-		}
-
-		if oc.Registry.TLS.Enabled {
-			return fmt.Sprintf("https://%s", ciSysAddr)
-		}
-
-		return fmt.Sprintf("http://%s", ciSysAddr)
 	default:
 		return fmt.Sprintf("https://%s:%d", oc.Registry.Host, oc.Registry.Port)
 	}
@@ -295,8 +315,6 @@ func environmentFromString(env string) Environment {
 		return Staging
 	case Local.String():
 		return Local
-	case CI.String():
-		return CI
 	default:
 		panic("deployment environment is invalid, allowed values are: PRODUCTION, STAGING, LOCAL, and CI")
 	}
@@ -310,8 +328,6 @@ func (e Environment) String() string {
 		return "STAGING"
 	case Local:
 		return "LOCAL"
-	case CI:
-		return "CI"
 	default:
 		panic("deployment environment is invalid, allowed values are: PRODUCTION, STAGING, LOCAL, and CI")
 	}

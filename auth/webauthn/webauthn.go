@@ -2,17 +2,17 @@ package webauthn
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"log"
+	"strings"
 
 	"github.com/containerish/OpenRegistry/config"
-	"github.com/containerish/OpenRegistry/store/postgres"
+	webauthn_store "github.com/containerish/OpenRegistry/store/v1/webauthn"
 	"github.com/fatih/color"
 	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/go-webauthn/webauthn/webauthn"
-	"github.com/jackc/pgx/v4"
+	"github.com/google/uuid"
 )
 
 type (
@@ -36,12 +36,12 @@ type (
 		// or if the received data is invalid in FinishLogin/FinishRegistration.
 		// The client is responsible for calling this method because it's possible that all of the Webauthn APIs succeed but
 		// some custom logic fails which would require the client to rollback
-		RemoveSessionData(ctx context.Context, userId string) error
+		RemoveSessionData(ctx context.Context, userId uuid.UUID) error
 	}
 
 	webAuthnService struct {
 		cfg   *config.WebAuthnConfig
-		store postgres.WebAuthN
+		store webauthn_store.WebAuthnStore
 		core  *webauthn.WebAuthn
 	}
 )
@@ -115,7 +115,7 @@ type (
 //		        ┃                                        ┃                                       ┃
 //		        ┃                                        ┃                                       ┃
 //		        ┃                                        ┃                                       ┃
-func New(cfg *config.WebAuthnConfig, store postgres.WebAuthN) WebAuthnService {
+func New(cfg *config.WebAuthnConfig, store webauthn_store.WebAuthnStore) WebAuthnService {
 	if !cfg.Enabled {
 		color.Yellow("Webauthn: disabled")
 		return nil
@@ -165,8 +165,8 @@ func (wa *webAuthnService) BeginRegistration(
 	ctx context.Context,
 	user *WebAuthnUser,
 ) (*protocol.CredentialCreation, error) {
-	creds, err := wa.store.GetWebAuthNCredentials(ctx, user.Id)
-	if err != nil && errors.Unwrap(err) != pgx.ErrNoRows {
+	creds, err := wa.store.GetWebAuthnCredentials(ctx, user.ID)
+	if err != nil && !strings.Contains(err.Error(), "no rows in result set") {
 		return nil, err
 	}
 
@@ -196,9 +196,10 @@ func (wa *webAuthnService) BeginRegistration(
 	if err != nil {
 		return nil, fmt.Errorf("ERR_WEB_AUTHN_BEGIN_REGISTRATION: %w", err)
 	}
+
 	// store session data in DB
-	if err = wa.store.AddWebAuthSessionData(ctx, user.Id, sessionData, "registration"); err != nil {
-		return nil, err
+	if err = wa.store.AddWebAuthSessionData(ctx, user.ID, sessionData, "registration"); err != nil {
+		return nil, fmt.Errorf("ERR_WEB_AUTHN_ADD_SESSION: %w", err)
 	}
 
 	return credentialCreation, err
@@ -214,25 +215,25 @@ type FinishRegistrationOpts struct {
 // Also, user is responsible for handling the failed and successful states for this, i.e, This method does not commit
 // rollback your changes into the database. It only takes care of WebAuthn stuff
 func (wa *webAuthnService) FinishRegistration(ctx context.Context, opts *FinishRegistrationOpts) error {
-	sessionData, err := wa.store.GetWebAuthNSessionData(ctx, opts.User.Id, "registration")
+	sessionData, err := wa.store.GetWebAuthnSessionData(ctx, opts.User.ID, "registration")
 	if err != nil {
-		return err
+		return fmt.Errorf("ERR_WEBAUTHN_GET_SESSION: %w", err)
 	}
 
 	parsedResponse, err := protocol.ParseCredentialCreationResponseBody(opts.RequestBody)
 	if err != nil {
-		return err
+		return fmt.Errorf("ERR_WEBAUTHN_PARSE_CREATION_REQUEST: %w", err)
 	}
 
 	credentials, err := wa.core.CreateCredential(opts.User, *sessionData, parsedResponse)
 	if err != nil {
-		return err
+		return fmt.Errorf("ERR_WEBAUTHN_CREATE_CREDENTIAL: %w", err)
 	}
 
 	// append the credential to the User.credentials field
 	opts.User.AddWebAuthNCredential(credentials)
-	if err = wa.store.AddWebAuthNCredentials(ctx, opts.User.Id, credentials); err != nil {
-		return err
+	if err = wa.store.AddWebAuthnCredentials(ctx, opts.User.ID, credentials); err != nil {
+		return fmt.Errorf("ERR_WEBAUTHN_ADD_CREDENTIAL: %w", err)
 	}
 
 	return nil
@@ -247,7 +248,7 @@ func (wa *webAuthnService) BeginLogin(
 	ctx context.Context,
 	opts *BeginLoginOptions,
 ) (*protocol.CredentialAssertion, error) {
-	creds, err := wa.store.GetWebAuthNCredentials(ctx, opts.User.Id)
+	creds, err := wa.store.GetWebAuthnCredentials(ctx, opts.User.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -263,7 +264,7 @@ func (wa *webAuthnService) BeginLogin(
 		return nil, err
 	}
 
-	err = wa.store.AddWebAuthSessionData(ctx, opts.User.Id, sessionData, "authentication")
+	err = wa.store.AddWebAuthSessionData(ctx, opts.User.ID, sessionData, "authentication")
 	if err != nil {
 		return nil, err
 	}
@@ -271,7 +272,7 @@ func (wa *webAuthnService) BeginLogin(
 	return credentialAssertionOpts, nil
 }
 
-func (wa *webAuthnService) RemoveSessionData(ctx context.Context, userId string) error {
+func (wa *webAuthnService) RemoveSessionData(ctx context.Context, userId uuid.UUID) error {
 	return wa.store.RemoveWebAuthSessionData(ctx, userId)
 }
 
@@ -283,7 +284,7 @@ type FinishLoginOpts struct {
 // FinishLogin checks if begin login was performed successfully, parsed the request from the io.Reader,
 // and then validates that request. If all is good, then we return nil, anything else, causes it to return an error
 func (wa *webAuthnService) FinishLogin(ctx context.Context, opts *FinishLoginOpts) error {
-	sessionData, err := wa.store.GetWebAuthNSessionData(ctx, opts.User.Id, "authentication")
+	sessionData, err := wa.store.GetWebAuthnSessionData(ctx, opts.User.ID, "authentication")
 	if err != nil {
 		return fmt.Errorf("ERR_GET_WEBAUTHN_SESSION_DATA: %w", err)
 	}
@@ -292,7 +293,7 @@ func (wa *webAuthnService) FinishLogin(ctx context.Context, opts *FinishLoginOpt
 		return fmt.Errorf("ERR_PARSE_REQUEST_RESPONSE_BODY: %w", err)
 	}
 
-	creds, err := wa.store.GetWebAuthNCredentials(ctx, opts.User.Id)
+	creds, err := wa.store.GetWebAuthnCredentials(ctx, opts.User.ID)
 	if err != nil {
 		return fmt.Errorf("ERR_GET_WEBAUTHN_CREDENTIALS: %w", err)
 	}

@@ -3,8 +3,8 @@ package vcs
 import (
 	"context"
 
-	"github.com/containerish/OpenRegistry/types"
-	pgx "github.com/jackc/pgx/v4"
+	"github.com/containerish/OpenRegistry/store/v1/types"
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 )
 
@@ -23,8 +23,8 @@ type VCS interface {
 }
 
 type VCSStore interface {
-	GetUserById(ctx context.Context, userId string, wihtPassword bool, txn pgx.Tx) (*types.User, error)
-	UpdateUser(ctx context.Context, u *types.User) error
+	GetUserByID(ctx context.Context, userId uuid.UUID) (*types.User, error)
+	UpdateUser(ctx context.Context, u *types.User) (*types.User, error)
 }
 
 type Repository struct {

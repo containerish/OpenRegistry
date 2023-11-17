@@ -5,8 +5,9 @@ import (
 	"fmt"
 
 	connect_go "github.com/bufbuild/connect-go"
+	common_v1 "github.com/containerish/OpenRegistry/common/v1"
 	v1 "github.com/containerish/OpenRegistry/services/kon/github_actions/v1"
-	"github.com/containerish/OpenRegistry/types"
+	"github.com/containerish/OpenRegistry/store/v1/types"
 	"github.com/google/go-github/v50/github"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -133,7 +134,8 @@ func (gha *GitHubActionsServer) GetBuildJob(
 		ctx,
 		user.Identities.GetGitHubIdentity().Username,
 		req.Msg.GetRepo(),
-		req.Msg.GetJobId(),
+		0,
+		// req.Msg.GetJobId(),
 	)
 	if err != nil {
 		logEvent.Err(err).Send()
@@ -141,7 +143,7 @@ func (gha *GitHubActionsServer) GetBuildJob(
 	}
 
 	resp := connect_go.NewResponse(&v1.GetBuildJobResponse{
-		Id:          job.GetID(),
+		// Id:          job.GetID(),
 		LogsUrl:     job.GetLogsURL(),
 		Status:      job.GetStatus(),
 		TriggeredBy: job.GetActor().GetLogin(),
@@ -149,7 +151,7 @@ func (gha *GitHubActionsServer) GetBuildJob(
 		Branch:      job.GetHeadBranch(),
 		CommitHash:  job.GetHeadCommit().GetSHA(),
 		TriggeredAt: timestamppb.New(job.GetCreatedAt().UTC()),
-		OwnerId:     job.GetRepository().GetOwner().GetLogin(),
+		// OwnerId:     job.GetRepository().GetOwner().GetLogin(),
 	})
 
 	logEvent.Bool("success", true).Send()
@@ -178,12 +180,10 @@ func (gha *GitHubActionsServer) ListBuildJobs(
 		user.Identities.GetGitHubIdentity().Username,
 		req.Msg.GetRepo(),
 		&github.ListWorkflowRunsOptions{
-			// Branch:      "openregistry-build-automation",
 			ListOptions: github.ListOptions{Page: 0, PerPage: 75},
 		},
 	)
 
-	// jobs, err := gha.store.ListBuildJobs(ctx, req.Msg)
 	if err != nil {
 		logEvent.Err(err).Any("request_body", req.Msg).Send()
 		return nil, connect_go.NewError(connect_go.CodeInternal, err)
@@ -194,7 +194,7 @@ func (gha *GitHubActionsServer) ListBuildJobs(
 	for _, job := range ghaJobs.WorkflowRuns {
 		if job.GetID() > 0 && job.GetName() == "Build Container Image" {
 			jobs = append(jobs, &v1.GetBuildJobResponse{
-				Id:          job.GetID(),
+				// Id:          job.GetID(),
 				LogsUrl:     job.GetLogsURL(),
 				Status:      job.GetStatus(),
 				TriggeredBy: job.GetActor().GetLogin(),
@@ -202,7 +202,9 @@ func (gha *GitHubActionsServer) ListBuildJobs(
 				Branch:      job.GetHeadBranch(),
 				CommitHash:  job.GetHeadCommit().GetSHA(),
 				TriggeredAt: timestamppb.New(job.GetCreatedAt().UTC()),
-				OwnerId:     user.Id,
+				RepositoryId: &common_v1.UUID{
+					Value: fmt.Sprintf("%d", job.GetRepository().GetID()),
+				},
 			})
 		}
 	}
@@ -258,7 +260,8 @@ func (gha *GitHubActionsServer) TriggerBuild(
 		ctx,
 		user.Identities.GetGitHubIdentity().Username,
 		req.Msg.GetRepo(),
-		req.Msg.GetRunId(),
+		0,
+		// req.Msg.GetRunId(),
 	)
 
 	if err != nil {

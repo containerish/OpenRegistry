@@ -3,7 +3,7 @@ package email
 import (
 	"fmt"
 
-	"github.com/containerish/OpenRegistry/types"
+	"github.com/containerish/OpenRegistry/store/v1/types"
 	"github.com/sendgrid/sendgrid-go/helpers/mail"
 )
 

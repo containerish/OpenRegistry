@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"path"
 	"strconv"
 	"strings"
@@ -16,15 +17,17 @@ import (
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/containerish/OpenRegistry/config"
 	dfsImpl "github.com/containerish/OpenRegistry/dfs"
-	"github.com/containerish/OpenRegistry/store/postgres"
+	store_v2 "github.com/containerish/OpenRegistry/store/v1/registry"
+	types_v2 "github.com/containerish/OpenRegistry/store/v1/types"
 	"github.com/containerish/OpenRegistry/telemetry"
 	"github.com/containerish/OpenRegistry/types"
 	"github.com/labstack/echo/v4"
-	"github.com/opencontainers/go-digest"
+	oci_digest "github.com/opencontainers/go-digest"
+	img_spec_v1 "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 func NewRegistry(
-	pgStore postgres.PersistentStore,
+	pgStore store_v2.RegistryStore,
 	dfs dfsImpl.DFS,
 	logger telemetry.Logger,
 	config *config.OpenRegistryConfig,
@@ -64,9 +67,9 @@ func (r *registry) LayerExists(ctx echo.Context) error {
 	return r.b.HEAD(ctx)
 }
 
-// ManifestExists
+// References:
+// - https://github.com/opencontainers/distribution-spec/blob/main/spec.md#checking-if-content-exists-in-the-registry
 // HEAD /v2/<name>/manifests/<reference>
-// OK
 func (r *registry) ManifestExists(ctx echo.Context) error {
 	ctx.Set(types.HandlerStartTime, time.Now())
 
@@ -76,8 +79,9 @@ func (r *registry) ManifestExists(ctx echo.Context) error {
 	manifest, err := r.store.GetManifestByReference(ctx.Request().Context(), namespace, ref)
 	if err != nil {
 		details := echo.Map{
-			"error":   err.Error(),
-			"message": "DFS - manifest not found",
+			"error":     err.Error(),
+			"message":   "manifest not found",
+			"reference": ref,
 		}
 
 		errMsg := r.errorResponse(RegistryErrorCodeManifestBlobUnknown, err.Error(), details)
@@ -85,37 +89,12 @@ func (r *registry) ManifestExists(ctx echo.Context) error {
 		return ctx.NoContent(http.StatusNotFound)
 	}
 
-	metadata, err := r.dfs.Metadata(GetManifestIdentifier(namespace, manifest.Reference))
-	if err != nil {
-		detail := map[string]interface{}{
-			"error":   err.Error(),
-			"dfsLink": manifest.DFSLink,
-		}
-
-		errMsg := r.errorResponse(RegistryErrorCodeManifestBlobUnknown, "Manifest does not exist", detail)
-		echoErr := ctx.JSONBlob(http.StatusNotFound, errMsg)
-		r.logger.Log(ctx, fmt.Errorf("%s", errMsg)).Send()
-		return echoErr
-	}
-
-	if manifest.Reference != ref && manifest.Digest != ref {
-		details := map[string]interface{}{
-			"storedDigest": manifest.Digest,
-			"clientDigest": ref,
-		}
-		errMsg := r.errorResponse(RegistryErrorCodeManifestInvalid, "manifest digest does not match", details)
-		echoErr := ctx.JSONBlob(http.StatusBadRequest, errMsg)
-		r.logger.Log(ctx, fmt.Errorf("%s", errMsg)).Send()
-		return echoErr
-	}
-
-	ctx.Response().Header().Set("Content-Type", "application/json")
-	ctx.Response().Header().Set("Content-Length", fmt.Sprintf("%d", metadata.ContentLength))
+	ctx.Response().Header().Set("Content-Length", fmt.Sprintf("%d", manifest.Size))
 	ctx.Response().Header().Set("Docker-Content-Digest", manifest.Digest)
-	ctx.Response().WriteHeader(http.StatusOK)
+	echoErr := ctx.NoContent(http.StatusOK)
 	r.logger.Log(ctx, nil).Send()
 	// nil is okay here since all the required information has been set above
-	return nil
+	return echoErr
 }
 
 // Catalog - The list of available repositories is made available through the catalog.
@@ -127,8 +106,8 @@ func (r *registry) Catalog(ctx echo.Context) error {
 	queryParamPageSize := ctx.QueryParam("n")
 	queryParamOffset := ctx.QueryParam("last")
 	namespace := ctx.QueryParam("ns")
-	var pageSize int64
-	var offset int64
+	var pageSize int
+	var offset int
 	if queryParamPageSize != "" {
 		ps, err := strconv.ParseInt(ctx.QueryParam("n"), 10, 64)
 		if err != nil {
@@ -138,7 +117,7 @@ func (r *registry) Catalog(ctx echo.Context) error {
 			r.logger.Log(ctx, err).Send()
 			return echoErr
 		}
-		pageSize = ps
+		pageSize = int(ps)
 	}
 
 	if queryParamOffset != "" {
@@ -150,7 +129,7 @@ func (r *registry) Catalog(ctx echo.Context) error {
 			r.logger.Log(ctx, err).Send()
 			return echoErr
 		}
-		offset = o
+		offset = int(o)
 	}
 
 	catalogList, err := r.store.GetCatalog(ctx.Request().Context(), namespace, pageSize, offset)
@@ -223,13 +202,22 @@ func (r *registry) List(ctx echo.Context) error {
 	return fmt.Errorf("not implemented")
 }
 
-// PullManifest
+// Reference: https://github.com/opencontainers/distribution-spec/blob/main/spec.md#pulling-manifests
 // GET /v2/<name>/manifests/<reference>
-// OK
 func (r *registry) PullManifest(ctx echo.Context) error {
 	ctx.Set(types.HandlerStartTime, time.Now())
+
 	namespace := ctx.Get(string(RegistryNamespace)).(string)
 	ref := ctx.Param("reference")
+
+	if strings.HasPrefix(ref, "sha256:") {
+		if _, err := oci_digest.Parse(ref); err != nil {
+			errMsg := r.errorResponse(RegistryErrorCodeDigestInvalid, err.Error(), nil)
+			echoErr := ctx.JSONBlob(http.StatusBadRequest, errMsg)
+			r.logger.Log(ctx, fmt.Errorf("%s", errMsg)).Send()
+			return echoErr
+		}
+	}
 
 	manifest, err := r.store.GetManifestByReference(ctx.Request().Context(), namespace, ref)
 	if err != nil {
@@ -238,32 +226,12 @@ func (r *registry) PullManifest(ctx echo.Context) error {
 		r.logger.Log(ctx, fmt.Errorf("%s", errMsg)).Send()
 		return echoErr
 	}
-	resp, err := r.dfs.Download(ctx.Request().Context(), GetManifestIdentifier(namespace, manifest.Reference))
-	if err != nil {
-		errMsg := r.errorResponse(RegistryErrorCodeManifestInvalid, err.Error(), echo.Map{
-			"message": "manifest download failed",
-		})
-		echoErr := ctx.JSONBlob(http.StatusNotFound, errMsg)
-		r.logger.Log(ctx, fmt.Errorf("%s", errMsg))
-		return echoErr
-	}
-	defer resp.Close()
 
-	var buf bytes.Buffer
-	if _, err = buf.ReadFrom(resp); err != nil {
-		errMsg := r.errorResponse(RegistryErrorCodeManifestBlobUnknown, err.Error(), echo.Map{
-			"message": "error reading manifest contents",
-		})
-		echoErr := ctx.JSONBlob(http.StatusNotFound, errMsg)
-		r.logger.Log(ctx, fmt.Errorf("%s", errMsg)).Send()
-		return echoErr
-	}
-
+	trimmedMf := manifest.ToOCISubject()
 	ctx.Response().Header().Set("Docker-Content-Digest", manifest.Digest)
-	ctx.Response().Header().Set("X-Docker-Content-ID", manifest.DFSLink)
 	ctx.Response().Header().Set("Content-Type", manifest.MediaType)
-	ctx.Response().Header().Set("Content-Length", fmt.Sprintf("%d", buf.Len()))
-	echoErr := ctx.JSONBlob(http.StatusOK, buf.Bytes())
+	ctx.Response().Header().Set("Content-Length", fmt.Sprintf("%d", len(trimmedMf)))
+	echoErr := ctx.JSONBlob(http.StatusOK, trimmedMf)
 	r.logger.Log(ctx, nil).Send()
 	return echoErr
 }
@@ -293,7 +261,7 @@ func (r *registry) PullLayer(ctx echo.Context) error {
 		return echoErr
 	}
 
-	size, err := r.dfs.Metadata(GetLayerIdentifier(layer.UUID))
+	size, err := r.dfs.Metadata(GetLayerIdentifier(layer.ID))
 	if err != nil {
 		detail := map[string]interface{}{
 			"error":          err.Error(),
@@ -310,7 +278,7 @@ func (r *registry) PullLayer(ctx echo.Context) error {
 	ctx.Response().Header().Set("Docker-Content-Digest", layer.Digest)
 	ctx.Response().Header().Set("status", "307")
 
-	downloadableURL, err := r.getDownloadableURLFromDFSLink(layer.UUID)
+	downloadableURL, err := r.getDownloadableURLFromDFSLink(layer.ID)
 	if err != nil {
 		errMsg := r.errorResponse(RegistryErrorCodeBlobUnknown, err.Error(), nil)
 		echoErr := ctx.JSONBlob(http.StatusInternalServerError, errMsg)
@@ -336,7 +304,7 @@ func (r *registry) MonolithicUpload(ctx echo.Context) error {
 		return echoErr
 	}
 	defer ctx.Request().Body.Close()
-	computedDigest := digest.FromBytes(buf.Bytes())
+	computedDigest := oci_digest.FromBytes(buf.Bytes())
 
 	if computedDigest.String() != imageDigest {
 		details := map[string]interface{}{
@@ -369,15 +337,14 @@ func (r *registry) MonolithicUpload(ctx echo.Context) error {
 		return echoErr
 	}
 
-	layerV2 := &types.LayerV2{
-		MediaType:   ctx.Request().Header.Get("content-type"),
-		Digest:      imageDigest,
-		DFSLink:     dfsLink,
-		UUID:        uuid,
-		BlobDigests: nil,
-		Size:        buf.Len(),
-		CreatedAt:   time.Now(),
-		UpdatedAt:   time.Now(),
+	layerV2 := &types_v2.ContainerImageLayer{
+		MediaType: ctx.Request().Header.Get("content-type"),
+		Digest:    imageDigest,
+		DFSLink:   dfsLink,
+		ID:        uuid,
+		Size:      uint64(buf.Len()),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
 	}
 
 	txnOp, err := r.store.NewTxn(ctx.Request().Context())
@@ -458,7 +425,7 @@ func (r *registry) StartUpload(ctx echo.Context) error {
 		return echoErr
 	}
 
-	txn, err := r.store.NewTxn(ctx.Request().Context())
+	txn, err := r.store.NewTxn(context.Background())
 	if err != nil {
 		errMsg := r.errorResponse(
 			RegistryErrorCodeUnknown,
@@ -522,7 +489,7 @@ func (r *registry) UploadProgress(ctx echo.Context) error {
 func (r *registry) MonolithicPut(ctx echo.Context) error {
 	ctx.Set(types.HandlerStartTime, time.Now())
 
-	dig := ctx.QueryParam("digest")
+	digest := ctx.QueryParam("digest")
 	identifier := ctx.Param("uuid")
 	layerKey := GetLayerIdentifierFromTrakcingID(identifier)
 	uploadID := GetUploadIDFromTrakcingID(identifier)
@@ -535,7 +502,7 @@ func (r *registry) MonolithicPut(ctx echo.Context) error {
 		return echoErr
 	}
 	defer ctx.Request().Body.Close()
-	ourHash := digest.FromBytes(buf.Bytes())
+	ourHash := oci_digest.FromBytes(buf.Bytes())
 
 	dfsLink, err := r.dfs.Upload(ctx.Request().Context(), GetLayerIdentifier(layerKey), ourHash.String(), buf.Bytes())
 	if err != nil {
@@ -553,15 +520,13 @@ func (r *registry) MonolithicPut(ctx echo.Context) error {
 		return echoErr
 	}
 
-	layer := &types.LayerV2{
-		MediaType:   ctx.Request().Header.Get("content-type"),
-		Digest:      dig,
-		DFSLink:     dfsLink,
-		UUID:        layerKey,
-		BlobDigests: txnOp.blobDigests,
-		Size:        buf.Len(),
-		CreatedAt:   time.Now(),
-		UpdatedAt:   time.Now(),
+	layer := &types_v2.ContainerImageLayer{
+		CreatedAt: time.Now(),
+		ID:        layerKey,
+		Digest:    digest,
+		MediaType: ctx.Request().Header.Get("content-type"),
+		DFSLink:   dfsLink,
+		Size:      uint64(buf.Len()),
 	}
 
 	if err = r.store.SetLayer(ctx.Request().Context(), txnOp.txn, layer); err != nil {
@@ -607,7 +572,7 @@ func (r *registry) MonolithicPut(ctx echo.Context) error {
 func (r *registry) CompleteUpload(ctx echo.Context) error {
 	ctx.Set(types.HandlerStartTime, time.Now())
 
-	dig := ctx.QueryParam("digest")
+	digest := ctx.QueryParam("digest")
 	namespace := ctx.Get(string(RegistryNamespace)).(string)
 	identifier := ctx.Param("uuid")
 	layerKey := GetLayerIdentifierFromTrakcingID(identifier)
@@ -625,7 +590,7 @@ func (r *registry) CompleteUpload(ctx echo.Context) error {
 		return echoErr
 	}
 	defer ctx.Request().Body.Close()
-	checksum := digest.FromBytes(buf.Bytes())
+	checksum := oci_digest.FromBytes(buf.Bytes())
 
 	if buf.Len() > 0 {
 		r.b.blobCounter[uploadID]++
@@ -647,6 +612,7 @@ func (r *registry) CompleteUpload(ctx echo.Context) error {
 
 		r.mu.Lock()
 		r.b.layerParts[uploadID] = append(r.b.layerParts[uploadID], part)
+		r.b.layerLengthCounter[uploadID] += int64(buf.Len())
 		r.mu.Unlock()
 	}
 
@@ -654,7 +620,7 @@ func (r *registry) CompleteUpload(ctx echo.Context) error {
 		ctx.Request().Context(),
 		uploadID,
 		GetLayerIdentifier(layerKey),
-		dig,
+		digest,
 		r.b.layerParts[uploadID],
 	)
 	r.mu.Lock()
@@ -681,27 +647,13 @@ func (r *registry) CompleteUpload(ctx echo.Context) error {
 		return echoErr
 	}
 
-	metadata, err := r.dfs.Metadata(GetLayerIdentifier(layerKey))
-	if err != nil {
-		errMsg := r.errorResponse(RegistryErrorCodeBlobUploadInvalid, err.Error(), echo.Map{
-			"reason": "ERR_DFS_FETCH_METADATA",
-			"error":  err.Error(),
-		})
-
-		echoErr := ctx.JSONBlob(http.StatusRequestedRangeNotSatisfiable, errMsg)
-		r.logger.Log(ctx, fmt.Errorf("%s", errMsg)).Send()
-		return echoErr
-	}
-
-	layer := &types.LayerV2{
-		MediaType:   ctx.Request().Header.Get("content-type"),
-		Digest:      dig,
-		DFSLink:     dfsLink,
-		UUID:        layerKey,
-		BlobDigests: txnOp.blobDigests,
-		Size:        metadata.ContentLength,
-		CreatedAt:   time.Now(),
-		UpdatedAt:   time.Now(),
+	layer := &types_v2.ContainerImageLayer{
+		MediaType: ctx.Request().Header.Get("content-type"),
+		Digest:    digest,
+		DFSLink:   dfsLink,
+		ID:        layerKey,
+		Size:      uint64(r.b.layerLengthCounter[uploadID]),
+		CreatedAt: time.Now(),
 	}
 
 	if err := r.store.SetLayer(ctx.Request().Context(), txnOp.txn, layer); err != nil {
@@ -741,16 +693,63 @@ func (r *registry) PushImage(ctx echo.Context) error {
 	return nil
 }
 
+// References:
+// - https://github.com/opencontainers/distribution-spec/blob/main/spec.md#pushing-manifests
+// - https://github.com/opencontainers/distribution-spec/blob/main/spec.md#pushing-manifests-with-subject
+// - https://github.com/opencontainers/image-spec/blob/main/manifest.md#image-manifest-property-descriptions
+// Method: PUT
+// Path: /v2/<namespace>/manifests/<reference>
 func (r *registry) PushManifest(ctx echo.Context) error {
 	ctx.Set(types.HandlerStartTime, time.Now())
 
 	namespace := ctx.Get(string(RegistryNamespace)).(string)
 	ref := ctx.Param("reference")
-	contentType := ctx.Request().Header.Get("Content-Type")
 
-	var manifest ImageManifest
+	user, err := r.GetUserFromCtx(ctx)
+	if err != nil {
+		errMsg := r.errorResponse(RegistryErrorCodeUnknown, err.Error(), echo.Map{
+			"message": "Unauthorized",
+		})
+
+		echoErr := ctx.JSONBlob(http.StatusUnauthorized, errMsg)
+		r.logger.Log(ctx, err).Send()
+		return echoErr
+	}
+
+	repository := r.GetRepositoryFromCtx(ctx)
+	repositoryExists := r.store.RepositoryExists(ctx.Request().Context(), strings.Split(namespace, "/")[1])
+	if repository == nil || !repositoryExists {
+		repositoryID, idErr := NewUUID()
+		if idErr != nil {
+			errMsg := r.errorResponse(RegistryErrorCodeUnknown, idErr.Error(), echo.Map{
+				"reason": "ERR_CREATE_UNIQUE_REPOSITORY_IDENTIFIER",
+			})
+			echoErr := ctx.JSONBlob(http.StatusInternalServerError, errMsg)
+			r.logger.Log(ctx, fmt.Errorf("%s", errMsg)).Send()
+			return echoErr
+
+		}
+
+		repository = &types_v2.ContainerImageRepository{
+			CreatedAt:  time.Now(),
+			OwnerID:    user.ID,
+			ID:         repositoryID,
+			Name:       strings.Split(namespace, "/")[1],
+			Visibility: types_v2.RepositoryVisibilityPrivate,
+		}
+		idErr = r.store.CreateRepository(ctx.Request().Context(), repository)
+		if idErr != nil {
+			echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
+				"error":   idErr.Error(),
+				"message": "error creating new repository",
+			})
+			r.logger.Log(ctx, idErr).Send()
+			return echoErr
+		}
+	}
+
 	buf := &bytes.Buffer{}
-	_, err := io.Copy(buf, ctx.Request().Body)
+	_, err = io.Copy(buf, ctx.Request().Body)
 	if err != nil {
 		return ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error":   err.Error(),
@@ -759,29 +758,9 @@ func (r *registry) PushManifest(ctx echo.Context) error {
 	}
 	defer ctx.Request().Body.Close()
 
-	err = json.Unmarshal(buf.Bytes(), &manifest)
-	if err != nil {
-		errMsg := r.errorResponse(RegistryErrorCodeBlobUnknown, err.Error(), nil)
-		echoErr := ctx.JSONBlob(http.StatusBadRequest, errMsg)
-		r.logger.Log(ctx, fmt.Errorf("%s", errMsg)).Send()
-		return echoErr
-	}
+	digest := oci_digest.FromBytes(buf.Bytes())
 
-	dig := digest.FromBytes(buf.Bytes())
-	dfsLink, err := r.dfs.Upload(ctx.Request().Context(), GetManifestIdentifier(namespace, ref), dig.String(), buf.Bytes())
-	if err != nil {
-		errMsg := r.errorResponse(RegistryErrorCodeManifestBlobUnknown, err.Error(), nil)
-		echoErr := ctx.JSONBlob(http.StatusNotFound, errMsg)
-		r.logger.Log(ctx, fmt.Errorf("%s", errMsg)).Send()
-		return echoErr
-	}
-
-	var layerIDs []string
-	for _, layer := range manifest.Layers {
-		layerIDs = append(layerIDs, layer.Digest)
-	}
-
-	uuid, err := CreateIdentifier()
+	uuid, err := NewUUID()
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error": err.Error(),
@@ -791,26 +770,36 @@ func (r *registry) PushManifest(ctx echo.Context) error {
 		return echoErr
 	}
 
-	mfc := types.ConfigV2{
-		UUID:      uuid,
-		Namespace: namespace,
-		Reference: ref,
-		Digest:    dig.String(),
-		DFSLink:   dfsLink,
-		MediaType: contentType,
-		Layers:    layerIDs,
-		Size:      0,
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+	manifest := types_v2.ImageManifest{
+		CreatedAt:    time.Now(),
+		ID:           uuid,
+		RepositoryID: repository.ID,
+		OwnerID:      user.ID,
+		Digest:       digest.String(),
+		Reference:    ref,
+		Size:         0,
 	}
 
-	val := &types.ImageManifestV2{
-		Uuid:          uuid,
-		Namespace:     namespace,
-		MediaType:     contentType,
-		SchemaVersion: 2,
-		CreatedAt:     time.Now(),
-		UpdatedAt:     time.Now(),
+	if err = json.Unmarshal(buf.Bytes(), &manifest); err != nil {
+		errMsg := r.errorResponse(RegistryErrorCodeBlobUnknown, err.Error(), nil)
+		echoErr := ctx.JSONBlob(http.StatusBadRequest, errMsg)
+		r.logger.Log(ctx, fmt.Errorf("%s", errMsg)).Send()
+		return echoErr
+	}
+
+	if manifest.MediaType == "" {
+		manifest.MediaType = img_spec_v1.MediaTypeImageManifest
+	}
+
+	var layerIDs []string
+
+	for _, layer := range manifest.Layers {
+		layerIDs = append(layerIDs, layer.Digest.String())
+	}
+
+	size, err := r.store.GetImageSizeByLayerIds(ctx.Request().Context(), layerIDs)
+	if err == nil {
+		manifest.Size = size
 	}
 
 	txnOp, err := r.store.NewTxn(context.Background())
@@ -824,16 +813,10 @@ func (r *registry) PushManifest(ctx echo.Context) error {
 		return echoErr
 	}
 
-	if err = r.store.SetManifest(ctx.Request().Context(), txnOp, val); err != nil {
-		errMsg := r.errorResponse(RegistryErrorCodeUnknown, err.Error(), nil)
-		_ = r.store.Abort(ctx.Request().Context(), txnOp)
-		echoErr := ctx.JSONBlob(http.StatusBadRequest, errMsg)
-		r.logger.Log(ctx, fmt.Errorf("%s", errMsg)).Send()
-		return echoErr
-	}
-
-	if err = r.store.SetConfig(ctx.Request().Context(), txnOp, mfc); err != nil {
-		errMsg := r.errorResponse(RegistryErrorCodeUnknown, err.Error(), nil)
+	if err = r.store.SetManifest(ctx.Request().Context(), txnOp, &manifest); err != nil {
+		errMsg := r.errorResponse(RegistryErrorCodeUnknown, err.Error(), echo.Map{
+			"message": "invalid input provided",
+		})
 		_ = r.store.Abort(ctx.Request().Context(), txnOp)
 		echoErr := ctx.JSONBlob(http.StatusBadRequest, errMsg)
 		r.logger.Log(ctx, fmt.Errorf("%s", errMsg)).Send()
@@ -850,13 +833,26 @@ func (r *registry) PushManifest(ctx echo.Context) error {
 		return echoErr
 	}
 
-	locationHeader := fmt.Sprintf("https://openregsitry-test.s3.amazonaws.com/%s", dfsLink)
-	ctx.Response().Header().Set("Location", locationHeader)
-	ctx.Response().Header().Set("Docker-Content-Digest", dig.String())
-	ctx.Response().Header().Set("X-Docker-Content-ID", dfsLink)
-	echoErr := ctx.String(http.StatusCreated, "Created")
+	r.setPushManifestHaeders(ctx, namespace, ref, digest.String(), &manifest)
+	echoErr := ctx.NoContent(http.StatusCreated)
 	r.logger.Log(ctx, echoErr).Send()
 	return echoErr
+}
+
+func (r *registry) setPushManifestHaeders(
+	ctx echo.Context,
+	namespace, ref, digest string,
+	manifest *types_v2.ImageManifest,
+) {
+	locationHeader := fmt.Sprintf("%s/v2/%s/manifests/%s", r.config.Endpoint(), namespace, ref)
+	ctx.Response().Header().Set("Location", locationHeader)
+	ctx.Response().Header().Set("Docker-Content-Digest", digest)
+	ctx.Response().Header().Set("Content-Type", manifest.MediaType)
+
+	// set OCI-Subject header if we get a manifest with a subject
+	if manifest.Subject != nil {
+		ctx.Response().Header().Set("OCI-Subject", manifest.Subject.Digest.String())
+	}
 }
 
 // PushLayer
@@ -915,8 +911,7 @@ func (r *registry) DeleteTagOrManifest(ctx echo.Context) error {
 			ref = reqURI[5]
 		}
 	}
-	txnOp, _ := r.store.NewTxn(context.Background())
-	if err := r.store.DeleteManifestOrTag(ctx.Request().Context(), txnOp, ref); err != nil {
+	if err := r.store.DeleteManifestOrTag(ctx.Request().Context(), ref); err != nil {
 		details := map[string]interface{}{
 			"namespace": namespace,
 			"digest":    ref,
@@ -927,27 +922,18 @@ func (r *registry) DeleteTagOrManifest(ctx echo.Context) error {
 		return echoErr
 	}
 
-	err := r.store.Commit(ctx.Request().Context(), txnOp)
 	echoErr := ctx.NoContent(http.StatusAccepted)
-	r.logger.Log(ctx, err).Send()
+	r.logger.Log(ctx, echoErr).Send()
 	return echoErr
 }
 
 func (r *registry) DeleteLayer(ctx echo.Context) error {
 	ctx.Set(types.HandlerStartTime, time.Now())
 
-	dig := ctx.Param("digest")
-	layer, err := r.store.GetLayer(ctx.Request().Context(), dig)
-	if err != nil {
-		errMsg := r.errorResponse(RegistryErrorCodeBlobUnknown, err.Error(), nil)
-		echoErr := ctx.JSONBlob(http.StatusNotFound, errMsg)
-		r.logger.Log(ctx, fmt.Errorf("%s", errMsg)).Send()
-		return echoErr
-	}
-	blobs := layer.BlobDigests
+	digest := ctx.Param("digest")
 
 	txnOp, _ := r.store.NewTxn(context.Background())
-	err = r.store.DeleteLayerV2(ctx.Request().Context(), txnOp, dig)
+	err := r.store.DeleteLayerByDigestWithTxn(ctx.Request().Context(), txnOp, digest)
 	if err != nil {
 		errMsg := r.errorResponse(RegistryErrorCodeBlobUnknown, err.Error(), nil)
 		echoErr := ctx.JSONBlob(http.StatusInternalServerError, errMsg)
@@ -955,14 +941,6 @@ func (r *registry) DeleteLayer(ctx echo.Context) error {
 		return echoErr
 	}
 
-	for i := range blobs {
-		if err = r.store.DeleteBlobV2(ctx.Request().Context(), txnOp, blobs[i]); err != nil {
-			errMsg := r.errorResponse(RegistryErrorCodeBlobUnknown, err.Error(), nil)
-			echoErr := ctx.JSONBlob(http.StatusInternalServerError, errMsg)
-			r.logger.Log(ctx, fmt.Errorf("%s", errMsg)).Send()
-			return echoErr
-		}
-	}
 	err = r.store.Commit(ctx.Request().Context(), txnOp)
 	echoErr := ctx.NoContent(http.StatusAccepted)
 	r.logger.Log(ctx, err).Send()
@@ -972,11 +950,16 @@ func (r *registry) DeleteLayer(ctx echo.Context) error {
 // Should also look into 401 Code
 // https://docs.docker.com/registry/spec/api/
 func (r *registry) ApiVersion(ctx echo.Context) error {
+	ctx.Set(types.HandlerStartTime, time.Now())
+
 	ctx.Response().Header().Set(HeaderDockerDistributionApiVersion, "registry/2.0")
-	return ctx.String(http.StatusOK, "OK\n")
+	echoErr := ctx.String(http.StatusOK, "OK\n")
+	r.logger.Log(ctx, nil).Send()
+	return echoErr
 }
 
 func (r *registry) GetImageNamespace(ctx echo.Context) error {
+	ctx.Set(types.HandlerStartTime, time.Now())
 
 	searchQuery := ctx.QueryParam("search_query")
 	if searchQuery == "" {
@@ -1005,4 +988,70 @@ func (r *registry) GetImageNamespace(ctx echo.Context) error {
 		"repositories": result,
 		"total":        total,
 	})
+}
+
+func (r *registry) GetUserFromCtx(ctx echo.Context) (*types_v2.User, error) {
+	user, ok := ctx.Get(string(types_v2.UserContextKey)).(*types_v2.User)
+	if !ok {
+		return nil, fmt.Errorf("ERR_USER_NOT_PRESENT_IN_REQUEST_CTX")
+	}
+
+	return user, nil
+}
+
+func (r *registry) GetRepositoryFromCtx(ctx echo.Context) *types_v2.ContainerImageRepository {
+	if repository, ok := ctx.Get(string(types_v2.UserRepositoryContextKey)).(*types_v2.ContainerImageRepository); ok {
+		return repository
+	}
+	return nil
+}
+
+// Reference:
+// - https://github.com/opencontainers/distribution-spec/blob/main/spec.md#enabling-the-referrers-api
+// - https://github.com/opencontainers/distribution-spec/blob/main/spec.md#listing-referrers
+func (r *registry) ListReferrers(ctx echo.Context) error {
+	ctx.Set(types.HandlerStartTime, time.Now())
+
+	namespace := ctx.Get(string(RegistryNamespace)).(string)
+	digest := ctx.Param("digest")
+	artifactType := ctx.QueryParams().Get("artifactType")
+
+	_, err := oci_digest.Parse(digest)
+	if err != nil {
+		errMsg := r.errorResponse(RegistryErrorCodeDigestInvalid, err.Error(), nil)
+		echoErr := ctx.JSONBlob(http.StatusBadRequest, errMsg)
+		r.logger.Log(ctx, fmt.Errorf("%s", errMsg)).Send()
+		return echoErr
+	}
+
+	var filterValues []string
+	if artifactType != "" {
+		parts := strings.Split(artifactType, ",")
+		for _, p := range parts {
+			if filter, decodeErr := url.QueryUnescape(p); decodeErr == nil {
+				filterValues = append(filterValues, filter)
+			}
+		}
+		ctx.Response().Header().Set("OCI-Filters-Applied", "artifactType")
+	}
+
+	ctx.Response().Header().Set("content-type", img_spec_v1.MediaTypeImageIndex)
+	refIndex, err := r.store.GetReferrers(ctx.Request().Context(), namespace, digest, filterValues)
+	if err != nil {
+		echoErr := ctx.JSON(http.StatusOK, refIndex)
+		r.logger.Log(ctx, err).
+			Bool("referrersFound", false).
+			Str("artifactType", artifactType).
+			Str("digest", digest).
+			Send()
+		return echoErr
+	}
+
+	echoErr := ctx.JSON(http.StatusOK, refIndex)
+	r.logger.Log(ctx, nil).
+		Bool("referrersFound", true).
+		Str("artifactType", artifactType).
+		Str("digest", digest).
+		Send()
+	return echoErr
 }

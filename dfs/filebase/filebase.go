@@ -7,14 +7,13 @@ import (
 	"io"
 	"time"
 
-	"github.com/SkynetLabs/go-skynet/v2"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/containerish/OpenRegistry/config"
 	"github.com/containerish/OpenRegistry/dfs"
-	"github.com/containerish/OpenRegistry/types"
-	"github.com/opencontainers/go-digest"
+	"github.com/containerish/OpenRegistry/store/v1/types"
+	oci_digest "github.com/opencontainers/go-digest"
 )
 
 type filebase struct {
@@ -94,6 +93,20 @@ func (fb *filebase) UploadPart(
 	}, nil
 }
 
+func (fb *filebase) retryCompleteMultipartUpload(ctx context.Context, input *s3.CompleteMultipartUploadInput) error {
+	var err error
+
+	for i := 0; i < 3; i++ {
+		_, err = fb.client.CompleteMultipartUpload(ctx, input)
+		if err == nil {
+			return nil
+		}
+		time.Sleep(time.Second * 3)
+	}
+
+	return err
+}
+
 // ctx is used for handling any request cancellations.
 // @param uploadId: string is the ID of the layer being uploaded
 func (fb *filebase) CompleteMultipartUpload(
@@ -106,16 +119,16 @@ func (fb *filebase) CompleteMultipartUpload(
 	ctx, cancel := context.WithTimeout(ctx, time.Minute*5)
 	defer cancel()
 
-	dig, err := digest.Parse(layerDigest)
+	digest, err := oci_digest.Parse(layerDigest)
 	if err != nil {
 		return "", fmt.Errorf("ERR_FILEBASE_DIGEST_PARSE: %w", err)
 	}
 
-	_, err = fb.client.CompleteMultipartUpload(ctx, &s3.CompleteMultipartUploadInput{
+	err = fb.retryCompleteMultipartUpload(ctx, &s3.CompleteMultipartUploadInput{
 		Key:             &layerKey,
 		Bucket:          &fb.bucket,
 		UploadId:        &uploadId,
-		ChecksumSHA256:  aws.String(dig.Encoded()),
+		ChecksumSHA256:  aws.String(digest.Encoded()),
 		MultipartUpload: &s3types.CompletedMultipartUpload{Parts: completedParts},
 	})
 	if err != nil {
@@ -194,7 +207,7 @@ func (fb *filebase) Download(ctx context.Context, path string) (io.ReadCloser, e
 
 	return resp.Body, nil
 }
-func (fb *filebase) DownloadDir(skynetLink, dir string) error {
+func (fb *filebase) DownloadDir(dfsLink, dir string) error {
 	return nil
 }
 func (fb *filebase) List(path string) ([]*types.Metadata, error) {
@@ -207,7 +220,7 @@ func (fb *filebase) AddImage(ns string, mf, l map[string][]byte) (string, error)
 // Metadata API returns the HEADERS for an object. This object can be a manifest or a layer.
 // This API is usually a little behind when it comes to fetching the details for an uploaded object.
 // This is why we put it in a retry loop and break it as soon as we get the data
-func (fb *filebase) Metadata(identifier string) (*skynet.Metadata, error) {
+func (fb *filebase) Metadata(identifier string) (*types.ObjectMetadata, error) {
 	var resp *s3.HeadObjectOutput
 	var err error
 
@@ -234,10 +247,10 @@ func (fb *filebase) Metadata(identifier string) (*skynet.Metadata, error) {
 		cid = identifier
 	}
 
-	return &skynet.Metadata{
+	return &types.ObjectMetadata{
 		ContentType:   *resp.ContentType,
 		Etag:          *resp.ETag,
-		Skylink:       cid,
+		DFSLink:       cid,
 		ContentLength: int(resp.ContentLength),
 	}, nil
 }

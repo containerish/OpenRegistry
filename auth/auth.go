@@ -6,7 +6,7 @@ import (
 
 	"github.com/containerish/OpenRegistry/config"
 	"github.com/containerish/OpenRegistry/services/email"
-	"github.com/containerish/OpenRegistry/store/postgres"
+	"github.com/containerish/OpenRegistry/store/v1/users"
 	"github.com/containerish/OpenRegistry/telemetry"
 	gh "github.com/google/go-github/v50/github"
 	"github.com/labstack/echo/v4"
@@ -39,7 +39,10 @@ type Authentication interface {
 // New is the constructor function returns an Authentication implementation
 func New(
 	c *config.OpenRegistryConfig,
-	pgStore postgres.PersistentStore,
+	// pgStore postgres.PersistentStore,
+	pgStore users.UserStore,
+	sessionStore users.SessionStore,
+	emailStore users.EmailStore,
 	logger telemetry.Logger,
 ) Authentication {
 	githubOAuth := &oauth2.Config{
@@ -55,6 +58,8 @@ func New(
 	a := &auth{
 		c:               c,
 		pgStore:         pgStore,
+		sessionStore:    sessionStore,
+		emailStore:      emailStore,
 		logger:          logger,
 		github:          githubOAuth,
 		ghClient:        ghClient,
@@ -70,7 +75,10 @@ func New(
 
 type (
 	auth struct {
-		pgStore         postgres.PersistentStore
+		// pgStore         postgres.PersistentStore
+		pgStore         users.UserStore
+		sessionStore    users.SessionStore
+		emailStore      users.EmailStore
 		logger          telemetry.Logger
 		github          *oauth2.Config
 		ghClient        *gh.Client

@@ -1,7 +1,8 @@
-name: OCI Distribution Spec
+name: OCI Distribution Spec - Content Discovery
 
 on:
-  workflow_call:
+  pull_request:
+  workflow_dispatch:
     inputs:
       debug_enabled:
         type: boolean
@@ -13,17 +14,23 @@ concurrency:
   group: content-discovery-${{ github.workflow }}-${{ github.head_ref || github.run_id }}
   cancel-in-progress: true
 
+env:
+  PGUSER: postgres
+  POSTGRES_DB: open_registry
+  POSTGRES_PASSWORD: Qwerty@123
+  POSTGRES_USER: postgres
+
 jobs:
-  content-discovery:
+  conformance:
     runs-on: ubuntu-latest
     services:
       postgres:
         image: postgres
         env:
           PGUSER: postgres
-          POSTGRES_DB: open_registry
-          POSTGRES_PASSWORD: Qwerty@123
+          POSTGRES_DB: postgres
           POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: Qwerty@123
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -33,55 +40,53 @@ jobs:
           - 5432:5432
     steps:
       - uses: actions/checkout@v4
-      - name: Install Migrate CLI
-        run: |
-          curl -L https://github.com/golang-migrate/migrate/releases/download/v4.15.1/migrate.linux-amd64.tar.gz | tar xvz
-          sudo mv migrate /usr/bin/migrate
-      - name: Setup PostgreSQL Database
-        run: |
-          IP=`hostname -I | awk '{print $1}'`
-          POSTGRESQL_URL=postgres://$PGUSER:$PGPASSWORD@$IP:5432/$PGDATABASE?sslmode=disable
-          migrate -database ${POSTGRESQL_URL} -path db/migrations up
-        env:
-           PGDATABASE: open_registry
-           PGPASSWORD: Qwerty@123
-           PGUSER: postgres
+      - uses: actions/setup-go@v4
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
       - name: Build and configure OpenRegistry container image
         run: |
           IP=`hostname -I | awk '{print $1}'`
-          cp config.example.yaml config.yaml
-          yq e -i '.environment = "ci"' config.yaml
-          IP=$IP yq e -i '.database.host = env(IP)' config.yaml
-          yq e -i '.dfs.mock.enabled = "true"' config.yaml
           echo "IP=$IP" >> $GITHUB_ENV
           echo "OCI_ROOT_URL=http://$IP:5000" >> $GITHUB_ENV
-          DISTRIBUTION_REF="local-distribution:v$(date +%Y%m%d%H%M%S)"
-          docker build -f ./Dockerfile -t "${DISTRIBUTION_REF}" .
+          cp config.example.yaml config.yaml
+          IP=$IP yq e -i '.database.host = env(IP)' config.yaml
+          yq e -i '.dfs.mock.enabled = "true"' config.yaml
+          yq e -i '.dfs.mock.type = "FS"' config.yaml
+          go mod download
+          go build
           make certs
-          docker run --rm -p 5000:5000 -p 8080:8080 \
-            --mount="type=bind,source=${PWD}/config.yaml,target=/home/runner/.openregistry/config.yaml" \
-            -v "$PWD/.certs:/home/runner/.certs" \
-            --env="CI_SYS_ADDR=$IP:5000" -d "${DISTRIBUTION_REF}"
-          sleep 5
-          curl -XPOST -d ${{ secrets.OPENREGISTRY_SIGNUP_PAYLOAD }} "http://${IP}:5000/auth/signup"
+          ./OpenRegistry migrations init \
+            --admin-db="postgres" \
+            --admin-db-username="postgres" \
+            --admin-db-password=${POSTGRES_PASSWORD} \
+            --database=${POSTGRES_DB} \
+            --host=${IP} \
+            --password=${POSTGRES_PASSWORD} \
+            --insecure=true
+          nohup ./OpenRegistry start >> openregistry.log &
+          sleep 3
+          curl -XPOST -d '{"email": "johndoe@example.com", "username": "johndoe", "password": "Qwerty@123"}' "http://${IP}:5000/auth/signup"
+          cat openregistry.log
       - name: Run OCI Distribution Spec conformance tests
         if: always()
         run: |
+          cd ../
           git clone https://github.com/opencontainers/distribution-spec.git
           pushd distribution-spec/conformance
-          git checkout 235fa1b
+          git checkout v1.1.0-rc.3
           go test -c
           ./conformance.test
           popd
           mkdir -p .out/ && mv {distribution-spec/conformance/report.html,distribution-spec/conformance/junit.xml} .out/
         env:
           OCI_ROOT_URL: ${{ env.OCI_ROOT_URL }}
-          OCI_USERNAME: ${{ secrets.OPENREGISTRY_USERNAME }}
-          OCI_PASSWORD: ${{ secrets.OPENREGISTRY_PASSWORD }}
-          OCI_NAMESPACE: ${{ secrets.OPENREGISTRY_USERNAME }}/distribution-test
+          OCI_USERNAME: johndoe
+          OCI_PASSWORD: Qwerty@123
+          OCI_NAMESPACE: johndoe/distribution-test
           OCI_TEST_PUSH: 1
           OCI_HIDE_SKIPPED_WORKFLOWS: 1
-          OCI_CROSSMOUNT_NAMESPACE: ${{secrets.OPENREGISTRY_USERNAME}}/distribution-cross-mount
+          OCI_CROSSMOUNT_NAMESPACE: johndoe/distribution-cross-mount
           OCI_DEBUG: 0
       - name: Setup tmate session if mode is debug and OpenRegistry or OCI Tests Fail
         uses: mxschmitt/action-tmate@v3
@@ -94,4 +99,4 @@ jobs:
         with:
           name: oci-distribution-content-discovery-report-${{ steps.vars.outputs.short_commit_hash }}
           path: .out/
-        if: always()
+        if: success()

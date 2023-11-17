@@ -34,7 +34,6 @@ registry:
     services:
         - github
         - token
-        - skynet_homescreen
 dfs:
     s3_any:
         access_key: <access-key>

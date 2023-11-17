@@ -11,7 +11,7 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/containerish/OpenRegistry/types"
+	"github.com/containerish/OpenRegistry/store/v1/types"
 	"github.com/containerish/OpenRegistry/vcs"
 	"github.com/google/go-github/v50/github"
 	"github.com/labstack/echo/v4"
@@ -61,7 +61,7 @@ func (gh *ghAppService) HandleAppFinish(ctx echo.Context) error {
 		}
 	}
 
-	if err = gh.store.UpdateUser(ctx.Request().Context(), user); err != nil {
+	if _, err = gh.store.UpdateUser(ctx.Request().Context(), user); err != nil {
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error": err.Error(),
 		})
@@ -107,7 +107,7 @@ func (gh *ghAppService) HandleSetupCallback(ctx echo.Context) error {
 		InstallationID: installationID,
 	}
 
-	if err := gh.store.UpdateUser(ctx.Request().Context(), user); err != nil {
+	if _, err = gh.store.UpdateUser(ctx.Request().Context(), user); err != nil {
 		// if err := gh.store.UpdateInstallationID(ctx.Request().Context(), installationID, username); err != nil {
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error": err.Error(),

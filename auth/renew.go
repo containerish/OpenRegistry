@@ -7,6 +7,7 @@ import (
 
 	"github.com/containerish/OpenRegistry/types"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 )
 
@@ -65,8 +66,8 @@ func (a *auth) RenewAccessToken(ctx echo.Context) error {
 		return echoErr
 	}
 
-	userId := claims.ID
-	user, err := a.pgStore.GetUserById(ctx.Request().Context(), userId, false, nil)
+	userId := uuid.MustParse(claims.ID)
+	user, err := a.pgStore.GetUserByID(ctx.Request().Context(), userId)
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusUnauthorized, echo.Map{
 			"error":   err.Error(),
@@ -79,7 +80,7 @@ func (a *auth) RenewAccessToken(ctx echo.Context) error {
 	opts := &WebLoginJWTOptions{
 		Id:        userId,
 		Username:  user.Username,
-		TokenType: "access_token",
+		TokenType: AccessCookieKey,
 		Audience:  a.c.Registry.FQDN,
 		Privkey:   a.c.Registry.Auth.JWTSigningPrivateKey,
 		Pubkey:    a.c.Registry.Auth.JWTSigningPubKey,
@@ -94,7 +95,7 @@ func (a *auth) RenewAccessToken(ctx echo.Context) error {
 		return echoErr
 	}
 
-	accessCookie := a.createCookie(ctx, "access_token", tokenString, true, time.Now().Add(time.Hour))
+	accessCookie := a.createCookie(ctx, AccessCookieKey, tokenString, true, time.Now().Add(time.Hour))
 	ctx.SetCookie(accessCookie)
 	err = ctx.NoContent(http.StatusNoContent)
 	a.logger.Log(ctx, err).Send()

@@ -48,7 +48,14 @@ func (a *auth) buildBasicAuthenticationHeader(repoNamespace string) string {
 	)
 }
 
-func (a *auth) checkJWT(authHeader string) bool {
+func (a *auth) checkJWT(authHeader string, cookies []*http.Cookie) bool {
+	for _, cookie := range cookies {
+		if cookie.Name == AccessCookieKey {
+			// early return if access_token is found in cookies
+			return true
+		}
+	}
+
 	parts := strings.Split(authHeader, " ")
 	if len(parts) != 2 {
 		return false
@@ -154,7 +161,7 @@ func (a *auth) SkipBasicAuth(ctx echo.Context) bool {
 	authHeader := ctx.Request().Header.Get(AuthorizationHeaderKey)
 
 	// if Authorization header contains JWT, we skip basic auth and perform a JWT validation
-	if ok := a.checkJWT(authHeader); ok {
+	if ok := a.checkJWT(authHeader, ctx.Request().Cookies()); ok {
 		ctx.Set(JWT_AUTH_KEY, true)
 		return true
 	}

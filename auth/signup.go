@@ -10,7 +10,8 @@ import (
 
 	"github.com/containerish/OpenRegistry/config"
 	"github.com/containerish/OpenRegistry/services/email"
-	"github.com/containerish/OpenRegistry/store/postgres"
+	store_err "github.com/containerish/OpenRegistry/store/v1"
+	v2_types "github.com/containerish/OpenRegistry/store/v1/types"
 	"github.com/containerish/OpenRegistry/types"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
@@ -19,7 +20,7 @@ import (
 func (a *auth) SignUp(ctx echo.Context) error {
 	ctx.Set(types.HandlerStartTime, time.Now())
 
-	var u types.User
+	var u v2_types.User
 	if err := json.NewDecoder(ctx.Request().Body).Decode(&u); err != nil {
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error":   err.Error(),
@@ -60,8 +61,8 @@ func (a *auth) SignUp(ctx echo.Context) error {
 		return echoErr
 	}
 
-	newUser := &types.User{
-		Id:        id.String(),
+	newUser := &v2_types.User{
+		ID:        id,
 		UpdatedAt: time.Now(),
 		CreatedAt: time.Now(),
 		Password:  u.Password,
@@ -77,7 +78,7 @@ func (a *auth) SignUp(ctx echo.Context) error {
 
 	err = a.pgStore.AddUser(ctx.Request().Context(), newUser, nil)
 	if err != nil {
-		if strings.Contains(err.Error(), postgres.ErrDuplicateConstraintUsername) {
+		if strings.Contains(err.Error(), store_err.ErrDuplicateConstraintUsername) {
 			echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 				"error":   err.Error(),
 				"message": "username already exists",
@@ -86,7 +87,7 @@ func (a *auth) SignUp(ctx echo.Context) error {
 			return echoErr
 		}
 
-		if strings.Contains(err.Error(), postgres.ErrDuplicateConstraintEmail) {
+		if strings.Contains(err.Error(), store_err.ErrDuplicateConstraintEmail) {
 			echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 				"error":   err.Error(),
 				"message": "this email already taken, try sign in?",
@@ -122,7 +123,7 @@ func (a *auth) SignUp(ctx echo.Context) error {
 		return echoErr
 
 	}
-	err = a.pgStore.AddVerifyEmail(ctx.Request().Context(), token.String(), newUser.Id)
+	err = a.emailStore.AddVerifyEmail(ctx.Request().Context(), token, newUser.ID)
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error":   err.Error(),

@@ -10,6 +10,7 @@ import (
 	"github.com/containerish/OpenRegistry/config"
 	"github.com/containerish/OpenRegistry/registry/v2"
 	"github.com/containerish/OpenRegistry/registry/v2/extensions"
+	registry_store "github.com/containerish/OpenRegistry/store/v1/registry"
 	"github.com/google/uuid"
 	"github.com/labstack/echo-contrib/prometheus"
 	"github.com/labstack/echo/v4"
@@ -25,6 +26,7 @@ func Register(
 	authSvc auth.Authentication,
 	webauthnServer auth_server.WebauthnServer,
 	ext extensions.Extenion,
+	registryStore registry_store.RegistryStore,
 ) {
 	e.Use(middleware.Recover())
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
@@ -65,9 +67,9 @@ func Register(
 	authGithubRouter.Add(http.MethodGet, "/callback", authSvc.GithubLoginCallbackHandler)
 	authGithubRouter.Add(http.MethodGet, "/login", authSvc.LoginWithGithub)
 
-	RegisterNSRoutes(nsRouter, reg)
+	RegisterNSRoutes(nsRouter, reg, registryStore)
 	RegisterAuthRoutes(authRouter, authSvc)
-	Extensions(v2Router, reg, ext, authSvc.JWT())
+	Extensions(v2Router, reg, ext)
 	RegisterWebauthnRoutes(webauthnRouter, webauthnServer)
 
 	//catch-all will redirect user back to web interface
@@ -90,7 +92,7 @@ func Register(
 
 // RegisterNSRoutes is one of the helper functions to Register
 // it works directly with registry endpoints
-func RegisterNSRoutes(nsRouter *echo.Group, reg registry.Registry) {
+func RegisterNSRoutes(nsRouter *echo.Group, reg registry.Registry, registryStore registry_store.RegistryStore) {
 
 	// ALL THE HEAD METHODS //
 	// HEAD /v2/<name>/blobs/<digest>
@@ -109,7 +111,13 @@ func RegisterNSRoutes(nsRouter *echo.Group, reg registry.Registry) {
 	nsRouter.Add(http.MethodPut, BlobsMonolithicPut, reg.MonolithicPut)
 
 	// PUT /v2/<name>/manifests/<reference>
-	nsRouter.Add(http.MethodPut, ManifestsReference, reg.PushManifest, registryReferenceOrTagValidator())
+	nsRouter.Add(
+		http.MethodPut,
+		ManifestsReference,
+		reg.PushManifest,
+		registryReferenceOrTagValidator(),
+		progagatRepository(registryStore),
+	)
 
 	// POST METHODS
 
@@ -141,6 +149,8 @@ func RegisterNSRoutes(nsRouter *echo.Group, reg registry.Registry) {
 	///GET /v2/<name>/tags/list
 	nsRouter.Add(http.MethodGet, TagsList, reg.ListTags)
 
+	///GET /v2/<name>/tags/list
+	nsRouter.Add(http.MethodGet, GetReferrers, reg.ListReferrers)
 	/// mf/sha -> mf/latest
 	nsRouter.Add(http.MethodDelete, BlobsDigest, reg.DeleteLayer)
 	nsRouter.Add(http.MethodDelete, ManifestsReference, reg.DeleteTagOrManifest, registryReferenceOrTagValidator())
@@ -151,10 +161,14 @@ func Extensions(group *echo.Group, reg registry.Registry, ext extensions.Extenio
 
 	// GET /v2/_catalog
 	group.Add(http.MethodGet, Catalog, reg.Catalog)
+	group.Add(http.MethodGet, PublicCatalog, ext.PublicCatalog)
 	// Auto-complete image search
 	group.Add(http.MethodGet, Search, reg.GetImageNamespace)
 	group.Add(http.MethodGet, CatalogDetail, ext.CatalogDetail, middlewares...)
 	group.Add(http.MethodGet, RepositoryDetail, ext.RepositoryDetail, middlewares...)
+	group.Add(http.MethodGet, UserCatalog, ext.GetUserCatalog, middlewares...)
+	group.Add(http.MethodPost, ChangeRepositoryVisibility, ext.ChangeContainerImageVisibility, middlewares...)
+	group.Add(http.MethodPost, CreateRepository, reg.CreateRepository, middlewares...)
 }
 
 func RegisterHealthCheckEndpoint(e *echo.Echo, fn http.HandlerFunc) {

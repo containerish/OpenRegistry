@@ -8,12 +8,12 @@
 | OCI - Pull | [![OCI Pull](https://github.com/containerish/openregistry/actions/workflows/oci-dist-spec-pull.yml/badge.svg)](https://github.com/containerish/openregistry/actions/workflows/oci-dist-spec-pull.yml)|
 | OCI - Content Management | [![OCI Content Management](https://github.com/containerish/openregistry/actions/workflows/oci-dist-spec-content-management.yml/badge.svg)](https://github.com/containerish/openregistry/actions/workflows/oci-dist-spec-content-management.yml)|
 | OCI - Content Discovery | [![OCI Content Discovery](https://github.com/containerish/openregistry/actions/workflows/oci-dist-spec-content-discovery.yml/badge.svg)](https://github.com/containerish/openregistry/actions/workflows/oci-dist-spec-content-discovery.yml)|
-| CodeQL | [![CodeQL](https://github.com/containerish/OpenRegistry/actions/workflows/codeql-analysis.yml/badge.svg?branch=master)](https://github.com/containerish/OpenRegistry/actions/workflows/codeql-analysis.yml)|
-| Freshping | <a href="http://freshworks.com/website-monitoring?utm_source=status_badge&utm_medium=status_badge" target="_blank"><img src="https://statuspage.freshping.io/badge/91e4eb06-289b-4b4c-8beb-a0e5804959f4?0.56759354585684"/> </a>|
 | Linter | [![OCI Push](https://github.com/containerish/openregistry/actions/workflows/golangci-lint.yml/badge.svg)](https://github.com/containerish/openregistry/actions/workflows/golangci-lint.yml)|
+| CodeQL | [![CodeQL](https://github.com/containerish/OpenRegistry/actions/workflows/codeql-analysis.yml/badge.svg?branch=main)](https://github.com/containerish/OpenRegistry/actions/workflows/codeql-analysis.yml)|
+| Freshping | <a href="http://freshworks.com/website-monitoring?utm_source=status_badge&utm_medium=status_badge" target="_blank"><img src="https://statuspage.freshping.io/badge/91e4eb06-289b-4b4c-8beb-a0e5804959f4?0.56759354585684"/> </a>|
 | Certifications | <a href="https://conformance.opencontainers.org/#openregistry" alt="OpenRegistry on OpenContainers" target="_blank"><img src="https://raw.githubusercontent.com/opencontainers/artwork/main/certified/oci_certified_color.svg" width=80 /><a/> |
 
-> Disclaimer: Please refrain from using master branch to run OpenRegistry in Production. The branch is highly experimental and not stable for Production use. Please only use the [released versions](https://github.com/containerish/OpenRegistry/releases) 
+> Disclaimer: Please refrain from using the **main** branch to run OpenRegistry in Production. The branch is highly experimental and not stable for Production use. Please only use the [released versions](https://github.com/containerish/OpenRegistry/releases) 
 
 ## Introduction
 OpenRegistry is an open source, decentralized container registry which is fully compliant with [OCI Container Distribution Specification](https://github.com/opencontainers/distribution-spec/blob/main/spec.md).
@@ -22,7 +22,7 @@ The specification provides similar capabilities as that of the Docker Registry H
 ## Why OpenRegistry?
 For the longest time, we have relied on DockerHub to host and distribute our container images (both private and public). OpenRegistry tries to provide a decentralized alternative to that by running a community driven container registry, for People by People.
 
-OpenRegitry uses AkashNetwork as it's compute layer and SkyNet for storage. Since AkashNetwork provides a spot like compute market, fault tolerance, Scalability and Resiliency are our priorities from day one.
+OpenRegitry uses [Akash Network](https://akash.network) as it's compute layer and IPFS, Filebase, or Storj for storage. Since AkashNetwork provides a spot like compute market, fault tolerance, Scalability and Resiliency are our priorities from day one.
 	
 ## Getting Started
 Working with OpenRegistry is no different than working with any other container registry. Following are the steps to get started:

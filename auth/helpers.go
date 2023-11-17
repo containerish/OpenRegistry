@@ -14,6 +14,7 @@ import (
 
 	"github.com/containerish/OpenRegistry/config"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 )
 
 type CreateCookieOptions struct {
@@ -86,10 +87,10 @@ func ReadRSAKeyPair(privKeyPath, pubKeyPath string) (*rsa.PrivateKey, *rsa.Publi
 type WebLoginJWTOptions struct {
 	Privkey   *rsa.PrivateKey
 	Pubkey    *rsa.PublicKey
-	Id        string
 	Username  string
 	TokenType string
 	Audience  string
+	Id        uuid.UUID
 }
 
 func NewWebLoginToken(opts *WebLoginJWTOptions) (string, error) {
@@ -104,7 +105,7 @@ func NewWebLoginToken(opts *WebLoginJWTOptions) (string, error) {
 	claims := CreateClaims(&CreateClaimOptions{
 		Audience: opts.Audience,
 		Issuer:   OpenRegistryIssuer,
-		Id:       opts.Id,
+		Id:       opts.Id.String(),
 		TokeType: opts.TokenType,
 		Acl:      acl,
 	})
@@ -137,11 +138,11 @@ type CreateClaimOptions struct {
 func CreateClaims(opts *CreateClaimOptions) Claims {
 	tokenLife := time.Now().Add(time.Minute * 10)
 	switch opts.TokeType {
-	case "access_token":
+	case AccessCookieKey:
 		// TODO (jay-dee7)
 		// token can live for month now, but must be addressed when we implement PASETO
 		tokenLife = time.Now().Add(time.Hour * 750)
-	case "refresh_token":
+	case RefreshCookKey:
 		tokenLife = time.Now().Add(time.Hour * 750)
 	case "service":
 		tokenLife = time.Now().Add(time.Hour * 750)
