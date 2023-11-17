@@ -1,4 +1,4 @@
-name: OCI Distribution Spec
+name: OCI Distribution Spec - Pull Image
 
 on:
   pull_request:
@@ -21,7 +21,7 @@ env:
   POSTGRES_USER: postgres
 
 jobs:
-  Pull:
+  conformance:
     runs-on: ubuntu-latest
     services:
       postgres:
