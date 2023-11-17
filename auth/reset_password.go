@@ -5,20 +5,15 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"time"
 
 	"github.com/containerish/OpenRegistry/services/email"
-	v2_types "github.com/containerish/OpenRegistry/store/v1/types"
 	"github.com/containerish/OpenRegistry/types"
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v4"
 	"github.com/labstack/echo/v4"
 )
 
 func (a *auth) ResetForgottenPassword(ctx echo.Context) error {
-	ctx.Set(types.HandlerStartTime, time.Now())
-
 	token, ok := ctx.Get("user").(*jwt.Token)
 	if !ok {
 		err := fmt.Errorf("ERR_EMPTY_TOKEN")
@@ -52,8 +47,8 @@ func (a *auth) ResetForgottenPassword(ctx echo.Context) error {
 	}
 	defer ctx.Request().Body.Close()
 
-	userId := uuid.MustParse(c.ID)
-	user, err := a.pgStore.GetUserByID(ctx.Request().Context(), userId)
+	userId := c.ID
+	user, err := a.pgStore.GetUserById(ctx.Request().Context(), userId, true, nil)
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusNotFound, echo.Map{
 			"error":   err.Error(),
@@ -63,7 +58,7 @@ func (a *auth) ResetForgottenPassword(ctx echo.Context) error {
 		return echoErr
 	}
 
-	if err = v2_types.ValidatePassword(pwd.NewPassword); err != nil {
+	if err = types.ValidatePassword(pwd.NewPassword); err != nil {
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error": err.Error(),
 			"message": `password must be alphanumeric, at least 8 chars long, must have at least one special character
@@ -111,8 +106,6 @@ and an uppercase letter`,
 }
 
 func (a *auth) ResetPassword(ctx echo.Context) error {
-	ctx.Set(types.HandlerStartTime, time.Now())
-
 	token, ok := ctx.Get("user").(*jwt.Token)
 	if !ok {
 		err := fmt.Errorf("ERR_EMPTY_TOKEN")
@@ -147,8 +140,8 @@ func (a *auth) ResetPassword(ctx echo.Context) error {
 	}
 	defer ctx.Request().Body.Close()
 
-	userId := uuid.MustParse(c.ID)
-	user, err := a.pgStore.GetUserByID(ctx.Request().Context(), userId)
+	userId := c.ID
+	user, err := a.pgStore.GetUserById(ctx.Request().Context(), userId, true, nil)
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusNotFound, echo.Map{
 			"error":   err.Error(),
@@ -190,7 +183,7 @@ func (a *auth) ResetPassword(ctx echo.Context) error {
 		return echoErr
 	}
 
-	if err = v2_types.ValidatePassword(pwd.NewPassword); err != nil {
+	if err = types.ValidatePassword(pwd.NewPassword); err != nil {
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error": err.Error(),
 			"message": `password must be alphanumeric, at least 8 chars long, must have at least one special character
@@ -217,8 +210,6 @@ and an uppercase letter`,
 }
 
 func (a *auth) ForgotPassword(ctx echo.Context) error {
-	ctx.Set(types.HandlerStartTime, time.Now())
-
 	userEmail := ctx.QueryParam("email")
 	if err := a.verifyEmail(userEmail); err != nil {
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
@@ -229,7 +220,7 @@ func (a *auth) ForgotPassword(ctx echo.Context) error {
 		return echoErr
 	}
 
-	user, err := a.pgStore.GetUserByEmail(ctx.Request().Context(), userEmail)
+	user, err := a.pgStore.GetUser(ctx.Request().Context(), userEmail, false, nil)
 	if err != nil {
 		if errors.Unwrap(err) == pgx.ErrNoRows {
 			echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
@@ -255,9 +246,9 @@ func (a *auth) ForgotPassword(ctx echo.Context) error {
 	}
 
 	opts := &WebLoginJWTOptions{
-		Id:        user.ID,
+		Id:        user.Id,
 		Username:  user.Username,
-		TokenType: AccessCookieKey,
+		TokenType: "access_token",
 		Audience:  a.c.Registry.FQDN,
 		Privkey:   a.c.Registry.Auth.JWTSigningPrivateKey,
 		Pubkey:    a.c.Registry.Auth.JWTSigningPubKey,

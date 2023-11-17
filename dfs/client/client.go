@@ -31,6 +31,7 @@ func NewDFSBackend(env config.Environment, registryEndpoint string, cfg *config.
 	}
 
 	if cfg.Mock.Enabled {
+		color.Green("Storage backend: Mock Storage")
 		return mock.NewMockStorage(env, registryEndpoint, &cfg.Mock)
 	}
 

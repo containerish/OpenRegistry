@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"time"
 
-	v2_types "github.com/containerish/OpenRegistry/store/v1/types"
 	"github.com/containerish/OpenRegistry/types"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v4"
@@ -16,7 +15,7 @@ import (
 
 func (a *auth) SignIn(ctx echo.Context) error {
 	ctx.Set(types.HandlerStartTime, time.Now())
-	var user v2_types.User
+	var user types.User
 
 	if err := json.NewDecoder(ctx.Request().Body).Decode(&user); err != nil {
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
@@ -39,13 +38,12 @@ func (a *auth) SignIn(ctx echo.Context) error {
 		return echoErr
 	}
 
-	var userFromDb *v2_types.User
-	if user.Email != "" {
-		userFromDb, err = a.pgStore.GetUserByEmail(ctx.Request().Context(), user.Email)
-	} else {
-		userFromDb, err = a.pgStore.GetUserByUsername(ctx.Request().Context(), user.Username)
+	key := user.Email
+	if user.Username != "" {
+		key = user.Username
 	}
 
+	userFromDb, err := a.pgStore.GetUser(ctx.Request().Context(), key, true, nil)
 	if err != nil {
 		if errors.Unwrap(err) == pgx.ErrNoRows {
 			echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
@@ -107,9 +105,9 @@ func (a *auth) SignIn(ctx echo.Context) error {
 	}
 
 	accessTokenOpts := &WebLoginJWTOptions{
-		Id:        userFromDb.ID,
+		Id:        userFromDb.Id,
 		Username:  userFromDb.Username,
-		TokenType: AccessCookieKey,
+		TokenType: "access_token",
 		Audience:  a.c.Registry.FQDN,
 		Privkey:   a.c.Registry.Auth.JWTSigningPrivateKey,
 		Pubkey:    a.c.Registry.Auth.JWTSigningPubKey,
@@ -125,9 +123,9 @@ func (a *auth) SignIn(ctx echo.Context) error {
 	}
 
 	refreshTokenOpts := &WebLoginJWTOptions{
-		Id:        userFromDb.ID,
+		Id:        userFromDb.Id,
 		Username:  userFromDb.Username,
-		TokenType: RefreshCookKey,
+		TokenType: "refresh_token",
 		Audience:  a.c.Registry.FQDN,
 		Privkey:   a.c.Registry.Auth.JWTSigningPrivateKey,
 		Pubkey:    a.c.Registry.Auth.JWTSigningPubKey,
@@ -152,7 +150,7 @@ func (a *auth) SignIn(ctx echo.Context) error {
 		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
-	if err = a.sessionStore.AddSession(ctx.Request().Context(), id, refresh, userFromDb.ID); err != nil {
+	if err = a.pgStore.AddSession(ctx.Request().Context(), id.String(), refresh, userFromDb.Username); err != nil {
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error":   err.Error(),
 			"message": "error creating session",
@@ -161,10 +159,10 @@ func (a *auth) SignIn(ctx echo.Context) error {
 		return echoErr
 	}
 
-	sessionId := fmt.Sprintf("%s:%s", id, userFromDb.ID)
+	sessionId := fmt.Sprintf("%s:%s", id, userFromDb.Id)
 	sessionCookie := a.createCookie(ctx, "session_id", sessionId, false, time.Now().Add(time.Hour*750))
-	accessCookie := a.createCookie(ctx, AccessCookieKey, access, true, time.Now().Add(time.Hour*750))
-	refreshCookie := a.createCookie(ctx, RefreshCookKey, refresh, true, time.Now().Add(time.Hour*750))
+	accessCookie := a.createCookie(ctx, "access_token", access, true, time.Now().Add(time.Hour*750))
+	refreshCookie := a.createCookie(ctx, "refresh_token", refresh, true, time.Now().Add(time.Hour*750))
 
 	ctx.SetCookie(accessCookie)
 	ctx.SetCookie(refreshCookie)

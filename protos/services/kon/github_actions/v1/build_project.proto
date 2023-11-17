@@ -3,7 +3,6 @@ syntax = "proto3";
 package services.kon.github_actions.v1;
 option go_package = "github.com/containerish/OpenRegistry/services/kon/github_actions/v1;github_actions_v1";
 import "google/protobuf/timestamp.proto";
-import "common/v1/id.proto";
 
 service GitHubActionsProjectService {
   rpc CreateProject(CreateProjectRequest) returns (CreateProjectResponse) {}
@@ -13,7 +12,7 @@ service GitHubActionsProjectService {
 }
 
 message ListProjectsRequest {
-    common.v1.UUID owner_id = 1;
+    string user_id = 1;
 }
 
 message ListProjectsResponse {
@@ -21,8 +20,8 @@ message ListProjectsResponse {
 }
 
 message CreateProjectRequest  {
-    common.v1.UUID id = 1;
-    common.v1.UUID owner_id = 2;
+    string id = 1;
+    string owner = 2;
     string project_name = 3;
     string production_branch = 4;
     ProjectBuildSettingsMessage build_settings = 5;
@@ -31,11 +30,11 @@ message CreateProjectRequest  {
 }
 
 message GetProjectRequest {
-    common.v1.UUID id = 1;
+    string id = 1;
 }
 
 message DeleteProjectRequest {
-    common.v1.UUID id = 1;
+    string id = 1;
 }
 
 message DeleteProjectResponse {
@@ -43,13 +42,12 @@ message DeleteProjectResponse {
 }
 
 message GetProjectResponse {
-    common.v1.UUID id = 1;
+    string id = 1;
     string project_name = 2;
     string production_branch = 3;
     ProjectBuildSettingsMessage build_settings = 4;
     ProjectEnvironmentVariableListMessage environment_variables = 5;
     google.protobuf.Timestamp created_at = 6;
-    common.v1.UUID owner_id = 7;
 }
 
 message ProjectEnvironmentVariableListMessage {
@@ -70,6 +68,5 @@ message ProjectBuildSettingsMessage {
 
 message CreateProjectResponse {
     string message = 1;
-	common.v1.UUID id = 2;
 }
 

@@ -112,7 +112,7 @@ func (ghs *GitHubActionsServer) StreamWorkflowRunLogs(
 	delete(ghs.activeLogStreamJobs, ghs.getLogsEventKey(req.Msg))
 	_ = stream.Send(&github_actions_v1.StreamWorkflowRunLogsResponse{
 		LogMessage: "Downloading logs to stream",
-		MsgType:    github_actions_v1.StreamWorkflowRunMessageType_STREAM_WORKFLOW_RUN_MESSAGE_TYPE_PROCESSING,
+		MsgType:    github_actions_v1.StreamWorkflowRunMessageType_MSG_TYPE_PROCESSING,
 	})
 
 	githubAppInstallation, ok := ctx.Value(github_impl.GithubInstallationIDContextKey).(int64)
@@ -156,7 +156,7 @@ func (ghs *GitHubActionsServer) StreamWorkflowRunLogs(
 	for _, step := range workflowSteps {
 		_ = stream.Send(&github_actions_v1.StreamWorkflowRunLogsResponse{
 			LogMessage: step.Buf.String(),
-			MsgType:    github_actions_v1.StreamWorkflowRunMessageType_STREAM_WORKFLOW_RUN_MESSAGE_TYPE_STEP,
+			MsgType:    github_actions_v1.StreamWorkflowRunMessageType_MSG_TYPE_STEP,
 		})
 
 	}
@@ -358,13 +358,13 @@ func (ghs *GitHubActionsServer) waitForJobToFinish(
 			logEvent.Bool("workflow_id_found", true).Send()
 			_ = stream.Send(&github_actions_v1.StreamWorkflowRunLogsResponse{
 				LogMessage: "Fetching logs...",
-				MsgType:    github_actions_v1.StreamWorkflowRunMessageType_STREAM_WORKFLOW_RUN_MESSAGE_TYPE_PROCESSING,
+				MsgType:    github_actions_v1.StreamWorkflowRunMessageType_MSG_TYPE_PROCESSING,
 			})
 			return nil
 		}
 		_ = stream.Send(&github_actions_v1.StreamWorkflowRunLogsResponse{
 			LogMessage: "Waiting for logs...",
-			MsgType:    github_actions_v1.StreamWorkflowRunMessageType_STREAM_WORKFLOW_RUN_MESSAGE_TYPE_WAIT,
+			MsgType:    github_actions_v1.StreamWorkflowRunMessageType_MSG_TYPE_WAIT,
 		})
 		// wait before trying next run
 		time.Sleep(time.Second * 2)

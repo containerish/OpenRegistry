@@ -1,17 +1,22 @@
 package telemetry
 
 import (
+	"bytes"
+	"fmt"
 	"io"
-	"net"
 	"os"
+	"strconv"
+	"strings"
+	"sync"
 	"time"
 
-	"github.com/axiomhq/axiom-go/axiom"
 	"github.com/containerish/OpenRegistry/config"
-	"github.com/containerish/OpenRegistry/types"
-	"github.com/fatih/color"
+
+	fluentbit "github.com/containerish/OpenRegistry/telemetry/fluent-bit"
 	"github.com/labstack/echo/v4"
 	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
+	"github.com/valyala/fasttemplate"
 )
 
 type Logger interface {
@@ -20,134 +25,161 @@ type Logger interface {
 	Debug() *zerolog.Event
 }
 
-type ZerologOutput interface {
-	io.Writer
-	Sync() error
-}
-
 type logger struct {
-	zlog zerolog.Logger
-	env  config.Environment
+	fluentBit fluentbit.FluentBit
+	output    io.Writer
+	pool      *sync.Pool
+	template  *fasttemplate.Template
+	zlog      zerolog.Logger
+	env       config.Environment
 }
 
-func ZLogger(env config.Environment, config config.Telemetry) Logger {
-	baseLogger := setupLogger(config.Logging)
+func ZLogger(fluentbitClient fluentbit.FluentBit, env config.Environment) Logger {
+	pool := &sync.Pool{
+		New: func() interface{} {
+			return bytes.NewBuffer(make([]byte, 256))
+		},
+	}
+	logFmt := `{"time":"${time_rfc3339}","x_request_id":"${request_id}","remote_ip":"${remote_ip}",` +
+		`"host":"${host}","method":"${method}","uri":"${uri}","user_agent":"${user_agent}",` +
+		`"status":${status},"error":"${error}","latency":${latency},"latency_human":"${latency_human}"` +
+		`,"bytes_in":${bytes_in},"bytes_out":${bytes_out}}` + "\n"
+
+	baseLogger := setupLogger(env)
+	if env != config.Production {
+		baseLogger = log.Output(zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.RFC822}).With().Caller().Logger()
+	}
 
 	return &logger{
-		zlog: baseLogger,
-		env:  env,
+		zlog:      baseLogger,
+		fluentBit: fluentbitClient,
+		output:    zerolog.ConsoleWriter{Out: os.Stdout},
+		pool:      pool,
+		template:  fasttemplate.New(logFmt, "${", "}"),
+		env:       env,
 	}
 }
 
-func setupLogger(config config.Logging) zerolog.Logger {
+func setupLogger(env config.Environment) zerolog.Logger {
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
-	l := zerolog.New(os.Stdout).With().Caller().Logger()
-
-	logLevel, err := zerolog.ParseLevel(config.Level)
-	if err != nil {
-		logLevel = zerolog.InfoLevel
-	}
-	zerolog.SetGlobalLevel(logLevel)
-
-	consoleWriter := zerolog.ConsoleWriter{
-		Out:        os.Stdout,
-		TimeFormat: time.RFC3339,
-	}
-
-	l = l.Output(consoleWriter)
-
-	if config.RemoteForwarding {
-		writers := []io.Writer{consoleWriter}
-
-		if config.Axiom.Enabled {
-			axiomWriter, err := NewAxiomWriter(
-				SetDataset(config.Axiom.Dataset),
-				SetClientOptions(
-					axiom.SetNoEnv(),
-					axiom.SetToken(config.Axiom.APIKey),
-					axiom.SetOrganizationID(config.Axiom.OrganizationID),
-				),
-			)
-			if err != nil {
-				panic(color.RedString(err.Error()))
-			}
-
-			writers = append(writers, axiomWriter)
+	l := zerolog.New(os.Stdout)
+	l = l.With().Caller().Logger()
+	if env != config.Production {
+		zerolog.SetGlobalLevel(zerolog.TraceLevel)
+		consoleWriter := zerolog.ConsoleWriter{
+			Out:        os.Stdout,
+			NoColor:    false,
+			TimeFormat: time.RFC3339,
 		}
-
-		if config.FluentBit.Enabled {
-			fbWriter := NewFluentBitWriter(&config.FluentBit)
-			writers = append(writers, fbWriter)
-
-		}
-
-		levelWriter := zerolog.MultiLevelWriter(writers...)
-		l = zerolog.New(levelWriter).With().Caller().Logger()
+		l.Output(consoleWriter)
+		return l
 	}
-
+	zerolog.SetGlobalLevel(zerolog.DebugLevel)
 	return l
 }
 
-func (l *logger) Log(ctx echo.Context, errMsg error) *zerolog.Event {
-	stop := time.Now()
-	start, ok := ctx.Get(types.HandlerStartTime).(time.Time)
-	if !ok {
-		start = stop
+//nolint:cyclop // insane amount of complexity because of templating
+func (l logger) Log(ctx echo.Context, errMsg error) *zerolog.Event {
+	if l.env != config.Production {
+		return l.consoleWriter(ctx, errMsg)
 	}
+
+	start, ok := ctx.Get("start").(time.Time)
+	if !ok {
+		start = time.Now()
+	}
+	stop := time.Now()
+
+	buf := l.pool.Get().(*bytes.Buffer)
+	buf.Reset()
+	defer l.pool.Put(buf)
+
 	req := ctx.Request()
 	res := ctx.Response()
 
-	level := zerolog.InfoLevel
-	status := res.Status
-	if status >= 400 {
-		level = zerolog.ErrorLevel
+	if errMsg != nil {
+		buf.WriteString(errMsg.Error())
 	}
 
-	event := l.
-		zlog.
-		WithLevel(level).
-		Time("time", start).
-		Time("end", stop).
-		IPAddr("remote_ip", net.ParseIP(ctx.RealIP())).
-		Str("host", req.Host).
-		Str("uri", req.RequestURI).
-		Str("method", req.Method).
-		Str("protocol", req.Proto).
-		Str("referer", req.Referer()).
-		Str("user_agent", req.UserAgent()).
-		Int("status", res.Status).
-		Dur("latency", stop.Sub(start)).
-		Int64("bytes_out", res.Size).
-		Func(func(e *zerolog.Event) {
+	var level zerolog.Level
+	if _, err := l.template.ExecuteFunc(buf, func(_ io.Writer, tag string) (int, error) {
+		switch tag {
+		case "time_rfc3339":
+			return buf.WriteString(time.Now().Format(time.RFC3339))
+		case "request_id":
 			id := req.Header.Get(echo.HeaderXRequestID)
 			if id == "" {
 				id = res.Header().Get(echo.HeaderXRequestID)
 			}
-
-			e.Str("request_id", id)
-		}).
-		Func(func(e *zerolog.Event) {
+			return buf.WriteString(id)
+		case "remote_ip":
+			return buf.WriteString(ctx.RealIP())
+		case "host":
+			return buf.WriteString(req.Host)
+		case "uri":
+			return buf.WriteString(req.RequestURI)
+		case "method":
+			return buf.WriteString(req.Method)
+		case "path":
 			p := req.URL.Path
 			if p == "" {
 				p = "/"
 			}
-			e.Str("path", p)
-		}).
-		Func(func(e *zerolog.Event) {
+			return buf.WriteString(p)
+		case "protocol":
+			return buf.WriteString(req.Proto)
+		case "referer":
+			return buf.WriteString(req.Referer())
+		case "user_agent":
+			return buf.WriteString(req.UserAgent())
+		case "status":
+			status := res.Status
+			level = zerolog.InfoLevel
+			switch {
+			case status >= 500:
+				level = zerolog.ErrorLevel
+			case status >= 400:
+				level = zerolog.ErrorLevel
+			case status >= 300:
+				level = zerolog.WarnLevel
+			}
+
+			return buf.WriteString(strconv.FormatInt(int64(status), 10))
+		case "latency":
+			l := stop.Sub(start)
+			return buf.WriteString(strconv.FormatInt(int64(l), 10))
+		case "latency_human":
+			return buf.WriteString(stop.Sub(start).String())
+		case "bytes_in":
 			cl := req.Header.Get(echo.HeaderContentLength)
 			if cl == "" {
 				cl = "0"
 			}
-
-			e.Str("bytes_in", cl)
-		}).
-		Func(func(e *zerolog.Event) {
-			if errMsg != nil {
-				e.Err(errMsg)
+			return buf.WriteString(cl)
+		case "bytes_out":
+			return buf.WriteString(strconv.FormatInt(res.Size, 10))
+		default:
+			switch {
+			case strings.HasPrefix(tag, "header:"):
+				return buf.Write([]byte(ctx.Request().Header.Get(tag[7:])))
+			case strings.HasPrefix(tag, "query:"):
+				return buf.Write([]byte(ctx.QueryParam(tag[6:])))
+			case strings.HasPrefix(tag, "form:"):
+				return buf.Write([]byte(ctx.FormValue(tag[5:])))
+			case strings.HasPrefix(tag, "cookie:"):
+				if cookie, cookieErr := ctx.Cookie(tag[7:]); cookieErr == nil {
+					return buf.Write([]byte(cookie.Value))
+				}
 			}
-		})
+		}
+		return 0, nil
+	}); err != nil {
+		buf.WriteString(fmt.Errorf("templateError: %w", err).Error())
+	}
 
-	return event
+	bz := bytes.TrimSpace(buf.Bytes())
+	defer l.fluentBit.Send(bz)
+	return l.zlog.WithLevel(level).RawJSON("msg", bz)
 }
 
 func (l *logger) Debug() *zerolog.Event {

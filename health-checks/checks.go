@@ -5,11 +5,11 @@ import (
 	"time"
 
 	"github.com/alexliesenfeld/health"
-	store_v2 "github.com/containerish/OpenRegistry/store/v1"
+	"github.com/containerish/OpenRegistry/store/postgres"
 )
 
-func NewHealthChecksAPI(pgPing store_v2.PostgresPing) http.HandlerFunc {
-	cacheOpt := health.WithCacheDuration(time.Second * 30)
+func NewHealthChecksAPI(pgPing postgres.PostgresPing) http.HandlerFunc {
+	cacheOpt := health.WithCacheDuration(time.Second * 5)
 	timeoutOpt := health.WithTimeout(time.Second * 10)
 	dbHealthOpt := health.WithCheck(health.Check{
 		Name:               "database",

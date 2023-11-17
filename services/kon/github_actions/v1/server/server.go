@@ -10,7 +10,7 @@ import (
 	"github.com/containerish/OpenRegistry/config"
 	github_actions_v1 "github.com/containerish/OpenRegistry/services/kon/github_actions/v1"
 	connect_v1 "github.com/containerish/OpenRegistry/services/kon/github_actions/v1/github_actions_v1connect"
-	"github.com/containerish/OpenRegistry/store/v1/automation"
+	build_automation_store "github.com/containerish/OpenRegistry/store/postgres/build_automation"
 	"github.com/containerish/OpenRegistry/telemetry"
 	"github.com/containerish/OpenRegistry/vcs"
 	"github.com/fatih/color"
@@ -22,7 +22,7 @@ type GitHubActionsServer struct {
 	config              *config.Integration
 	github              *github.Client
 	transport           *ghinstallation.AppsTransport
-	store               automation.BuildAutomationStore
+	store               build_automation_store.BuildAutomationStore
 	activeLogStreamJobs map[string]*streamLogsJob
 	mu                  *sync.RWMutex
 }
@@ -36,7 +36,7 @@ func NewGithubActionsServer(
 	config *config.Integration,
 	authConfig *config.Auth,
 	logger telemetry.Logger,
-	store automation.BuildAutomationStore,
+	store build_automation_store.BuildAutomationStore,
 	ghStore vcs.VCSStore,
 ) *http.ServeMux {
 	if !config.Enabled {

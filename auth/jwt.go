@@ -9,9 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/containerish/OpenRegistry/store/v1/types"
+	"github.com/containerish/OpenRegistry/types"
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/google/uuid"
 	"golang.org/x/oauth2"
 )
 
@@ -67,6 +66,7 @@ func (a *auth) newPublicPullToken() (string, error) {
 	hasher := sha256.New()
 	hasher.Write(pubKeyDerBz)
 
+	// token := jwt.NewWithClaims(jwt.SigningMethodHS256, &claims)
 	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
 	token.Header["kid"] = a.keyIDEncode(hasher.Sum(nil)[:30])
 	sign, err := token.SignedString(a.c.Registry.Auth.JWTSigningPrivateKey)
@@ -90,11 +90,11 @@ func (a *auth) keyIDEncode(b []byte) string {
 	return buf.String()
 }
 
-func (a *auth) SignOAuthToken(userId uuid.UUID, payload *oauth2.Token) (string, string, error) {
+func (a *auth) SignOAuthToken(userId string, payload *oauth2.Token) (string, string, error) {
 	return a.newOAuthToken(userId, payload)
 }
 
-func (a *auth) newOAuthToken(userId uuid.UUID, payload *oauth2.Token) (string, string, error) {
+func (a *auth) newOAuthToken(userId string, payload *oauth2.Token) (string, string, error) {
 	accessClaims := a.createOAuthClaims(userId, payload)
 	refreshClaims := a.createRefreshClaims(userId)
 
@@ -134,7 +134,7 @@ func (a *auth) newServiceToken(u types.User) (string, error) {
 	opts := &CreateClaimOptions{
 		Audience: a.c.Registry.FQDN,
 		Issuer:   OpenRegistryIssuer,
-		Id:       u.ID.String(),
+		Id:       u.Id,
 		TokeType: "service_token",
 		Acl:      acl,
 	}
@@ -147,6 +147,7 @@ func (a *auth) newServiceToken(u types.User) (string, error) {
 
 	hasher := sha256.New()
 	hasher.Write(pubKeyDerBz)
+	// token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
 	token.Header["kid"] = a.keyIDEncode(hasher.Sum(nil)[:30])
 	sign, err := token.SignedString(a.c.Registry.Auth.JWTSigningPrivateKey)
@@ -157,17 +158,64 @@ func (a *auth) newServiceToken(u types.User) (string, error) {
 	return sign, nil
 }
 
+// func (a *auth) newWebLoginToken(userId, username, tokenType string) (string, error) {
+// 	acl := AccessList{
+// 		{
+// 			Type:    "repository",
+// 			Name:    fmt.Sprintf("%s/*", username),
+// 			Actions: []string{"push", "pull"},
+// 		},
+// 	}
+// 	claims := a.createClaims(userId, tokenType, acl)
+// 	rawPrivateKey, err := os.ReadFile(a.c.Registry.TLS.PrivateKey)
+// 	if err != nil {
+// 		return "", err
+// 	}
+//
+// 	pv, err := jwt.ParseRSAPrivateKeyFromPEM(rawPrivateKey)
+// 	if err != nil {
+// 		panic(err)
+// 	}
+//
+// 	rawPublicKey, err := os.ReadFile(a.c.Registry.TLS.PubKey)
+// 	if err != nil {
+// 		return "", err
+// 	}
+//
+// 	pb, err := jwt.ParseRSAPublicKeyFromPEM(rawPublicKey)
+// 	if err != nil {
+// 		panic(err)
+// 	}
+//
+// 	pubKeyDerBz, err := x509.MarshalPKIXPublicKey(pb)
+// 	if err != nil {
+// 		return "", err
+// 	}
+//
+// 	hasher := sha256.New()
+// 	hasher.Write(pubKeyDerBz)
+// 	// raw := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+// 	raw := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
+// 	raw.Header["kid"] = a.keyIDEncode(hasher.Sum(nil)[:30])
+// 	token, err := raw.SignedString(pv)
+// 	if err != nil {
+// 		return "", err
+// 	}
+//
+// 	return token, nil
+// }
+
 // nolint
 func (a *auth) createServiceClaims(u types.User) ServiceClaims {
 	claims := ServiceClaims{
 		RegisteredClaims: jwt.RegisteredClaims{
 			Audience:  jwt.ClaimStrings{a.c.Endpoint()},
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 750)),
-			ID:        u.ID.String(),
+			ID:        u.Id,
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			Issuer:    "OpenRegistry",
 			NotBefore: jwt.NewNumericDate(time.Now()),
-			Subject:   u.ID.String(),
+			Subject:   u.Id,
 		},
 		Access: AccessList{
 			{
@@ -181,34 +229,34 @@ func (a *auth) createServiceClaims(u types.User) ServiceClaims {
 	return claims
 }
 
-func (a *auth) createOAuthClaims(userId uuid.UUID, token *oauth2.Token) PlatformClaims {
+func (a *auth) createOAuthClaims(userId string, token *oauth2.Token) PlatformClaims {
 	claims := PlatformClaims{
 		OauthPayload: token,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Audience:  jwt.ClaimStrings{a.c.Endpoint()},
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 750)),
-			ID:        userId.String(),
+			ID:        userId,
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			Issuer:    "OpenRegistry",
 			NotBefore: jwt.NewNumericDate(time.Now()),
-			Subject:   userId.String(),
+			Subject:   userId,
 		},
 	}
 
 	return claims
 }
 
-func (a *auth) createRefreshClaims(userId uuid.UUID) RefreshClaims {
+func (a *auth) createRefreshClaims(userId string) RefreshClaims {
 	claims := RefreshClaims{
-		ID: userId.String(),
+		ID: userId,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Audience:  jwt.ClaimStrings{a.c.Endpoint()},
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 750)), // Refresh tokens can live longer
-			ID:        userId.String(),
+			ID:        userId,
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			Issuer:    "OpenRegistry",
 			NotBefore: jwt.NewNumericDate(time.Now()),
-			Subject:   userId.String(),
+			Subject:   userId,
 		},
 	}
 
@@ -235,8 +283,8 @@ func (a *auth) newToken(u *types.User) (string, error) {
 	opts := &CreateClaimOptions{
 		Audience: a.c.Registry.FQDN,
 		Issuer:   OpenRegistryIssuer,
-		Id:       u.ID.String(),
-		TokeType: AccessCookieKey,
+		Id:       u.Id,
+		TokeType: "access_token",
 		Acl:      acl,
 	}
 	claims := CreateClaims(opts)
@@ -280,7 +328,38 @@ claims format
 	    ]
 	}
 */
-
+// func (a *auth) createClaims(id, tokenType string, acl AccessList) Claims {
+//
+// 	tokenLife := time.Now().Add(time.Minute * 10).Unix()
+// 	switch tokenType {
+// 	case "access":
+// 		// TODO (jay-dee7)
+// 		// token can live for month now, but must be addressed when we implement PASETO
+// 		tokenLife = time.Now().Add(time.Hour * 750).Unix()
+// 	case "refresh":
+// 		tokenLife = time.Now().Add(time.Hour * 750).Unix()
+// 	case "service":
+// 		tokenLife = time.Now().Add(time.Hour * 750).Unix()
+// 	case "short-lived":
+// 		tokenLife = time.Now().Add(time.Minute * 30).Unix()
+// 	}
+//
+// 	claims := Claims{
+// 		RegisteredClaims: jwt.StandardClaims{
+// 			Audience:  a.c.Endpoint(),
+// 			ExpiresAt: tokenLife,
+// 			Id:        id,
+// 			IssuedAt:  time.Now().Unix(),
+// 			Issuer:    "OpenRegistry",
+// 			NotBefore: time.Now().Unix(),
+// 			Subject:   id,
+// 		},
+// 		Access: acl,
+// 		Type:   tokenType,
+// 	}
+// 	return claims
+// }
+//
 type AccessList []struct {
 	Type    string   `json:"type"`
 	Name    string   `json:"name"`

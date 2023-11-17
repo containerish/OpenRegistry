@@ -7,10 +7,10 @@ import (
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/containerish/OpenRegistry/config"
 	dfsImpl "github.com/containerish/OpenRegistry/dfs"
-	store_v2 "github.com/containerish/OpenRegistry/store/v1/registry"
+	"github.com/containerish/OpenRegistry/store/postgres"
 	"github.com/containerish/OpenRegistry/telemetry"
+	"github.com/jackc/pgx/v4"
 	"github.com/labstack/echo/v4"
-	"github.com/uptrace/bun"
 )
 
 /*
@@ -84,7 +84,6 @@ const (
 	RegistryErrorCodeUnauthorized        = "UNAUTHORIZED"          // authentication is required
 	RegistryErrorCodeDenied              = "DENIED"                // request access to resource is denied
 	RegistryErrorCodeUnsupported         = "UNSUPPORTED"           // operation is not supported
-	RegistryErrorCodeReferrerUnknown     = "REFERRER_UNKOWN"
 )
 
 type (
@@ -92,7 +91,7 @@ type (
 		b      blobs
 		config *config.OpenRegistryConfig
 		logger telemetry.Logger
-		store  store_v2.RegistryStore
+		store  postgres.PersistentStore
 		dfs    dfsImpl.DFS
 		txnMap map[string]TxnStore
 		mu     *sync.RWMutex
@@ -100,7 +99,7 @@ type (
 	}
 
 	TxnStore struct {
-		txn         *bun.Tx
+		txn         pgx.Tx
 		blobDigests []string
 		timeout     time.Duration
 	}
@@ -114,6 +113,40 @@ type (
 		blobCounter        map[string]int64
 		layerLengthCounter map[string]int64
 		layerParts         map[string][]s3types.CompletedPart
+	}
+
+	ManifestList struct {
+		MediaType string `json:"mediaType"`
+		Manifests []struct {
+			MediaType string `json:"mediaType"`
+			Digest    string `json:"digest"`
+			Platform  struct {
+				Architecture string   `json:"architecture"`
+				Os           string   `json:"os"`
+				Features     []string `json:"features"`
+			} `json:"platform"`
+			Size int `json:"size"`
+		} `json:"manifests"`
+		SchemaVersion int `json:"schemaVersion"`
+	}
+
+	ImageManifest struct {
+		Config        Config `json:"config"`
+		MediaType     string `json:"mediaType"`
+		Layers        Layers `json:"layers"`
+		SchemaVersion int    `json:"schemaVersion"`
+	}
+
+	Layers []struct {
+		MediaType string `json:"mediaType"`
+		Digest    string `json:"digest"`
+		Size      int    `json:"size"`
+	}
+
+	Config struct {
+		MediaType string `json:"mediaType"`
+		Digest    string `json:"digest"`
+		Size      int    `json:"size"`
 	}
 )
 
@@ -245,9 +278,4 @@ type Registry interface {
 
 	// MonolithicPut is used as the second operation for MonolithicUpload with POST + Put
 	MonolithicPut(ctx echo.Context) error
-
-	// Create Repository
-	CreateRepository(ctx echo.Context) error
-
-	ListReferrers(ctx echo.Context) error
 }

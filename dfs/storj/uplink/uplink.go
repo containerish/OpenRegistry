@@ -7,10 +7,11 @@ import (
 	"log"
 	"time"
 
+	"github.com/SkynetLabs/go-skynet/v2"
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/containerish/OpenRegistry/config"
 	"github.com/containerish/OpenRegistry/dfs"
-	"github.com/containerish/OpenRegistry/store/v1/types"
+	"github.com/containerish/OpenRegistry/types"
 	"github.com/fatih/color"
 	"storj.io/uplink"
 	"storj.io/uplink/edge"
@@ -169,14 +170,14 @@ func (u *storjUplink) GetUploadProgress(identifier string, uploadID string) (*ty
 }
 
 // Metadata implements dfs.DFS
-func (u *storjUplink) Metadata(dfsLink string) (*types.ObjectMetadata, error) {
+func (u *storjUplink) Metadata(dfsLink string) (*skynet.Metadata, error) {
 	metadata, err := u.client.StatObject(context.Background(), u.bucket, dfsLink)
 	if err != nil {
 		return nil, err
 	}
 
-	return &types.ObjectMetadata{
-		DFSLink:       metadata.Key,
+	return &skynet.Metadata{
+		Skylink:       metadata.Key,
 		ContentLength: int(metadata.System.ContentLength),
 	}, nil
 }
@@ -251,7 +252,7 @@ func (u *storjUplink) List(path string) ([]*types.Metadata, error) {
 }
 
 // DownloadDir implements dfs.DFS
-func (u *storjUplink) DownloadDir(dfsLink string, dir string) error {
+func (u *storjUplink) DownloadDir(skynetLink string, dir string) error {
 	panic("unimplemented")
 }
 

@@ -38,19 +38,19 @@ type (
 	Blob struct {
 		CreatedAt  time.Time
 		Digest     string
-		DFSLink    string
+		Skylink    string
 		UUID       string
 		RangeStart uint32
 		RangeEnd   uint32
 	}
 
 	Layer struct {
-		MediaType string `json:"mediaType"`
-		Digest    string `json:"digest"`
-		DFSLink   string `json:"dfsLink"`
-		UUID      string `json:"uuid"`
-		Blobs     []Blob `json:"blobs"`
-		Size      int    `json:"size"`
+		MediaType  string `json:"mediaType"`
+		Digest     string `json:"digest"`
+		SkynetLink string `json:"skynetLink"`
+		UUID       string `json:"uuid"`
+		Blobs      []Blob `json:"blobs"`
+		Size       int    `json:"size"`
 	}
 
 	LayerV2 struct {
@@ -58,7 +58,7 @@ type (
 		UpdatedAt   time.Time `json:"updated_at,omitempty"`
 		MediaType   string    `json:"mediaType"`
 		Digest      string    `json:"digest"`
-		DFSLink     string    `json:"dfsLink"`
+		DFSLink     string    `json:"skynetLink"`
 		UUID        string    `json:"uuid"`
 		BlobDigests []string  `json:"blobs"`
 		Size        int       `json:"size"`
@@ -66,15 +66,15 @@ type (
 
 	LayerRef struct {
 		Digest  string
-		DFSLink string
+		Skylink string
 	}
 
 	Config struct {
-		MediaType string `json:"mediaType"`
-		Digest    string `json:"digest"`
-		DFSLink   string `json:"dfsLink"`
-		Reference string `json:"reference"`
-		Size      int    `json:"size"`
+		MediaType  string `json:"mediaType"`
+		Digest     string `json:"digest"`
+		SkynetLink string `json:"skynetLink"`
+		Reference  string `json:"reference"`
+		Size       int    `json:"size"`
 	}
 
 	ConfigV2 struct {
@@ -82,7 +82,7 @@ type (
 		UpdatedAt time.Time `json:"updated_at"`
 		UUID      string    `json:"uuid,omitempty"`
 		Namespace string    `json:"namespace,omitempty"`
-		DFSLink   string    `json:"dfs_link,omitempty"`
+		DFSLink   string    `json:"sky_link,omitempty"`
 		MediaType string    `json:"media_type,omitempty"`
 		Reference string    `json:"reference"`
 		Digest    string    `json:"digest"`
@@ -156,13 +156,13 @@ func (md Metadata) FindLayer(ref string) *Layer {
 func (md Metadata) FindLinkForDigest(ref string) (string, error) {
 	for _, c := range md.Manifest.Config {
 		if c.Digest == ref || c.Reference == ref {
-			return c.DFSLink, nil
+			return c.SkynetLink, nil
 		}
 	}
 
 	for _, l := range md.Manifest.Layers {
 		if l.Digest == ref {
-			return l.DFSLink, nil
+			return l.SkynetLink, nil
 		}
 	}
 

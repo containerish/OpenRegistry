@@ -7,13 +7,14 @@ import (
 	"io"
 	"time"
 
+	"github.com/SkynetLabs/go-skynet/v2"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/containerish/OpenRegistry/config"
 	"github.com/containerish/OpenRegistry/dfs"
-	"github.com/containerish/OpenRegistry/store/v1/types"
-	oci_digest "github.com/opencontainers/go-digest"
+	"github.com/containerish/OpenRegistry/types"
+	"github.com/opencontainers/go-digest"
 )
 
 type storj struct {
@@ -103,7 +104,7 @@ func (sj *storj) CompleteMultipartUpload(
 	ctx, cancel := context.WithTimeout(ctx, time.Minute*5)
 	defer cancel()
 
-	digest, err := oci_digest.Parse(layerDigest)
+	dig, err := digest.Parse(layerDigest)
 	if err != nil {
 		return "", fmt.Errorf("ERR_STORJ_DIGEST_PARSE: %w", err)
 	}
@@ -112,7 +113,7 @@ func (sj *storj) CompleteMultipartUpload(
 		Key:             &layerKey,
 		Bucket:          &sj.bucket,
 		UploadId:        &uploadId,
-		ChecksumSHA256:  aws.String(digest.Encoded()),
+		ChecksumSHA256:  aws.String(dig.Encoded()),
 		MultipartUpload: &s3types.CompletedMultipartUpload{Parts: completedParts},
 	})
 	if err != nil {
@@ -184,7 +185,7 @@ func (sj *storj) Download(ctx context.Context, path string) (io.ReadCloser, erro
 	return resp.Body, nil
 }
 
-func (sj *storj) DownloadDir(dfsLink, dir string) error {
+func (sj *storj) DownloadDir(skynetLink, dir string) error {
 	return nil
 }
 
@@ -199,7 +200,7 @@ func (sj *storj) AddImage(ns string, mf, l map[string][]byte) (string, error) {
 // Metadata API returns the HEADERS for an object. This object can be a manifest or a layer.
 // This API is usually a little behind when it comes to fetching the details for an uploaded object.
 // This is why we put it in a retry loop and break it as soon as we get the data
-func (sj *storj) Metadata(identifier string) (*types.ObjectMetadata, error) {
+func (sj *storj) Metadata(identifier string) (*skynet.Metadata, error) {
 	var resp *s3.HeadObjectOutput
 	var err error
 
@@ -221,10 +222,10 @@ func (sj *storj) Metadata(identifier string) (*types.ObjectMetadata, error) {
 		return nil, fmt.Errorf("ERR_STORJ_METADATA_HEAD: %w", err)
 	}
 
-	return &types.ObjectMetadata{
+	return &skynet.Metadata{
 		ContentType:   *resp.ContentType,
 		Etag:          *resp.ETag,
-		DFSLink:       identifier,
+		Skylink:       identifier,
 		ContentLength: int(resp.ContentLength),
 	}, nil
 }

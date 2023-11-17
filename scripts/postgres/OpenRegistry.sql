@@ -15,7 +15,7 @@ CREATE TABLE "config" (
      "namespace" text NOT NULL,
      "reference" text NOT NULL,
      "digest" text NOT NULL,
-     "dfs_link" text,
+     "sky_link" text,
      "media_type" text,
      "layers" text[],
      "size" int,
@@ -25,7 +25,7 @@ CREATE TABLE "config" (
 CREATE TABLE "blob" (
      "uuid" uuid,
      "digest" text PRIMARY KEY,
-     "dfs_link" text,
+     "sky_link" text,
      "start_range" int,
      "end_range" int
 );
@@ -35,7 +35,7 @@ CREATE TABLE "layer" (
      "digest" text UNIQUE NOT NULL,
      "blob_ids" text[],
      "media_type" text,
-     "dfs_link" text,
+     "sky_link" text,
      "size" int
 );
 

@@ -3,39 +3,35 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
-	"strings"
 	"time"
 
 	"github.com/containerish/OpenRegistry/auth"
 	"github.com/containerish/OpenRegistry/auth/webauthn"
 	"github.com/containerish/OpenRegistry/config"
-	v2_types "github.com/containerish/OpenRegistry/store/v1/types"
-	"github.com/containerish/OpenRegistry/store/v1/users"
-	webauthn_store "github.com/containerish/OpenRegistry/store/v1/webauthn"
+	"github.com/containerish/OpenRegistry/store/postgres"
 	"github.com/containerish/OpenRegistry/telemetry"
 	"github.com/containerish/OpenRegistry/types"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v4"
 	"github.com/labstack/echo/v4"
-	"github.com/uptrace/bun"
 )
 
 type (
 	webauthn_server struct {
-		store        webauthn_store.WebAuthnStore
-		sessionStore users.SessionStore
-		usersStore   users.UserStore
-		logger       telemetry.Logger
-		cfg          *config.OpenRegistryConfig
-		webauthn     webauthn.WebAuthnService
-		txnStore     map[string]*webAuthNMeta
+		store    postgres.PersistentStore
+		logger   telemetry.Logger
+		cfg      *config.OpenRegistryConfig
+		webauthn webauthn.WebAuthnService
+		txnStore map[string]*webAuthNMeta
 	}
 
 	webAuthNMeta struct {
 		expiresAt time.Time
-		txn       *bun.Tx
+		txn       pgx.Tx
 	}
 
 	WebauthnServer interface {
@@ -50,22 +46,17 @@ type (
 
 func NewWebauthnServer(
 	cfg *config.OpenRegistryConfig,
-	// store postgres.PersistentStore,
-	store webauthn_store.WebAuthnStore,
-	sessionStore users.SessionStore,
-	usersStore users.UserStore,
+	store postgres.PersistentStore,
 	logger telemetry.Logger,
 ) WebauthnServer {
 	webauthnService := webauthn.New(&cfg.WebAuthnConfig, store)
 
 	server := &webauthn_server{
-		store:        store,
-		logger:       logger,
-		cfg:          cfg,
-		webauthn:     webauthnService,
-		txnStore:     make(map[string]*webAuthNMeta),
-		sessionStore: sessionStore,
-		usersStore:   usersStore,
+		store:    store,
+		logger:   logger,
+		cfg:      cfg,
+		webauthn: webauthnService,
+		txnStore: make(map[string]*webAuthNMeta),
 	}
 
 	go server.webAuthNTxnCleanup()
@@ -76,7 +67,7 @@ func (wa *webauthn_server) webAuthNTxnCleanup() {
 	for range time.Tick(time.Second * 2) {
 		for username, meta := range wa.txnStore {
 			if meta.expiresAt.Unix() <= time.Now().Unix() {
-				_ = meta.txn.Rollback()
+				_ = meta.txn.Rollback(context.Background())
 				delete(wa.txnStore, username)
 			}
 		}
@@ -85,8 +76,7 @@ func (wa *webauthn_server) webAuthNTxnCleanup() {
 
 func (wa *webauthn_server) BeginRegistration(ctx echo.Context) error {
 	ctx.Set(types.HandlerStartTime, time.Now())
-
-	user := v2_types.User{}
+	user := types.User{}
 
 	if err := json.NewDecoder(ctx.Request().Body).Decode(&user); err != nil {
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
@@ -97,7 +87,7 @@ func (wa *webauthn_server) BeginRegistration(ctx echo.Context) error {
 		return echoErr
 	}
 	defer ctx.Request().Body.Close()
-	user.Identities = make(v2_types.Identities)
+	user.Identities = make(types.Identities)
 
 	err := user.Validate(false)
 	if err != nil {
@@ -111,7 +101,7 @@ func (wa *webauthn_server) BeginRegistration(ctx echo.Context) error {
 	}
 
 	wa.invalidateExistingRequests(ctx.Request().Context(), user.Username)
-	txn, err := wa.usersStore.NewTxn(context.Background())
+	txn, err := wa.store.NewTxn(ctx.Request().Context())
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error":   err.Error(),
@@ -126,17 +116,17 @@ func (wa *webauthn_server) BeginRegistration(ctx echo.Context) error {
 		expiresAt: time.Now().Add(time.Minute),
 	}
 
-	_, err = wa.usersStore.GetUserByEmail(ctx.Request().Context(), user.Email)
-	if err != nil && strings.Contains(err.Error(), "no rows in result set") {
-		user.ID = uuid.New()
+	_, err = wa.store.GetUser(ctx.Request().Context(), user.Email, false, nil)
+	if errors.Unwrap(err) == pgx.ErrNoRows {
+		user.Id = uuid.NewString()
 		user.IsActive = true
 		user.WebauthnConnected = true
-		user.Identities[v2_types.IdentityProviderWebauthn] = &v2_types.UserIdentity{
-			ID:       user.ID.String(),
+		user.Identities[types.IdentityProviderWebauthn] = &types.UserIdentity{
+			ID:       user.Id,
 			Username: user.Username,
 			Email:    user.Email,
 		}
-		if err = wa.usersStore.AddUser(ctx.Request().Context(), &user, txn); err != nil {
+		if err = wa.store.AddUser(ctx.Request().Context(), &user, txn); err != nil {
 			echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 				"error":   err.Error(),
 				"message": "failed to store user details",
@@ -151,7 +141,7 @@ func (wa *webauthn_server) BeginRegistration(ctx echo.Context) error {
 			// If we encounter an error here, we need to do the following:
 			// 1. Rollback the session data (since this session data is irrelevant from this point onwards)
 			// 2. Rollback the webauthn user store txn
-			if werr := wa.webauthn.RemoveSessionData(ctx.Request().Context(), user.ID); werr != nil {
+			if werr := wa.webauthn.RemoveSessionData(ctx.Request().Context(), user.Id); werr != nil {
 				echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 					"error":   werr.Error(),
 					"message": "failed to rollback stale session data",
@@ -160,7 +150,7 @@ func (wa *webauthn_server) BeginRegistration(ctx echo.Context) error {
 				return echoErr
 			}
 
-			if rollbackErr := txn.Rollback(); rollbackErr != nil {
+			if rollbackErr := txn.Rollback(ctx.Request().Context()); rollbackErr != nil {
 				echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 					"error":   rollbackErr.Error(),
 					"message": "failed to rollback webauthn user txn",
@@ -196,8 +186,6 @@ func (wa *webauthn_server) BeginRegistration(ctx echo.Context) error {
 }
 
 func (wa *webauthn_server) RollbackRegistration(ctx echo.Context) error {
-	ctx.Set(types.HandlerStartTime, time.Now())
-
 	username := ctx.QueryParam("username")
 	meta, ok := wa.txnStore[username]
 	if !ok {
@@ -209,7 +197,7 @@ func (wa *webauthn_server) RollbackRegistration(ctx echo.Context) error {
 		return echoErr
 	}
 
-	err := meta.txn.Rollback()
+	err := meta.txn.Rollback(ctx.Request().Context())
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error":   err.Error(),
@@ -229,8 +217,6 @@ func (wa *webauthn_server) RollbackRegistration(ctx echo.Context) error {
 }
 
 func (wa *webauthn_server) RollbackSessionData(ctx echo.Context) error {
-	ctx.Set(types.HandlerStartTime, time.Now())
-
 	username := ctx.QueryParam("username")
 	if username == "" {
 		return ctx.JSON(http.StatusBadRequest, echo.Map{
@@ -238,7 +224,7 @@ func (wa *webauthn_server) RollbackSessionData(ctx echo.Context) error {
 		})
 	}
 
-	user, err := wa.usersStore.GetUserByUsername(ctx.Request().Context(), username)
+	user, err := wa.store.GetUser(ctx.Request().Context(), username, false, nil)
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error":   err.Error(),
@@ -249,7 +235,7 @@ func (wa *webauthn_server) RollbackSessionData(ctx echo.Context) error {
 		return echoErr
 	}
 
-	err = wa.webauthn.RemoveSessionData(ctx.Request().Context(), user.ID)
+	err = wa.webauthn.RemoveSessionData(ctx.Request().Context(), user.Id)
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error":   err.Error(),
@@ -280,9 +266,9 @@ func (wa *webauthn_server) FinishRegistration(ctx echo.Context) error {
 		return echoErr
 	}
 
-	user, err := wa.usersStore.GetUserByUsernameWithTxn(ctx.Request().Context(), username, meta.txn)
+	user, err := wa.store.GetUser(ctx.Request().Context(), username, false, meta.txn)
 	if err != nil {
-		_ = meta.txn.Rollback()
+		_ = meta.txn.Rollback(ctx.Request().Context())
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error":   err.Error(),
 			"message": "no user found with this username",
@@ -298,7 +284,7 @@ func (wa *webauthn_server) FinishRegistration(ctx echo.Context) error {
 	}
 
 	if err = wa.webauthn.FinishRegistration(ctx.Request().Context(), opts); err != nil {
-		_ = meta.txn.Rollback()
+		_ = meta.txn.Rollback(ctx.Request().Context())
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error":   err.Error(),
 			"message": "error creating webauthn credentials",
@@ -309,8 +295,8 @@ func (wa *webauthn_server) FinishRegistration(ctx echo.Context) error {
 	}
 	defer ctx.Request().Body.Close()
 
-	if err = meta.txn.Commit(); err != nil {
-		_ = meta.txn.Rollback()
+	if err = meta.txn.Commit(ctx.Request().Context()); err != nil {
+		_ = meta.txn.Rollback(ctx.Request().Context())
 		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error":   err.Error(),
 			"message": "error storing the credential info",
@@ -331,7 +317,7 @@ func (wa *webauthn_server) BeginLogin(ctx echo.Context) error {
 	ctx.Set(types.HandlerStartTime, time.Now())
 
 	username := ctx.QueryParam("username")
-	user, err := wa.usersStore.GetUserByUsername(ctx.Request().Context(), username)
+	user, err := wa.store.GetUser(ctx.Request().Context(), username, false, nil)
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error":   err.Error(),
@@ -350,7 +336,7 @@ func (wa *webauthn_server) BeginLogin(ctx echo.Context) error {
 
 	credentialAssertion, err := wa.webauthn.BeginLogin(ctx.Request().Context(), opts)
 	if err != nil {
-		if werr := wa.webauthn.RemoveSessionData(ctx.Request().Context(), user.ID); werr != nil {
+		if werr := wa.webauthn.RemoveSessionData(ctx.Request().Context(), user.Id); werr != nil {
 			echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 				"error":   werr.Error(),
 				"message": "error removing webauthn session data",
@@ -380,7 +366,7 @@ func (wa *webauthn_server) FinishLogin(ctx echo.Context) error {
 	ctx.Set(types.HandlerStartTime, time.Now())
 
 	username := ctx.QueryParam("username")
-	user, err := wa.usersStore.GetUserByUsername(ctx.Request().Context(), username)
+	user, err := wa.store.GetUser(ctx.Request().Context(), username, false, nil)
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error":   err.Error(),
@@ -408,18 +394,18 @@ func (wa *webauthn_server) FinishLogin(ctx echo.Context) error {
 	defer ctx.Request().Body.Close()
 
 	accessTokenOpts := &auth.WebLoginJWTOptions{
-		Id:        user.ID,
+		Id:        user.Id,
 		Username:  username,
-		TokenType: auth.AccessCookieKey,
+		TokenType: "access_token",
 		Audience:  wa.cfg.Registry.FQDN,
 		Privkey:   wa.cfg.Registry.Auth.JWTSigningPrivateKey,
 		Pubkey:    wa.cfg.Registry.Auth.JWTSigningPubKey,
 	}
 
 	refreshTokenOpts := &auth.WebLoginJWTOptions{
-		Id:        user.ID,
+		Id:        user.Id,
 		Username:  username,
-		TokenType: auth.RefreshCookKey,
+		TokenType: "refresh_token",
 		Audience:  wa.cfg.Registry.FQDN,
 		Privkey:   wa.cfg.Registry.Auth.JWTSigningPrivateKey,
 		Pubkey:    wa.cfg.Registry.Auth.JWTSigningPubKey,
@@ -444,10 +430,10 @@ func (wa *webauthn_server) FinishLogin(ctx echo.Context) error {
 		wa.logger.Log(ctx, err).Send()
 		return echoErr
 	}
-	id := uuid.New()
-	sessionId := fmt.Sprintf("%s:%s", id, user.ID)
+	id := uuid.NewString()
+	sessionId := fmt.Sprintf("%s:%s", id, user.Id)
 
-	if err = wa.sessionStore.AddSession(ctx.Request().Context(), id, refreshToken, user.ID); err != nil {
+	if err = wa.store.AddSession(ctx.Request().Context(), id, refreshToken, user.Username); err != nil {
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error":   err.Error(),
 			"message": "error creating session",
@@ -475,7 +461,7 @@ func (wa *webauthn_server) FinishLogin(ctx echo.Context) error {
 
 	accessTokenCookie := auth.CreateCookie(&auth.CreateCookieOptions{
 		ExpiresAt:   time.Now().Add(time.Hour * 750),
-		Name:        auth.AccessCookieKey,
+		Name:        "access_token",
 		Value:       accessToken,
 		FQDN:        domain,
 		Environment: wa.cfg.Environment,
@@ -484,7 +470,7 @@ func (wa *webauthn_server) FinishLogin(ctx echo.Context) error {
 
 	refreshTokenCookie := auth.CreateCookie(&auth.CreateCookieOptions{
 		ExpiresAt:   time.Now().Add(time.Hour * 750), //one month
-		Name:        auth.RefreshCookKey,
+		Name:        "refresh_token",
 		Value:       refreshToken,
 		FQDN:        domain,
 		Environment: wa.cfg.Environment,
@@ -506,6 +492,6 @@ func (wa *webauthn_server) FinishLogin(ctx echo.Context) error {
 func (wa *webauthn_server) invalidateExistingRequests(ctx context.Context, username string) {
 	meta, ok := wa.txnStore[username]
 	if ok {
-		_ = meta.txn.Rollback()
+		_ = meta.txn.Rollback(ctx)
 	}
 }

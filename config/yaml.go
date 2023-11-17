@@ -3,9 +3,7 @@ package config
 import (
 	"crypto/rsa"
 	"fmt"
-	"log"
 	"os"
-	"runtime"
 	"strings"
 
 	"github.com/fatih/color"
@@ -14,14 +12,11 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-func ReadYamlConfig(configPath string) (*OpenRegistryConfig, error) {
+func ReadYamlConfig() (*OpenRegistryConfig, error) {
 	viper.SetConfigName("config")
 	viper.SetConfigType("yaml")
 	viper.AddConfigPath(".")
 	viper.AddConfigPath("$HOME/.openregistry")
-	if configPath != "" {
-		viper.SetConfigFile(configPath)
-	}
 
 	var cfg OpenRegistryConfig
 	// OPENREGISTRY_CONFIG env variable takes precedence over everything
@@ -51,8 +46,6 @@ func ReadYamlConfig(configPath string) (*OpenRegistryConfig, error) {
 		return nil, fmt.Errorf("missing registry.auth config")
 	}
 
-	parseAndSetMockStorageDriverOptions(&cfg)
-
 	privKey, pubKey, err := getRSAKeyPairFromViperConfig(authConfig)
 	if err != nil {
 		return nil, err
@@ -65,7 +58,6 @@ func ReadYamlConfig(configPath string) (*OpenRegistryConfig, error) {
 		return nil, fmt.Errorf("ERR_UNMARSHAL_CONFIG: %w", err)
 	}
 
-	setDefaultsForDatabaseStore(&cfg)
 	setDefaultsForStorageBackend(&cfg)
 
 	githubConfig := cfg.Integrations.GetGithubConfig()
@@ -141,31 +133,4 @@ func setDefaultsForStorageBackend(cfg *OpenRegistryConfig) {
 			cfg.DFS.Storj.MinChunkSize = fiveMBInBytes
 		}
 	}
-}
-
-func setDefaultsForDatabaseStore(cfg *OpenRegistryConfig) {
-	if cfg.StoreConfig.MaxOpenConnections == 0 {
-		cfg.StoreConfig.MaxOpenConnections = runtime.NumCPU() * 6
-	}
-}
-
-func parseAndSetMockStorageDriverOptions(cfg *OpenRegistryConfig) {
-	mockDFSType := viper.GetString("dfs.mock.type")
-	if mockDFSType == "MemMapped" {
-		viper.Set("dfs.mock.type", MockStorageBackendMemMapped)
-		cfg.DFS.Mock.Type = MockStorageBackendMemMapped
-		return
-	}
-
-	if mockDFSType == "FS" {
-		viper.Set("dfs.mock.type", MockStorageBackendFileBased)
-		cfg.DFS.Mock.Type = MockStorageBackendFileBased
-		return
-	}
-
-	log.Fatalln(
-		color.RedString(
-			"invalid option for 'dfs.mock.type' \"%s\", supported options are: 'MemMapped' or 'FS'", mockDFSType,
-		),
-	)
 }

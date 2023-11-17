@@ -20,6 +20,7 @@ registry:
     services:
       - github
       - token
+      - skynet_homescreen
   auth:
     enabled: false
     priv_key: .certs/registry.local
@@ -31,7 +32,7 @@ oauth:
 dfs:
   mock:
     enabled: true
-    type: "MemMapped"
+    type: "s3"
     access_key: <access-key>
     secret_key: <access-secret-key>
     endpoint: <s3-compatible-api-endpoint>
@@ -39,6 +40,7 @@ dfs:
     dfs_link_resolver: <optional-dfs-link-resolver-url>
   filebase:
     enabled: false
+    type: "s3"
     access_key: <access-key>
     secret_key: <access-secret-key>
     endpoint: <s3-compatible-api-endpoint>

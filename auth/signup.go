@@ -10,8 +10,7 @@ import (
 
 	"github.com/containerish/OpenRegistry/config"
 	"github.com/containerish/OpenRegistry/services/email"
-	store_err "github.com/containerish/OpenRegistry/store/v1"
-	v2_types "github.com/containerish/OpenRegistry/store/v1/types"
+	"github.com/containerish/OpenRegistry/store/postgres"
 	"github.com/containerish/OpenRegistry/types"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
@@ -20,7 +19,7 @@ import (
 func (a *auth) SignUp(ctx echo.Context) error {
 	ctx.Set(types.HandlerStartTime, time.Now())
 
-	var u v2_types.User
+	var u types.User
 	if err := json.NewDecoder(ctx.Request().Body).Decode(&u); err != nil {
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error":   err.Error(),
@@ -61,8 +60,8 @@ func (a *auth) SignUp(ctx echo.Context) error {
 		return echoErr
 	}
 
-	newUser := &v2_types.User{
-		ID:        id,
+	newUser := &types.User{
+		Id:        id.String(),
 		UpdatedAt: time.Now(),
 		CreatedAt: time.Now(),
 		Password:  u.Password,
@@ -78,7 +77,7 @@ func (a *auth) SignUp(ctx echo.Context) error {
 
 	err = a.pgStore.AddUser(ctx.Request().Context(), newUser, nil)
 	if err != nil {
-		if strings.Contains(err.Error(), store_err.ErrDuplicateConstraintUsername) {
+		if strings.Contains(err.Error(), postgres.ErrDuplicateConstraintUsername) {
 			echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 				"error":   err.Error(),
 				"message": "username already exists",
@@ -87,7 +86,7 @@ func (a *auth) SignUp(ctx echo.Context) error {
 			return echoErr
 		}
 
-		if strings.Contains(err.Error(), store_err.ErrDuplicateConstraintEmail) {
+		if strings.Contains(err.Error(), postgres.ErrDuplicateConstraintEmail) {
 			echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 				"error":   err.Error(),
 				"message": "this email already taken, try sign in?",
@@ -123,7 +122,7 @@ func (a *auth) SignUp(ctx echo.Context) error {
 		return echoErr
 
 	}
-	err = a.emailStore.AddVerifyEmail(ctx.Request().Context(), token, newUser.ID)
+	err = a.pgStore.AddVerifyEmail(ctx.Request().Context(), token.String(), newUser.Id)
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error":   err.Error(),

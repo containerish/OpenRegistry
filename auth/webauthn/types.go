@@ -1,9 +1,10 @@
 package webauthn
 
 import (
-	"github.com/containerish/OpenRegistry/store/v1/types"
+	"github.com/containerish/OpenRegistry/types"
 	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/go-webauthn/webauthn/webauthn"
+	"github.com/google/uuid"
 )
 
 type (
@@ -21,7 +22,8 @@ type (
 // WebAuthnID - User ID according to the Relying Party
 // TODO(jay-dee7): This will panic if the uuid is not in the requited format
 func (u *WebAuthnUser) WebAuthnID() []byte {
-	return u.ID[:]
+	userID := uuid.MustParse(u.Id)
+	return userID[:]
 }
 
 // WebAuthnName - User Name according to the Relying Party
@@ -51,19 +53,12 @@ func (u *WebAuthnUser) WebAuthnCredentials() []webauthn.Credential {
 func (u *WebAuthnUser) AddWebAuthNCredential(creds *webauthn.Credential) {
 	// initialised to non-nil value in case of first attempt
 	if u.credentials == nil {
-		if creds == nil || len(creds.ID) == 0 {
-			return
-		}
 		u.credentials = make([]webauthn.Credential, 0)
 	}
-
 	u.credentials = append(u.credentials, *creds)
 }
 
 func (u *WebAuthnUser) AddWebAuthNCredentials(creds ...*webauthn.Credential) {
-	if u.credentials == nil {
-		u.credentials = make([]webauthn.Credential, 0)
-	}
 	for _, c := range creds {
 		if c == nil {
 			continue

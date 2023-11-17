@@ -13,8 +13,8 @@ import (
 func (a *auth) VerifyEmail(ctx echo.Context) error {
 	ctx.Set(types.HandlerStartTime, time.Now())
 
-	rawToken := ctx.QueryParam("token")
-	if rawToken == "" {
+	token := ctx.QueryParam("token")
+	if token == "" {
 		err := fmt.Errorf("EMPTY_TOKEN")
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error":   err.Error(),
@@ -24,8 +24,7 @@ func (a *auth) VerifyEmail(ctx echo.Context) error {
 		return echoErr
 	}
 
-	token, err := uuid.Parse(rawToken)
-	if err != nil {
+	if _, err := uuid.Parse(token); err != nil {
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error":   err.Error(),
 			"message": "error parsing token",
@@ -34,7 +33,7 @@ func (a *auth) VerifyEmail(ctx echo.Context) error {
 		return echoErr
 	}
 
-	userId, err := a.emailStore.GetVerifyEmail(ctx.Request().Context(), token)
+	userId, err := a.pgStore.GetVerifyEmail(ctx.Request().Context(), token)
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error":   err.Error(),
@@ -44,7 +43,7 @@ func (a *auth) VerifyEmail(ctx echo.Context) error {
 		return echoErr
 	}
 
-	user, err := a.pgStore.GetUserByID(ctx.Request().Context(), userId)
+	user, err := a.pgStore.GetUserById(ctx.Request().Context(), userId, false, nil)
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error":   err.Error(),
@@ -56,7 +55,7 @@ func (a *auth) VerifyEmail(ctx echo.Context) error {
 
 	user.IsActive = true
 
-	_, err = a.pgStore.UpdateUser(ctx.Request().Context(), user)
+	err = a.pgStore.UpdateUser(ctx.Request().Context(), user)
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error": err.Error(),
@@ -66,7 +65,7 @@ func (a *auth) VerifyEmail(ctx echo.Context) error {
 		return echoErr
 	}
 
-	err = a.emailStore.DeleteVerifyEmail(ctx.Request().Context(), token)
+	err = a.pgStore.DeleteVerifyEmail(ctx.Request().Context(), token)
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error": err.Error(),
@@ -79,7 +78,7 @@ func (a *auth) VerifyEmail(ctx echo.Context) error {
 	accesssTokenOpts := &WebLoginJWTOptions{
 		Id:        userId,
 		Username:  user.Username,
-		TokenType: AccessCookieKey,
+		TokenType: "access_token",
 		Audience:  a.c.Registry.FQDN,
 		Privkey:   a.c.Registry.Auth.JWTSigningPrivateKey,
 		Pubkey:    a.c.Registry.Auth.JWTSigningPubKey,
@@ -98,7 +97,7 @@ func (a *auth) VerifyEmail(ctx echo.Context) error {
 	refreshTokenOpts := &WebLoginJWTOptions{
 		Id:        userId,
 		Username:  user.Username,
-		TokenType: RefreshCookKey,
+		TokenType: "refresh_token",
 		Audience:  a.c.Registry.FQDN,
 		Privkey:   a.c.Registry.Auth.JWTSigningPrivateKey,
 		Pubkey:    a.c.Registry.Auth.JWTSigningPubKey,
@@ -122,7 +121,7 @@ func (a *auth) VerifyEmail(ctx echo.Context) error {
 		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
-	if err = a.sessionStore.AddSession(ctx.Request().Context(), id, refresh, user.ID); err != nil {
+	if err = a.pgStore.AddSession(ctx.Request().Context(), id.String(), refresh, user.Username); err != nil {
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error":   err.Error(),
 			"message": "error creating session",
@@ -133,8 +132,8 @@ func (a *auth) VerifyEmail(ctx echo.Context) error {
 
 	sessionId := fmt.Sprintf("%s:%s", id, userId)
 	sessionCookie := a.createCookie(ctx, "session_id", sessionId, false, time.Now().Add(time.Hour*750))
-	accessCookie := a.createCookie(ctx, AccessCookieKey, access, true, time.Now().Add(time.Hour))
-	refreshCookie := a.createCookie(ctx, RefreshCookKey, refresh, true, time.Now().Add(time.Hour*750))
+	accessCookie := a.createCookie(ctx, "access_token", access, true, time.Now().Add(time.Hour))
+	refreshCookie := a.createCookie(ctx, "refresh_token", refresh, true, time.Now().Add(time.Hour*750))
 
 	ctx.SetCookie(accessCookie)
 	ctx.SetCookie(refreshCookie)

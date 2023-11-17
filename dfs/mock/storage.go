@@ -10,17 +10,18 @@ import (
 	"os"
 	"strings"
 
+	skynet "github.com/SkynetLabs/go-skynet/v2"
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/containerish/OpenRegistry/config"
 	"github.com/containerish/OpenRegistry/dfs"
-	types "github.com/containerish/OpenRegistry/store/v1/types"
+	"github.com/containerish/OpenRegistry/types"
 	"github.com/fatih/color"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	"github.com/spf13/afero"
 )
 
-type memMappedMockStorage struct {
+type mockStorage struct {
 	memFs           afero.Fs
 	uploadSession   map[string]string
 	config          *config.S3CompatibleDFS
@@ -28,7 +29,7 @@ type memMappedMockStorage struct {
 	serviceEndpoint string
 }
 
-func newMemMappedMockStorage(env config.Environment, hostAddr string, cfg *config.S3CompatibleDFS) dfs.DFS {
+func NewMockStorage(env config.Environment, hostAddr string, cfg *config.S3CompatibleDFS) dfs.DFS {
 	if env != config.CI && env != config.Local {
 		panic("mock storage should only be used for CI or Local environments")
 	}
@@ -39,7 +40,7 @@ func newMemMappedMockStorage(env config.Environment, hostAddr string, cfg *confi
 		os.Exit(1)
 	}
 
-	mocker := &memMappedMockStorage{
+	mocker := &mockStorage{
 		memFs:           afero.NewMemMapFs(),
 		uploadSession:   make(map[string]string),
 		config:          cfg,
@@ -51,13 +52,13 @@ func newMemMappedMockStorage(env config.Environment, hostAddr string, cfg *confi
 	return mocker
 }
 
-func (ms *memMappedMockStorage) CreateMultipartUpload(layerKey string) (string, error) {
+func (ms *mockStorage) CreateMultipartUpload(layerKey string) (string, error) {
 	sessionId := uuid.NewString()
 	ms.uploadSession[sessionId] = sessionId
 	return sessionId, nil
 }
 
-func (ms *memMappedMockStorage) UploadPart(
+func (ms *mockStorage) UploadPart(
 	ctx context.Context,
 	uploadId string,
 	layerKey string,
@@ -87,7 +88,7 @@ func (ms *memMappedMockStorage) UploadPart(
 	}, nil
 }
 
-func (ms *memMappedMockStorage) CompleteMultipartUpload(
+func (ms *mockStorage) CompleteMultipartUpload(
 	ctx context.Context,
 	uploadId string,
 	layerKey string,
@@ -98,7 +99,7 @@ func (ms *memMappedMockStorage) CompleteMultipartUpload(
 	return layerKey, nil
 }
 
-func (ms *memMappedMockStorage) Upload(ctx context.Context, identifier, digest string, content []byte) (string, error) {
+func (ms *mockStorage) Upload(ctx context.Context, identifier, digest string, content []byte) (string, error) {
 	fd, err := ms.memFs.Create(identifier)
 	if err != nil {
 		return "", err
@@ -116,7 +117,7 @@ func (ms *memMappedMockStorage) Upload(ctx context.Context, identifier, digest s
 	return identifier, nil
 }
 
-func (ms *memMappedMockStorage) Download(ctx context.Context, path string) (io.ReadCloser, error) {
+func (ms *mockStorage) Download(ctx context.Context, path string) (io.ReadCloser, error) {
 	fd, err := ms.memFs.Open(path)
 	if err != nil {
 		return nil, err
@@ -125,30 +126,20 @@ func (ms *memMappedMockStorage) Download(ctx context.Context, path string) (io.R
 	return fd, nil
 }
 
-func (ms *memMappedMockStorage) DownloadDir(dfsLink, dir string) error {
+func (ms *mockStorage) DownloadDir(skynetLink, dir string) error {
 	return nil
 }
 
-func (ms *memMappedMockStorage) List(path string) ([]*types.Metadata, error) {
+func (ms *mockStorage) List(path string) ([]*types.Metadata, error) {
 	return nil, nil
 }
 
-func (ms *memMappedMockStorage) AddImage(ns string, mf, l map[string][]byte) (string, error) {
+func (ms *mockStorage) AddImage(ns string, mf, l map[string][]byte) (string, error) {
 	return "", nil
 }
 
-func (ms *memMappedMockStorage) Metadata(identifier string) (*types.ObjectMetadata, error) {
-	var (
-		fd  afero.File
-		err error
-	)
-	parts := strings.Split(identifier, "/")
-	if len(parts) > 1 {
-		fd, err = ms.memFs.Open(parts[1])
-		if err != nil {
-			fd, err = ms.memFs.Open(identifier)
-		}
-	}
+func (ms *mockStorage) Metadata(identifier string) (*skynet.Metadata, error) {
+	fd, err := ms.memFs.Open(identifier)
 	if err != nil {
 		return nil, err
 	}
@@ -159,16 +150,16 @@ func (ms *memMappedMockStorage) Metadata(identifier string) (*types.ObjectMetada
 	}
 	fd.Close()
 
-	return &types.ObjectMetadata{
+	return &skynet.Metadata{
 		ContentType:   "",
 		Etag:          "",
-		DFSLink:       identifier,
+		Skylink:       identifier,
 		ContentLength: int(stat.Size()),
 	}, nil
 
 }
 
-func (ms *memMappedMockStorage) GetUploadProgress(identifier, uploadID string) (*types.ObjectMetadata, error) {
+func (ms *mockStorage) GetUploadProgress(identifier, uploadID string) (*types.ObjectMetadata, error) {
 	fd, err := ms.memFs.Open(identifier)
 	if err != nil {
 		return nil, err
@@ -184,7 +175,7 @@ func (ms *memMappedMockStorage) GetUploadProgress(identifier, uploadID string) (
 	}, nil
 }
 
-func (ms *memMappedMockStorage) getServiceEndpoint() string {
+func (ms *mockStorage) getServiceEndpoint() string {
 	_, port, err := net.SplitHostPort(ms.serviceEndpoint)
 	if err != nil {
 		color.Red("error splitting mock service host port: %s", err)
@@ -194,7 +185,7 @@ func (ms *memMappedMockStorage) getServiceEndpoint() string {
 	return fmt.Sprintf("http://%s:%s", ms.hostAddr, port)
 }
 
-func (ms *memMappedMockStorage) GeneratePresignedURL(ctx context.Context, key string) (string, error) {
+func (ms *mockStorage) GeneratePresignedURL(ctx context.Context, key string) (string, error) {
 	parts := strings.Split(key, "/")
 	if len(parts) == 1 {
 		key = "layers/" + key
@@ -204,7 +195,7 @@ func (ms *memMappedMockStorage) GeneratePresignedURL(ctx context.Context, key st
 	return preSignedURL, nil
 }
 
-func (ms *memMappedMockStorage) AbortMultipartUpload(ctx context.Context, layerKey string, uploadId string) error {
+func (ms *mockStorage) AbortMultipartUpload(ctx context.Context, layerKey string, uploadId string) error {
 	if err := ms.memFs.Remove(layerKey); err != nil {
 		return err
 	}
@@ -213,11 +204,11 @@ func (ms *memMappedMockStorage) AbortMultipartUpload(ctx context.Context, layerK
 	return nil
 }
 
-func (ms *memMappedMockStorage) Config() *config.S3CompatibleDFS {
+func (ms *mockStorage) Config() *config.S3CompatibleDFS {
 	return ms.config
 }
 
-func (ms *memMappedMockStorage) FileServer() {
+func (ms *mockStorage) FileServer() {
 	e := echo.New()
 	e.HideBanner = true
 	e.HidePort = true
