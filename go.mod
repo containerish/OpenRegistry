@@ -39,7 +39,7 @@ require (
 	github.com/uptrace/bun/driver/pgdriver v1.1.16
 	github.com/uptrace/bun/driver/sqliteshim v1.1.16
 	github.com/urfave/cli/v2 v2.25.7
-	go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho v0.45.0
+	go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho v0.46.1
 	golang.org/x/crypto v0.15.0
 	golang.org/x/oauth2 v0.14.0
 	gopkg.in/yaml.v2 v2.4.0
