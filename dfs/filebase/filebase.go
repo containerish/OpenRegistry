@@ -75,9 +75,9 @@ func (fb *filebase) UploadPart(
 		Bucket:            &fb.bucket,
 		ChecksumAlgorithm: s3types.ChecksumAlgorithmSha256,
 		ChecksumSHA256:    aws.String(digest),
-		ContentLength:     contentLength,
+		ContentLength:     &contentLength,
 		Key:               &layerKey,
-		PartNumber:        int32(partNumber),
+		PartNumber:        aws.Int32(int32(partNumber)),
 		UploadId:          &uploadId,
 	}
 
@@ -89,7 +89,7 @@ func (fb *filebase) UploadPart(
 	return s3types.CompletedPart{
 		ChecksumSHA256: &digest,
 		ETag:           resp.ETag,
-		PartNumber:     int32(partNumber),
+		PartNumber:     aws.Int32(int32(partNumber)),
 	}, nil
 }
 
@@ -163,7 +163,7 @@ func (fb *filebase) Upload(ctx context.Context, namespace, digest string, conten
 		Body:              bytes.NewBuffer(content),
 		ChecksumAlgorithm: s3types.ChecksumAlgorithmSha256,
 		ChecksumSHA256:    &digest,
-		ContentLength:     int64(len(content)),
+		ContentLength:     aws.Int64(int64(len(content))),
 		StorageClass:      s3types.StorageClassStandard,
 	}
 	if fb.env == config.CI {
@@ -251,7 +251,7 @@ func (fb *filebase) Metadata(identifier string) (*types.ObjectMetadata, error) {
 		ContentType:   *resp.ContentType,
 		Etag:          *resp.ETag,
 		DFSLink:       cid,
-		ContentLength: int(resp.ContentLength),
+		ContentLength: int(*resp.ContentLength),
 	}, nil
 }
 
@@ -267,7 +267,7 @@ func (fb *filebase) GetUploadProgress(identifier, uploadID string) (*types.Objec
 
 	var uploadedSize int64
 	for _, p := range partsResp.Parts {
-		uploadedSize += p.Size
+		uploadedSize += *p.Size
 	}
 
 	return &types.ObjectMetadata{
