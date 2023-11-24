@@ -73,9 +73,9 @@ func (sj *storj) UploadPart(
 		Bucket:            &sj.bucket,
 		ChecksumAlgorithm: s3types.ChecksumAlgorithmSha256,
 		ChecksumSHA256:    aws.String(digest),
-		ContentLength:     contentLength,
+		ContentLength:     &contentLength,
 		Key:               &layerKey,
-		PartNumber:        int32(partNumber),
+		PartNumber:        aws.Int32(int32(partNumber)),
 		UploadId:          &uploadId,
 	}
 
@@ -87,7 +87,7 @@ func (sj *storj) UploadPart(
 	return s3types.CompletedPart{
 		ChecksumSHA256: &digest,
 		ETag:           resp.ETag,
-		PartNumber:     int32(partNumber),
+		PartNumber:     aws.Int32(int32(partNumber)),
 	}, nil
 }
 
@@ -142,7 +142,7 @@ func (sj *storj) Upload(ctx context.Context, identifier, digest string, content 
 		Body:              bytes.NewBuffer(content),
 		ChecksumAlgorithm: s3types.ChecksumAlgorithmSha256,
 		ChecksumSHA256:    &digest,
-		ContentLength:     int64(len(content)),
+		ContentLength:     aws.Int64(int64(len(content))),
 		StorageClass:      s3types.StorageClassStandard,
 	}
 	if sj.env == config.CI {
@@ -225,7 +225,7 @@ func (sj *storj) Metadata(identifier string) (*types.ObjectMetadata, error) {
 		ContentType:   *resp.ContentType,
 		Etag:          *resp.ETag,
 		DFSLink:       identifier,
-		ContentLength: int(resp.ContentLength),
+		ContentLength: int(*resp.ContentLength),
 	}, nil
 }
 
@@ -241,7 +241,7 @@ func (sj *storj) GetUploadProgress(identifier, uploadID string) (*types.ObjectMe
 
 	var uploadedSize int64
 	for _, p := range partsResp.Parts {
-		uploadedSize += p.Size
+		uploadedSize += *p.Size
 	}
 
 	return &types.ObjectMetadata{

@@ -10,6 +10,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/containerish/OpenRegistry/config"
 	"github.com/containerish/OpenRegistry/dfs"
@@ -83,7 +84,7 @@ func (ms *memMappedMockStorage) UploadPart(
 	return s3types.CompletedPart{
 		ChecksumCRC32:  &digest,
 		ChecksumCRC32C: &layerKey,
-		PartNumber:     int32(partNumber),
+		PartNumber:     aws.Int32(int32(partNumber)),
 	}, nil
 }
 
