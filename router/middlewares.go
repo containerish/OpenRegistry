@@ -1,19 +1,19 @@
 package router
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"regexp"
 
+	"github.com/containerish/OpenRegistry/common"
 	"github.com/containerish/OpenRegistry/registry/v2"
 	registry_store "github.com/containerish/OpenRegistry/store/v1/registry"
 	"github.com/containerish/OpenRegistry/store/v1/types"
+	"github.com/containerish/OpenRegistry/telemetry"
 	"github.com/labstack/echo/v4"
-	dist_spec "github.com/opencontainers/distribution-spec/specs-go/v1"
 )
 
-func registryNamespaceValidator() echo.MiddlewareFunc {
+func registryNamespaceValidator(logger telemetry.Logger) echo.MiddlewareFunc {
 	// Reference: https://github.com/opencontainers/distribution-spec/blob/main/spec.md#pulling-manifests
 	nsRegex := regexp.MustCompile(`[a-z0-9]+((\.|_|__|-+)[a-z0-9]+)*(/[a-z0-9]+((\.|_|__|-+)[a-z0-9]+)*)*`)
 
@@ -24,17 +24,12 @@ func registryNamespaceValidator() echo.MiddlewareFunc {
 
 			namespace := username + "/" + imageName
 			if username == "" || imageName == "" || !nsRegex.MatchString(namespace) {
-				registryErr := dist_spec.ErrorResponse{
-					Errors: []dist_spec.ErrorInfo{
-						{
-							Code:    registry.RegistryErrorCodeNameInvalid,
-							Message: "invalid user namespace",
-							Detail:  "the required format for namespace is <username>/<imagename>",
-						},
-					},
-				}
-				errBz, _ := json.Marshal(registryErr)
-				return ctx.JSONBlob(http.StatusBadRequest, errBz)
+				registryErr := common.RegistryErrorResponse(registry.RegistryErrorCodeNameInvalid, "invalid user namespace", echo.Map{
+					"error": "the required format for namespace is <username>/<imagename>",
+				})
+				echoErr := ctx.JSONBlob(http.StatusBadRequest, registryErr.Bytes())
+				logger.Log(ctx, echoErr).Send()
+				return echoErr
 			}
 
 			ctx.Set(string(registry.RegistryNamespace), namespace)
@@ -43,7 +38,7 @@ func registryNamespaceValidator() echo.MiddlewareFunc {
 	}
 }
 
-func registryReferenceOrTagValidator() echo.MiddlewareFunc {
+func registryReferenceOrTagValidator(logger telemetry.Logger) echo.MiddlewareFunc {
 	// Reference: https://github.com/opencontainers/distribution-spec/blob/main/spec.md#pulling-manifests
 	refRegex := regexp.MustCompile(`[a-zA-Z0-9_][a-zA-Z0-9._-]{0,127}`)
 
@@ -52,18 +47,13 @@ func registryReferenceOrTagValidator() echo.MiddlewareFunc {
 			ref := ctx.Param("reference")
 
 			if ref != "" && !refRegex.MatchString(ref) {
-				err := dist_spec.ErrorResponse{
-					Errors: []dist_spec.ErrorInfo{
-						{
-							Code:    registry.RegistryErrorCodeTagInvalid,
-							Message: "reference/tag does not match the required format",
-							Detail:  fmt.Sprintf("reference/tag must match the following regex: %s", refRegex.String()),
-						},
-					},
-				}
+				registryErr := common.RegistryErrorResponse(registry.RegistryErrorCodeTagInvalid, "reference/tag does not match the required format", echo.Map{
+					"error": fmt.Sprintf("reference/tag must match the following regex: %s", refRegex.String()),
+				})
 
-				errBz, _ := json.Marshal(err)
-				return ctx.JSONBlob(http.StatusBadRequest, errBz)
+				echoErr := ctx.JSONBlob(http.StatusBadRequest, registryErr.Bytes())
+				logger.Log(ctx, registryErr).Send()
+				return echoErr
 			}
 
 			return next(ctx)
@@ -71,24 +61,19 @@ func registryReferenceOrTagValidator() echo.MiddlewareFunc {
 	}
 }
 
-func progagatRepository(store registry_store.RegistryStore) echo.MiddlewareFunc {
+func progagatRepository(store registry_store.RegistryStore, logger telemetry.Logger) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(ctx echo.Context) error {
 			imageName := ctx.Param("imagename")
 
 			user, ok := ctx.Get(string(types.UserContextKey)).(*types.User)
 			if !ok {
-				registryErr := dist_spec.ErrorResponse{
-					Errors: []dist_spec.ErrorInfo{
-						{
-							Code:    registry.RegistryErrorCodeUnauthorized,
-							Message: "Unauthorized",
-							Detail:  "User is not found in request context",
-						},
-					},
-				}
-				errBz, _ := json.Marshal(registryErr)
-				return ctx.JSONBlob(http.StatusBadRequest, errBz)
+				registryErr := common.RegistryErrorResponse(registry.RegistryErrorCodeUnauthorized, "Unauthorized", echo.Map{
+					"error": "User is not found in request context",
+				})
+				echoErr := ctx.JSONBlob(http.StatusBadRequest, registryErr.Bytes())
+				logger.Log(ctx, registryErr).Send()
+				return echoErr
 			}
 
 			repository, err := store.GetRepositoryByName(ctx.Request().Context(), user.ID, imageName)

@@ -24,6 +24,7 @@ import (
 	"github.com/containerish/OpenRegistry/telemetry/otel"
 	"github.com/containerish/OpenRegistry/vcs/github"
 	"github.com/fatih/color"
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	"github.com/urfave/cli/v2"
 	"golang.org/x/net/http2"
@@ -56,13 +57,17 @@ func NewRegistryCommand() *cli.Command {
 }
 
 func RunRegistryServer(ctx *cli.Context) error {
+	// this helps with performance but isn't super safe but it's okay in our case since we're not doing anything super
+	// secure with uuids anyway
+	uuid.EnableRandPool()
+
 	configPath := ctx.String("config")
 	cfg, err := config.ReadYamlConfig(configPath)
 	if err != nil {
 		return fmt.Errorf(color.RedString("error reading cfg file: %s", err.Error()))
 	}
 
-	logger := telemetry.ZLogger(cfg.Environment, cfg.Telemetry)
+	logger := telemetry.ZeroLogger(cfg.Environment, cfg.Telemetry)
 	e := echo.New()
 
 	rawDB := store_v2.NewDB(cfg.StoreConfig, cfg.Environment)
@@ -78,7 +83,7 @@ func RunRegistryServer(ctx *cli.Context) error {
 	}
 	defer buildAutomationStore.Close()
 
-	authSvc := auth.New(cfg, usersStore, sessionsStore, emailStore, logger)
+	authSvc := auth.New(cfg, usersStore, sessionsStore, emailStore, logger, registryStore)
 	webauthnServer := auth_server.NewWebauthnServer(cfg, webauthnStore, sessionsStore, usersStore, logger)
 	healthCheckHandler := healthchecks.NewHealthChecksAPI(&store_v2.DBPinger{DB: rawDB})
 
@@ -93,7 +98,7 @@ func RunRegistryServer(ctx *cli.Context) error {
 		return fmt.Errorf(color.RedString("error creating new container registry extensions api: %s", err))
 	}
 
-	router.Register(cfg, e, reg, authSvc, webauthnServer, ext, registryStore)
+	router.Register(cfg, e, reg, authSvc, webauthnServer, ext, registryStore, logger)
 	router.RegisterHealthCheckEndpoint(e, healthCheckHandler)
 
 	if cfg.Integrations.GetGithubConfig() != nil && cfg.Integrations.GetGithubConfig().Enabled {

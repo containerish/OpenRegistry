@@ -6,6 +6,7 @@ import (
 
 	"github.com/containerish/OpenRegistry/config"
 	"github.com/containerish/OpenRegistry/services/email"
+	"github.com/containerish/OpenRegistry/store/v1/registry"
 	"github.com/containerish/OpenRegistry/store/v1/users"
 	"github.com/containerish/OpenRegistry/telemetry"
 	gh "github.com/google/go-github/v50/github"
@@ -34,6 +35,7 @@ type Authentication interface {
 	ResetForgottenPassword(ctx echo.Context) error
 	ForgotPassword(ctx echo.Context) error
 	Invites(ctx echo.Context) error
+	RepositoryPermissionsMiddleware() echo.MiddlewareFunc
 }
 
 // New is the constructor function returns an Authentication implementation
@@ -44,6 +46,7 @@ func New(
 	sessionStore users.SessionStore,
 	emailStore users.EmailStore,
 	logger telemetry.Logger,
+	registryStore registry.RegistryStore,
 ) Authentication {
 	githubOAuth := &oauth2.Config{
 		ClientID:     c.OAuth.Github.ClientID,
@@ -66,6 +69,7 @@ func New(
 		oauthStateStore: make(map[string]time.Time),
 		mu:              &sync.RWMutex{},
 		emailClient:     emailClient,
+		registryStore:   registryStore,
 	}
 
 	go a.stateTokenCleanup()
@@ -86,6 +90,7 @@ type (
 		emailClient     email.MailService
 		mu              *sync.RWMutex
 		c               *config.OpenRegistryConfig
+		registryStore   registry.RegistryStore
 	}
 )
 
