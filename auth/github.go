@@ -2,20 +2,17 @@ package auth
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/containerish/OpenRegistry/config"
 	v2_types "github.com/containerish/OpenRegistry/store/v1/types"
 	"github.com/containerish/OpenRegistry/types"
-	"github.com/google/go-github/v53/github"
+	"github.com/google/go-github/v55/github"
 	"github.com/google/uuid"
-	"github.com/jackc/pgconn"
-	"github.com/jackc/pgerrcode"
-	"github.com/jackc/pgx/v4"
 	"github.com/labstack/echo/v4"
 	"golang.org/x/oauth2"
 )
@@ -38,7 +35,7 @@ func (a *auth) LoginWithGithub(ctx echo.Context) error {
 	a.mu.Unlock()
 	url := a.github.AuthCodeURL(state.String(), oauth2.AccessTypeOffline)
 	echoErr := ctx.Redirect(http.StatusTemporaryRedirect, url)
-	a.logger.Log(ctx, echoErr).Send()
+	a.logger.Log(ctx, nil).Send()
 	return echoErr
 }
 
@@ -91,22 +88,22 @@ func (a *auth) GithubLoginCallbackHandler(ctx echo.Context) error {
 	user, err := a.pgStore.GetGitHubUser(ctx.Request().Context(), ghUser.GetEmail(), nil)
 	if err != nil {
 		user = user.NewUserFromGitHubUser(ghUser)
-		err = a.storeGitHubUserIfDoesntExist(ctx.Request().Context(), err, user)
-		if err != nil {
-			uri := a.getGitHubErrorURI(ctx, http.StatusConflict, err.Error())
+		storeErr := a.storeGitHubUserIfDoesntExist(ctx.Request().Context(), err, user)
+		if storeErr != nil {
+			uri := a.getGitHubErrorURI(ctx, http.StatusConflict, storeErr.Error())
 			echoErr := ctx.Redirect(http.StatusSeeOther, uri)
-			a.logger.Log(ctx, err).Send()
+			a.logger.Log(ctx, storeErr).Send()
 			return echoErr
 		}
-		if err = a.finishGitHubCallback(ctx, user, token); err != nil {
-			uri := a.getGitHubErrorURI(ctx, http.StatusConflict, err.Error())
+		if callbackErr := a.finishGitHubCallback(ctx, user, token); callbackErr != nil {
+			uri := a.getGitHubErrorURI(ctx, http.StatusConflict, callbackErr.Error())
 			echoErr := ctx.Redirect(http.StatusTemporaryRedirect, uri)
-			a.logger.Log(ctx, err).Send()
+			a.logger.Log(ctx, callbackErr).Send()
 			return echoErr
 		}
 
 		err = ctx.Redirect(http.StatusTemporaryRedirect, a.c.WebAppConfig.RedirectURL)
-		a.logger.Log(ctx, nil).Send()
+		a.logger.Log(ctx, err).Send()
 		return err
 	}
 
@@ -283,7 +280,7 @@ func (a *auth) finishGitHubCallback(ctx echo.Context, user *v2_types.User, oauth
 }
 
 func (a *auth) storeGitHubUserIfDoesntExist(ctx context.Context, pgErr error, user *v2_types.User) error {
-	if errors.Unwrap(pgErr) == pgx.ErrNoRows {
+	if strings.HasSuffix(pgErr.Error(), "no rows in result set") {
 		id, err := uuid.NewRandom()
 		if err != nil {
 			return err
@@ -295,10 +292,10 @@ func (a *auth) storeGitHubUserIfDoesntExist(ctx context.Context, pgErr error, us
 
 		// In GitHub's response, Login is the GitHub Username
 		if err = a.pgStore.AddUser(ctx, user, nil); err != nil {
-			var pgErr *pgconn.PgError
 			// this would mean that the user email is already registered
 			// so we return an error in this case
-			if errors.As(err, &pgErr) && pgErr.Code == pgerrcode.UniqueViolation {
+
+			if strings.Contains(err.Error(), "duplicate key value violation") {
 				return fmt.Errorf("username/email already exists")
 			}
 			return err
