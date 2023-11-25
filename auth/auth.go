@@ -9,7 +9,7 @@ import (
 	"github.com/containerish/OpenRegistry/store/v1/registry"
 	"github.com/containerish/OpenRegistry/store/v1/users"
 	"github.com/containerish/OpenRegistry/telemetry"
-	gh "github.com/google/go-github/v50/github"
+	gh "github.com/google/go-github/v56/github"
 	"github.com/labstack/echo/v4"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/github"
