@@ -5,7 +5,6 @@ import (
 
 	v2 "github.com/containerish/OpenRegistry/store/v1"
 	"github.com/containerish/OpenRegistry/store/v1/types"
-	"github.com/fatih/color"
 	"github.com/go-webauthn/webauthn/webauthn"
 	"github.com/google/uuid"
 	"github.com/uptrace/bun"
@@ -52,7 +51,6 @@ func (ws *webauthnStore) GetWebAuthnSessionData(
 		return nil, v2.WrapDatabaseError(err, v2.DatabaseOperationRead)
 	}
 
-	color.Red("user id in GetWebAuthnSessionData: %s - userId=%#v", userId, session)
 	return &webauthn.SessionData{
 		Challenge:            session.Challege,
 		UserID:               session.CredentialOwnerID[:],
@@ -108,7 +106,6 @@ func (ws *webauthnStore) AddWebAuthSessionData(
 		UserID:               userIDFromSession,
 		AllowedCredentialIDs: sessionData.AllowedCredentialIDs,
 	}
-	color.Blue("session data to store: %#v", session)
 
 	if _, err := ws.db.NewInsert().Model(session).Exec(ctx); err != nil {
 		return v2.WrapDatabaseError(err, v2.DatabaseOperationWrite)
