@@ -139,14 +139,22 @@ func (a *auth) SkipBasicAuth(ctx echo.Context) bool {
 
 	// if Authorization header contains JWT, we skip basic auth and perform a JWT validation
 	if ok := a.checkJWT(authHeader, ctx.Request().Cookies()); ok {
-		a.logger.Debug().Bool("skip_basic_auth", true).Str("method", ctx.Request().Method).Str("path", ctx.Request().URL.RequestURI()).Send()
+		a.logger.Debug().
+			Bool("skip_basic_auth", true).
+			Str("method", ctx.Request().Method).
+			Str("path", ctx.Request().URL.RequestURI()).
+			Send()
 		return true
 	}
 
 	readOp := ctx.Request().Method == http.MethodHead || ctx.Request().Method == http.MethodGet
 	// if it's a read operation on a public repository, we skip auth requirement
 	if readOp && repo != nil && repo.Visibility == types.RepositoryVisibilityPublic {
-		a.logger.Debug().Bool("skip_basic_auth", true).Str("method", ctx.Request().Method).Str("path", ctx.Request().URL.RequestURI()).Send()
+		a.logger.Debug().
+			Bool("skip_basic_auth", true).
+			Str("method", ctx.Request().Method).
+			Str("path", ctx.Request().URL.RequestURI()).
+			Send()
 		return true
 	}
 

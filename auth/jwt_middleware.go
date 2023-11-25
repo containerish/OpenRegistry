@@ -39,7 +39,11 @@ func (a *auth) JWT() echo.MiddlewareFunc {
 
 			skip := readOp && repo.Visibility == types.RepositoryVisibilityPublic
 			if skip {
-				a.logger.Debug().Bool("skip_jwt_middleware", true).Str("method", ctx.Request().Method).Str("path", ctx.Request().URL.RequestURI()).Send()
+				a.logger.Debug().
+					Bool("skip_jwt_middleware", true).
+					Str("method", ctx.Request().Method).
+					Str("path", ctx.Request().URL.RequestURI()).
+					Send()
 			}
 
 			return skip

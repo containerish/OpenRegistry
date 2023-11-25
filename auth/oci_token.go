@@ -128,11 +128,11 @@ func (a *auth) Token(ctx echo.Context) error {
 
 	scopes, err := ParseOCITokenPermissionRequest(ctx.Request().URL)
 	if err != nil {
-		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
-			"error":   err.Error(),
-			"message": "invalid scope provided",
+		registryErr := common.RegistryErrorResponse(registry.RegistryErrorCodeUnknown, "invalid scope provided", echo.Map{
+			"error": err.Error(),
 		})
-		a.logger.Log(ctx, err).Send()
+		echoErr := ctx.JSONBlob(http.StatusBadRequest, registryErr.Bytes())
+		a.logger.Log(ctx, registryErr).Send()
 		return echoErr
 	}
 
@@ -141,9 +141,16 @@ func (a *auth) Token(ctx echo.Context) error {
 	if isPullRequest {
 		repo, repoErr := a.registryStore.GetRepositoryByNamespace(ctx.Request().Context(), scopes[0].Name)
 		if repoErr != nil {
-			common.RegistryErrorResponse(registry.RegistryErrorCodeNameInvalid, "requested resource does not exist on the registry", echo.Map{
-				"error": repoErr.Error(),
-			})
+			registryErr := common.RegistryErrorResponse(
+				registry.RegistryErrorCodeNameInvalid,
+				"requested resource does not exist on the registry",
+				echo.Map{
+					"error": repoErr.Error(),
+				},
+			)
+			echoErr := ctx.JSONBlob(http.StatusBadRequest, registryErr.Bytes())
+			a.logger.Log(ctx, registryErr).Send()
+			return echoErr
 		}
 
 		if repo.Visibility == types.RepositoryVisibilityPublic {
@@ -163,7 +170,14 @@ func (a *auth) Token(ctx echo.Context) error {
 	if authHeader != "" && len(scopes) != 0 {
 		token, authErr := a.tryBasicAuthFlow(ctx, scopes)
 		if authErr != nil {
-			echoErr := ctx.NoContent(http.StatusUnauthorized)
+			registryErr := common.RegistryErrorResponse(
+				registry.RegistryErrorCodeUnauthorized,
+				"authentication failed",
+				echo.Map{
+					"error": authErr.Error(),
+				},
+			)
+			echoErr := ctx.JSONBlob(http.StatusUnauthorized, registryErr.Bytes())
 			a.logger.Log(ctx, authErr).Send()
 			return echoErr
 		}
@@ -177,8 +191,13 @@ func (a *auth) Token(ctx echo.Context) error {
 		return echoErr
 	}
 
-	err = ctx.NoContent(http.StatusUnauthorized)
-	a.logger.Log(ctx, err).Send()
+	registryErr := common.RegistryErrorResponse(
+		registry.RegistryErrorCodeUnauthorized,
+		"authentication failed",
+		nil,
+	)
+	err = ctx.JSONBlob(http.StatusUnauthorized, registryErr.Bytes())
+	a.logger.Log(ctx, registryErr).Send()
 	return err
 }
 

@@ -77,8 +77,18 @@ func (a *auth) populateUserFromPermissionsCheck(ctx echo.Context) error {
 func (a *auth) RepositoryPermissionsMiddleware() echo.MiddlewareFunc {
 	return func(handler echo.HandlerFunc) echo.HandlerFunc {
 		return func(ctx echo.Context) error {
-			a.populateUserFromPermissionsCheck(ctx)
-			a.populateUserFromPermissionsCheck(ctx)
+			if err := a.populateUserFromPermissionsCheck(ctx); err != nil {
+				registryErr := common.RegistryErrorResponse(
+					registry.RegistryErrorCodeDenied,
+					"invalid user credentials",
+					echo.Map{
+						"error": err.Error(),
+					},
+				)
+				echoErr := ctx.JSONBlob(http.StatusBadRequest, registryErr.Bytes())
+				a.logger.Log(ctx, err).Send()
+				return echoErr
+			}
 			// handle skipping scenarios
 			if ctx.QueryParam("offline_token") == "true" {
 				a.logger.Log(ctx, nil).Bool("skipping_middleware", true).Str("request_type", "offline_token").Send()

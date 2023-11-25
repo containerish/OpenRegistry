@@ -24,9 +24,13 @@ func registryNamespaceValidator(logger telemetry.Logger) echo.MiddlewareFunc {
 
 			namespace := username + "/" + imageName
 			if username == "" || imageName == "" || !nsRegex.MatchString(namespace) {
-				registryErr := common.RegistryErrorResponse(registry.RegistryErrorCodeNameInvalid, "invalid user namespace", echo.Map{
-					"error": "the required format for namespace is <username>/<imagename>",
-				})
+				registryErr := common.RegistryErrorResponse(
+					registry.RegistryErrorCodeNameInvalid,
+					"invalid user namespace",
+					echo.Map{
+						"error": "the required format for namespace is <username>/<imagename>",
+					},
+				)
 				echoErr := ctx.JSONBlob(http.StatusBadRequest, registryErr.Bytes())
 				logger.Log(ctx, echoErr).Send()
 				return echoErr
@@ -47,9 +51,13 @@ func registryReferenceOrTagValidator(logger telemetry.Logger) echo.MiddlewareFun
 			ref := ctx.Param("reference")
 
 			if ref != "" && !refRegex.MatchString(ref) {
-				registryErr := common.RegistryErrorResponse(registry.RegistryErrorCodeTagInvalid, "reference/tag does not match the required format", echo.Map{
-					"error": fmt.Sprintf("reference/tag must match the following regex: %s", refRegex.String()),
-				})
+				registryErr := common.RegistryErrorResponse(
+					registry.RegistryErrorCodeTagInvalid,
+					"reference/tag does not match the required format",
+					echo.Map{
+						"error": fmt.Sprintf("reference/tag must match the following regex: %s", refRegex.String()),
+					},
+				)
 
 				echoErr := ctx.JSONBlob(http.StatusBadRequest, registryErr.Bytes())
 				logger.Log(ctx, registryErr).Send()
@@ -68,9 +76,13 @@ func progagatRepository(store registry_store.RegistryStore, logger telemetry.Log
 
 			user, ok := ctx.Get(string(types.UserContextKey)).(*types.User)
 			if !ok {
-				registryErr := common.RegistryErrorResponse(registry.RegistryErrorCodeUnauthorized, "Unauthorized", echo.Map{
-					"error": "User is not found in request context",
-				})
+				registryErr := common.RegistryErrorResponse(
+					registry.RegistryErrorCodeUnauthorized,
+					"Unauthorized",
+					echo.Map{
+						"error": "User is not found in request context",
+					},
+				)
 				echoErr := ctx.JSONBlob(http.StatusBadRequest, registryErr.Bytes())
 				logger.Log(ctx, registryErr).Send()
 				return echoErr
