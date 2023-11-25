@@ -12,7 +12,7 @@ import (
 	"github.com/containerish/OpenRegistry/store/v1/types"
 	"github.com/containerish/OpenRegistry/telemetry"
 	"github.com/containerish/OpenRegistry/vcs"
-	"github.com/google/go-github/v50/github"
+	"github.com/google/go-github/v56/github"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 )
@@ -186,10 +186,10 @@ type AuthorizedRepository struct {
 type ContextKey string
 
 const (
-	UsernameContextKey             ContextKey = "USERNAME"
-	UserContextKey                 ContextKey = "USER"
-	GithubInstallationIDContextKey ContextKey = "GITHUB_INSTALLATION_ID"
+	UsernameContextKey               ContextKey = "USERNAME"
+	UserContextKey                   ContextKey = "USER"
+	GithubInstallationIDContextKey   ContextKey = "GITHUB_INSTALLATION_ID"
+	WorkflowFilePath                            = ".github/workflows/openregistry.yml"
+	OpenRegistryAutomationBranchName            = "openregistry-build-automation"
+	MaxGitHubRedirects                          = 3
 )
-
-const WorkflowFilePath = ".github/workflows/openregistry.yml"
-const OpenRegistryAutomationBranchName = "openregistry-build-automation"

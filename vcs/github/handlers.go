@@ -13,7 +13,7 @@ import (
 
 	"github.com/containerish/OpenRegistry/store/v1/types"
 	"github.com/containerish/OpenRegistry/vcs"
-	"github.com/google/go-github/v50/github"
+	"github.com/google/go-github/v56/github"
 	"github.com/labstack/echo/v4"
 )
 
@@ -173,7 +173,7 @@ func (gh *ghAppService) handleWorkflowRunEvents(event *github.WorkflowRunEvent) 
 			repo.GetOwner().GetLogin(),
 			repo.GetName(),
 			event.GetWorkflowRun().GetID(),
-			true,
+			MaxGitHubRedirects,
 		)
 		if err != nil {
 			var buf bytes.Buffer

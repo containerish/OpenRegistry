@@ -8,7 +8,7 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/google/go-github/v50/github"
+	"github.com/google/go-github/v56/github"
 )
 
 func (gh *ghAppService) doesWorkflowExist(ctx context.Context, client *github.Client, r *github.Repository) bool {
@@ -36,7 +36,13 @@ func (gh *ghAppService) doesWorkflowExist(ctx context.Context, client *github.Cl
 }
 
 func (gh *ghAppService) createBranch(ctx context.Context, client *github.Client, r *github.Repository) error {
-	base, _, err := client.Repositories.GetBranch(ctx, r.GetOwner().GetLogin(), r.GetName(), r.GetDefaultBranch(), true)
+	base, _, err := client.Repositories.GetBranch(
+		ctx,
+		r.GetOwner().GetLogin(),
+		r.GetName(),
+		r.GetDefaultBranch(),
+		MaxGitHubRedirects,
+	)
 	if err != nil {
 		return fmt.Errorf("ERR_GET_BRANCH: %w", err)
 	}

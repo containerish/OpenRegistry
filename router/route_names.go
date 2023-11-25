@@ -15,6 +15,8 @@ const (
 	Auth = "/auth"
 
 	Webauthn = Auth + "/webauthn"
+
+	GitHub = "/github"
 	//Beta endpoint refers to the experimental code and features under observation
 	// not to be released or exposed to public
 	Beta = "/beta"

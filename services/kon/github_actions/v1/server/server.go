@@ -14,7 +14,7 @@ import (
 	"github.com/containerish/OpenRegistry/telemetry"
 	"github.com/containerish/OpenRegistry/vcs"
 	"github.com/fatih/color"
-	"github.com/google/go-github/v50/github"
+	"github.com/google/go-github/v56/github"
 )
 
 type GitHubActionsServer struct {

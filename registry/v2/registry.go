@@ -91,6 +91,7 @@ func (r *registry) ManifestExists(ctx echo.Context) error {
 
 	ctx.Response().Header().Set("Content-Length", fmt.Sprintf("%d", manifest.Size))
 	ctx.Response().Header().Set("Docker-Content-Digest", manifest.Digest)
+	ctx.Response().Header().Set("Content-Type", img_spec_v1.MediaTypeImageManifest)
 	echoErr := ctx.NoContent(http.StatusOK)
 	r.logger.Log(ctx, nil).Send()
 	// nil is okay here since all the required information has been set above

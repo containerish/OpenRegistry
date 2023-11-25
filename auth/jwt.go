@@ -37,7 +37,7 @@ type ServiceClaims struct {
 	Access AccessList
 }
 
-func (a *auth) newPublicPullToken() (string, error) {
+func (a *auth) newPublicPullToken(userId string) (string, error) {
 	acl := AccessList{
 		{
 			Type:    "repository",
@@ -49,7 +49,7 @@ func (a *auth) newPublicPullToken() (string, error) {
 	opts := &CreateClaimOptions{
 		Audience: a.c.Registry.FQDN,
 		Issuer:   OpenRegistryIssuer,
-		Id:       "public_pull_user",
+		Id:       userId,
 		TokeType: "service_token",
 		Acl:      acl,
 	}

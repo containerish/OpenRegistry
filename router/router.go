@@ -11,6 +11,7 @@ import (
 	"github.com/containerish/OpenRegistry/registry/v2"
 	"github.com/containerish/OpenRegistry/registry/v2/extensions"
 	registry_store "github.com/containerish/OpenRegistry/store/v1/registry"
+	"github.com/containerish/OpenRegistry/telemetry"
 	"github.com/google/uuid"
 	"github.com/labstack/echo-contrib/prometheus"
 	"github.com/labstack/echo/v4"
@@ -27,7 +28,9 @@ func Register(
 	webauthnServer auth_server.WebauthnServer,
 	ext extensions.Extenion,
 	registryStore registry_store.RegistryStore,
+	logger telemetry.Logger,
 ) {
+	e.HideBanner = true
 	e.Use(middleware.Recover())
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
 		AllowOrigins:     cfg.WebAppConfig.AllowedEndpoints,
@@ -37,7 +40,6 @@ func Register(
 		ExposeHeaders:    middleware.DefaultCORSConfig.ExposeHeaders,
 		MaxAge:           750,
 	}))
-
 	e.Use(middleware.RequestIDWithConfig(middleware.RequestIDConfig{
 		Generator: func() string {
 			requestId, err := uuid.NewRandom()
@@ -46,28 +48,27 @@ func Register(
 			}
 			return requestId.String()
 		},
+		TargetHeader: echo.HeaderXRequestID,
 	}))
-
-	e.HideBanner = true
 
 	p := prometheus.NewPrometheus("OpenRegistry", nil)
 	p.Use(e)
 
 	v2Router := e.Group(V2, authSvc.BasicAuth(), authSvc.JWT())
-	nsRouter := v2Router.Group(Namespace, authSvc.ACL(), registryNamespaceValidator())
+	nsRouter := v2Router.Group(Namespace, registryNamespaceValidator(logger), authSvc.ACL(), authSvc.RepositoryPermissionsMiddleware())
 
 	authRouter := e.Group(Auth)
 	webauthnRouter := e.Group(Webauthn)
-	authGithubRouter := authRouter.Group("/github")
+	authGithubRouter := authRouter.Group(GitHub)
 
 	v2Router.Add(http.MethodGet, Root, reg.ApiVersion)
 
-	e.Add(http.MethodGet, TokenAuth, authSvc.Token)
+	e.Add(http.MethodGet, TokenAuth, authSvc.Token, authSvc.RepositoryPermissionsMiddleware())
 
 	authGithubRouter.Add(http.MethodGet, "/callback", authSvc.GithubLoginCallbackHandler)
 	authGithubRouter.Add(http.MethodGet, "/login", authSvc.LoginWithGithub)
 
-	RegisterNSRoutes(nsRouter, reg, registryStore)
+	RegisterNSRoutes(nsRouter, reg, registryStore, logger)
 	RegisterAuthRoutes(authRouter, authSvc)
 	Extensions(v2Router, reg, ext)
 	RegisterWebauthnRoutes(webauthnRouter, webauthnServer)
@@ -92,7 +93,12 @@ func Register(
 
 // RegisterNSRoutes is one of the helper functions to Register
 // it works directly with registry endpoints
-func RegisterNSRoutes(nsRouter *echo.Group, reg registry.Registry, registryStore registry_store.RegistryStore) {
+func RegisterNSRoutes(
+	nsRouter *echo.Group,
+	reg registry.Registry,
+	registryStore registry_store.RegistryStore,
+	logger telemetry.Logger,
+) {
 
 	// ALL THE HEAD METHODS //
 	// HEAD /v2/<name>/blobs/<digest>
@@ -101,7 +107,7 @@ func RegisterNSRoutes(nsRouter *echo.Group, reg registry.Registry, registryStore
 
 	// HEAD /v2/<name>/manifests/<reference>
 	// should be called reference/digest
-	nsRouter.Add(http.MethodHead, ManifestsReference, reg.ManifestExists, registryReferenceOrTagValidator())
+	nsRouter.Add(http.MethodHead, ManifestsReference, reg.ManifestExists, registryReferenceOrTagValidator(logger))
 
 	// ALL THE PUT METHODS
 
@@ -115,8 +121,8 @@ func RegisterNSRoutes(nsRouter *echo.Group, reg registry.Registry, registryStore
 		http.MethodPut,
 		ManifestsReference,
 		reg.PushManifest,
-		registryReferenceOrTagValidator(),
-		progagatRepository(registryStore),
+		registryReferenceOrTagValidator(logger),
+		progagatRepository(registryStore, logger),
 	)
 
 	// POST METHODS
@@ -136,7 +142,7 @@ func RegisterNSRoutes(nsRouter *echo.Group, reg registry.Registry, registryStore
 	// GET METHODS
 
 	// GET /v2/<name>/manifests/<reference>
-	nsRouter.Add(http.MethodGet, ManifestsReference, reg.PullManifest, registryReferenceOrTagValidator())
+	nsRouter.Add(http.MethodGet, ManifestsReference, reg.PullManifest, registryReferenceOrTagValidator(logger))
 
 	// GET /v2/<name>/blobs/<digest>
 	nsRouter.Add(http.MethodGet, BlobsDigest, reg.PullLayer)
@@ -153,7 +159,7 @@ func RegisterNSRoutes(nsRouter *echo.Group, reg registry.Registry, registryStore
 	nsRouter.Add(http.MethodGet, GetReferrers, reg.ListReferrers)
 	/// mf/sha -> mf/latest
 	nsRouter.Add(http.MethodDelete, BlobsDigest, reg.DeleteLayer)
-	nsRouter.Add(http.MethodDelete, ManifestsReference, reg.DeleteTagOrManifest, registryReferenceOrTagValidator())
+	nsRouter.Add(http.MethodDelete, ManifestsReference, reg.DeleteTagOrManifest, registryReferenceOrTagValidator(logger))
 }
 
 // Extensions for teh OCI dist spec

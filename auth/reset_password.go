@@ -52,7 +52,16 @@ func (a *auth) ResetForgottenPassword(ctx echo.Context) error {
 	}
 	defer ctx.Request().Body.Close()
 
-	userId := uuid.MustParse(c.ID)
+	userId, err := uuid.Parse(c.ID)
+	if err != nil {
+		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
+			"error":   err.Error(),
+			"message": "invalid user id format",
+		})
+		a.logger.Log(ctx, err).Send()
+		return echoErr
+	}
+
 	user, err := a.pgStore.GetUserByID(ctx.Request().Context(), userId)
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusNotFound, echo.Map{
@@ -147,7 +156,15 @@ func (a *auth) ResetPassword(ctx echo.Context) error {
 	}
 	defer ctx.Request().Body.Close()
 
-	userId := uuid.MustParse(c.ID)
+	userId, err := uuid.Parse(c.ID)
+	if err != nil {
+		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
+			"error":   err.Error(),
+			"message": "invalid user id format",
+		})
+		a.logger.Log(ctx, err).Send()
+		return echoErr
+	}
 	user, err := a.pgStore.GetUserByID(ctx.Request().Context(), userId)
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusNotFound, echo.Map{

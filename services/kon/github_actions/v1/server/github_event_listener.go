@@ -6,7 +6,7 @@ import (
 
 	github_actions_v1 "github.com/containerish/OpenRegistry/services/kon/github_actions/v1"
 	"github.com/fatih/color"
-	"github.com/google/go-github/v50/github"
+	"github.com/google/go-github/v56/github"
 )
 
 func (ghs *GitHubActionsServer) Listen(resp http.ResponseWriter, req *http.Request) {

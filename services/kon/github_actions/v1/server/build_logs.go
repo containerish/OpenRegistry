@@ -16,7 +16,7 @@ import (
 	connect_go "github.com/bufbuild/connect-go"
 	github_actions_v1 "github.com/containerish/OpenRegistry/services/kon/github_actions/v1"
 	github_impl "github.com/containerish/OpenRegistry/vcs/github"
-	"github.com/google/go-github/v50/github"
+	"github.com/google/go-github/v56/github"
 )
 
 type WorkflowStep struct {
@@ -201,7 +201,7 @@ func (ghs *GitHubActionsServer) retryGetWorkflowRunLogsURL(
 
 	for i := 0; i < retryCount; i++ {
 		time.Sleep(backoff)
-		url, resp, err := client.Actions.GetWorkflowRunLogs(ctx, owner, repo, runID, true)
+		url, resp, err := client.Actions.GetWorkflowRunLogs(ctx, owner, repo, runID, github_impl.MaxGitHubRedirects)
 		if err != nil {
 			var buf bytes.Buffer
 			_, bufReadErr := buf.ReadFrom(resp.Body)

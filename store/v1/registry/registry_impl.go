@@ -63,14 +63,21 @@ func (s *registryStore) GetRepositoryByNamespace(
 	ctx context.Context,
 	namespace string,
 ) (*types.ContainerImageRepository, error) {
-	logEvent := s.logger.Debug().Str("method", "GetRepositoryByNamespace").Str("namespace", namespace)
-
+	logEvent := s.logger.Debug().Str("namespace", namespace)
+	nsParts := strings.Split(namespace, "/")
+	if len(nsParts) != 2 {
+		return nil, fmt.Errorf("GetRepositoryByNamespace: invalid namespace format")
+	}
+	username, repoName := nsParts[0], nsParts[1]
 	repository := &types.ContainerImageRepository{}
 	err := s.
 		db.
 		NewSelect().
 		Model(repository).
-		Where("name = ?", strings.Split(namespace, "/")[1]).
+		Relation("User", func(sq *bun.SelectQuery) *bun.SelectQuery {
+			return sq.Column("username")
+		}).
+		Where("name = ?", repoName).Where("username = ?", username).
 		Scan(ctx)
 	if err != nil {
 		logEvent.Err(err).Send()
@@ -422,15 +429,32 @@ func (s *registryStore) GetManifestByReference(
 ) (*types.ImageManifest, error) {
 	logEvent := s.logger.Debug().Str("method", "GetManifestByReference").Str("whereClause", "reference")
 
+	nsParts := strings.Split(namespace, "/")
+	username, repoName := nsParts[0], nsParts[1]
+
 	var manifest types.ImageManifest
-	err := s.
+	q := s.
 		db.
 		NewSelect().
 		Model(&manifest).
-		WhereOr("reference = ?", ref).
-		WhereOr("digest = ?", ref).
-		Scan(ctx)
-	if err != nil {
+		Relation("Repository", func(sq *bun.SelectQuery) *bun.SelectQuery {
+			return sq.Column("name")
+		}).
+		Relation("User", func(sq *bun.SelectQuery) *bun.SelectQuery {
+			return sq.Column("username")
+		}).
+		Where("username = ?", username).
+		Where("name = ?", repoName)
+
+	// check if ref is a digest
+	digest, err := oci_digest.Parse(ref)
+	if err == nil {
+		q.Where("digest = ?", digest.String())
+	} else {
+		q.Where("reference = ?", ref)
+	}
+
+	if err := q.Scan(ctx); err != nil {
 		logEvent.Err(err).Send()
 		return nil, v2.WrapDatabaseError(err, v2.DatabaseOperationRead)
 	}

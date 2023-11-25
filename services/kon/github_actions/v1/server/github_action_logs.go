@@ -10,7 +10,7 @@ import (
 	"sort"
 
 	connect_go "github.com/bufbuild/connect-go"
-	"github.com/google/go-github/v50/github"
+	"github.com/google/go-github/v56/github"
 )
 
 func (ghs *GitHubActionsServer) getLogsToStream(

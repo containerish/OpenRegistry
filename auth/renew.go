@@ -66,7 +66,15 @@ func (a *auth) RenewAccessToken(ctx echo.Context) error {
 		return echoErr
 	}
 
-	userId := uuid.MustParse(claims.ID)
+	userId, err := uuid.Parse(claims.ID)
+	if err != nil {
+		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
+			"error":   err.Error(),
+			"message": "invalid user id format",
+		})
+		a.logger.Log(ctx, err).Send()
+		return echoErr
+	}
 	user, err := a.pgStore.GetUserByID(ctx.Request().Context(), userId)
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusUnauthorized, echo.Map{

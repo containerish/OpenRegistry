@@ -66,7 +66,7 @@ func (us *userStore) GetGitHubUser(ctx context.Context, githubEmail string, txn 
 		selectFn = txn.NewSelect().Model(user)
 	}
 
-	if err := selectFn.Where("identities->'github'->>'email' = ?", bun.Ident(githubEmail)).Scan(ctx); err != nil {
+	if err := selectFn.Where("coalesce(identities->'github'->>'email', '') = ?", githubEmail).Scan(ctx); err != nil {
 		return nil, v2.WrapDatabaseError(err, v2.DatabaseOperationRead)
 	}
 
@@ -121,8 +121,13 @@ func (us *userStore) GetUserByUsernameWithTxn(ctx context.Context, username stri
 
 // GetUserWithSession implements UserStore.
 func (us *userStore) GetUserWithSession(ctx context.Context, sessionId string) (*types.User, error) {
-	session := &types.Session{Id: uuid.MustParse(sessionId)}
-	err := us.
+	parsedSessionId, err := uuid.Parse(sessionId)
+	if err != nil {
+		return nil, err
+	}
+
+	session := &types.Session{Id: parsedSessionId}
+	err = us.
 		db.
 		NewSelect().
 		Model(session).

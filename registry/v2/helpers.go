@@ -5,13 +5,14 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/containerish/OpenRegistry/types"
 	"github.com/fatih/color"
 )
 
 func (r *registry) errorResponse(code, msg string, detail map[string]interface{}) []byte {
-	var err RegistryErrors
+	var err types.RegistryErrors
 
-	err.Errors = append(err.Errors, RegistryError{
+	err.Errors = append(err.Errors, types.RegistryError{
 		Code:    code,
 		Message: msg,
 		Detail:  detail,

@@ -26,16 +26,16 @@ type ZerologOutput interface {
 }
 
 type logger struct {
-	zlog zerolog.Logger
-	env  config.Environment
+	logger zerolog.Logger
+	env    config.Environment
 }
 
-func ZLogger(env config.Environment, config config.Telemetry) Logger {
+func ZeroLogger(env config.Environment, config config.Telemetry) Logger {
 	baseLogger := setupLogger(config.Logging)
 
 	return &logger{
-		zlog: baseLogger,
-		env:  env,
+		logger: baseLogger,
+		env:    env,
 	}
 }
 
@@ -58,7 +58,6 @@ func setupLogger(config config.Logging) zerolog.Logger {
 
 	if config.RemoteForwarding {
 		writers := []io.Writer{consoleWriter}
-
 		if config.Axiom.Enabled {
 			axiomWriter, err := NewAxiomWriter(
 				SetDataset(config.Axiom.Dataset),
@@ -104,7 +103,7 @@ func (l *logger) Log(ctx echo.Context, errMsg error) *zerolog.Event {
 	}
 
 	event := l.
-		zlog.
+		logger.
 		WithLevel(level).
 		Time("time", start).
 		Time("end", stop).
@@ -151,9 +150,9 @@ func (l *logger) Log(ctx echo.Context, errMsg error) *zerolog.Event {
 }
 
 func (l *logger) Debug() *zerolog.Event {
-	return l.zlog.WithLevel(zerolog.DebugLevel)
+	return l.logger.WithLevel(zerolog.DebugLevel)
 }
 
 func (l *logger) Info() *zerolog.Event {
-	return l.zlog.WithLevel(zerolog.InfoLevel)
+	return l.logger.WithLevel(zerolog.InfoLevel)
 }

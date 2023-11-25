@@ -4,9 +4,48 @@ import (
 	"encoding/json"
 	"fmt"
 	"time"
+
+	"github.com/fatih/color"
 )
 
+func (re RegistryErrors) Error() string {
+	if len(re.Errors) == 0 {
+		panic("error is nil")
+	}
+
+	bz, _ := json.Marshal(re)
+	return string(bz)
+}
+
+func (re *RegistryError) Error() string {
+	if re == nil {
+		panic("error is nil")
+	}
+
+	bz, _ := json.Marshal(re)
+	return string(bz)
+}
+
+func (re RegistryErrors) Bytes() []byte {
+	bz, err := json.Marshal(re)
+	if err != nil {
+		color.Red("error marshaling error response: %w", err)
+	}
+
+	return bz
+}
+
 type (
+	RegistryErrors struct {
+		Errors []RegistryError `json:"errors"`
+	}
+
+	RegistryError struct {
+		Detail  map[string]interface{} `json:"detail,omitempty"`
+		Code    string                 `json:"code"`
+		Message string                 `json:"message,omitempty"`
+	}
+
 	ObjectMetadata struct {
 		ContentType   string
 		Etag          string
