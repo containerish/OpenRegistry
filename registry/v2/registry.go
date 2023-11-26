@@ -301,7 +301,11 @@ func (r *registry) MonolithicUpload(ctx echo.Context) error {
 	imageDigest := ctx.QueryParam("digest")
 	buf := &bytes.Buffer{}
 	if _, err := io.Copy(buf, ctx.Request().Body); err != nil {
-		errMsg := common.RegistryErrorResponse(RegistryErrorCodeBlobUploadInvalid, "error while reading request body", nil)
+		errMsg := common.RegistryErrorResponse(
+			RegistryErrorCodeBlobUploadInvalid,
+			"error while reading request body",
+			nil,
+		)
 		echoErr := ctx.JSONBlob(http.StatusNotFound, errMsg.Bytes())
 		r.logger.Log(ctx, fmt.Errorf("%s", errMsg)).Send()
 		return echoErr
@@ -522,7 +526,11 @@ func (r *registry) MonolithicPut(ctx echo.Context) error {
 
 	txnOp, ok := r.txnMap[uploadID]
 	if !ok {
-		errMsg := common.RegistryErrorResponse(RegistryErrorCodeUnknown, "transaction does not exist for uuid -"+identifier, nil)
+		errMsg := common.RegistryErrorResponse(
+			RegistryErrorCodeUnknown,
+			"transaction does not exist for uuid -"+identifier,
+			nil,
+		)
 		echoErr := ctx.JSONBlob(http.StatusBadRequest, errMsg.Bytes())
 		r.logger.Log(ctx, fmt.Errorf("%s", errMsg)).Send()
 		return echoErr
@@ -649,7 +657,11 @@ func (r *registry) CompleteUpload(ctx echo.Context) error {
 
 	txnOp, ok := r.txnMap[uploadID]
 	if !ok {
-		errMsg := common.RegistryErrorResponse(RegistryErrorCodeUnknown, "transaction does not exist for uuid -"+identifier, nil)
+		errMsg := common.RegistryErrorResponse(
+			RegistryErrorCodeUnknown,
+			"transaction does not exist for uuid -"+identifier,
+			nil,
+		)
 		echoErr := ctx.JSONBlob(http.StatusBadRequest, errMsg.Bytes())
 		r.logger.Log(ctx, fmt.Errorf("%s", errMsg)).Send()
 		return echoErr

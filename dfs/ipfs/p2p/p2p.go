@@ -188,6 +188,10 @@ func (ipfs *ipfsP2p) CompleteMultipartUpload(
 			}
 		}
 
+		// cleanup session & cached layer parts
+		ipfs.uploadSession.Del(uploadId)
+		ipfs.uploadParts.Del(uploadId)
+
 		return path.RootCid().String(), nil
 	}
 
