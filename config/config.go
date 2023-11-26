@@ -40,6 +40,7 @@ type (
 	DFS struct {
 		Storj    Storj           `yaml:"storj" mapstructure:"storj"`
 		Filebase S3CompatibleDFS `yaml:"filebase" mapstructure:"filebase"`
+		Ipfs     IpfsDFS         `yaml:"ipfs" mapstructure:"ipfs"`
 		Mock     S3CompatibleDFS `yaml:"mock" mapstructure:"mock"`
 	}
 
@@ -184,6 +185,15 @@ type (
 		Logging Logging `yaml:"logging" mapstructure:"logging"`
 		Otel    Otel    `yaml:"otel" mapstructure:"otel"`
 		Enabled bool    `yaml:"enabled" mapstructure:"enabled"`
+	}
+
+	IpfsDFS struct {
+		RPCMultiAddr    string `yaml:"rpc_multi_addr" mapstructure:"rpc_multi_addr"`
+		GatewayEndpoint string `yaml:"gateway_endpoint" mapstructure:"gateway_endpoint"`
+		Type            string `yaml:"type" mapstructure:"type"`
+		Enabled         bool   `yaml:"enabled" mapstructure:"enabled"`
+		Local           bool   `yaml:"local" mapstructure:"local"`
+		Pinning         bool   `yaml:"pinning" mapstructure:"pinning"`
 	}
 )
 
