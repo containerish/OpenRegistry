@@ -737,7 +737,7 @@ func (r *registry) PushManifest(ctx echo.Context) error {
 	}
 
 	repository := r.GetRepositoryFromCtx(ctx)
-	repositoryExists := r.store.RepositoryExists(ctx.Request().Context(), strings.Split(namespace, "/")[1])
+	repositoryExists := r.store.RepositoryExists(ctx.Request().Context(), namespace)
 	if repository == nil || !repositoryExists {
 		repositoryID, idErr := types.NewUUID()
 		if idErr != nil {
@@ -757,6 +757,12 @@ func (r *registry) PushManifest(ctx echo.Context) error {
 			Name:       strings.Split(namespace, "/")[1],
 			Visibility: types_v2.RepositoryVisibilityPrivate,
 		}
+
+		// IPFS P2P repositories are public
+		if user.Username == types_v2.RepositoryNameIPFS {
+			repository.Visibility = types_v2.RepositoryVisibilityPublic
+		}
+
 		idErr = r.store.CreateRepository(ctx.Request().Context(), repository)
 		if idErr != nil {
 			echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{

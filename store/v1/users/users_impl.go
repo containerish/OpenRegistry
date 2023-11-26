@@ -119,6 +119,15 @@ func (us *userStore) GetUserByUsernameWithTxn(ctx context.Context, username stri
 	return user, nil
 }
 
+func (us *userStore) GetIPFSUser(ctx context.Context) (*types.User, error) {
+	var user types.User
+	if err := us.db.NewSelect().Model(&user).Where("username = ?", types.RepositoryNameIPFS).Scan(ctx); err != nil {
+		return nil, v2.WrapDatabaseError(err, v2.DatabaseOperationRead)
+	}
+
+	return &user, nil
+}
+
 // GetUserWithSession implements UserStore.
 func (us *userStore) GetUserWithSession(ctx context.Context, sessionId string) (*types.User, error) {
 	parsedSessionId, err := uuid.Parse(sessionId)

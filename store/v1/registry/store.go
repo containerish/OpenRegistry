@@ -81,6 +81,6 @@ type RegistryStore interface {
 	CreateRepository(ctx context.Context, repository *types.ContainerImageRepository) error
 	GetRepositoryByID(ctx context.Context, ID uuid.UUID) (*types.ContainerImageRepository, error)
 	GetRepositoryByNamespace(ctx context.Context, namespace string) (*types.ContainerImageRepository, error)
-	RepositoryExists(ctx context.Context, name string) bool
+	RepositoryExists(ctx context.Context, namespace string) bool
 	GetRepositoryByName(ctx context.Context, userId uuid.UUID, name string) (*types.ContainerImageRepository, error)
 }

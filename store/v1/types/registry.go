@@ -15,6 +15,7 @@ import (
 )
 
 const (
+	RepositoryNameIPFS   = "ipfs"
 	HttpEndpointErrorKey = "HTTP_ERROR"
 	HandlerStartTime     = "HANDLER_START_TIME"
 )
