@@ -36,7 +36,7 @@ type DFS interface {
 	DownloadDir(dfsLink, dir string) error
 	List(path string) ([]*types.Metadata, error)
 	AddImage(ns string, mf, l map[string][]byte) (string, error)
-	Metadata(dfsLink string) (*types.ObjectMetadata, error)
+	Metadata(layer *types.ContainerImageLayer) (*types.ObjectMetadata, error)
 	GetUploadProgress(identifier, uploadID string) (*types.ObjectMetadata, error)
 	AbortMultipartUpload(ctx context.Context, layerKey string, uploadId string) error
 	GeneratePresignedURL(ctx context.Context, key string) (string, error)

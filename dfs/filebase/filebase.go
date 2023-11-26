@@ -13,6 +13,7 @@ import (
 	"github.com/containerish/OpenRegistry/config"
 	"github.com/containerish/OpenRegistry/dfs"
 	"github.com/containerish/OpenRegistry/store/v1/types"
+	core_types "github.com/containerish/OpenRegistry/types"
 	oci_digest "github.com/opencontainers/go-digest"
 )
 
@@ -220,10 +221,11 @@ func (fb *filebase) AddImage(ns string, mf, l map[string][]byte) (string, error)
 // Metadata API returns the HEADERS for an object. This object can be a manifest or a layer.
 // This API is usually a little behind when it comes to fetching the details for an uploaded object.
 // This is why we put it in a retry loop and break it as soon as we get the data
-func (fb *filebase) Metadata(identifier string) (*types.ObjectMetadata, error) {
+func (fb *filebase) Metadata(layer *types.ContainerImageLayer) (*types.ObjectMetadata, error) {
 	var resp *s3.HeadObjectOutput
 	var err error
 
+	identifier := core_types.GetLayerIdentifier(layer.ID)
 	for i := 3; i > 0; i-- {
 		resp, err = fb.client.HeadObject(context.Background(), &s3.HeadObjectInput{
 			Bucket:       &fb.bucket,

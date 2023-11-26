@@ -59,9 +59,11 @@ func ParseOCITokenPermissionRequest(url *url.URL) (types.OCITokenPermissonClaimL
 			return nil, fmt.Errorf("ParseOCITokenPermissionRequest: invalid scope")
 		}
 
+		scopeType, scopeName := scopeParts[0], scopeParts[1]
+
 		claim := &types.OCITokenPermissonClaim{
-			Type:    scopeParts[0],                     // this is usually "repository"
-			Name:    scopeParts[1],                     // this is the registry namespace eg: johndoe/ubuntu
+			Type:    scopeType,                         // this is usually "repository"
+			Name:    scopeName,                         // this is the registry namespace eg: johndoe/ubuntu
 			Actions: strings.Split(scopeParts[2], ","), // request action on a resource (push/pull)
 		}
 		claimList = append(claimList, claim)
@@ -149,7 +151,7 @@ func (a *auth) Token(ctx echo.Context) error {
 				},
 			)
 			echoErr := ctx.JSONBlob(http.StatusBadRequest, registryErr.Bytes())
-			a.logger.Log(ctx, registryErr).Send()
+			a.logger.Log(ctx, registryErr).Any("scopes", scopes).Send()
 			return echoErr
 		}
 

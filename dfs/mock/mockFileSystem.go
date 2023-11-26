@@ -15,6 +15,7 @@ import (
 	"github.com/containerish/OpenRegistry/config"
 	"github.com/containerish/OpenRegistry/dfs"
 	types "github.com/containerish/OpenRegistry/store/v1/types"
+	core_types "github.com/containerish/OpenRegistry/types"
 	"github.com/fatih/color"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
@@ -147,11 +148,13 @@ func (ms *fileBasedMockStorage) AddImage(ns string, mf, l map[string][]byte) (st
 	return "", nil
 }
 
-func (ms *fileBasedMockStorage) Metadata(identifier string) (*types.ObjectMetadata, error) {
+func (ms *fileBasedMockStorage) Metadata(layer *types.ContainerImageLayer) (*types.ObjectMetadata, error) {
 	var (
 		fd  afero.File
 		err error
 	)
+
+	identifier := core_types.GetLayerIdentifier(layer.ID)
 	parts := strings.Split(identifier, "/")
 	if len(parts) > 1 {
 		fd, err = ms.fs.Open(parts[1])

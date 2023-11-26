@@ -105,8 +105,7 @@ func (a *auth) RepositoryPermissionsMiddleware() echo.MiddlewareFunc {
 				return echoErr
 			}
 
-			username := strings.Split(namespace, "/")[0]
-
+			usernameFromReq := strings.Split(namespace, "/")[0]
 			repository, err := a.registryStore.GetRepositoryByNamespace(ctx.Request().Context(), namespace)
 			if err == nil {
 				if repository.Visibility == types.RepositoryVisibilityPublic {
@@ -116,7 +115,7 @@ func (a *auth) RepositoryPermissionsMiddleware() echo.MiddlewareFunc {
 			}
 
 			user, ok := ctx.Get(string(types.UserContextKey)).(*types.User)
-			if !ok || user.Username != username {
+			if (!ok || user.Username != usernameFromReq) && usernameFromReq != types.RepositoryNameIPFS {
 				errMsg := common.RegistryErrorResponse(
 					registry.RegistryErrorCodeUnauthorized,
 					"access to this resource is restricted, please login or check with the repository owner",
@@ -129,6 +128,7 @@ func (a *auth) RepositoryPermissionsMiddleware() echo.MiddlewareFunc {
 				return echoErr
 			}
 
+			a.logger.Log(ctx, nil).Send()
 			return handler(ctx)
 		}
 	}

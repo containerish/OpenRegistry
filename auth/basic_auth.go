@@ -101,7 +101,7 @@ func (a *auth) BasicAuthWithConfig() echo.MiddlewareFunc {
 			// Need to return `401` for browsers to pop-up login box.
 			ctx.Response().Header().Set(echo.HeaderWWWAuthenticate, headerValue)
 			echoErr := ctx.NoContent(http.StatusUnauthorized)
-			a.logger.Log(ctx, nil).Send()
+			a.logger.Log(ctx, nil).Str(echo.HeaderWWWAuthenticate, headerValue).Send()
 			return echoErr
 		}
 	}
@@ -112,7 +112,7 @@ func (a *auth) BasicAuthValidator(username string, password string, ctx echo.Con
 
 	_, err := a.validateUser(username, password)
 	usernameFromReq := ctx.Param("username")
-	if err != nil || usernameFromReq != username {
+	if err != nil || usernameFromReq != username || usernameFromReq == types.RepositoryNameIPFS {
 		var errMsg registry.RegistryErrors
 		errMsg.Errors = append(errMsg.Errors, registry.RegistryError{
 			Code:    registry.RegistryErrorCodeUnauthorized,
@@ -146,10 +146,12 @@ func (a *auth) SkipBasicAuth(ctx echo.Context) bool {
 			Send()
 		return true
 	}
+	repoName := ctx.Param("imagename")
 
 	readOp := ctx.Request().Method == http.MethodHead || ctx.Request().Method == http.MethodGet
 	// if it's a read operation on a public repository, we skip auth requirement
-	if readOp && repo != nil && repo.Visibility == types.RepositoryVisibilityPublic {
+	if repoName == types.RepositoryNameIPFS ||
+		(readOp && repo != nil && repo.Visibility == types.RepositoryVisibilityPublic) {
 		a.logger.Debug().
 			Bool("skip_basic_auth", true).
 			Str("method", ctx.Request().Method).

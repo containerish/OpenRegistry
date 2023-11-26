@@ -37,7 +37,10 @@ func (a *auth) JWT() echo.MiddlewareFunc {
 				return false
 			}
 
-			skip := readOp && repo.Visibility == types.RepositoryVisibilityPublic
+			repoName := ctx.Param("imagename")
+
+			skip := (readOp && repo.Visibility == types.RepositoryVisibilityPublic) ||
+				repoName == types.RepositoryNameIPFS
 			if skip {
 				a.logger.Debug().
 					Bool("skip_jwt_middleware", true).
@@ -69,12 +72,20 @@ func (a *auth) JWT() echo.MiddlewareFunc {
 		},
 		ContinueOnIgnoredError: false,
 		SuccessHandler: func(ctx echo.Context) {
-
 			if token, tokenOk := ctx.Get("user").(*jwt.Token); tokenOk {
 				claims, claimsOk := token.Claims.(*Claims)
 				if claimsOk {
 					userId := uuid.MustParse(claims.ID)
-					user, err := a.pgStore.GetUserByID(ctx.Request().Context(), userId)
+					usernameFromReq := ctx.Param("username")
+					var (
+						user *types.User
+						err  error
+					)
+					if usernameFromReq == types.RepositoryNameIPFS {
+						user, err = a.pgStore.GetIPFSUser(ctx.Request().Context())
+					} else {
+						user, err = a.pgStore.GetUserByID(ctx.Request().Context(), userId)
+					}
 					if err == nil {
 						ctx.Set(string(types.UserContextKey), user)
 					}
@@ -97,13 +108,13 @@ func (a *auth) JWT() echo.MiddlewareFunc {
 
 // ACL implies a basic Access Control List on protected resources
 func (a *auth) ACL() echo.MiddlewareFunc {
-	return func(hf echo.HandlerFunc) echo.HandlerFunc {
+	return func(handler echo.HandlerFunc) echo.HandlerFunc {
 		return func(ctx echo.Context) error {
 			ctx.Set(types.HandlerStartTime, time.Now())
 
 			m := ctx.Request().Method
 			if m == http.MethodGet || m == http.MethodHead {
-				return hf(ctx)
+				return handler(ctx)
 			}
 
 			token, ok := ctx.Get("user").(*jwt.Token)
@@ -120,8 +131,7 @@ func (a *auth) ACL() echo.MiddlewareFunc {
 				return echoErr
 			}
 
-			username := ctx.Param("username")
-
+			usernameFromReq := ctx.Param("username")
 			userId, err := uuid.Parse(claims.ID)
 			if err != nil {
 				echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
@@ -138,8 +148,8 @@ func (a *auth) ACL() echo.MiddlewareFunc {
 				a.logger.Log(ctx, err).Send()
 				return echoErr
 			}
-			if user.Username == username {
-				return hf(ctx)
+			if usernameFromReq == user.Username || usernameFromReq == types.RepositoryNameIPFS {
+				return handler(ctx)
 			}
 
 			return ctx.NoContent(http.StatusUnauthorized)

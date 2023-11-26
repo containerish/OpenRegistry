@@ -32,6 +32,7 @@ type UserStore interface {
 }
 
 type UserReader interface {
+	GetIPFSUser(ctx context.Context) (*types.User, error)
 	GetUserByID(ctx context.Context, userID uuid.UUID) (*types.User, error)
 	GetUserByIDWithTxn(ctx context.Context, id uuid.UUID, txn *bun.Tx) (*types.User, error)
 	GetUserByUsername(ctx context.Context, username string) (*types.User, error)

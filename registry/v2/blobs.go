@@ -49,7 +49,7 @@ func (b *blobs) HEAD(ctx echo.Context) error {
 		return echoErr
 	}
 
-	metadata, err := b.registry.dfs.Metadata(GetLayerIdentifier(layerRef.ID))
+	metadata, err := b.registry.dfs.Metadata(layerRef)
 	if err != nil {
 		details := echo.Map{
 			"error":   err.Error(),
@@ -80,8 +80,8 @@ func (b *blobs) UploadBlob(ctx echo.Context) error {
 	namespace := ctx.Get(string(RegistryNamespace)).(string)
 	contentRange := ctx.Request().Header.Get("Content-Range")
 	identifier := ctx.Param("uuid")
-	layerKey := GetLayerIdentifierFromTrakcingID(identifier)
-	uploadID := GetUploadIDFromTrakcingID(identifier)
+	layerKey := types.GetLayerIdentifierFromTrakcingID(identifier)
+	uploadID := types.GetUploadIDFromTrakcingID(identifier)
 
 	// upload the first chunk for the layer
 	if contentRange == "" || strings.HasPrefix(contentRange, "0-") {
@@ -109,7 +109,7 @@ func (b *blobs) UploadBlob(ctx echo.Context) error {
 		part, err := b.registry.dfs.UploadPart(
 			ctx.Request().Context(),
 			uploadID,
-			GetLayerIdentifier(layerKey),
+			types.GetLayerIdentifier(layerKey),
 			digest.String(),
 			b.blobCounter[uploadID],
 			bytes.NewReader(buf.Bytes()),
@@ -176,7 +176,7 @@ func (b *blobs) UploadBlob(ctx echo.Context) error {
 	part, err := b.registry.dfs.UploadPart(
 		ctx.Request().Context(),
 		uploadID,
-		GetLayerIdentifier(layerKey),
+		types.GetLayerIdentifier(layerKey),
 		digest.String(),
 		b.blobCounter[uploadID],
 		bytes.NewReader(buf.Bytes()),

@@ -54,8 +54,8 @@ func Register(
 	p := prometheus.NewPrometheus("OpenRegistry", nil)
 	p.Use(e)
 
-	v2Router := e.Group(V2, authSvc.BasicAuth(), authSvc.JWT())
-	nsRouter := v2Router.Group(Namespace, registryNamespaceValidator(logger), authSvc.ACL(), authSvc.RepositoryPermissionsMiddleware())
+	v2Router := e.Group(V2, registryNamespaceValidator(logger), authSvc.BasicAuth(), authSvc.JWT())
+	nsRouter := v2Router.Group(Namespace, authSvc.ACL(), authSvc.RepositoryPermissionsMiddleware())
 
 	authRouter := e.Group(Auth)
 	webauthnRouter := e.Group(Webauthn)
@@ -122,7 +122,7 @@ func RegisterNSRoutes(
 		ManifestsReference,
 		reg.PushManifest,
 		registryReferenceOrTagValidator(logger),
-		progagatRepository(registryStore, logger),
+		propagateRepository(registryStore, logger),
 	)
 
 	// POST METHODS

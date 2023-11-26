@@ -12,6 +12,7 @@ import (
 	"github.com/containerish/OpenRegistry/config"
 	"github.com/containerish/OpenRegistry/dfs"
 	"github.com/containerish/OpenRegistry/store/v1/types"
+	core_types "github.com/containerish/OpenRegistry/types"
 	"github.com/fatih/color"
 	"storj.io/uplink"
 	"storj.io/uplink/edge"
@@ -170,8 +171,10 @@ func (u *storjUplink) GetUploadProgress(identifier string, uploadID string) (*ty
 }
 
 // Metadata implements dfs.DFS
-func (u *storjUplink) Metadata(dfsLink string) (*types.ObjectMetadata, error) {
-	metadata, err := u.client.StatObject(context.Background(), u.bucket, dfsLink)
+func (u *storjUplink) Metadata(layer *types.ContainerImageLayer) (*types.ObjectMetadata, error) {
+	identifier := core_types.GetLayerIdentifier(layer.ID)
+
+	metadata, err := u.client.StatObject(context.Background(), u.bucket, identifier)
 	if err != nil {
 		return nil, err
 	}

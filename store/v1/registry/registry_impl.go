@@ -17,11 +17,24 @@ import (
 	"github.com/uptrace/bun/dialect/feature"
 )
 
-func (s *registryStore) RepositoryExists(ctx context.Context, name string) bool {
-	logEvent := s.logger.Debug().Str("method", "RepositoryExists").Str("name", name)
+func (s *registryStore) RepositoryExists(ctx context.Context, namespace string) bool {
+	logEvent := s.logger.Debug().Str("method", "RepositoryExists").Str("name", namespace)
+	nsParts := strings.Split(namespace, "/")
+	username, repoName := nsParts[0], nsParts[1]
 
 	repository := &types.ContainerImageRepository{}
-	if err := s.db.NewSelect().Model(repository).Scan(ctx); err != nil {
+	err := s.
+		db.
+		NewSelect().
+		Model(repository).
+		Relation("User", func(sq *bun.SelectQuery) *bun.SelectQuery {
+			return sq.Column("username")
+		}).
+		Where("username = ?", username).
+		Where("name = ?", repoName).
+		Scan(ctx)
+
+	if err != nil {
 		logEvent.Err(err).Send()
 		return false
 	}
@@ -96,7 +109,7 @@ func (s *registryStore) GetRepositoryByName(
 	logEvent := s.
 		logger.
 		Debug().
-		Str("method", "GetRepositoryByNamespace").
+		Str("method", "GetRepositoryByName").
 		Str("name", name).
 		Str("user_id", userId.String())
 
@@ -507,6 +520,7 @@ func (s *registryStore) SetContainerImageVisibility(
 		Model(&types.ContainerImageRepository{}).
 		Set("visibility = ?", visibility).
 		WherePK(imageId).
+		Where("name != ?", types.RepositoryNameIPFS). // IPFS repositories cannot be set to private since they are P2P
 		Exec(ctx)
 
 	if err != nil {

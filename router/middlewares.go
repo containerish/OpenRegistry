@@ -17,8 +17,13 @@ func registryNamespaceValidator(logger telemetry.Logger) echo.MiddlewareFunc {
 	// Reference: https://github.com/opencontainers/distribution-spec/blob/main/spec.md#pulling-manifests
 	nsRegex := regexp.MustCompile(`[a-z0-9]+((\.|_|__|-+)[a-z0-9]+)*(/[a-z0-9]+((\.|_|__|-+)[a-z0-9]+)*)*`)
 
-	return func(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(handler echo.HandlerFunc) echo.HandlerFunc {
 		return func(ctx echo.Context) error {
+			// we skip the /v2/ path since it isn't a namespaced path
+			if ctx.Request().URL.Path == "/v2/" {
+				return handler(ctx)
+			}
+
 			username := ctx.Param("username")
 			imageName := ctx.Param("imagename")
 
@@ -37,7 +42,7 @@ func registryNamespaceValidator(logger telemetry.Logger) echo.MiddlewareFunc {
 			}
 
 			ctx.Set(string(registry.RegistryNamespace), namespace)
-			return next(ctx)
+			return handler(ctx)
 		}
 	}
 }
@@ -46,7 +51,7 @@ func registryReferenceOrTagValidator(logger telemetry.Logger) echo.MiddlewareFun
 	// Reference: https://github.com/opencontainers/distribution-spec/blob/main/spec.md#pulling-manifests
 	refRegex := regexp.MustCompile(`[a-zA-Z0-9_][a-zA-Z0-9._-]{0,127}`)
 
-	return func(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(handler echo.HandlerFunc) echo.HandlerFunc {
 		return func(ctx echo.Context) error {
 			ref := ctx.Param("reference")
 
@@ -64,12 +69,12 @@ func registryReferenceOrTagValidator(logger telemetry.Logger) echo.MiddlewareFun
 				return echoErr
 			}
 
-			return next(ctx)
+			return handler(ctx)
 		}
 	}
 }
 
-func progagatRepository(store registry_store.RegistryStore, logger telemetry.Logger) echo.MiddlewareFunc {
+func propagateRepository(store registry_store.RegistryStore, logger telemetry.Logger) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(ctx echo.Context) error {
 			imageName := ctx.Param("imagename")

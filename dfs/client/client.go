@@ -6,6 +6,7 @@ import (
 	"github.com/containerish/OpenRegistry/config"
 	"github.com/containerish/OpenRegistry/dfs"
 	"github.com/containerish/OpenRegistry/dfs/filebase"
+	"github.com/containerish/OpenRegistry/dfs/ipfs/p2p"
 	"github.com/containerish/OpenRegistry/dfs/mock"
 	"github.com/containerish/OpenRegistry/dfs/storj"
 	"github.com/containerish/OpenRegistry/dfs/storj/uplink"
@@ -28,6 +29,11 @@ func NewDFSBackend(env config.Environment, registryEndpoint string, cfg *config.
 	if cfg.Storj.Enabled && cfg.Storj.Type == "uplink" {
 		color.Green("Storage backend: Storj with Uplink")
 		return uplink.New(env, &cfg.Storj)
+	}
+
+	if cfg.Ipfs.Enabled {
+		color.Green("Storage backend: IPFS in P2P mode")
+		return p2p.New(&cfg.Ipfs)
 	}
 
 	if cfg.Mock.Enabled {

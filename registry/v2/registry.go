@@ -15,6 +15,7 @@ import (
 	"time"
 
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
+	"github.com/containerish/OpenRegistry/common"
 	"github.com/containerish/OpenRegistry/config"
 	dfsImpl "github.com/containerish/OpenRegistry/dfs"
 	store_v2 "github.com/containerish/OpenRegistry/store/v1/registry"
@@ -84,7 +85,7 @@ func (r *registry) ManifestExists(ctx echo.Context) error {
 			"reference": ref,
 		}
 
-		errMsg := r.errorResponse(RegistryErrorCodeManifestBlobUnknown, err.Error(), details)
+		errMsg := common.RegistryErrorResponse(RegistryErrorCodeManifestBlobUnknown, err.Error(), details)
 		r.logger.Log(ctx, fmt.Errorf("%s", errMsg)).Send()
 		return ctx.NoContent(http.StatusNotFound)
 	}
@@ -170,8 +171,8 @@ func (r *registry) ListTags(ctx echo.Context) error {
 
 	tags, err := r.store.GetImageTags(ctx.Request().Context(), namespace)
 	if err != nil {
-		errMsg := r.errorResponse(RegistryErrorCodeTagInvalid, err.Error(), nil)
-		echoErr := ctx.JSONBlob(http.StatusNotFound, errMsg)
+		errMsg := common.RegistryErrorResponse(RegistryErrorCodeTagInvalid, err.Error(), nil)
+		echoErr := ctx.JSONBlob(http.StatusNotFound, errMsg.Bytes())
 		r.logger.Log(ctx, fmt.Errorf("%s", errMsg)).Send()
 		return echoErr
 	}
@@ -179,8 +180,8 @@ func (r *registry) ListTags(ctx echo.Context) error {
 	if limit != "" {
 		n, err := strconv.ParseInt(limit, 10, 32)
 		if err != nil {
-			errMsg := r.errorResponse(RegistryErrorCodeTagInvalid, err.Error(), nil)
-			echoErr := ctx.JSONBlob(http.StatusNotFound, errMsg)
+			errMsg := common.RegistryErrorResponse(RegistryErrorCodeTagInvalid, err.Error(), nil)
+			echoErr := ctx.JSONBlob(http.StatusNotFound, errMsg.Bytes())
 			r.logger.Log(ctx, fmt.Errorf("%s", errMsg)).Send()
 			return echoErr
 		}
@@ -213,8 +214,8 @@ func (r *registry) PullManifest(ctx echo.Context) error {
 
 	if strings.HasPrefix(ref, "sha256:") {
 		if _, err := oci_digest.Parse(ref); err != nil {
-			errMsg := r.errorResponse(RegistryErrorCodeDigestInvalid, err.Error(), nil)
-			echoErr := ctx.JSONBlob(http.StatusBadRequest, errMsg)
+			errMsg := common.RegistryErrorResponse(RegistryErrorCodeDigestInvalid, err.Error(), nil)
+			echoErr := ctx.JSONBlob(http.StatusBadRequest, errMsg.Bytes())
 			r.logger.Log(ctx, fmt.Errorf("%s", errMsg)).Send()
 			return echoErr
 		}
@@ -222,8 +223,8 @@ func (r *registry) PullManifest(ctx echo.Context) error {
 
 	manifest, err := r.store.GetManifestByReference(ctx.Request().Context(), namespace, ref)
 	if err != nil {
-		errMsg := r.errorResponse(RegistryErrorCodeManifestUnknown, err.Error(), nil)
-		echoErr := ctx.JSONBlob(http.StatusNotFound, errMsg)
+		errMsg := common.RegistryErrorResponse(RegistryErrorCodeManifestUnknown, err.Error(), nil)
+		echoErr := ctx.JSONBlob(http.StatusNotFound, errMsg.Bytes())
 		r.logger.Log(ctx, fmt.Errorf("%s", errMsg)).Send()
 		return echoErr
 	}
@@ -246,8 +247,8 @@ func (r *registry) PullLayer(ctx echo.Context) error {
 	clientDigest := ctx.Param("digest")
 	layer, err := r.store.GetLayer(ctx.Request().Context(), clientDigest)
 	if err != nil {
-		errMsg := r.errorResponse(RegistryErrorCodeBlobUnknown, err.Error(), nil)
-		echoErr := ctx.JSONBlob(http.StatusNotFound, errMsg)
+		errMsg := common.RegistryErrorResponse(RegistryErrorCodeBlobUnknown, err.Error(), nil)
+		echoErr := ctx.JSONBlob(http.StatusNotFound, errMsg.Bytes())
 		r.logger.Log(ctx, fmt.Errorf("%s", errMsg)).Send()
 		return echoErr
 	}
@@ -256,21 +257,21 @@ func (r *registry) PullLayer(ctx echo.Context) error {
 		detail := map[string]interface{}{
 			"error": "DFSLink is empty",
 		}
-		errMsg := r.errorResponse(RegistryErrorCodeBlobUnknown, "", detail)
-		echoErr := ctx.JSONBlob(http.StatusNotFound, errMsg)
+		errMsg := common.RegistryErrorResponse(RegistryErrorCodeBlobUnknown, "", detail)
+		echoErr := ctx.JSONBlob(http.StatusNotFound, errMsg.Bytes())
 		r.logger.Log(ctx, fmt.Errorf("%s", errMsg)).Send()
 		return echoErr
 	}
 
-	size, err := r.dfs.Metadata(GetLayerIdentifier(layer.ID))
+	size, err := r.dfs.Metadata(layer)
 	if err != nil {
 		detail := map[string]interface{}{
 			"error":          err.Error(),
 			"operationError": "metadata service failed",
 		}
-		errMsg := r.errorResponse(RegistryErrorCodeBlobUnknown, err.Error(), detail)
+		errMsg := common.RegistryErrorResponse(RegistryErrorCodeBlobUnknown, err.Error(), detail)
 		ctx.Set(types.HttpEndpointErrorKey, errMsg)
-		echoErr := ctx.JSONBlob(http.StatusNotFound, errMsg)
+		echoErr := ctx.JSONBlob(http.StatusNotFound, errMsg.Bytes())
 		r.logger.Log(ctx, fmt.Errorf("%s", errMsg)).Send()
 		return echoErr
 	}
@@ -279,13 +280,14 @@ func (r *registry) PullLayer(ctx echo.Context) error {
 	ctx.Response().Header().Set("Docker-Content-Digest", layer.Digest)
 	ctx.Response().Header().Set("status", "307")
 
-	downloadableURL, err := r.getDownloadableURLFromDFSLink(layer.ID)
+	downloadableURL, err := r.getDownloadableURLFromDFSLink(layer.DFSLink)
 	if err != nil {
-		errMsg := r.errorResponse(RegistryErrorCodeBlobUnknown, err.Error(), nil)
-		echoErr := ctx.JSONBlob(http.StatusInternalServerError, errMsg)
+		errMsg := common.RegistryErrorResponse(RegistryErrorCodeBlobUnknown, err.Error(), nil)
+		echoErr := ctx.JSONBlob(http.StatusInternalServerError, errMsg.Bytes())
 		r.logger.Log(ctx, fmt.Errorf("%s", errMsg)).Send()
 		return echoErr
 	}
+
 	echoErr := ctx.Redirect(http.StatusTemporaryRedirect, downloadableURL)
 	r.logger.Log(ctx, nil).Send()
 	return echoErr
@@ -299,8 +301,12 @@ func (r *registry) MonolithicUpload(ctx echo.Context) error {
 	imageDigest := ctx.QueryParam("digest")
 	buf := &bytes.Buffer{}
 	if _, err := io.Copy(buf, ctx.Request().Body); err != nil {
-		errMsg := r.errorResponse(RegistryErrorCodeBlobUploadInvalid, "error while reading request body", nil)
-		echoErr := ctx.JSONBlob(http.StatusNotFound, errMsg)
+		errMsg := common.RegistryErrorResponse(
+			RegistryErrorCodeBlobUploadInvalid,
+			"error while reading request body",
+			nil,
+		)
+		echoErr := ctx.JSONBlob(http.StatusNotFound, errMsg.Bytes())
 		r.logger.Log(ctx, fmt.Errorf("%s", errMsg)).Send()
 		return echoErr
 	}
@@ -312,29 +318,29 @@ func (r *registry) MonolithicUpload(ctx echo.Context) error {
 			"clientDigest":   imageDigest,
 			"computedDigest": computedDigest.String(),
 		}
-		errMsg := r.errorResponse(
+		errMsg := common.RegistryErrorResponse(
 			RegistryErrorCodeDigestInvalid,
 			"client digest does not meet computed digest",
 			details,
 		)
-		echoErr := ctx.JSONBlob(http.StatusBadRequest, errMsg)
+		echoErr := ctx.JSONBlob(http.StatusBadRequest, errMsg.Bytes())
 		r.logger.Log(ctx, fmt.Errorf("%s", fmt.Errorf("%s", errMsg))).Send()
 		return echoErr
 	}
 
-	uuid, err := CreateIdentifier()
+	uuid, err := types.CreateIdentifier()
 	if err != nil {
-		errMsg := r.errorResponse(RegistryErrorCodeUnknown, err.Error(), nil)
-		echoErr := ctx.JSONBlob(http.StatusRequestedRangeNotSatisfiable, errMsg)
+		errMsg := common.RegistryErrorResponse(RegistryErrorCodeUnknown, err.Error(), nil)
+		echoErr := ctx.JSONBlob(http.StatusRequestedRangeNotSatisfiable, errMsg.Bytes())
 		r.logger.Log(ctx, fmt.Errorf("%s", errMsg)).Send()
 		return echoErr
 	}
 
-	dfsLink, err := r.dfs.Upload(ctx.Request().Context(), GetLayerIdentifier(uuid), imageDigest, buf.Bytes())
+	dfsLink, err := r.dfs.Upload(ctx.Request().Context(), types.GetLayerIdentifier(uuid), imageDigest, buf.Bytes())
 	if err != nil {
-		errMsg := r.errorResponse(RegistryErrorCodeBlobUploadInvalid, err.Error(), nil)
-		echoErr := ctx.JSONBlob(http.StatusRequestedRangeNotSatisfiable, errMsg)
-		r.logger.Log(ctx, fmt.Errorf("%s", errMsg)).Send()
+		errMsg := common.RegistryErrorResponse(RegistryErrorCodeBlobUploadInvalid, err.Error(), nil)
+		echoErr := ctx.JSONBlob(http.StatusRequestedRangeNotSatisfiable, errMsg.Bytes())
+		r.logger.Log(ctx, errMsg).Send()
 		return echoErr
 	}
 
@@ -350,30 +356,30 @@ func (r *registry) MonolithicUpload(ctx echo.Context) error {
 
 	txnOp, err := r.store.NewTxn(ctx.Request().Context())
 	if err != nil {
-		errMsg := r.errorResponse(RegistryErrorCodeUnknown, err.Error(), nil)
-		echoErr := ctx.JSONBlob(http.StatusInternalServerError, errMsg)
+		errMsg := common.RegistryErrorResponse(RegistryErrorCodeUnknown, err.Error(), nil)
+		echoErr := ctx.JSONBlob(http.StatusInternalServerError, errMsg.Bytes())
 		r.logger.Log(ctx, fmt.Errorf("%s", errMsg)).Send()
 		return echoErr
 	}
 
 	if err = r.store.SetLayer(ctx.Request().Context(), txnOp, layerV2); err != nil {
-		errMsg := r.errorResponse(RegistryErrorCodeBlobUploadInvalid, err.Error(), nil)
-		echoErr := ctx.JSONBlob(http.StatusBadRequest, errMsg)
+		errMsg := common.RegistryErrorResponse(RegistryErrorCodeBlobUploadInvalid, err.Error(), nil)
+		echoErr := ctx.JSONBlob(http.StatusBadRequest, errMsg.Bytes())
 		r.logger.Log(ctx, fmt.Errorf("%s", errMsg)).Send()
 		return echoErr
 	}
 
 	if err = r.store.Commit(ctx.Request().Context(), txnOp); err != nil {
-		errMsg := r.errorResponse(RegistryErrorCodeBlobUploadInvalid, err.Error(), nil)
-		echoErr := ctx.JSONBlob(http.StatusBadRequest, errMsg)
+		errMsg := common.RegistryErrorResponse(RegistryErrorCodeBlobUploadInvalid, err.Error(), nil)
+		echoErr := ctx.JSONBlob(http.StatusBadRequest, errMsg.Bytes())
 		r.logger.Log(ctx, fmt.Errorf("%s", errMsg)).Send()
 		return echoErr
 	}
 
 	downloadableURL, err := r.getDownloadableURLFromDFSLink(dfsLink)
 	if err != nil {
-		errMsg := r.errorResponse(RegistryErrorCodeBlobUnknown, err.Error(), nil)
-		echoErr := ctx.JSONBlob(http.StatusInternalServerError, errMsg)
+		errMsg := common.RegistryErrorResponse(RegistryErrorCodeBlobUnknown, err.Error(), nil)
+		echoErr := ctx.JSONBlob(http.StatusInternalServerError, errMsg.Bytes())
 		r.logger.Log(ctx, fmt.Errorf("%s", errMsg)).Send()
 		return echoErr
 	}
@@ -408,7 +414,7 @@ func (r *registry) StartUpload(ctx echo.Context) error {
 		return r.MonolithicUpload(ctx)
 	}
 
-	layerIdentifier, err := CreateIdentifier()
+	layerIdentifier, err := types.CreateIdentifier()
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error":   err.Error(),
@@ -418,22 +424,22 @@ func (r *registry) StartUpload(ctx echo.Context) error {
 		return echoErr
 	}
 
-	uploadId, err := r.dfs.CreateMultipartUpload(GetLayerIdentifier(layerIdentifier))
+	uploadId, err := r.dfs.CreateMultipartUpload(types.GetLayerIdentifier(layerIdentifier))
 	if err != nil {
-		errMsg := r.errorResponse(RegistryErrorCodeBlobUploadUnknown, err.Error(), nil)
-		echoErr := ctx.JSONBlob(http.StatusBadRequest, errMsg)
+		errMsg := common.RegistryErrorResponse(RegistryErrorCodeBlobUploadUnknown, err.Error(), nil)
+		echoErr := ctx.JSONBlob(http.StatusBadRequest, errMsg.Bytes())
 		r.logger.Log(ctx, fmt.Errorf("%s", errMsg)).Send()
 		return echoErr
 	}
 
 	txn, err := r.store.NewTxn(context.Background())
 	if err != nil {
-		errMsg := r.errorResponse(
+		errMsg := common.RegistryErrorResponse(
 			RegistryErrorCodeUnknown,
 			err.Error(),
 			nil,
 		)
-		echoErr := ctx.JSONBlob(http.StatusInternalServerError, errMsg)
+		echoErr := ctx.JSONBlob(http.StatusInternalServerError, errMsg.Bytes())
 		r.logger.Log(ctx, fmt.Errorf("%s", errMsg)).Send()
 		return echoErr
 	}
@@ -446,7 +452,7 @@ func (r *registry) StartUpload(ctx echo.Context) error {
 	}
 	r.mu.Unlock()
 
-	uploadTrackingID := CreateUploadTrackingIdentifier(uploadId, layerIdentifier)
+	uploadTrackingID := types.CreateUploadTrackingIdentifier(uploadId, layerIdentifier)
 	locationHeader := fmt.Sprintf("/v2/%s/blobs/uploads/%s", namespace, uploadTrackingID)
 	ctx.Response().Header().Set("Location", locationHeader)
 	ctx.Response().Header().Set("Content-Length", "0")
@@ -464,10 +470,10 @@ func (r *registry) UploadProgress(ctx echo.Context) error {
 
 	namespace := ctx.Get(string(RegistryNamespace)).(string)
 	uuid := ctx.Param("uuid")
-	layerkey := GetLayerIdentifierFromTrakcingID(uuid)
-	uploadID := GetUploadIDFromTrakcingID(uuid)
+	layerkey := types.GetLayerIdentifierFromTrakcingID(uuid)
+	uploadID := types.GetUploadIDFromTrakcingID(uuid)
 
-	metadata, err := r.dfs.GetUploadProgress(GetLayerIdentifier(layerkey), uploadID)
+	metadata, err := r.dfs.GetUploadProgress(types.GetLayerIdentifier(layerkey), uploadID)
 	if err != nil {
 		locationHeader := fmt.Sprintf("/v2/%s/blobs/uploads/%s", namespace, uuid)
 		ctx.Response().Header().Set("Location", locationHeader)
@@ -492,31 +498,40 @@ func (r *registry) MonolithicPut(ctx echo.Context) error {
 
 	digest := ctx.QueryParam("digest")
 	identifier := ctx.Param("uuid")
-	layerKey := GetLayerIdentifierFromTrakcingID(identifier)
-	uploadID := GetUploadIDFromTrakcingID(identifier)
+	layerKey := types.GetLayerIdentifierFromTrakcingID(identifier)
+	uploadID := types.GetUploadIDFromTrakcingID(identifier)
 
 	buf := &bytes.Buffer{}
 	if _, err := io.Copy(buf, ctx.Request().Body); err != nil {
-		errMsg := r.errorResponse(RegistryErrorCodeDigestInvalid, err.Error(), nil)
-		echoErr := ctx.JSONBlob(http.StatusBadRequest, errMsg)
+		errMsg := common.RegistryErrorResponse(RegistryErrorCodeDigestInvalid, err.Error(), nil)
+		echoErr := ctx.JSONBlob(http.StatusBadRequest, errMsg.Bytes())
 		r.logger.Log(ctx, fmt.Errorf("%s", errMsg)).Send()
 		return echoErr
 	}
 	defer ctx.Request().Body.Close()
 	ourHash := oci_digest.FromBytes(buf.Bytes())
 
-	dfsLink, err := r.dfs.Upload(ctx.Request().Context(), GetLayerIdentifier(layerKey), ourHash.String(), buf.Bytes())
+	dfsLink, err := r.dfs.Upload(
+		ctx.Request().Context(),
+		types.GetLayerIdentifier(layerKey),
+		ourHash.String(),
+		buf.Bytes(),
+	)
 	if err != nil {
-		errMsg := r.errorResponse(RegistryErrorCodeDigestInvalid, err.Error(), nil)
-		echoErr := ctx.JSONBlob(http.StatusBadRequest, errMsg)
+		errMsg := common.RegistryErrorResponse(RegistryErrorCodeDigestInvalid, err.Error(), nil)
+		echoErr := ctx.JSONBlob(http.StatusBadRequest, errMsg.Bytes())
 		r.logger.Log(ctx, fmt.Errorf("%s", errMsg)).Send()
 		return echoErr
 	}
 
 	txnOp, ok := r.txnMap[uploadID]
 	if !ok {
-		errMsg := r.errorResponse(RegistryErrorCodeUnknown, "transaction does not exist for uuid -"+identifier, nil)
-		echoErr := ctx.JSONBlob(http.StatusBadRequest, errMsg)
+		errMsg := common.RegistryErrorResponse(
+			RegistryErrorCodeUnknown,
+			"transaction does not exist for uuid -"+identifier,
+			nil,
+		)
+		echoErr := ctx.JSONBlob(http.StatusBadRequest, errMsg.Bytes())
 		r.logger.Log(ctx, fmt.Errorf("%s", errMsg)).Send()
 		return echoErr
 	}
@@ -531,27 +546,27 @@ func (r *registry) MonolithicPut(ctx echo.Context) error {
 	}
 
 	if err = r.store.SetLayer(ctx.Request().Context(), txnOp.txn, layer); err != nil {
-		errMsg := r.errorResponse(RegistryErrorCodeUnknown, err.Error(), echo.Map{
+		errMsg := common.RegistryErrorResponse(RegistryErrorCodeUnknown, err.Error(), echo.Map{
 			"error_detail": "set layer issues",
 		})
-		echoErr := ctx.JSONBlob(http.StatusBadRequest, errMsg)
+		echoErr := ctx.JSONBlob(http.StatusBadRequest, errMsg.Bytes())
 		r.logger.Log(ctx, fmt.Errorf("%s", errMsg)).Send()
 		return echoErr
 	}
 
 	if err = r.store.Commit(ctx.Request().Context(), txnOp.txn); err != nil {
-		errMsg := r.errorResponse(RegistryErrorCodeUnknown, err.Error(), echo.Map{
+		errMsg := common.RegistryErrorResponse(RegistryErrorCodeUnknown, err.Error(), echo.Map{
 			"error_detail": "commitment issue",
 		})
-		echoErr := ctx.JSONBlob(http.StatusBadRequest, errMsg)
+		echoErr := ctx.JSONBlob(http.StatusBadRequest, errMsg.Bytes())
 		r.logger.Log(ctx, fmt.Errorf("%s", errMsg)).Send()
 		return echoErr
 	}
 
 	downlaodableURL, err := r.getDownloadableURLFromDFSLink(dfsLink)
 	if err != nil {
-		errMsg := r.errorResponse(RegistryErrorCodeBlobUnknown, err.Error(), nil)
-		echoErr := ctx.JSONBlob(http.StatusInternalServerError, errMsg)
+		errMsg := common.RegistryErrorResponse(RegistryErrorCodeBlobUnknown, err.Error(), nil)
+		echoErr := ctx.JSONBlob(http.StatusInternalServerError, errMsg.Bytes())
 		r.logger.Log(ctx, fmt.Errorf("%s", errMsg)).Send()
 		return echoErr
 	}
@@ -576,8 +591,8 @@ func (r *registry) CompleteUpload(ctx echo.Context) error {
 	digest := ctx.QueryParam("digest")
 	namespace := ctx.Get(string(RegistryNamespace)).(string)
 	identifier := ctx.Param("uuid")
-	layerKey := GetLayerIdentifierFromTrakcingID(identifier)
-	uploadID := GetUploadIDFromTrakcingID(identifier)
+	layerKey := types.GetLayerIdentifierFromTrakcingID(identifier)
+	uploadID := types.GetUploadIDFromTrakcingID(identifier)
 
 	if r.b.blobCounter[uploadID] == 0 {
 		return r.MonolithicPut(ctx)
@@ -585,8 +600,8 @@ func (r *registry) CompleteUpload(ctx echo.Context) error {
 
 	buf := &bytes.Buffer{}
 	if _, err := io.Copy(buf, ctx.Request().Body); err != nil {
-		errMsg := r.errorResponse(RegistryErrorCodeDigestInvalid, err.Error(), nil)
-		echoErr := ctx.JSONBlob(http.StatusBadRequest, errMsg)
+		errMsg := common.RegistryErrorResponse(RegistryErrorCodeDigestInvalid, err.Error(), nil)
+		echoErr := ctx.JSONBlob(http.StatusBadRequest, errMsg.Bytes())
 		r.logger.Log(ctx, fmt.Errorf("%s", errMsg)).Send()
 		return echoErr
 	}
@@ -598,15 +613,15 @@ func (r *registry) CompleteUpload(ctx echo.Context) error {
 		part, err := r.dfs.UploadPart(
 			ctx.Request().Context(),
 			uploadID,
-			GetLayerIdentifier(layerKey),
+			types.GetLayerIdentifier(layerKey),
 			checksum.String(),
 			r.b.blobCounter[uploadID],
 			bytes.NewReader(buf.Bytes()),
 			int64(buf.Len()),
 		)
 		if err != nil {
-			errMsg := r.errorResponse(RegistryErrorCodeBlobUnknown, err.Error(), nil)
-			echoErr := ctx.JSONBlob(http.StatusBadRequest, errMsg)
+			errMsg := common.RegistryErrorResponse(RegistryErrorCodeBlobUnknown, err.Error(), nil)
+			echoErr := ctx.JSONBlob(http.StatusBadRequest, errMsg.Bytes())
 			r.logger.Log(ctx, fmt.Errorf("%s", errMsg)).Send()
 			return echoErr
 		}
@@ -620,7 +635,7 @@ func (r *registry) CompleteUpload(ctx echo.Context) error {
 	dfsLink, err := r.dfs.CompleteMultipartUpload(
 		ctx.Request().Context(),
 		uploadID,
-		GetLayerIdentifier(layerKey),
+		types.GetLayerIdentifier(layerKey),
 		digest,
 		r.b.layerParts[uploadID],
 	)
@@ -629,21 +644,25 @@ func (r *registry) CompleteUpload(ctx echo.Context) error {
 	r.mu.Unlock()
 
 	if err != nil {
-		errMsg := r.errorResponse(RegistryErrorCodeBlobUploadInvalid, err.Error(), echo.Map{
+		errMsg := common.RegistryErrorResponse(RegistryErrorCodeBlobUploadInvalid, err.Error(), echo.Map{
 			"reason": "ERR_DFS_COMPLETE_MULTI_PART_UPLOAD",
 			"error":  err.Error(),
 		})
 
-		_ = r.dfs.AbortMultipartUpload(ctx.Request().Context(), GetLayerIdentifier(layerKey), uploadID)
-		echoErr := ctx.JSONBlob(http.StatusRequestedRangeNotSatisfiable, errMsg)
+		_ = r.dfs.AbortMultipartUpload(ctx.Request().Context(), types.GetLayerIdentifier(layerKey), uploadID)
+		echoErr := ctx.JSONBlob(http.StatusRequestedRangeNotSatisfiable, errMsg.Bytes())
 		r.logger.Log(ctx, fmt.Errorf("%s", errMsg)).Send()
 		return echoErr
 	}
 
 	txnOp, ok := r.txnMap[uploadID]
 	if !ok {
-		errMsg := r.errorResponse(RegistryErrorCodeUnknown, "transaction does not exist for uuid -"+identifier, nil)
-		echoErr := ctx.JSONBlob(http.StatusBadRequest, errMsg)
+		errMsg := common.RegistryErrorResponse(
+			RegistryErrorCodeUnknown,
+			"transaction does not exist for uuid -"+identifier,
+			nil,
+		)
+		echoErr := ctx.JSONBlob(http.StatusBadRequest, errMsg.Bytes())
 		r.logger.Log(ctx, fmt.Errorf("%s", errMsg)).Send()
 		return echoErr
 	}
@@ -658,19 +677,19 @@ func (r *registry) CompleteUpload(ctx echo.Context) error {
 	}
 
 	if err := r.store.SetLayer(ctx.Request().Context(), txnOp.txn, layer); err != nil {
-		errMsg := r.errorResponse(RegistryErrorCodeUnknown, err.Error(), echo.Map{
+		errMsg := common.RegistryErrorResponse(RegistryErrorCodeUnknown, err.Error(), echo.Map{
 			"error_detail": "set layer issues",
 		})
-		echoErr := ctx.JSONBlob(http.StatusBadRequest, errMsg)
+		echoErr := ctx.JSONBlob(http.StatusBadRequest, errMsg.Bytes())
 		r.logger.Log(ctx, fmt.Errorf("%s", errMsg)).Send()
 		return echoErr
 	}
 
 	if err := r.store.Commit(ctx.Request().Context(), txnOp.txn); err != nil {
-		errMsg := r.errorResponse(RegistryErrorCodeUnknown, err.Error(), echo.Map{
+		errMsg := common.RegistryErrorResponse(RegistryErrorCodeUnknown, err.Error(), echo.Map{
 			"error_detail": "commitment issue",
 		})
-		echoErr := ctx.JSONBlob(http.StatusBadRequest, errMsg)
+		echoErr := ctx.JSONBlob(http.StatusBadRequest, errMsg.Bytes())
 		r.logger.Log(ctx, fmt.Errorf("%s", errMsg)).Send()
 		return echoErr
 	}
@@ -708,24 +727,24 @@ func (r *registry) PushManifest(ctx echo.Context) error {
 
 	user, err := r.GetUserFromCtx(ctx)
 	if err != nil {
-		errMsg := r.errorResponse(RegistryErrorCodeUnknown, err.Error(), echo.Map{
+		errMsg := common.RegistryErrorResponse(RegistryErrorCodeUnknown, err.Error(), echo.Map{
 			"message": "Unauthorized",
 		})
 
-		echoErr := ctx.JSONBlob(http.StatusUnauthorized, errMsg)
+		echoErr := ctx.JSONBlob(http.StatusUnauthorized, errMsg.Bytes())
 		r.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 
 	repository := r.GetRepositoryFromCtx(ctx)
-	repositoryExists := r.store.RepositoryExists(ctx.Request().Context(), strings.Split(namespace, "/")[1])
+	repositoryExists := r.store.RepositoryExists(ctx.Request().Context(), namespace)
 	if repository == nil || !repositoryExists {
-		repositoryID, idErr := NewUUID()
+		repositoryID, idErr := types.NewUUID()
 		if idErr != nil {
-			errMsg := r.errorResponse(RegistryErrorCodeUnknown, idErr.Error(), echo.Map{
+			errMsg := common.RegistryErrorResponse(RegistryErrorCodeUnknown, idErr.Error(), echo.Map{
 				"reason": "ERR_CREATE_UNIQUE_REPOSITORY_IDENTIFIER",
 			})
-			echoErr := ctx.JSONBlob(http.StatusInternalServerError, errMsg)
+			echoErr := ctx.JSONBlob(http.StatusInternalServerError, errMsg.Bytes())
 			r.logger.Log(ctx, fmt.Errorf("%s", errMsg)).Send()
 			return echoErr
 
@@ -738,6 +757,12 @@ func (r *registry) PushManifest(ctx echo.Context) error {
 			Name:       strings.Split(namespace, "/")[1],
 			Visibility: types_v2.RepositoryVisibilityPrivate,
 		}
+
+		// IPFS P2P repositories are public
+		if user.Username == types_v2.RepositoryNameIPFS {
+			repository.Visibility = types_v2.RepositoryVisibilityPublic
+		}
+
 		idErr = r.store.CreateRepository(ctx.Request().Context(), repository)
 		if idErr != nil {
 			echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
@@ -761,7 +786,7 @@ func (r *registry) PushManifest(ctx echo.Context) error {
 
 	digest := oci_digest.FromBytes(buf.Bytes())
 
-	uuid, err := NewUUID()
+	uuid, err := types.NewUUID()
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error": err.Error(),
@@ -782,8 +807,8 @@ func (r *registry) PushManifest(ctx echo.Context) error {
 	}
 
 	if err = json.Unmarshal(buf.Bytes(), &manifest); err != nil {
-		errMsg := r.errorResponse(RegistryErrorCodeBlobUnknown, err.Error(), nil)
-		echoErr := ctx.JSONBlob(http.StatusBadRequest, errMsg)
+		errMsg := common.RegistryErrorResponse(RegistryErrorCodeBlobUnknown, err.Error(), nil)
+		echoErr := ctx.JSONBlob(http.StatusBadRequest, errMsg.Bytes())
 		r.logger.Log(ctx, fmt.Errorf("%s", errMsg)).Send()
 		return echoErr
 	}
@@ -805,31 +830,31 @@ func (r *registry) PushManifest(ctx echo.Context) error {
 
 	txnOp, err := r.store.NewTxn(context.Background())
 	if err != nil {
-		errMsg := r.errorResponse(RegistryErrorCodeUnknown, err.Error(), echo.Map{
+		errMsg := common.RegistryErrorResponse(RegistryErrorCodeUnknown, err.Error(), echo.Map{
 			"reason": "PG_ERR_CREATE_NEW_TXN",
 		})
 		_ = r.store.Abort(ctx.Request().Context(), txnOp)
-		echoErr := ctx.JSONBlob(http.StatusInternalServerError, errMsg)
+		echoErr := ctx.JSONBlob(http.StatusInternalServerError, errMsg.Bytes())
 		r.logger.Log(ctx, fmt.Errorf("%s", errMsg)).Send()
 		return echoErr
 	}
 
 	if err = r.store.SetManifest(ctx.Request().Context(), txnOp, &manifest); err != nil {
-		errMsg := r.errorResponse(RegistryErrorCodeUnknown, err.Error(), echo.Map{
+		errMsg := common.RegistryErrorResponse(RegistryErrorCodeUnknown, err.Error(), echo.Map{
 			"message": "invalid input provided",
 		})
 		_ = r.store.Abort(ctx.Request().Context(), txnOp)
-		echoErr := ctx.JSONBlob(http.StatusBadRequest, errMsg)
+		echoErr := ctx.JSONBlob(http.StatusBadRequest, errMsg.Bytes())
 		r.logger.Log(ctx, fmt.Errorf("%s", errMsg)).Send()
 		return echoErr
 	}
 
 	if err = r.store.Commit(ctx.Request().Context(), txnOp); err != nil {
-		errMsg := r.errorResponse(RegistryErrorCodeUnknown, err.Error(), echo.Map{
+		errMsg := common.RegistryErrorResponse(RegistryErrorCodeUnknown, err.Error(), echo.Map{
 			"reason": "ERR_PG_COMMIT_TXN",
 		})
 		_ = r.store.Abort(ctx.Request().Context(), txnOp)
-		echoErr := ctx.JSONBlob(http.StatusInternalServerError, errMsg)
+		echoErr := ctx.JSONBlob(http.StatusInternalServerError, errMsg.Bytes())
 		r.logger.Log(ctx, fmt.Errorf("%s", errMsg)).Send()
 		return echoErr
 	}
@@ -868,13 +893,13 @@ func (r *registry) PushLayer(ctx echo.Context) error {
 	}
 	// Must have a path of form /v2/{name}/blobs/{upload,sha256:}
 	if len(elem) < 4 {
-		errMsg := r.errorResponse(RegistryErrorCodeNameInvalid, "blobs must be attached to a repo", nil)
-		echoErr := ctx.JSONBlob(http.StatusNotFound, errMsg)
+		errMsg := common.RegistryErrorResponse(RegistryErrorCodeNameInvalid, "blobs must be attached to a repo", nil)
+		echoErr := ctx.JSONBlob(http.StatusNotFound, errMsg.Bytes())
 		r.logger.Log(ctx, fmt.Errorf("%s", errMsg)).Send()
 		return echoErr
 	}
 
-	uuid, err := CreateIdentifier()
+	uuid, err := types.CreateIdentifier()
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error":   err.Error(),
@@ -917,8 +942,8 @@ func (r *registry) DeleteTagOrManifest(ctx echo.Context) error {
 			"namespace": namespace,
 			"digest":    ref,
 		}
-		errMsg := r.errorResponse(RegistryErrorCodeManifestUnknown, err.Error(), details)
-		echoErr := ctx.JSONBlob(http.StatusNotFound, errMsg)
+		errMsg := common.RegistryErrorResponse(RegistryErrorCodeManifestUnknown, err.Error(), details)
+		echoErr := ctx.JSONBlob(http.StatusNotFound, errMsg.Bytes())
 		r.logger.Log(ctx, fmt.Errorf("%s", errMsg)).Send()
 		return echoErr
 	}
@@ -936,8 +961,8 @@ func (r *registry) DeleteLayer(ctx echo.Context) error {
 	txnOp, _ := r.store.NewTxn(context.Background())
 	err := r.store.DeleteLayerByDigestWithTxn(ctx.Request().Context(), txnOp, digest)
 	if err != nil {
-		errMsg := r.errorResponse(RegistryErrorCodeBlobUnknown, err.Error(), nil)
-		echoErr := ctx.JSONBlob(http.StatusInternalServerError, errMsg)
+		errMsg := common.RegistryErrorResponse(RegistryErrorCodeBlobUnknown, err.Error(), nil)
+		echoErr := ctx.JSONBlob(http.StatusInternalServerError, errMsg.Bytes())
 		r.logger.Log(ctx, fmt.Errorf("%s", errMsg)).Send()
 		return echoErr
 	}
@@ -1019,8 +1044,8 @@ func (r *registry) ListReferrers(ctx echo.Context) error {
 
 	_, err := oci_digest.Parse(digest)
 	if err != nil {
-		errMsg := r.errorResponse(RegistryErrorCodeDigestInvalid, err.Error(), nil)
-		echoErr := ctx.JSONBlob(http.StatusBadRequest, errMsg)
+		errMsg := common.RegistryErrorResponse(RegistryErrorCodeDigestInvalid, err.Error(), nil)
+		echoErr := ctx.JSONBlob(http.StatusBadRequest, errMsg.Bytes())
 		r.logger.Log(ctx, fmt.Errorf("%s", errMsg)).Send()
 		return echoErr
 	}
