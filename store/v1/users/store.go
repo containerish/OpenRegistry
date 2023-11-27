@@ -44,6 +44,7 @@ type UserReader interface {
 	// ID can be either a username, oauth login (GitHub username) or the user id (uuid)
 	UserExists(ctx context.Context, username, email string) (bool, bool)
 	GetOrgAdmin(ctx context.Context, orgID uuid.UUID) (*types.User, error)
+	Search(ctx context.Context, query string) ([]*types.User, error)
 }
 
 type UserWriter interface {

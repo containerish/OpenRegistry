@@ -21,6 +21,10 @@ const (
 	UserTypeSystem
 )
 
+const (
+	DefaultSearchLimit = 25
+)
+
 func (ut UserType) String() string {
 	switch ut {
 	case UserTypeRegular:
@@ -52,9 +56,9 @@ type (
 		Repositories        []*ContainerImageRepository `bun:"rel:has-many,join:id=owner_id" json:"-"`
 		ID                  uuid.UUID                   `bun:"id,type:uuid,pk" json:"id,omitempty" validate:"-"`
 		IsActive            bool                        `bun:"is_active" json:"is_active,omitempty" validate:"-"`
-		WebauthnConnected   bool                        `bun:"webauthn_connected" json:"webauthn_connected"`
-		GithubConnected     bool                        `bun:"github_connected" json:"github_connected"`
-		IsOrgOwner          bool                        `bun:"is_org_owner" json:"is_org_owner"`
+		WebauthnConnected   bool                        `bun:"webauthn_connected" json:"webauthn_connected,omitempty"`
+		GithubConnected     bool                        `bun:"github_connected" json:"github_connected,omitempty"`
+		IsOrgOwner          bool                        `bun:"is_org_owner" json:"is_org_owner,omitempty"`
 	}
 
 	// type here is string so that we can use it with echo.Context & std context.Context

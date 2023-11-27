@@ -252,3 +252,25 @@ func (us *userStore) GetOrgAdmin(ctx context.Context, orgID uuid.UUID) (*types.U
 
 	return user, nil
 }
+
+func (us *userStore) Search(ctx context.Context, query string) ([]*types.User, error) {
+	var users []*types.User
+
+	query = "%" + query + "%"
+
+	err := us.
+		db.
+		NewSelect().
+		Model(&users).
+		Where("user_type = ?", types.UserTypeRegular.String()).
+		WhereOr("username ilike ?", query).
+		WhereOr("email ilike ?", query).
+		ExcludeColumn("password").ExcludeColumn("updated_at").ExcludeColumn("created_at").
+		Limit(types.DefaultSearchLimit).
+		Scan(ctx)
+	if err != nil {
+		return nil, v1.WrapDatabaseError(err, v1.DatabaseOperationRead)
+	}
+
+	return users, nil
+}

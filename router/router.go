@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/containerish/OpenRegistry/api/users"
 	"github.com/containerish/OpenRegistry/auth"
 	auth_server "github.com/containerish/OpenRegistry/auth/server"
 	"github.com/containerish/OpenRegistry/config"
@@ -30,6 +31,7 @@ func Register(
 	ext extensions.Extenion,
 	registryStore registry_store.RegistryStore,
 	orgModeSvc orgmode.OrgMode,
+	userApi users.UserApi,
 	logger telemetry.Logger,
 ) {
 	e.HideBanner = true
@@ -53,8 +55,13 @@ func Register(
 		TargetHeader: echo.HeaderXRequestID,
 	}))
 
+	e.Add(http.MethodGet, TokenAuth, authSvc.Token, authSvc.RepositoryPermissionsMiddleware())
+
 	p := prometheus.NewPrometheus("OpenRegistry", nil)
 	p.Use(e)
+
+	baseAPIRouter := e.Group("/api")
+	userApiRouter := baseAPIRouter.Group("/users")
 
 	v2Router := e.Group(V2, registryNamespaceValidator(logger), authSvc.BasicAuth(), authSvc.JWT())
 	nsRouter := v2Router.Group(
@@ -69,13 +76,12 @@ func Register(
 
 	v2Router.Add(http.MethodGet, Root, reg.ApiVersion)
 
-	e.Add(http.MethodGet, TokenAuth, authSvc.Token, authSvc.RepositoryPermissionsMiddleware())
-
 	authGithubRouter.Add(http.MethodGet, "/callback", authSvc.GithubLoginCallbackHandler)
 	authGithubRouter.Add(http.MethodGet, "/login", authSvc.LoginWithGithub)
 
 	orgModeRouter := e.Group("/org", authSvc.JWTRest(), orgModeSvc.AllowOrgAdmin())
 
+	RegisterUserRoutes(userApiRouter, userApi)
 	RegisterNSRoutes(nsRouter, reg, registryStore, logger)
 	RegisterAuthRoutes(authRouter, authSvc)
 	Extensions(v2Router, reg, ext)

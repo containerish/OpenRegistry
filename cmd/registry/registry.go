@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 
+	user_api "github.com/containerish/OpenRegistry/api/users"
 	"github.com/containerish/OpenRegistry/auth"
 	auth_server "github.com/containerish/OpenRegistry/auth/server"
 	"github.com/containerish/OpenRegistry/config"
@@ -89,6 +90,7 @@ func RunRegistryServer(ctx *cli.Context) error {
 	authSvc := auth.New(cfg, usersStore, sessionsStore, emailStore, logger, registryStore)
 	webauthnServer := auth_server.NewWebauthnServer(cfg, webauthnStore, sessionsStore, usersStore, logger)
 	healthCheckHandler := healthchecks.NewHealthChecksAPI(&store_v2.DBPinger{DB: rawDB})
+	usersApi := user_api.NewApi(usersStore, logger)
 
 	dfs := client.NewDFSBackend(cfg.Environment, cfg.Endpoint(), &cfg.DFS)
 	reg, err := registry.NewRegistry(registryStore, dfs, logger, cfg)
@@ -103,7 +105,7 @@ func RunRegistryServer(ctx *cli.Context) error {
 
 	orgModeSvc := orgmode.New(permissionsStore, usersStore, logger)
 
-	router.Register(cfg, e, reg, authSvc, webauthnServer, ext, registryStore, orgModeSvc, logger)
+	router.Register(cfg, e, reg, authSvc, webauthnServer, ext, registryStore, orgModeSvc, usersApi, logger)
 	router.RegisterHealthCheckEndpoint(e, healthCheckHandler)
 
 	if cfg.Integrations.GetGithubConfig() != nil && cfg.Integrations.GetGithubConfig().Enabled {
