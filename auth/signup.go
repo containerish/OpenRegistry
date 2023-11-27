@@ -68,6 +68,7 @@ func (a *auth) SignUp(ctx echo.Context) error {
 		Password:  u.Password,
 		Username:  u.Username,
 		Email:     u.Email,
+		UserType:  v2_types.UserTypeRegular.String(),
 	}
 
 	skipEmailVerification := !a.c.Email.Enabled || (a.c.Environment == config.Local || a.c.Environment == config.CI)

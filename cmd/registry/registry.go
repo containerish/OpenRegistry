@@ -9,6 +9,7 @@ import (
 	"github.com/containerish/OpenRegistry/config"
 	"github.com/containerish/OpenRegistry/dfs/client"
 	healthchecks "github.com/containerish/OpenRegistry/health-checks"
+	"github.com/containerish/OpenRegistry/orgmode"
 	"github.com/containerish/OpenRegistry/registry/v2"
 	"github.com/containerish/OpenRegistry/registry/v2/extensions"
 	"github.com/containerish/OpenRegistry/router"
@@ -16,6 +17,7 @@ import (
 	store_v2 "github.com/containerish/OpenRegistry/store/v1"
 	"github.com/containerish/OpenRegistry/store/v1/automation"
 	"github.com/containerish/OpenRegistry/store/v1/emails"
+	"github.com/containerish/OpenRegistry/store/v1/permissions"
 	registry_store "github.com/containerish/OpenRegistry/store/v1/registry"
 	"github.com/containerish/OpenRegistry/store/v1/sessions"
 	"github.com/containerish/OpenRegistry/store/v1/users"
@@ -76,6 +78,7 @@ func RunRegistryServer(ctx *cli.Context) error {
 	sessionsStore := sessions.NewStore(rawDB)
 	webauthnStore := webauthn.NewStore(rawDB)
 	emailStore := emails.NewStore(rawDB)
+	permissionsStore := permissions.NewStore(rawDB, logger)
 
 	buildAutomationStore, err := automation.New(rawDB, logger)
 	if err != nil {
@@ -98,7 +101,9 @@ func RunRegistryServer(ctx *cli.Context) error {
 		return fmt.Errorf(color.RedString("error creating new container registry extensions api: %s", err))
 	}
 
-	router.Register(cfg, e, reg, authSvc, webauthnServer, ext, registryStore, logger)
+	orgModeSvc := orgmode.New(permissionsStore, usersStore, logger)
+
+	router.Register(cfg, e, reg, authSvc, webauthnServer, ext, registryStore, orgModeSvc, logger)
 	router.RegisterHealthCheckEndpoint(e, healthCheckHandler)
 
 	if cfg.Integrations.GetGithubConfig() != nil && cfg.Integrations.GetGithubConfig().Enabled {

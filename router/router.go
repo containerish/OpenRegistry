@@ -8,6 +8,7 @@ import (
 	"github.com/containerish/OpenRegistry/auth"
 	auth_server "github.com/containerish/OpenRegistry/auth/server"
 	"github.com/containerish/OpenRegistry/config"
+	"github.com/containerish/OpenRegistry/orgmode"
 	"github.com/containerish/OpenRegistry/registry/v2"
 	"github.com/containerish/OpenRegistry/registry/v2/extensions"
 	registry_store "github.com/containerish/OpenRegistry/store/v1/registry"
@@ -28,6 +29,7 @@ func Register(
 	webauthnServer auth_server.WebauthnServer,
 	ext extensions.Extenion,
 	registryStore registry_store.RegistryStore,
+	orgModeSvc orgmode.OrgMode,
 	logger telemetry.Logger,
 ) {
 	e.HideBanner = true
@@ -55,7 +57,11 @@ func Register(
 	p.Use(e)
 
 	v2Router := e.Group(V2, registryNamespaceValidator(logger), authSvc.BasicAuth(), authSvc.JWT())
-	nsRouter := v2Router.Group(Namespace, authSvc.ACL(), authSvc.RepositoryPermissionsMiddleware())
+	nsRouter := v2Router.Group(
+		Namespace,
+		authSvc.ACL(),
+		authSvc.RepositoryPermissionsMiddleware(),
+	)
 
 	authRouter := e.Group(Auth)
 	webauthnRouter := e.Group(Webauthn)
@@ -68,10 +74,13 @@ func Register(
 	authGithubRouter.Add(http.MethodGet, "/callback", authSvc.GithubLoginCallbackHandler)
 	authGithubRouter.Add(http.MethodGet, "/login", authSvc.LoginWithGithub)
 
+	orgModeRouter := e.Group("/org", authSvc.JWTRest(), orgModeSvc.AllowOrgAdmin())
+
 	RegisterNSRoutes(nsRouter, reg, registryStore, logger)
 	RegisterAuthRoutes(authRouter, authSvc)
 	Extensions(v2Router, reg, ext)
 	RegisterWebauthnRoutes(webauthnRouter, webauthnServer)
+	RegisterOrgModeRoutes(orgModeRouter, orgModeSvc)
 
 	//catch-all will redirect user back to web interface
 	e.Add(http.MethodGet, "/", func(ctx echo.Context) error {

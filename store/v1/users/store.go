@@ -43,12 +43,14 @@ type UserReader interface {
 	IsActive(ctx context.Context, identifier uuid.UUID) bool
 	// ID can be either a username, oauth login (GitHub username) or the user id (uuid)
 	UserExists(ctx context.Context, username, email string) (bool, bool)
+	GetOrgAdmin(ctx context.Context, orgID uuid.UUID) (*types.User, error)
 }
 
 type UserWriter interface {
 	AddUser(ctx context.Context, u *types.User, txn *bun.Tx) error
 	UpdateUser(ctx context.Context, u *types.User) (*types.User, error)
 	UpdateUserPWD(ctx context.Context, identifier uuid.UUID, newPassword string) error
+	ConvertUserToOrg(ctx context.Context, userID uuid.UUID) error
 }
 
 type UserDeleter interface {

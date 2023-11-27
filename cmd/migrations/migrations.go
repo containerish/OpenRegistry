@@ -17,14 +17,11 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-// const CategoryMigrations = "Migrations"
-
 func NewMigrationsCommand() *cli.Command {
 	return &cli.Command{
 		Name:    "migrations",
 		Aliases: []string{"m"},
 		Usage:   "Run database migrations for OpenRegistry data store",
-		// Category: CategoryMigrations,
 		Description: `Perform migrations for the OpenRegistry database like database initialisation, migrations, 
 rollback, reset, etc`,
 		UsageText: `OpenRegistry CLI provides a collection of commands for running database migrations.
@@ -150,6 +147,14 @@ func createOpenRegistryTables(ctx *cli.Context, db *bun.DB) error {
 		)
 	}
 	color.Green(`Table "repository_build_projects" created ✔︎`)
+
+	_, err = db.NewCreateTable().Model(&types.Permissions{}).Table().IfNotExists().Exec(ctx.Context)
+	if err != nil {
+		return errors.New(
+			color.RedString("Table=permissions Created=❌ Error=%s", err),
+		)
+	}
+	color.Green(`Table "permissions" created ✔︎`)
 
 	return nil
 }
