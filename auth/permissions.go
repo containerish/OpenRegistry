@@ -127,25 +127,13 @@ func (a *auth) RepositoryPermissionsMiddleware() echo.MiddlewareFunc {
 				a.logger.Log(ctx, errMsg).Send()
 				return echoErr
 			}
-			permissions, err := a.
+			permissions := a.
 				permissionsStore.
 				GetUserPermissionsForNamespace(
 					ctx.Request().Context(),
 					namespace,
 					user.ID,
 				)
-			if err != nil {
-				errMsg := common.RegistryErrorResponse(
-					registry.RegistryErrorCodeDenied,
-					"missing required permissions",
-					echo.Map{
-						"error": err.Error(),
-					},
-				)
-				echoErr := ctx.JSONBlob(http.StatusForbidden, errMsg.Bytes())
-				a.logger.Log(ctx, errMsg).Send()
-				return echoErr
-			}
 
 			readOp := ctx.Request().Method == http.MethodGet || ctx.Request().Method == http.MethodHead
 			permissonAllowed := permissions.IsAdmin || (readOp && permissions.Pull) || (!readOp && permissions.Push)

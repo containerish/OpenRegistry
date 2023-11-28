@@ -121,20 +121,19 @@ func (p *permissionStore) GetUserPermissionsForNamespace(
 	ctx context.Context,
 	ns string,
 	userID uuid.UUID,
-) (*types.Permissions, error) {
-	var perm types.Permissions
+) *types.Permissions {
+	perms := types.Permissions{}
 
 	nsParts := strings.Split(ns, "/")
 	if len(nsParts) != 2 {
-		err := fmt.Errorf("invalid image namespace format")
-		return nil, v1.WrapDatabaseError(err, v1.DatabaseOperationRead)
+		return &perms
 	}
 	orgName := nsParts[0]
 
 	q := p.
 		db.
 		NewSelect().
-		Model(&perm).
+		Model(&perms).
 		Relation("Organization", func(sq *bun.SelectQuery) *bun.SelectQuery {
 			return sq.
 				Where(`"organization"."username" = ?`, orgName).
@@ -147,9 +146,9 @@ func (p *permissionStore) GetUserPermissionsForNamespace(
 		})
 
 	if err := q.Scan(ctx); err != nil {
-		return nil, v1.WrapDatabaseError(err, v1.DatabaseOperationRead)
+		return &perms
 	}
 
-	return &perm, nil
+	return &perms
 
 }
