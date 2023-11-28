@@ -87,7 +87,7 @@ func RunRegistryServer(ctx *cli.Context) error {
 	}
 	defer buildAutomationStore.Close()
 
-	authSvc := auth.New(cfg, usersStore, sessionsStore, emailStore, logger, registryStore)
+	authSvc := auth.New(cfg, usersStore, sessionsStore, emailStore, registryStore, permissionsStore, logger)
 	webauthnServer := auth_server.NewWebauthnServer(cfg, webauthnStore, sessionsStore, usersStore, logger)
 	healthCheckHandler := healthchecks.NewHealthChecksAPI(&store_v2.DBPinger{DB: rawDB})
 	usersApi := user_api.NewApi(usersStore, logger)

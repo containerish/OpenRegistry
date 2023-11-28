@@ -3,10 +3,12 @@ package permissions
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	v1 "github.com/containerish/OpenRegistry/store/v1"
 	"github.com/containerish/OpenRegistry/store/v1/types"
 	"github.com/google/uuid"
+	"github.com/uptrace/bun"
 )
 
 // AddPermission implements PermissionsStore.
@@ -114,4 +116,40 @@ func (p *permissionStore) RemoveUserFromOrg(ctx context.Context, orgID, userID u
 	}
 
 	return nil
+}
+func (p *permissionStore) GetUserPermissionsForNamespace(
+	ctx context.Context,
+	ns string,
+	userID uuid.UUID,
+) (*types.Permissions, error) {
+	var perm types.Permissions
+
+	nsParts := strings.Split(ns, "/")
+	if len(nsParts) != 2 {
+		err := fmt.Errorf("invalid image namespace format")
+		return nil, v1.WrapDatabaseError(err, v1.DatabaseOperationRead)
+	}
+	orgName := nsParts[0]
+
+	q := p.
+		db.
+		NewSelect().
+		Model(&perm).
+		Relation("Organization", func(sq *bun.SelectQuery) *bun.SelectQuery {
+			return sq.
+				Where(`"organization"."username" = ?`, orgName).
+				Where(`"organization"."user_type" = ?`, types.UserTypeOrganization.String())
+		}).
+		Relation("User", func(sq *bun.SelectQuery) *bun.SelectQuery {
+			return sq.
+				Where(`"user"."user_type" = ?`, types.UserTypeRegular.String()).
+				Where(`"user"."id" = ?`, userID)
+		})
+
+	if err := q.Scan(ctx); err != nil {
+		return nil, v1.WrapDatabaseError(err, v1.DatabaseOperationRead)
+	}
+
+	return &perm, nil
+
 }

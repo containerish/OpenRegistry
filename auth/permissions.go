@@ -55,7 +55,7 @@ func (a *auth) populateUserFromPermissionsCheck(ctx echo.Context) error {
 					return errMsg
 				}
 
-				userFromDb, err := a.pgStore.GetUserByUsername(context.Background(), username)
+				userFromDb, err := a.userStore.GetUserByUsername(context.Background(), username)
 				if err != nil {
 					a.logger.Debug().Err(err).Send()
 					return err
@@ -115,7 +115,7 @@ func (a *auth) RepositoryPermissionsMiddleware() echo.MiddlewareFunc {
 			}
 
 			user, ok := ctx.Get(string(types.UserContextKey)).(*types.User)
-			if (!ok || user.Username != usernameFromReq) && usernameFromReq != types.RepositoryNameIPFS {
+			if !ok {
 				errMsg := common.RegistryErrorResponse(
 					registry.RegistryErrorCodeUnauthorized,
 					"access to this resource is restricted, please login or check with the repository owner",
@@ -127,9 +127,44 @@ func (a *auth) RepositoryPermissionsMiddleware() echo.MiddlewareFunc {
 				a.logger.Log(ctx, errMsg).Send()
 				return echoErr
 			}
+			permissions, err := a.
+				permissionsStore.
+				GetUserPermissionsForNamespace(
+					ctx.Request().Context(),
+					namespace,
+					user.ID,
+				)
+			if err != nil {
+				errMsg := common.RegistryErrorResponse(
+					registry.RegistryErrorCodeDenied,
+					"missing required permissions",
+					echo.Map{
+						"error": err.Error(),
+					},
+				)
+				echoErr := ctx.JSONBlob(http.StatusForbidden, errMsg.Bytes())
+				a.logger.Log(ctx, errMsg).Send()
+				return echoErr
+			}
 
-			a.logger.Log(ctx, nil).Send()
-			return handler(ctx)
+			readOp := ctx.Request().Method == http.MethodGet || ctx.Request().Method == http.MethodHead
+			permissonAllowed := permissions.IsAdmin || (readOp && permissions.Pull) || (!readOp && permissions.Push)
+
+			if permissonAllowed || user.Username == usernameFromReq || usernameFromReq != types.RepositoryNameIPFS {
+				a.logger.Log(ctx, nil).Send()
+				return handler(ctx)
+			}
+
+			errMsg := common.RegistryErrorResponse(
+				registry.RegistryErrorCodeUnauthorized,
+				"access to this resource is restricted, please login or check with the repository owner",
+				echo.Map{
+					"error": "authentication details are missing",
+				},
+			)
+			echoErr := ctx.JSONBlob(http.StatusForbidden, errMsg.Bytes())
+			a.logger.Log(ctx, errMsg).Send()
+			return echoErr
 		}
 	}
 }

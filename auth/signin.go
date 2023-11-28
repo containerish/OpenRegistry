@@ -41,9 +41,9 @@ func (a *auth) SignIn(ctx echo.Context) error {
 
 	var userFromDb *v2_types.User
 	if user.Email != "" {
-		userFromDb, err = a.pgStore.GetUserByEmail(ctx.Request().Context(), user.Email)
+		userFromDb, err = a.userStore.GetUserByEmail(ctx.Request().Context(), user.Email)
 	} else {
-		userFromDb, err = a.pgStore.GetUserByUsername(ctx.Request().Context(), user.Username)
+		userFromDb, err = a.userStore.GetUserByUsername(ctx.Request().Context(), user.Username)
 	}
 
 	if err != nil {

@@ -13,6 +13,7 @@ type (
 	PermissionsStore interface {
 		GetAllUserPermissions(ctx context.Context, userID uuid.UUID) ([]*types.Permissions, error)
 		GetUserPermissionsForOrg(ctx context.Context, orgID, userID uuid.UUID) (*types.Permissions, error)
+		GetUserPermissionsForNamespace(ctx context.Context, ns string, userID uuid.UUID) (*types.Permissions, error)
 		AddPermissions(ctx context.Context, perm *types.Permissions) error
 		UpdatePermissions(ctx context.Context, perm *types.Permissions) error
 		RemoveUserFromOrg(ctx context.Context, orgID, userID uuid.UUID) error

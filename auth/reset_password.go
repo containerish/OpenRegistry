@@ -62,7 +62,7 @@ func (a *auth) ResetForgottenPassword(ctx echo.Context) error {
 		return echoErr
 	}
 
-	user, err := a.pgStore.GetUserByID(ctx.Request().Context(), userId)
+	user, err := a.userStore.GetUserByID(ctx.Request().Context(), userId)
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusNotFound, echo.Map{
 			"error":   err.Error(),
@@ -103,7 +103,7 @@ and an uppercase letter`,
 		return echoErr
 	}
 
-	if err = a.pgStore.UpdateUserPWD(ctx.Request().Context(), userId, hashPassword); err != nil {
+	if err = a.userStore.UpdateUserPWD(ctx.Request().Context(), userId, hashPassword); err != nil {
 		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error":   err.Error(),
 			"message": "error updating new password",
@@ -166,7 +166,7 @@ func (a *auth) ResetPassword(ctx echo.Context) error {
 		return echoErr
 	}
 
-	user, err := a.pgStore.GetUserByID(ctx.Request().Context(), userId)
+	user, err := a.userStore.GetUserByID(ctx.Request().Context(), userId)
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusNotFound, echo.Map{
 			"error":   err.Error(),
@@ -218,7 +218,7 @@ and an uppercase letter`,
 		return echoErr
 	}
 
-	if err = a.pgStore.UpdateUserPWD(ctx.Request().Context(), userId, hashPassword); err != nil {
+	if err = a.userStore.UpdateUserPWD(ctx.Request().Context(), userId, hashPassword); err != nil {
 		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error":   err.Error(),
 			"message": "error updating new password",
@@ -247,7 +247,7 @@ func (a *auth) ForgotPassword(ctx echo.Context) error {
 		return echoErr
 	}
 
-	user, err := a.pgStore.GetUserByEmail(ctx.Request().Context(), userEmail)
+	user, err := a.userStore.GetUserByEmail(ctx.Request().Context(), userEmail)
 	if err != nil {
 		if errors.Unwrap(err) == pgx.ErrNoRows {
 			echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{

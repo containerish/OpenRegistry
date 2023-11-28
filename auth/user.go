@@ -46,7 +46,7 @@ func (a *auth) ReadUserWithSession(ctx echo.Context) error {
 	}
 
 	sessionUUID := parts[0]
-	user, err := a.pgStore.GetUserWithSession(ctx.Request().Context(), sessionUUID)
+	user, err := a.userStore.GetUserWithSession(ctx.Request().Context(), sessionUUID)
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error":   err.Error(),

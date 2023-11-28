@@ -77,7 +77,7 @@ func (a *auth) SignUp(ctx echo.Context) error {
 		newUser.IsActive = true
 	}
 
-	err = a.pgStore.AddUser(ctx.Request().Context(), newUser, nil)
+	err = a.userStore.AddUser(ctx.Request().Context(), newUser, nil)
 	if err != nil {
 		if strings.Contains(err.Error(), store_err.ErrDuplicateConstraintUsername) {
 			echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{

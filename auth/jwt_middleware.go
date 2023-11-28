@@ -82,9 +82,9 @@ func (a *auth) JWT() echo.MiddlewareFunc {
 						err  error
 					)
 					if usernameFromReq == types.RepositoryNameIPFS {
-						user, err = a.pgStore.GetIPFSUser(ctx.Request().Context())
+						user, err = a.userStore.GetIPFSUser(ctx.Request().Context())
 					} else {
-						user, err = a.pgStore.GetUserByID(ctx.Request().Context(), userId)
+						user, err = a.userStore.GetUserByID(ctx.Request().Context(), userId)
 					}
 					if err == nil {
 						ctx.Set(string(types.UserContextKey), user)
@@ -142,7 +142,7 @@ func (a *auth) ACL() echo.MiddlewareFunc {
 				return echoErr
 			}
 
-			user, err := a.pgStore.GetUserByID(ctx.Request().Context(), userId)
+			user, err := a.userStore.GetUserByID(ctx.Request().Context(), userId)
 			if err != nil {
 				echoErr := ctx.NoContent(http.StatusUnauthorized)
 				a.logger.Log(ctx, err).Send()
@@ -193,7 +193,7 @@ func (a *auth) JWTRest() echo.MiddlewareFunc {
 				claims, claimsOk := token.Claims.(*Claims)
 				if claimsOk {
 					userId := uuid.MustParse(claims.ID)
-					user, err := a.pgStore.GetUserByID(ctx.Request().Context(), userId)
+					user, err := a.userStore.GetUserByID(ctx.Request().Context(), userId)
 					if err == nil {
 						ctx.Set(string(types.UserContextKey), user)
 					}

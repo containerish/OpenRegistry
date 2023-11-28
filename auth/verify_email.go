@@ -44,7 +44,7 @@ func (a *auth) VerifyEmail(ctx echo.Context) error {
 		return echoErr
 	}
 
-	user, err := a.pgStore.GetUserByID(ctx.Request().Context(), userId)
+	user, err := a.userStore.GetUserByID(ctx.Request().Context(), userId)
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error":   err.Error(),
@@ -56,7 +56,7 @@ func (a *auth) VerifyEmail(ctx echo.Context) error {
 
 	user.IsActive = true
 
-	_, err = a.pgStore.UpdateUser(ctx.Request().Context(), user)
+	_, err = a.userStore.UpdateUser(ctx.Request().Context(), user)
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error": err.Error(),
