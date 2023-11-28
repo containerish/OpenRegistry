@@ -53,6 +53,7 @@ func (p *Permissions) AfterCreateTable(ctx context.Context, query *bun.CreateTab
 	if err != nil {
 		return err
 	}
+
 	color.Yellow(`Create composite index in table "permissions" on columns "user_id" and "organization_id" succeeded ✔︎`)
 	return nil
 }

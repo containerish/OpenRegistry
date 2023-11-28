@@ -3,6 +3,7 @@ package users
 import (
 	"context"
 	"database/sql"
+	"strings"
 
 	v1 "github.com/containerish/OpenRegistry/store/v1"
 	"github.com/containerish/OpenRegistry/store/v1/types"
@@ -256,18 +257,29 @@ func (us *userStore) GetOrgAdmin(ctx context.Context, orgID uuid.UUID) (*types.U
 func (us *userStore) Search(ctx context.Context, query string) ([]*types.User, error) {
 	var users []*types.User
 
-	query = "%" + query + "%"
+	b := strings.Builder{}
+	b.WriteString("%")
+	b.WriteString(query)
+	b.WriteString("%")
 
-	err := us.
+	q := us.
 		db.
 		NewSelect().
 		Model(&users).
-		Where("user_type = ?", types.UserTypeRegular.String()).
-		WhereOr("username ilike ?", query).
-		WhereOr("email ilike ?", query).
-		ExcludeColumn("password").ExcludeColumn("updated_at").ExcludeColumn("created_at").
-		Limit(types.DefaultSearchLimit).
-		Scan(ctx)
+		WhereGroup(" AND ", func(sq *bun.SelectQuery) *bun.SelectQuery {
+			return sq.Where("user_type = ?", types.UserTypeRegular.String()) // only search for users (skip orgs and system users
+		}).
+		WhereGroup(" AND ", func(sq *bun.SelectQuery) *bun.SelectQuery {
+			return sq.WhereOr("username ilike ?", b.String()).
+				WhereOr("email ilike ?", b.String())
+		}).
+		ExcludeColumn("password").
+		ExcludeColumn("updated_at").
+		ExcludeColumn("created_at").
+		ExcludeColumn("is_active").
+		Limit(types.DefaultSearchLimit)
+
+	err := q.Scan(ctx)
 	if err != nil {
 		return nil, v1.WrapDatabaseError(err, v1.DatabaseOperationRead)
 	}
