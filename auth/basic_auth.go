@@ -8,85 +8,69 @@ import (
 	"strings"
 	"time"
 
+	"github.com/containerish/OpenRegistry/common"
 	"github.com/containerish/OpenRegistry/registry/v2"
 	"github.com/containerish/OpenRegistry/store/v1/types"
+	"github.com/fatih/color"
 	"github.com/labstack/echo/v4"
 )
 
 const (
 	JWT_AUTH_KEY           = "JWT_AUTH"
 	AuthorizationHeaderKey = "Authorization"
+	defaultRealm           = "Restricted"
+	authSchemeBearer       = "Bearer"
+	authSchemeBasic        = "Basic"
 )
 
 // BasicAuth returns a middleware which in turn can be used to perform http basic auth
 func (a *auth) BasicAuth() echo.MiddlewareFunc {
-	return a.BasicAuthWithConfig()
-}
-
-func (a *auth) buildBasicAuthenticationHeader(repoNamespace string) string {
-	return fmt.Sprintf(
-		"Bearer realm=%s,service=%s,scope=%s",
-		strconv.Quote(fmt.Sprintf("%s/token", a.c.Endpoint())),
-		strconv.Quote(a.c.Endpoint()),
-		strconv.Quote(fmt.Sprintf("repository:%s:pull,push", repoNamespace)),
-	)
-}
-
-func (a *auth) checkJWT(authHeader string, cookies []*http.Cookie) bool {
-	parts := strings.Split(authHeader, " ")
-	if len(parts) == 2 {
-		return strings.EqualFold(parts[0], "Bearer")
-	}
-
-	// fallback to check for auth header in cookies
-	for _, cookie := range cookies {
-		if cookie.Name == AccessCookieKey {
-			// early return if access_token is found in cookies, this will be checked by the JWT middlware and not the
-			// basic auth middleware
-			return true
-		}
-	}
-
-	return false
-}
-
-const (
-	defaultRealm    = "Restricted"
-	authScheme      = "Bearer"
-	authSchemeBasic = "Basic"
-)
-
-// BasicAuthConfig is a local copy of echo's middleware.BasicAuthWithConfig
-func (a *auth) BasicAuthWithConfig() echo.MiddlewareFunc {
 	return func(handler echo.HandlerFunc) echo.HandlerFunc {
 		return func(ctx echo.Context) error {
+
 			if a.SkipBasicAuth(ctx) {
-				a.logger.Debug().Bool("skip_basic_auth", true).Send()
+				a.logger.DebugWithContext(ctx).Bool("skip_basic_auth", true).Send()
 				// Note: there might be other middlewares attached to this handler
 				return handler(ctx)
 			}
 
 			auth := ctx.Request().Header.Get(echo.HeaderAuthorization)
-			l := len(authScheme)
+			l := len(authSchemeBasic)
 
-			if len(auth) > l+1 && strings.EqualFold(auth[:l], authScheme) {
+			if len(auth) > l+1 && strings.EqualFold(auth[:l], authSchemeBasic) {
 				b, err := base64.StdEncoding.DecodeString(auth[l+1:])
 				if err != nil {
-					a.logger.Debug().Err(err).Send()
-					return err
+					registryErr := common.RegistryErrorResponse(
+						registry.RegistryErrorCodeDenied,
+						"invalid credentials",
+						echo.Map{
+							"error": err.Error(),
+						},
+					)
+
+					echoErr := ctx.JSONBlob(http.StatusBadRequest, registryErr.Bytes())
+					a.logger.DebugWithContext(ctx).Err(err).Send()
+					return echoErr
 				}
 				cred := string(b)
 				for i := 0; i < len(cred); i++ {
 					if cred[i] == ':' {
 						// Verify credentials
-						valid, err := a.BasicAuthValidator(cred[:i], cred[i+1:], ctx)
-						if err != nil {
-							a.logger.Debug().Err(err).Send()
-							return err
-						} else if valid {
-							return handler(ctx)
+						if err = a.BasicAuthValidator(cred[:i], cred[i+1:], ctx); err != nil {
+							registryErr := common.RegistryErrorResponse(
+								registry.RegistryErrorCodeUnauthorized,
+								"user is not authorized to perform this action",
+								echo.Map{
+									"reason": "you are not allowed to push to this account, please check if you are logged in with the right user.",
+									"error":  err.Error(),
+								},
+							)
+							echoErr := ctx.JSONBlob(http.StatusUnauthorized, registryErr.Bytes())
+							a.logger.DebugWithContext(ctx).Err(registryErr).Send()
+							return echoErr
 						}
-						break
+
+						return handler(ctx)
 					}
 				}
 			}
@@ -107,60 +91,28 @@ func (a *auth) BasicAuthWithConfig() echo.MiddlewareFunc {
 	}
 }
 
-func (a *auth) BasicAuthValidator(username string, password string, ctx echo.Context) (bool, error) {
-	ctx.Set(types.HandlerStartTime, time.Now())
-
-	_, err := a.validateUser(username, password)
-	usernameFromReq := ctx.Param("username")
-	if err != nil || usernameFromReq != username || usernameFromReq == types.RepositoryNameIPFS {
-		var errMsg registry.RegistryErrors
-		errMsg.Errors = append(errMsg.Errors, registry.RegistryError{
-			Code:    registry.RegistryErrorCodeUnauthorized,
-			Message: "user is not authorized to perform this action",
-			Detail: echo.Map{
-				"reason": "you are not allowed to push to this account, please check if you are logged in with the right user.",
-				"error":  err.Error(),
-			},
-		})
-		echoErr := ctx.JSON(http.StatusUnauthorized, errMsg)
-		a.logger.Log(ctx, fmt.Errorf("%s", errMsg)).Send()
-		return false, echoErr
-	}
-
-	return true, nil
-}
-
 func (a *auth) SkipBasicAuth(ctx echo.Context) bool {
 	authHeader := ctx.Request().Header.Get(echo.HeaderAuthorization)
 
+	hasJWT := a.checkJWT(authHeader, ctx.Request().Cookies())
+	if hasJWT {
+		return true
+	}
 	// if found, populate requested repository in request context, so that any of the chained middlwares can
 	// read the value from ctx instead of database
 	repo := a.tryPopulateRepository(ctx)
+	color.Red("repo: path=%s - %#v", ctx.Request().URL.Path, repo)
+	if repo == nil {
+		return false
+	}
 
 	// if Authorization header contains JWT, we skip basic auth and perform a JWT validation
-	if ok := a.checkJWT(authHeader, ctx.Request().Cookies()); ok {
-		a.logger.Debug().
-			Bool("skip_basic_auth", true).
-			Str("method", ctx.Request().Method).
-			Str("path", ctx.Request().URL.RequestURI()).
-			Send()
-		return true
-	}
-	repoName := ctx.Param("imagename")
-
+	isIPFSRepo := ctx.Param("imagename") == types.RepositoryNameIPFS
 	readOp := ctx.Request().Method == http.MethodHead || ctx.Request().Method == http.MethodGet
-	// if it's a read operation on a public repository, we skip auth requirement
-	if repoName == types.RepositoryNameIPFS ||
-		(readOp && repo != nil && repo.Visibility == types.RepositoryVisibilityPublic) {
-		a.logger.Debug().
-			Bool("skip_basic_auth", true).
-			Str("method", ctx.Request().Method).
-			Str("path", ctx.Request().URL.RequestURI()).
-			Send()
-		return true
-	}
-
-	return false
+	// only skip now if one of the following cases match:
+	// 1. It's a public pulls (IPFS pulls are always public)
+	// 2. The request contains a JWT, in which case, we let the JWT middleware handle validation + scoping
+	return readOp && (isIPFSRepo || repo.Visibility == types.RepositoryVisibilityPublic)
 }
 
 func (a *auth) tryPopulateRepository(ctx echo.Context) *types.ContainerImageRepository {
@@ -177,4 +129,47 @@ func (a *auth) tryPopulateRepository(ctx echo.Context) *types.ContainerImageRepo
 		}
 	}
 	return nil
+}
+
+func (a *auth) checkJWT(authHeader string, cookies []*http.Cookie) bool {
+	parts := strings.Split(authHeader, " ")
+	if len(parts) == 2 {
+		return strings.EqualFold(parts[0], authSchemeBearer)
+	}
+
+	// fallback to check for auth header in cookies
+	for _, cookie := range cookies {
+		if cookie.Name == AccessCookieKey || cookie.Name == QueryToken {
+			// early return if access_token or token is found in cookies,
+			// this will be checked by the JWT middlware and not the basic auth middleware
+			return true
+		}
+	}
+
+	return false
+}
+
+func (a *auth) BasicAuthValidator(username string, password string, ctx echo.Context) error {
+	ctx.Set(types.HandlerStartTime, time.Now())
+
+	// readOp := ctx.Request().Method == http.MethodHead || ctx.Request().Method == http.MethodGet
+
+	// usernameFromReq := ctx.Param("username")
+
+	err := a.validateUser(username, password)
+	if err != nil {
+		// if err != nil || usernameFromReq != username || usernameFromReq == types.RepositoryNameIPFS {
+		return err
+	}
+
+	return nil
+}
+
+func (a *auth) buildBasicAuthenticationHeader(repoNamespace string) string {
+	return fmt.Sprintf(
+		"Bearer realm=%s,service=%s,scope=%s",
+		strconv.Quote(fmt.Sprintf("%s/token", a.c.Endpoint())),
+		strconv.Quote(a.c.Endpoint()),
+		strconv.Quote(fmt.Sprintf("repository:%s:pull,push", repoNamespace)),
+	)
 }

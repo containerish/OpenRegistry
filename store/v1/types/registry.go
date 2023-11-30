@@ -97,7 +97,7 @@ type (
 		Project        *RepositoryBuild     `bun:"rel:has-one,join:id=repository_id" json:"-"`
 		Description    string               `bun:"description" json:"description"`
 		Visibility     RepositoryVisibility `bun:"visibility,notnull" json:"visibility"`
-		Name           string               `bun:"name,notnull,unique" json:"name"`
+		Name           string               `bun:"name,notnull" json:"name"`
 		ImageManifests []*ImageManifest     `bun:"rel:has-many,join:id=repository_id" json:"image_manifests,omitempty"`
 		Builds         []*RepositoryBuild   `bun:"rel:has-many,join:id=repository_id" json:"-"`
 		ID             uuid.UUID            `bun:"id,pk,type:uuid,default:gen_random_uuid()" json:"id"`

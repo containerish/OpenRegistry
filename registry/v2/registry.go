@@ -22,6 +22,7 @@ import (
 	types_v2 "github.com/containerish/OpenRegistry/store/v1/types"
 	"github.com/containerish/OpenRegistry/telemetry"
 	"github.com/containerish/OpenRegistry/types"
+	"github.com/fatih/color"
 	"github.com/labstack/echo/v4"
 	oci_digest "github.com/opencontainers/go-digest"
 	img_spec_v1 "github.com/opencontainers/image-spec/specs-go/v1"
@@ -94,7 +95,7 @@ func (r *registry) ManifestExists(ctx echo.Context) error {
 	ctx.Response().Header().Set("Docker-Content-Digest", manifest.Digest)
 	ctx.Response().Header().Set("Content-Type", img_spec_v1.MediaTypeImageManifest)
 	echoErr := ctx.NoContent(http.StatusOK)
-	r.logger.Log(ctx, nil).Send()
+	r.logger.Log(ctx, nil).Any("manifest", manifest).Send()
 	// nil is okay here since all the required information has been set above
 	return echoErr
 }
@@ -214,7 +215,10 @@ func (r *registry) PullManifest(ctx echo.Context) error {
 
 	if strings.HasPrefix(ref, "sha256:") {
 		if _, err := oci_digest.Parse(ref); err != nil {
-			errMsg := common.RegistryErrorResponse(RegistryErrorCodeDigestInvalid, err.Error(), nil)
+			errMsg := common.RegistryErrorResponse(RegistryErrorCodeDigestInvalid, err.Error(), echo.Map{
+				"namespace": namespace,
+				"ref":       ref,
+			})
 			echoErr := ctx.JSONBlob(http.StatusBadRequest, errMsg.Bytes())
 			r.logger.Log(ctx, fmt.Errorf("%s", errMsg)).Send()
 			return echoErr
@@ -223,7 +227,10 @@ func (r *registry) PullManifest(ctx echo.Context) error {
 
 	manifest, err := r.store.GetManifestByReference(ctx.Request().Context(), namespace, ref)
 	if err != nil {
-		errMsg := common.RegistryErrorResponse(RegistryErrorCodeManifestUnknown, err.Error(), nil)
+		errMsg := common.RegistryErrorResponse(RegistryErrorCodeManifestUnknown, err.Error(), echo.Map{
+			"namespace": namespace,
+			"ref":       ref,
+		})
 		echoErr := ctx.JSONBlob(http.StatusNotFound, errMsg.Bytes())
 		r.logger.Log(ctx, fmt.Errorf("%s", errMsg)).Send()
 		return echoErr
@@ -721,6 +728,8 @@ func (r *registry) PushImage(ctx echo.Context) error {
 // Path: /v2/<namespace>/manifests/<reference>
 func (r *registry) PushManifest(ctx echo.Context) error {
 	ctx.Set(types.HandlerStartTime, time.Now())
+
+	color.Red("--------------------------inside the method-------------------------------------------")
 
 	namespace := ctx.Get(string(RegistryNamespace)).(string)
 	ref := ctx.Param("reference")

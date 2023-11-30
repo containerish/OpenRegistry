@@ -96,6 +96,7 @@ const (
 	UserClaimsContextKey         ContextKey = "UserClaimsContextKey"
 	UserRepositoryContextKey     ContextKey = "UserRepositoryContextKey"
 	OrgModeRequestBodyContextKey ContextKey = "OrgModeRequestBodyContextKey"
+	UserPermissionsContextKey    ContextKey = "UserPermissionsContextKey"
 )
 
 func (u *User) Bytes() ([]byte, error) {

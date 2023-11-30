@@ -21,6 +21,12 @@ type Claims struct {
 	Access AccessList
 }
 
+type OCIClaims struct {
+	jwt.RegisteredClaims
+	Type   string
+	Access types.OCITokenPermissonClaimList
+}
+
 type PlatformClaims struct {
 	OauthPayload *oauth2.Token `json:"oauth2_token,omitempty"`
 	jwt.RegisteredClaims
@@ -35,46 +41,6 @@ type RefreshClaims struct {
 type ServiceClaims struct {
 	jwt.RegisteredClaims
 	Access AccessList
-}
-
-func (a *auth) newPublicPullToken(userId string) (string, error) {
-	acl := AccessList{
-		{
-			Type:    "repository",
-			Name:    "*/*",
-			Actions: []string{"pull"},
-		},
-	}
-
-	opts := &CreateClaimOptions{
-		Audience: a.c.Registry.FQDN,
-		Issuer:   OpenRegistryIssuer,
-		Id:       userId,
-		TokeType: "service_token",
-		Acl:      acl,
-	}
-
-	claims := CreateClaims(opts)
-
-	// TODO (jay-dee7)- handle this properly, check for errors and don't set defaults for actions
-	claims.Access[0].Actions = []string{"pull"}
-
-	pubKeyDerBz, err := x509.MarshalPKIXPublicKey(a.c.Registry.Auth.JWTSigningPubKey)
-	if err != nil {
-		return "", err
-	}
-
-	hasher := sha256.New()
-	hasher.Write(pubKeyDerBz)
-
-	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
-	token.Header["kid"] = a.keyIDEncode(hasher.Sum(nil)[:30])
-	sign, err := token.SignedString(a.c.Registry.Auth.JWTSigningPrivateKey)
-	if err != nil {
-		return "", err
-	}
-
-	return sign, nil
 }
 
 func (a *auth) keyIDEncode(b []byte) string {
@@ -132,13 +98,40 @@ func (a *auth) newServiceToken(u types.User) (string, error) {
 		},
 	}
 	opts := &CreateClaimOptions{
-		Audience: a.c.Registry.FQDN,
-		Issuer:   OpenRegistryIssuer,
-		Id:       u.ID.String(),
-		TokeType: "service_token",
-		Acl:      acl,
+		Audience:  a.c.Registry.FQDN,
+		Issuer:    OpenRegistryIssuer,
+		Id:        u.ID.String(),
+		TokenType: "service_token",
+		Acl:       acl,
 	}
 	claims := CreateClaims(opts)
+
+	pubKeyDerBz, err := x509.MarshalPKIXPublicKey(a.c.Registry.Auth.JWTSigningPubKey)
+	if err != nil {
+		return "", err
+	}
+
+	hasher := sha256.New()
+	hasher.Write(pubKeyDerBz)
+	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
+	token.Header["kid"] = a.keyIDEncode(hasher.Sum(nil)[:30])
+	sign, err := token.SignedString(a.c.Registry.Auth.JWTSigningPrivateKey)
+	if err != nil {
+		return "", fmt.Errorf("error signing secret %w", err)
+	}
+
+	return sign, nil
+}
+
+func (a *auth) newOCIToken(userID uuid.UUID, scopes types.OCITokenPermissonClaimList) (string, error) {
+	opts := &CreateClaimOptionsV2{
+		Audience:  a.c.Registry.FQDN,
+		Issuer:    OpenRegistryIssuer,
+		Id:        userID.String(),
+		TokenType: "oci_token",
+		Acl:       scopes,
+	}
+	claims := CreateOCIClaims(opts)
 
 	pubKeyDerBz, err := x509.MarshalPKIXPublicKey(a.c.Registry.Auth.JWTSigningPubKey)
 	if err != nil {
@@ -213,48 +206,6 @@ func (a *auth) createRefreshClaims(userId uuid.UUID) RefreshClaims {
 	}
 
 	return claims
-}
-
-func (a *auth) newToken(u *types.User) (string, error) {
-	//for now we're sending same name for sub and name.
-	//TODO when repositories need collaborators
-
-	acl := AccessList{
-		{
-			Type:    "repository",
-			Name:    fmt.Sprintf("%s/*", u.Username),
-			Actions: []string{"push", "pull"},
-		},
-	}
-
-	pubKeyDerBz, err := x509.MarshalPKIXPublicKey(a.c.Registry.Auth.JWTSigningPubKey)
-	if err != nil {
-		return "", err
-	}
-
-	opts := &CreateClaimOptions{
-		Audience: a.c.Registry.FQDN,
-		Issuer:   OpenRegistryIssuer,
-		Id:       u.ID.String(),
-		TokeType: AccessCookieKey,
-		Acl:      acl,
-	}
-	claims := CreateClaims(opts)
-
-	hasher := sha256.New()
-	hasher.Write(pubKeyDerBz)
-	// token := jwt.NewWithClaims(jwt.SigningMethodHS256, &claims)
-	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
-	token.Header["kid"] = a.keyIDEncode(hasher.Sum(nil)[:30])
-
-	// Generate encoded token and send it as response.
-	t, err := token.SignedString(a.c.Registry.Auth.JWTSigningPrivateKey)
-	if err != nil {
-		return "", err
-
-	}
-
-	return t, nil
 }
 
 /*

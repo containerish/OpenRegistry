@@ -18,6 +18,7 @@ type Logger interface {
 	Log(ctx echo.Context, err error) *zerolog.Event
 	Info() *zerolog.Event
 	Debug() *zerolog.Event
+	DebugWithContext(ctx echo.Context) *zerolog.Event
 }
 
 type ZerologOutput interface {
@@ -155,4 +156,12 @@ func (l *logger) Debug() *zerolog.Event {
 
 func (l *logger) Info() *zerolog.Event {
 	return l.logger.WithLevel(zerolog.InfoLevel)
+}
+
+func (l *logger) DebugWithContext(ctx echo.Context) *zerolog.Event {
+	if ctx == nil {
+		return l.logger.Debug()
+	}
+
+	return l.Log(ctx, nil)
 }

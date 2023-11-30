@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/containerish/OpenRegistry/config"
+	"github.com/containerish/OpenRegistry/store/v1/types"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 )
@@ -103,11 +104,11 @@ func NewWebLoginToken(opts *WebLoginJWTOptions) (string, error) {
 	}
 
 	claims := CreateClaims(&CreateClaimOptions{
-		Audience: opts.Audience,
-		Issuer:   OpenRegistryIssuer,
-		Id:       opts.Id.String(),
-		TokeType: opts.TokenType,
-		Acl:      acl,
+		Audience:  opts.Audience,
+		Issuer:    OpenRegistryIssuer,
+		Id:        opts.Id.String(),
+		TokenType: opts.TokenType,
+		Acl:       acl,
 	})
 
 	pubkeyDER, err := x509.MarshalPKIXPublicKey(opts.Pubkey)
@@ -127,27 +128,35 @@ func NewWebLoginToken(opts *WebLoginJWTOptions) (string, error) {
 	return token, nil
 }
 
+type CreateClaimOptionsV2 struct {
+	Audience  string
+	Issuer    string
+	Id        string
+	TokenType string
+	Acl       types.OCITokenPermissonClaimList
+}
+
 type CreateClaimOptions struct {
-	Audience string
-	Issuer   string
-	Id       string
-	TokeType string
-	Acl      AccessList
+	Audience  string
+	Issuer    string
+	Id        string
+	TokenType string
+	Acl       AccessList
 }
 
 func CreateClaims(opts *CreateClaimOptions) Claims {
-	tokenLife := time.Now().Add(time.Minute * 10)
-	switch opts.TokeType {
-	case AccessCookieKey:
+	now := time.Now()
+	iat := jwt.NewNumericDate(now)
+	nbf := iat
+	var tokenLife time.Time
+
+	switch opts.TokenType {
+	case AccessCookieKey, RefreshCookKey, Service:
 		// TODO (jay-dee7)
 		// token can live for month now, but must be addressed when we implement PASETO
-		tokenLife = time.Now().Add(time.Hour * 750)
-	case RefreshCookKey:
-		tokenLife = time.Now().Add(time.Hour * 750)
-	case "service":
-		tokenLife = time.Now().Add(time.Hour * 750)
-	case "short-lived":
-		tokenLife = time.Now().Add(time.Minute * 30)
+		tokenLife = now.Add(time.Hour * 750)
+	default:
+		tokenLife = now.Add(time.Minute * 10)
 	}
 
 	return Claims{
@@ -155,16 +164,45 @@ func CreateClaims(opts *CreateClaimOptions) Claims {
 			Audience:  jwt.ClaimStrings{opts.Audience},
 			ExpiresAt: jwt.NewNumericDate(tokenLife),
 			ID:        opts.Id,
-			IssuedAt:  jwt.NewNumericDate(time.Now()),
+			IssuedAt:  iat,
 			Issuer:    opts.Issuer,
-			NotBefore: jwt.NewNumericDate(time.Now()),
+			NotBefore: nbf,
 			Subject:   opts.Id,
 		},
 		Access: opts.Acl,
-		Type:   opts.TokeType,
+		Type:   opts.TokenType,
 	}
 }
 
+func CreateOCIClaims(opts *CreateClaimOptionsV2) OCIClaims {
+	now := time.Now()
+	iat := jwt.NewNumericDate(now)
+	nbf := iat
+	var tokenLife time.Time
+
+	switch opts.TokenType {
+	case AccessCookieKey, RefreshCookKey, Service:
+		// TODO (jay-dee7)
+		// token can live for month now, but must be addressed when we implement PASETO
+		tokenLife = now.Add(time.Hour * 750)
+	default:
+		tokenLife = now.Add(time.Minute * 10)
+	}
+
+	return OCIClaims{
+		RegisteredClaims: jwt.RegisteredClaims{
+			ID:        opts.Id,
+			Issuer:    opts.Issuer,
+			Subject:   opts.Id,
+			ExpiresAt: jwt.NewNumericDate(tokenLife),
+			IssuedAt:  iat,
+			NotBefore: nbf,
+			Audience:  jwt.ClaimStrings{opts.Audience},
+		},
+		Access: opts.Acl,
+		Type:   opts.TokenType,
+	}
+}
 func KeyIDEncode(b []byte) string {
 	s := strings.TrimRight(base32.StdEncoding.EncodeToString(b), "=")
 	var buf bytes.Buffer

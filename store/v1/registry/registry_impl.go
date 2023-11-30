@@ -468,7 +468,7 @@ func (s *registryStore) GetManifestByReference(
 	}
 
 	if err := q.Scan(ctx); err != nil {
-		logEvent.Err(err).Send()
+		logEvent.Err(err).Str("query", q.String()).Send()
 		return nil, v2.WrapDatabaseError(err, v2.DatabaseOperationRead)
 	}
 
