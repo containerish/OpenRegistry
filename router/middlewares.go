@@ -10,7 +10,6 @@ import (
 	registry_store "github.com/containerish/OpenRegistry/store/v1/registry"
 	"github.com/containerish/OpenRegistry/store/v1/types"
 	"github.com/containerish/OpenRegistry/telemetry"
-	"github.com/fatih/color"
 	"github.com/labstack/echo/v4"
 )
 
@@ -25,11 +24,8 @@ func registryNamespaceValidator(logger telemetry.Logger) echo.MiddlewareFunc {
 				return handler(ctx)
 			}
 
-			username := ctx.Param("username")
-			imageName := ctx.Param("imagename")
-
-			namespace := username + "/" + imageName
-			if username == "" || imageName == "" || !nsRegex.MatchString(namespace) {
+			namespace := ctx.Param("username") + "/" + ctx.Param("imagename")
+			if !nsRegex.MatchString(namespace) {
 				registryErr := common.RegistryErrorResponse(
 					registry.RegistryErrorCodeNameInvalid,
 					"invalid user namespace",
@@ -55,8 +51,6 @@ func registryReferenceOrTagValidator(logger telemetry.Logger) echo.MiddlewareFun
 	return func(handler echo.HandlerFunc) echo.HandlerFunc {
 		return func(ctx echo.Context) error {
 			ref := ctx.Param("reference")
-			color.Green("--------------- registryReferenceOrTagValidator ---------- START ----------------------")
-
 			if ref == "" || !refRegex.MatchString(ref) {
 				registryErr := common.RegistryErrorResponse(
 					registry.RegistryErrorCodeTagInvalid,
@@ -70,7 +64,6 @@ func registryReferenceOrTagValidator(logger telemetry.Logger) echo.MiddlewareFun
 				logger.DebugWithContext(ctx).Err(registryErr).Send()
 				return echoErr
 			}
-			color.Green("--------------- registryReferenceOrTagValidator ---------- OK ----------------------")
 
 			return handler(ctx)
 		}
@@ -81,8 +74,6 @@ func propagateRepository(store registry_store.RegistryStore, logger telemetry.Lo
 	return func(handler echo.HandlerFunc) echo.HandlerFunc {
 		return func(ctx echo.Context) error {
 			imageName := ctx.Param("imagename")
-			color.Green("--------------- propagateRepository ---------- START ----------------------")
-
 			user, ok := ctx.Get(string(types.UserContextKey)).(*types.User)
 			if !ok {
 				registryErr := common.RegistryErrorResponse(
@@ -99,10 +90,8 @@ func propagateRepository(store registry_store.RegistryStore, logger telemetry.Lo
 
 			repository, err := store.GetRepositoryByName(ctx.Request().Context(), user.ID, imageName)
 			if err == nil {
-				color.Green("--------------- propagateRepository repo found: ---------- OK ----------------------")
 				ctx.Set(string(types.UserRepositoryContextKey), repository)
 			}
-			color.Green("--------------- propagateRepository ---------- OK ----------------------")
 
 			return handler(ctx)
 		}

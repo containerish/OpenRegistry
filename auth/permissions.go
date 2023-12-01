@@ -78,7 +78,8 @@ func (a *auth) populateUserFromPermissionsCheck(ctx echo.Context) error {
 func (a *auth) RepositoryPermissionsMiddleware() echo.MiddlewareFunc {
 	return func(handler echo.HandlerFunc) echo.HandlerFunc {
 		return func(ctx echo.Context) error {
-			if err := a.populateUserFromPermissionsCheck(ctx); err != nil {
+			err := a.handleTokenRequest(ctx, handler)
+			if err != nil {
 				registryErr := common.RegistryErrorResponse(
 					registry.RegistryErrorCodeDenied,
 					"invalid user credentials",
@@ -90,22 +91,21 @@ func (a *auth) RepositoryPermissionsMiddleware() echo.MiddlewareFunc {
 				a.logger.DebugWithContext(ctx).Err(registryErr).Send()
 				return echoErr
 			}
-			// handle skipping scenarios
-			if ctx.QueryParam("offline_token") == "true" {
-				return handler(ctx)
-			}
 
 			namespace, err := a.getImageNamespace(ctx)
 			if err != nil {
-				errMsg := common.RegistryErrorResponse("UNKNOWN", "invalid image namespace", echo.Map{
-					"error": err.Error(),
-				})
+				errMsg := common.RegistryErrorResponse(
+					registry.RegistryErrorCodeUnknown,
+					"invalid image namespace",
+					echo.Map{
+						"error": err.Error(),
+					},
+				)
 				echoErr := ctx.JSONBlob(http.StatusBadRequest, errMsg.Bytes())
 				a.logger.DebugWithContext(ctx).Err(err).Send()
 				return echoErr
 			}
 
-			usernameFromReq := strings.Split(namespace, "/")[0]
 			repository, err := a.registryStore.GetRepositoryByNamespace(ctx.Request().Context(), namespace)
 			if err == nil {
 				if repository.Visibility == types.RepositoryVisibilityPublic {
@@ -127,52 +127,64 @@ func (a *auth) RepositoryPermissionsMiddleware() echo.MiddlewareFunc {
 				return echoErr
 			}
 
-			permissions := a.
-				permissionsStore.
-				GetUserPermissionsForNamespace(
-					ctx.Request().Context(),
-					namespace,
-					user.ID,
+			if err = a.validateUserPermissions(ctx, namespace, user, handler); err != nil {
+				errMsg := common.RegistryErrorResponse(
+					registry.RegistryErrorCodeUnauthorized,
+					"access to this resource is restricted, please login or check with the repository owner",
+					echo.Map{
+						"error": err.Error(),
+					},
 				)
-
-			ctx.Set(string(types.UserPermissionsContextKey), permissions)
-			readOp := ctx.Request().Method == http.MethodGet || ctx.Request().Method == http.MethodHead
-			permissonAllowed := permissions.IsAdmin || (readOp && permissions.Pull) || (!readOp && permissions.Push)
-			isTokenRequest := ctx.Request().URL.Path == "/token"
-
-			if permissonAllowed || user.Username == usernameFromReq || usernameFromReq == types.RepositoryNameIPFS {
-				// if someone else is making the request on behalf of the org, then we set org as the underyling user
-				if !isTokenRequest && user.Username != usernameFromReq {
-					orgOwner, err := a.userStore.GetUserByID(ctx.Request().Context(), permissions.OrganizationID)
-					if err != nil {
-						registryErr := common.RegistryErrorResponse(
-							registry.RegistryErrorCodeUnauthorized,
-							fmt.Sprintf("no organization exists with name: %s", usernameFromReq),
-							echo.Map{
-								"error":       err.Error(),
-								"permissions": permissions,
-								"user_id":     user.ID.String(),
-							},
-						)
-						echoErr := ctx.JSONBlob(http.StatusForbidden, registryErr.Bytes())
-						a.logger.DebugWithContext(ctx).Err(registryErr).Send()
-						return echoErr
-					}
-					ctx.Set(string(types.UserContextKey), orgOwner)
-				}
-				return handler(ctx)
+				echoErr := ctx.JSONBlob(http.StatusForbidden, errMsg.Bytes())
+				a.logger.DebugWithContext(ctx).Err(errMsg).Send()
+				return echoErr
 			}
 
-			errMsg := common.RegistryErrorResponse(
-				registry.RegistryErrorCodeUnauthorized,
-				"access to this resource is restricted, please login or check with the repository owner",
-				echo.Map{
-					"error": "authentication details are missing",
-				},
-			)
-			echoErr := ctx.JSONBlob(http.StatusForbidden, errMsg.Bytes())
-			a.logger.DebugWithContext(ctx).Err(errMsg).Send()
-			return echoErr
+			return handler(ctx)
 		}
 	}
+}
+
+func (a *auth) handleTokenRequest(ctx echo.Context, handler echo.HandlerFunc) error {
+	if err := a.populateUserFromPermissionsCheck(ctx); err != nil {
+		return err
+	}
+
+	if ctx.QueryParam("offline_token") == "true" {
+		return handler(ctx)
+	}
+
+	return nil
+}
+
+func (a *auth) validateUserPermissions(ctx echo.Context, ns string, user *types.User, handler echo.HandlerFunc) error {
+	permissions := a.
+		permissionsStore.
+		GetUserPermissionsForNamespace(
+			ctx.Request().Context(),
+			ns,
+			user.ID,
+		)
+
+	usernameFromReq := strings.Split(ns, "/")[0]
+	ctx.Set(string(types.UserPermissionsContextKey), permissions)
+	readOp := ctx.Request().Method == http.MethodGet || ctx.Request().Method == http.MethodHead
+	permissonAllowed := permissions.IsAdmin || (readOp && permissions.Pull) || (!readOp && permissions.Push)
+	isTokenRequest := ctx.Request().URL.Path == "/token"
+
+	if permissonAllowed || user.Username == usernameFromReq || usernameFromReq == types.RepositoryNameIPFS {
+		// if someone else is making the request on behalf of the org, then we set org as the underyling user
+		if !isTokenRequest && user.Username != usernameFromReq {
+			orgOwner, err := a.userStore.GetUserByID(ctx.Request().Context(), permissions.OrganizationID)
+			if err != nil {
+				return err
+			}
+			ctx.Set(string(types.UserContextKey), orgOwner)
+		}
+
+		// when error is nil, we should call handler func (the next middleware func)
+		return nil
+	}
+
+	return fmt.Errorf("authentication details are missing")
 }

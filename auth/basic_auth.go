@@ -11,7 +11,6 @@ import (
 	"github.com/containerish/OpenRegistry/common"
 	"github.com/containerish/OpenRegistry/registry/v2"
 	"github.com/containerish/OpenRegistry/store/v1/types"
-	"github.com/fatih/color"
 	"github.com/labstack/echo/v4"
 )
 
@@ -61,7 +60,7 @@ func (a *auth) BasicAuth() echo.MiddlewareFunc {
 								registry.RegistryErrorCodeUnauthorized,
 								"user is not authorized to perform this action",
 								echo.Map{
-									"reason": "you are not allowed to push to this account, please check if you are logged in with the right user.",
+									"reason": "Unauthorized. Please check if you are logged in with the right user.",
 									"error":  err.Error(),
 								},
 							)
@@ -101,7 +100,6 @@ func (a *auth) SkipBasicAuth(ctx echo.Context) bool {
 	// if found, populate requested repository in request context, so that any of the chained middlwares can
 	// read the value from ctx instead of database
 	repo := a.tryPopulateRepository(ctx)
-	color.Red("repo: path=%s - %#v", ctx.Request().URL.Path, repo)
 	if repo == nil {
 		return false
 	}

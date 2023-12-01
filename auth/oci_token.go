@@ -11,7 +11,6 @@ import (
 	"github.com/containerish/OpenRegistry/common"
 	"github.com/containerish/OpenRegistry/registry/v2"
 	"github.com/containerish/OpenRegistry/store/v1/types"
-	"github.com/fatih/color"
 	"github.com/labstack/echo/v4"
 )
 
@@ -73,6 +72,34 @@ func ParseOCITokenPermissionRequest(url *url.URL) (types.OCITokenPermissonClaimL
 	return claimList, nil
 }
 
+func (a *auth) loginWithGitHubPAT(
+	ctx echo.Context,
+	scopes types.OCITokenPermissonClaimList,
+	password string,
+) (string, error) {
+	user, err := a.getUserWithGithubOauthToken(ctx.Request().Context(), password)
+	if err != nil {
+		echoErr := ctx.JSON(http.StatusUnauthorized, echo.Map{
+			"error":   err.Error(),
+			"message": "invalid github token",
+		})
+		a.logger.Log(ctx, err).Send()
+		return "", echoErr
+	}
+
+	token, err := a.newOCIToken(user.ID, scopes)
+	if err != nil {
+		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
+			"error":   err.Error(),
+			"message": "failed to get new service token",
+		})
+		a.logger.DebugWithContext(ctx).Err(err).Send()
+		return "", echoErr
+	}
+
+	return token, nil
+}
+
 func (a *auth) tryBasicAuthFlow(ctx echo.Context, scopes types.OCITokenPermissonClaimList) (string, error) {
 	username, password, err := a.getCredsFromHeader(ctx.Request())
 	if err != nil {
@@ -83,40 +110,17 @@ func (a *auth) tryBasicAuthFlow(ctx echo.Context, scopes types.OCITokenPermisson
 	if !ok {
 		permissions = &types.Permissions{}
 	}
-	color.Red("permissions in tryBasicAuthFlow: %#v", permissions)
 
 	readOp := ctx.Request().Method == http.MethodGet || ctx.Request().Method == http.MethodHead
 	permissonAllowed := permissions.IsAdmin || (readOp && permissions.Pull) || (!readOp && permissions.Push)
-	color.Red("permission allowed: %v", permissonAllowed)
 	matched := scopes.MatchUsername(username) || scopes.MatchAccount(username)
-	color.Red("user is owner: %v", matched)
 
 	if matched || permissonAllowed {
 		// try login with GitHub PAT
 		// 1. "github_pat_" prefix is for the new fine-grained, repo scoped tokens
 		// 2. "ghp_" prefix is for the old (classic) github tokens
 		if strings.HasPrefix(password, "github_pat_") || strings.HasPrefix(password, "ghp_") {
-			user, err := a.getUserWithGithubOauthToken(ctx.Request().Context(), password)
-			if err != nil {
-				echoErr := ctx.JSON(http.StatusUnauthorized, echo.Map{
-					"error":   err.Error(),
-					"message": "invalid github token",
-				})
-				a.logger.Log(ctx, err).Send()
-				return "", echoErr
-			}
-
-			token, err := a.newOCIToken(user.ID, scopes)
-			if err != nil {
-				echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
-					"error":   err.Error(),
-					"message": "failed to get new service token",
-				})
-				a.logger.DebugWithContext(ctx).Err(err).Send()
-				return "", echoErr
-			}
-
-			return token, nil
+			return a.loginWithGitHubPAT(ctx, scopes, password)
 		}
 
 		// try the regular username + password based check
@@ -175,7 +179,7 @@ func (a *auth) Token(ctx echo.Context) error {
 				},
 			)
 			echoErr := ctx.JSONBlob(http.StatusBadRequest, registryErr.Bytes())
-			a.logger.Log(ctx, registryErr).Any("scopes", scopes).Send()
+			a.logger.Log(ctx, registryErr).Send()
 			return echoErr
 		}
 		user := ctx.Get(string(types.UserContextKey)).(*types.User)
@@ -191,7 +195,7 @@ func (a *auth) Token(ctx echo.Context) error {
 					},
 				)
 				echoErr := ctx.JSONBlob(http.StatusBadRequest, registryErr.Bytes())
-				a.logger.Log(ctx, registryErr).Any("scopes", scopes).Send()
+				a.logger.Log(ctx, registryErr).Send()
 				return echoErr
 			}
 			now := time.Now()
@@ -200,7 +204,7 @@ func (a *auth) Token(ctx echo.Context) error {
 				"expires_in": now.Add(DefaultOCITokenLifetime).Unix(),
 				"issued_at":  now,
 			})
-			a.logger.Log(ctx, nil).Str("token", token).Send()
+			a.logger.Log(ctx, nil).Send()
 			return echoErr
 		}
 	}
@@ -226,7 +230,7 @@ func (a *auth) Token(ctx echo.Context) error {
 			"expires_in": now.Add(DefaultOCITokenLifetime).Unix(),
 			"issued_at":  now,
 		})
-		a.logger.Log(ctx, nil).Str("token", token).Send()
+		a.logger.Log(ctx, nil).Send()
 		return echoErr
 	}
 
@@ -263,7 +267,7 @@ func (a *auth) getScopeFromQueryParams(param string) (*types.Scope, error) {
 	parts := strings.Split(param, ":")
 	if len(parts) != 3 {
 		errMsg := fmt.Errorf("invalid scope in params")
-		a.logger.Debug().Strs("scope", parts).Err(errMsg).Send()
+		a.logger.Debug().Err(errMsg).Send()
 		return nil, errMsg
 	}
 
