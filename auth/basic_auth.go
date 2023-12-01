@@ -105,7 +105,7 @@ func (a *auth) SkipBasicAuth(ctx echo.Context) bool {
 	}
 
 	// if Authorization header contains JWT, we skip basic auth and perform a JWT validation
-	isIPFSRepo := ctx.Param("imagename") == types.RepositoryNameIPFS
+	isIPFSRepo := ctx.Param("imagename") == types.SystemUsernameIPFS
 	readOp := ctx.Request().Method == http.MethodHead || ctx.Request().Method == http.MethodGet
 	// only skip now if one of the following cases match:
 	// 1. It's a public pulls (IPFS pulls are always public)

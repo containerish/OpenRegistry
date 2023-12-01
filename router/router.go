@@ -61,7 +61,7 @@ func Register(
 	p.Use(e)
 
 	baseAPIRouter := e.Group("/api")
-	userApiRouter := baseAPIRouter.Group("/users")
+	userApiRouter := baseAPIRouter.Group("/users", authSvc.JWTRest())
 
 	v2Router := e.Group(V2, registryNamespaceValidator(logger), authSvc.BasicAuth(), authSvc.JWT())
 	nsRouter := v2Router.Group(

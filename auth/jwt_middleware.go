@@ -22,14 +22,6 @@ const (
 // JWT basically uses the default JWT middleware by echo, but has a slightly different skipper func
 func (a *auth) JWTRest() echo.MiddlewareFunc {
 	return echo_jwt.WithConfig(echo_jwt.Config{
-		Skipper: func(ctx echo.Context) bool {
-			// this is a signin request from the client
-			if ctx.Request().URL.Path == "/token" && ctx.QueryParam("offline_token") == "true" {
-				return true
-			}
-
-			return false
-		},
 		ErrorHandler: func(ctx echo.Context, err error) error {
 			ctx.Set(types.HandlerStartTime, time.Now())
 
@@ -39,15 +31,6 @@ func (a *auth) JWTRest() echo.MiddlewareFunc {
 			})
 			a.logger.Log(ctx, err).Send()
 			return echoErr
-		},
-		KeyFunc: func(t *jwt.Token) (interface{}, error) {
-			return a.c.Registry.Auth.JWTSigningPubKey, nil
-		},
-
-		SigningKey:    a.c.Registry.Auth.JWTSigningPrivateKey,
-		SigningMethod: jwt.SigningMethodRS256.Name,
-		NewClaimsFunc: func(c echo.Context) jwt.Claims {
-			return &Claims{}
 		},
 		SuccessHandler: func(ctx echo.Context) {
 			if token, tokenOk := ctx.Get("user").(*jwt.Token); tokenOk {
@@ -66,6 +49,14 @@ func (a *auth) JWTRest() echo.MiddlewareFunc {
 
 			a.logger.DebugWithContext(ctx).Bool("success", false).Send()
 		},
-		TokenLookup: fmt.Sprintf("cookie:%s,header:%s:Bearer ", AccessCookieKey, echo.HeaderAuthorization),
+		KeyFunc: func(t *jwt.Token) (interface{}, error) {
+			return a.c.Registry.Auth.JWTSigningPubKey, nil
+		},
+		NewClaimsFunc: func(c echo.Context) jwt.Claims {
+			return &Claims{}
+		},
+		TokenLookup:   fmt.Sprintf("cookie:%s,header:%s:Bearer ", AccessCookieKey, echo.HeaderAuthorization),
+		SigningKey:    a.c.Registry.Auth.JWTSigningPrivateKey,
+		SigningMethod: jwt.SigningMethodRS256.Name,
 	})
 }

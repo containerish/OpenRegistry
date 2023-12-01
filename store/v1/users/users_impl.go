@@ -122,7 +122,7 @@ func (us *userStore) GetUserByUsernameWithTxn(ctx context.Context, username stri
 
 func (us *userStore) GetIPFSUser(ctx context.Context) (*types.User, error) {
 	var user types.User
-	if err := us.db.NewSelect().Model(&user).Where("username = ?", types.RepositoryNameIPFS).Scan(ctx); err != nil {
+	if err := us.db.NewSelect().Model(&user).Where("username = ?", types.SystemUsernameIPFS).Scan(ctx); err != nil {
 		return nil, v1.WrapDatabaseError(err, v1.DatabaseOperationRead)
 	}
 

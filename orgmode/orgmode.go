@@ -69,6 +69,23 @@ func (o *orgMode) MigrateToOrg(ctx echo.Context) error {
 func (o *orgMode) AddUserToOrg(ctx echo.Context) error {
 	body := ctx.Get(string(types.OrgModeRequestBodyContextKey)).(*types.Permissions)
 
+	user, err := o.userStore.GetUserByID(ctx.Request().Context(), body.UserID)
+	if err != nil {
+		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
+			"error": err.Error(),
+		})
+		o.logger.Log(ctx, err).Send()
+		return echoErr
+	}
+
+	if user.UserType != types.UserTypeRegular.String() {
+		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
+			"error": "only regular users can be added to an organization",
+		})
+		o.logger.Log(ctx, err).Send()
+		return echoErr
+	}
+
 	if err := o.permissionsStore.AddPermissions(ctx.Request().Context(), body); err != nil {
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error": err.Error(),

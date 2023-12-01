@@ -34,7 +34,7 @@ func (a *auth) JWT() echo.MiddlewareFunc {
 			repoName := ctx.Param("imagename")
 
 			skip := (readOp && repo.Visibility == types.RepositoryVisibilityPublic) ||
-				repoName == types.RepositoryNameIPFS
+				repoName == types.SystemUsernameIPFS
 			if skip {
 				a.logger.DebugWithContext(ctx).Bool("skip_jwt_middleware", true).Send()
 			}
@@ -67,7 +67,7 @@ func (a *auth) JWT() echo.MiddlewareFunc {
 					)
 					userId := uuid.MustParse(claims.ID)
 					usernameFromReq := ctx.Param("username")
-					if usernameFromReq == types.RepositoryNameIPFS {
+					if usernameFromReq == types.SystemUsernameIPFS {
 						user, err = a.userStore.GetIPFSUser(ctx.Request().Context())
 					} else {
 						user, err = a.userStore.GetUserByID(ctx.Request().Context(), userId)

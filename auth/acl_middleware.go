@@ -54,7 +54,7 @@ func (a *auth) ACL() echo.MiddlewareFunc {
 
 			m := ctx.Request().Method
 			readOp := m == http.MethodGet || m == http.MethodHead
-			userIsOwner := usernameFromReq == user.Username || usernameFromReq == types.RepositoryNameIPFS
+			userIsOwner := usernameFromReq == user.Username || usernameFromReq == types.SystemUsernameIPFS
 			permsAllowed := permissions.IsAdmin || (readOp && permissions.Pull) || (!readOp && permissions.Push)
 
 			if permsAllowed || userIsOwner {

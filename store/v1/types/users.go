@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/fatih/color"
@@ -188,6 +189,21 @@ func (u *User) AfterCreateTable(ctx context.Context, query *bun.CreateTableQuery
 
 	_, err = query.DB().NewCreateIndex().IfNotExists().Model(u).Index("username_idx").Column("username").Exec(ctx)
 	if err != nil {
+		return err
+	}
+
+	// setup any system users
+	ipfsUser := &User{
+		CreatedAt:  time.Now(),
+		Username:   SystemUsernameIPFS,
+		UserType:   UserTypeSystem.String(),
+		ID:         uuid.New(),
+		IsActive:   true,
+		IsOrgOwner: true,
+	}
+
+	_, err = query.DB().NewInsert().Model(ipfsUser).Exec(ctx)
+	if err != nil && !strings.Contains(err.Error(), "duplicate key value violates unique constraint") {
 		return err
 	}
 

@@ -468,7 +468,7 @@ func (s *registryStore) GetManifestByReference(
 	}
 
 	if err := q.Scan(ctx); err != nil {
-		logEvent.Err(err).Str("query", q.String()).Send()
+		logEvent.Err(err).Send()
 		return nil, v2.WrapDatabaseError(err, v2.DatabaseOperationRead)
 	}
 
@@ -520,7 +520,7 @@ func (s *registryStore) SetContainerImageVisibility(
 		Model(&types.ContainerImageRepository{}).
 		Set("visibility = ?", visibility).
 		WherePK(imageId).
-		Where("name != ?", types.RepositoryNameIPFS). // IPFS repositories cannot be set to private since they are P2P
+		Where("name != ?", types.SystemUsernameIPFS). // IPFS repositories cannot be set to private since they are P2P
 		Exec(ctx)
 
 	if err != nil {

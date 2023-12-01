@@ -172,7 +172,7 @@ func (a *auth) validateUserPermissions(ctx echo.Context, ns string, user *types.
 	permissonAllowed := permissions.IsAdmin || (readOp && permissions.Pull) || (!readOp && permissions.Push)
 	isTokenRequest := ctx.Request().URL.Path == "/token"
 
-	if permissonAllowed || user.Username == usernameFromReq || usernameFromReq == types.RepositoryNameIPFS {
+	if permissonAllowed || user.Username == usernameFromReq || usernameFromReq == types.SystemUsernameIPFS {
 		// if someone else is making the request on behalf of the org, then we set org as the underyling user
 		if !isTokenRequest && user.Username != usernameFromReq {
 			orgOwner, err := a.userStore.GetUserByID(ctx.Request().Context(), permissions.OrganizationID)

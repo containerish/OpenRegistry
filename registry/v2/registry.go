@@ -22,7 +22,6 @@ import (
 	types_v2 "github.com/containerish/OpenRegistry/store/v1/types"
 	"github.com/containerish/OpenRegistry/telemetry"
 	"github.com/containerish/OpenRegistry/types"
-	"github.com/fatih/color"
 	"github.com/labstack/echo/v4"
 	oci_digest "github.com/opencontainers/go-digest"
 	img_spec_v1 "github.com/opencontainers/image-spec/specs-go/v1"
@@ -729,8 +728,6 @@ func (r *registry) PushImage(ctx echo.Context) error {
 func (r *registry) PushManifest(ctx echo.Context) error {
 	ctx.Set(types.HandlerStartTime, time.Now())
 
-	color.Red("--------------------------inside the method-------------------------------------------")
-
 	namespace := ctx.Get(string(RegistryNamespace)).(string)
 	ref := ctx.Param("reference")
 
@@ -768,7 +765,7 @@ func (r *registry) PushManifest(ctx echo.Context) error {
 		}
 
 		// IPFS P2P repositories are public
-		if user.Username == types_v2.RepositoryNameIPFS {
+		if user.Username == types_v2.SystemUsernameIPFS {
 			repository.Visibility = types_v2.RepositoryVisibilityPublic
 		}
 
