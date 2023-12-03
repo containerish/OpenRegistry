@@ -16,7 +16,7 @@ type registryStore struct {
 	logger telemetry.Logger
 }
 
-func NewStore(
+func New(
 	db *bun.DB,
 	logger telemetry.Logger,
 ) RegistryStore {

@@ -6,6 +6,7 @@ import (
 
 	"github.com/containerish/OpenRegistry/config"
 	"github.com/containerish/OpenRegistry/services/email"
+	"github.com/containerish/OpenRegistry/store/v1/permissions"
 	"github.com/containerish/OpenRegistry/store/v1/registry"
 	"github.com/containerish/OpenRegistry/store/v1/users"
 	"github.com/containerish/OpenRegistry/telemetry"
@@ -19,11 +20,7 @@ import (
 type Authentication interface {
 	SignUp(ctx echo.Context) error
 	SignIn(ctx echo.Context) error
-	BasicAuth() echo.MiddlewareFunc
 	Token(ctx echo.Context) error
-	JWT() echo.MiddlewareFunc
-	JWTRest() echo.MiddlewareFunc
-	ACL() echo.MiddlewareFunc
 	LoginWithGithub(ctx echo.Context) error
 	GithubLoginCallbackHandler(ctx echo.Context) error
 	ExpireSessions(ctx echo.Context) error
@@ -35,18 +32,23 @@ type Authentication interface {
 	ResetForgottenPassword(ctx echo.Context) error
 	ForgotPassword(ctx echo.Context) error
 	Invites(ctx echo.Context) error
+
+	// Middlewares
+	BasicAuth() echo.MiddlewareFunc
 	RepositoryPermissionsMiddleware() echo.MiddlewareFunc
+	JWT() echo.MiddlewareFunc
+	JWTRest() echo.MiddlewareFunc
 }
 
 // New is the constructor function returns an Authentication implementation
 func New(
 	c *config.OpenRegistryConfig,
-	// pgStore postgres.PersistentStore,
-	pgStore users.UserStore,
+	userStore users.UserStore,
 	sessionStore users.SessionStore,
 	emailStore users.EmailStore,
-	logger telemetry.Logger,
 	registryStore registry.RegistryStore,
+	permissionsStore permissions.PermissionsStore,
+	logger telemetry.Logger,
 ) Authentication {
 	githubOAuth := &oauth2.Config{
 		ClientID:     c.OAuth.Github.ClientID,
@@ -59,17 +61,18 @@ func New(
 	emailClient := email.New(&c.Email)
 
 	a := &auth{
-		c:               c,
-		pgStore:         pgStore,
-		sessionStore:    sessionStore,
-		emailStore:      emailStore,
-		logger:          logger,
-		github:          githubOAuth,
-		ghClient:        ghClient,
-		oauthStateStore: make(map[string]time.Time),
-		mu:              &sync.RWMutex{},
-		emailClient:     emailClient,
-		registryStore:   registryStore,
+		c:                c,
+		logger:           logger,
+		github:           githubOAuth,
+		ghClient:         ghClient,
+		oauthStateStore:  make(map[string]time.Time),
+		mu:               &sync.RWMutex{},
+		emailClient:      emailClient,
+		userStore:        userStore,
+		sessionStore:     sessionStore,
+		emailStore:       emailStore,
+		registryStore:    registryStore,
+		permissionsStore: permissionsStore,
 	}
 
 	go a.stateTokenCleanup()
@@ -79,18 +82,18 @@ func New(
 
 type (
 	auth struct {
-		// pgStore         postgres.PersistentStore
-		pgStore         users.UserStore
-		sessionStore    users.SessionStore
-		emailStore      users.EmailStore
-		logger          telemetry.Logger
-		github          *oauth2.Config
-		ghClient        *gh.Client
-		oauthStateStore map[string]time.Time
-		emailClient     email.MailService
-		mu              *sync.RWMutex
-		c               *config.OpenRegistryConfig
-		registryStore   registry.RegistryStore
+		logger           telemetry.Logger
+		github           *oauth2.Config
+		ghClient         *gh.Client
+		oauthStateStore  map[string]time.Time
+		emailClient      email.MailService
+		mu               *sync.RWMutex
+		c                *config.OpenRegistryConfig
+		userStore        users.UserStore
+		sessionStore     users.SessionStore
+		emailStore       users.EmailStore
+		registryStore    registry.RegistryStore
+		permissionsStore permissions.PermissionsStore
 	}
 )
 

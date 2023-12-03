@@ -85,7 +85,7 @@ func (a *auth) GithubLoginCallbackHandler(ctx echo.Context) error {
 		return echoErr
 	}
 
-	user, err := a.pgStore.GetGitHubUser(ctx.Request().Context(), ghUser.GetEmail(), nil)
+	user, err := a.userStore.GetGitHubUser(ctx.Request().Context(), ghUser.GetEmail(), nil)
 	if err != nil {
 		user = user.NewUserFromGitHubUser(ghUser)
 		storeErr := a.storeGitHubUserIfDoesntExist(ctx.Request().Context(), err, user)
@@ -116,7 +116,7 @@ func (a *auth) GithubLoginCallbackHandler(ctx echo.Context) error {
 	}
 
 	if user.GithubConnected {
-		_, err = a.pgStore.UpdateUser(ctx.Request().Context(), user)
+		_, err = a.userStore.UpdateUser(ctx.Request().Context(), user)
 		if err != nil {
 			uri := a.getGitHubErrorURI(ctx, http.StatusConflict, err.Error())
 			echoErr := ctx.Redirect(http.StatusSeeOther, uri)
@@ -228,7 +228,7 @@ func (a *auth) getUserWithGithubOauthToken(ctx context.Context, token string) (*
 		return nil, fmt.Errorf("GHO_UNAUTHORIZED")
 	}
 
-	user, err := a.pgStore.GetUserByEmail(ctx, oauthUser.Email)
+	user, err := a.userStore.GetUserByEmail(ctx, oauthUser.Email)
 	if err != nil {
 		return nil, fmt.Errorf("PG_GET_USER_ERR: %w", err)
 	}
@@ -291,7 +291,7 @@ func (a *auth) storeGitHubUserIfDoesntExist(ctx context.Context, pgErr error, us
 		}
 
 		// In GitHub's response, Login is the GitHub Username
-		if err = a.pgStore.AddUser(ctx, user, nil); err != nil {
+		if err = a.userStore.AddUser(ctx, user, nil); err != nil {
 			// this would mean that the user email is already registered
 			// so we return an error in this case
 

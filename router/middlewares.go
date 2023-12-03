@@ -24,11 +24,8 @@ func registryNamespaceValidator(logger telemetry.Logger) echo.MiddlewareFunc {
 				return handler(ctx)
 			}
 
-			username := ctx.Param("username")
-			imageName := ctx.Param("imagename")
-
-			namespace := username + "/" + imageName
-			if username == "" || imageName == "" || !nsRegex.MatchString(namespace) {
+			namespace := ctx.Param("username") + "/" + ctx.Param("imagename")
+			if !nsRegex.MatchString(namespace) {
 				registryErr := common.RegistryErrorResponse(
 					registry.RegistryErrorCodeNameInvalid,
 					"invalid user namespace",
@@ -37,7 +34,7 @@ func registryNamespaceValidator(logger telemetry.Logger) echo.MiddlewareFunc {
 					},
 				)
 				echoErr := ctx.JSONBlob(http.StatusBadRequest, registryErr.Bytes())
-				logger.Log(ctx, echoErr).Send()
+				logger.DebugWithContext(ctx).Err(registryErr).Send()
 				return echoErr
 			}
 
@@ -54,8 +51,7 @@ func registryReferenceOrTagValidator(logger telemetry.Logger) echo.MiddlewareFun
 	return func(handler echo.HandlerFunc) echo.HandlerFunc {
 		return func(ctx echo.Context) error {
 			ref := ctx.Param("reference")
-
-			if ref != "" && !refRegex.MatchString(ref) {
+			if ref == "" || !refRegex.MatchString(ref) {
 				registryErr := common.RegistryErrorResponse(
 					registry.RegistryErrorCodeTagInvalid,
 					"reference/tag does not match the required format",
@@ -65,7 +61,7 @@ func registryReferenceOrTagValidator(logger telemetry.Logger) echo.MiddlewareFun
 				)
 
 				echoErr := ctx.JSONBlob(http.StatusBadRequest, registryErr.Bytes())
-				logger.Log(ctx, registryErr).Send()
+				logger.DebugWithContext(ctx).Err(registryErr).Send()
 				return echoErr
 			}
 
@@ -75,10 +71,9 @@ func registryReferenceOrTagValidator(logger telemetry.Logger) echo.MiddlewareFun
 }
 
 func propagateRepository(store registry_store.RegistryStore, logger telemetry.Logger) echo.MiddlewareFunc {
-	return func(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(handler echo.HandlerFunc) echo.HandlerFunc {
 		return func(ctx echo.Context) error {
 			imageName := ctx.Param("imagename")
-
 			user, ok := ctx.Get(string(types.UserContextKey)).(*types.User)
 			if !ok {
 				registryErr := common.RegistryErrorResponse(
@@ -89,7 +84,7 @@ func propagateRepository(store registry_store.RegistryStore, logger telemetry.Lo
 					},
 				)
 				echoErr := ctx.JSONBlob(http.StatusBadRequest, registryErr.Bytes())
-				logger.Log(ctx, registryErr).Send()
+				logger.DebugWithContext(ctx).Err(registryErr).Send()
 				return echoErr
 			}
 
@@ -98,7 +93,7 @@ func propagateRepository(store registry_store.RegistryStore, logger telemetry.Lo
 				ctx.Set(string(types.UserRepositoryContextKey), repository)
 			}
 
-			return next(ctx)
+			return handler(ctx)
 		}
 	}
 }

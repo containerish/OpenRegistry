@@ -13,9 +13,9 @@ import (
 	"github.com/fatih/color"
 )
 
-// NewDFSBackend returns the first enabled DFS for OpenRegistry.
+// New returns the first enabled DFS for OpenRegistry.
 // It tries for all the possible backends and returns the first one that's enabled.
-func NewDFSBackend(env config.Environment, registryEndpoint string, cfg *config.DFS) dfs.DFS {
+func New(env config.Environment, registryEndpoint string, cfg *config.DFS) dfs.DFS {
 	if cfg.Filebase.Enabled {
 		color.Green("Storage backend: Filebase")
 		return filebase.New(env, &cfg.Filebase)

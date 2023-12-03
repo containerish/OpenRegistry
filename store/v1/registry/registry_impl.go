@@ -81,6 +81,7 @@ func (s *registryStore) GetRepositoryByNamespace(
 	if len(nsParts) != 2 {
 		return nil, fmt.Errorf("GetRepositoryByNamespace: invalid namespace format")
 	}
+
 	username, repoName := nsParts[0], nsParts[1]
 	repository := &types.ContainerImageRepository{}
 	err := s.
@@ -520,7 +521,7 @@ func (s *registryStore) SetContainerImageVisibility(
 		Model(&types.ContainerImageRepository{}).
 		Set("visibility = ?", visibility).
 		WherePK(imageId).
-		Where("name != ?", types.RepositoryNameIPFS). // IPFS repositories cannot be set to private since they are P2P
+		Where("name != ?", types.SystemUsernameIPFS). // IPFS repositories cannot be set to private since they are P2P
 		Exec(ctx)
 
 	if err != nil {

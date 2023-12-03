@@ -4,11 +4,11 @@
 
 | Type | Status |
 |------|--------|
-| OCI - Push | [![OCI Push](https://github.com/containerish/openregistry/actions/workflows/oci-dist-spec-push.yml/badge.svg)](https://github.com/containerish/openregistry/actions/workflows/oci-dist-spec-push.yml)|
-| OCI - Pull | [![OCI Pull](https://github.com/containerish/openregistry/actions/workflows/oci-dist-spec-pull.yml/badge.svg)](https://github.com/containerish/openregistry/actions/workflows/oci-dist-spec-pull.yml)|
-| OCI - Content Management | [![OCI Content Management](https://github.com/containerish/openregistry/actions/workflows/oci-dist-spec-content-management.yml/badge.svg)](https://github.com/containerish/openregistry/actions/workflows/oci-dist-spec-content-management.yml)|
-| OCI - Content Discovery | [![OCI Content Discovery](https://github.com/containerish/openregistry/actions/workflows/oci-dist-spec-content-discovery.yml/badge.svg)](https://github.com/containerish/openregistry/actions/workflows/oci-dist-spec-content-discovery.yml)|
-| Linter | [![OCI Push](https://github.com/containerish/openregistry/actions/workflows/golangci-lint.yml/badge.svg)](https://github.com/containerish/openregistry/actions/workflows/golangci-lint.yml)|
+| OCI - Push | [![OCI Push](https://github.com/containerish/openregistry/actions/workflows/oci-dist-spec-push.yml/badge.svg?branch=main)](https://github.com/containerish/openregistry/actions/workflows/oci-dist-spec-push.yml)|
+| OCI - Pull | [![OCI Pull](https://github.com/containerish/openregistry/actions/workflows/oci-dist-spec-pull.yml/badge.svg?branch=main)](https://github.com/containerish/openregistry/actions/workflows/oci-dist-spec-pull.yml)|
+| OCI - Content Management | [![OCI Content Management](https://github.com/containerish/openregistry/actions/workflows/oci-dist-spec-content-management.yml/badge.svg?branch=main)](https://github.com/containerish/openregistry/actions/workflows/oci-dist-spec-content-management.yml)|
+| OCI - Content Discovery | [![OCI Content Discovery](https://github.com/containerish/openregistry/actions/workflows/oci-dist-spec-content-discovery.yml/badge.svg?branch=main)](https://github.com/containerish/openregistry/actions/workflows/oci-dist-spec-content-discovery.yml)|
+| Linter | [![OCI Push](https://github.com/containerish/openregistry/actions/workflows/golangci-lint.yml/badge.svg?branch=main)](https://github.com/containerish/openregistry/actions/workflows/golangci-lint.yml)|
 | CodeQL | [![CodeQL](https://github.com/containerish/OpenRegistry/actions/workflows/codeql-analysis.yml/badge.svg?branch=main)](https://github.com/containerish/OpenRegistry/actions/workflows/codeql-analysis.yml)|
 | Freshping | <a href="http://freshworks.com/website-monitoring?utm_source=status_badge&utm_medium=status_badge" target="_blank"><img src="https://statuspage.freshping.io/badge/91e4eb06-289b-4b4c-8beb-a0e5804959f4?0.56759354585684"/> </a>|
 | Certifications | <a href="https://conformance.opencontainers.org/#openregistry" alt="OpenRegistry on OpenContainers" target="_blank"><img src="https://raw.githubusercontent.com/opencontainers/artwork/main/certified/oci_certified_color.svg" width=80 /><a/> |

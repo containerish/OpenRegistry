@@ -3,8 +3,9 @@ package users
 import (
 	"context"
 	"database/sql"
+	"strings"
 
-	v2 "github.com/containerish/OpenRegistry/store/v1"
+	v1 "github.com/containerish/OpenRegistry/store/v1"
 	"github.com/containerish/OpenRegistry/store/v1/types"
 	"github.com/google/uuid"
 	"github.com/uptrace/bun"
@@ -31,7 +32,7 @@ func (us *userStore) AddUser(ctx context.Context, user *types.User, txn *bun.Tx)
 	if user.ID.String() == "" {
 		id, err := uuid.NewRandom()
 		if err != nil {
-			return v2.WrapDatabaseError(err, v2.DatabaseOperationWrite)
+			return v1.WrapDatabaseError(err, v1.DatabaseOperationWrite)
 		}
 
 		user.ID = id
@@ -43,7 +44,7 @@ func (us *userStore) AddUser(ctx context.Context, user *types.User, txn *bun.Tx)
 	}
 
 	if _, err := execFn.Exec(ctx); err != nil {
-		return v2.WrapDatabaseError(err, v2.DatabaseOperationWrite)
+		return v1.WrapDatabaseError(err, v1.DatabaseOperationWrite)
 	}
 
 	return nil
@@ -52,7 +53,7 @@ func (us *userStore) AddUser(ctx context.Context, user *types.User, txn *bun.Tx)
 // DeleteUser implements UserStore.
 func (us *userStore) DeleteUser(ctx context.Context, identifier uuid.UUID) error {
 	if _, err := us.db.NewDelete().Model(&types.User{ID: identifier}).WherePK().Exec(ctx); err != nil {
-		return v2.WrapDatabaseError(err, v2.DatabaseOperationDelete)
+		return v1.WrapDatabaseError(err, v1.DatabaseOperationDelete)
 	}
 
 	return nil
@@ -67,7 +68,7 @@ func (us *userStore) GetGitHubUser(ctx context.Context, githubEmail string, txn 
 	}
 
 	if err := selectFn.Where("coalesce(identities->'github'->>'email', '') = ?", githubEmail).Scan(ctx); err != nil {
-		return nil, v2.WrapDatabaseError(err, v2.DatabaseOperationRead)
+		return nil, v1.WrapDatabaseError(err, v1.DatabaseOperationRead)
 	}
 
 	return user, nil
@@ -77,7 +78,7 @@ func (us *userStore) GetGitHubUser(ctx context.Context, githubEmail string, txn 
 func (us *userStore) GetUserByID(ctx context.Context, id uuid.UUID) (*types.User, error) {
 	user := &types.User{ID: id}
 	if err := us.db.NewSelect().Model(user).WherePK().Scan(ctx); err != nil {
-		return nil, v2.WrapDatabaseError(err, v2.DatabaseOperationRead)
+		return nil, v1.WrapDatabaseError(err, v1.DatabaseOperationRead)
 	}
 
 	return user, nil
@@ -86,7 +87,7 @@ func (us *userStore) GetUserByID(ctx context.Context, id uuid.UUID) (*types.User
 func (us *userStore) GetUserByUsername(ctx context.Context, username string) (*types.User, error) {
 	user := &types.User{}
 	if err := us.db.NewSelect().Model(user).Where("username = ?", username).Scan(ctx); err != nil {
-		return nil, v2.WrapDatabaseError(err, v2.DatabaseOperationRead)
+		return nil, v1.WrapDatabaseError(err, v1.DatabaseOperationRead)
 	}
 
 	return user, nil
@@ -95,7 +96,7 @@ func (us *userStore) GetUserByUsername(ctx context.Context, username string) (*t
 func (us *userStore) GetUserByEmail(ctx context.Context, email string) (*types.User, error) {
 	user := &types.User{}
 	if err := us.db.NewSelect().Model(user).Where("email = ?", email).Scan(ctx); err != nil {
-		return nil, v2.WrapDatabaseError(err, v2.DatabaseOperationRead)
+		return nil, v1.WrapDatabaseError(err, v1.DatabaseOperationRead)
 	}
 
 	return user, nil
@@ -104,7 +105,7 @@ func (us *userStore) GetUserByEmail(ctx context.Context, email string) (*types.U
 func (us *userStore) GetUserByIDWithTxn(ctx context.Context, id uuid.UUID, txn *bun.Tx) (*types.User, error) {
 	user := &types.User{ID: id}
 	if err := txn.NewSelect().NewSelect().Model(user).WherePK().Scan(ctx); err != nil {
-		return nil, v2.WrapDatabaseError(err, v2.DatabaseOperationRead)
+		return nil, v1.WrapDatabaseError(err, v1.DatabaseOperationRead)
 	}
 
 	return user, nil
@@ -113,7 +114,7 @@ func (us *userStore) GetUserByIDWithTxn(ctx context.Context, id uuid.UUID, txn *
 func (us *userStore) GetUserByUsernameWithTxn(ctx context.Context, username string, txn *bun.Tx) (*types.User, error) {
 	user := &types.User{}
 	if err := txn.NewSelect().NewSelect().Model(user).Where("username = ?", username).Scan(ctx); err != nil {
-		return nil, v2.WrapDatabaseError(err, v2.DatabaseOperationRead)
+		return nil, v1.WrapDatabaseError(err, v1.DatabaseOperationRead)
 	}
 
 	return user, nil
@@ -121,8 +122,8 @@ func (us *userStore) GetUserByUsernameWithTxn(ctx context.Context, username stri
 
 func (us *userStore) GetIPFSUser(ctx context.Context) (*types.User, error) {
 	var user types.User
-	if err := us.db.NewSelect().Model(&user).Where("username = ?", types.RepositoryNameIPFS).Scan(ctx); err != nil {
-		return nil, v2.WrapDatabaseError(err, v2.DatabaseOperationRead)
+	if err := us.db.NewSelect().Model(&user).Where("username = ?", types.SystemUsernameIPFS).Scan(ctx); err != nil {
+		return nil, v1.WrapDatabaseError(err, v1.DatabaseOperationRead)
 	}
 
 	return &user, nil
@@ -144,7 +145,7 @@ func (us *userStore) GetUserWithSession(ctx context.Context, sessionId string) (
 		WherePK().
 		Scan(ctx)
 	if err != nil {
-		return nil, v2.WrapDatabaseError(err, v2.DatabaseOperationRead)
+		return nil, v1.WrapDatabaseError(err, v1.DatabaseOperationRead)
 	}
 
 	return session.User, nil
@@ -160,7 +161,7 @@ func (us *userStore) IsActive(ctx context.Context, id uuid.UUID) bool {
 // UpdateUser implements UserStore.
 func (us *userStore) UpdateUser(ctx context.Context, user *types.User) (*types.User, error) {
 	if _, err := us.db.NewUpdate().Model(user).WherePK().Exec(ctx); err != nil {
-		return nil, v2.WrapDatabaseError(err, v2.DatabaseOperationUpdate)
+		return nil, v1.WrapDatabaseError(err, v1.DatabaseOperationUpdate)
 	}
 
 	return user, nil
@@ -170,7 +171,7 @@ func (us *userStore) UpdateUser(ctx context.Context, user *types.User) (*types.U
 func (us *userStore) UpdateUserPWD(ctx context.Context, id uuid.UUID, newPassword string) error {
 	_, err := us.db.NewUpdate().Model(&types.User{ID: id}).Set("password = ?", newPassword).WherePK().Exec(ctx)
 	if err != nil {
-		return v2.WrapDatabaseError(err, v2.DatabaseOperationUpdate)
+		return v1.WrapDatabaseError(err, v1.DatabaseOperationUpdate)
 	}
 
 	return nil
@@ -217,4 +218,71 @@ func (us *userStore) webAuthnUserExists(ctx context.Context, username, email str
 	}
 
 	return exists
+}
+
+func (us *userStore) ConvertUserToOrg(ctx context.Context, userID uuid.UUID) error {
+	user := types.User{ID: userID}
+
+	_, err := us.
+		db.
+		NewUpdate().
+		Model(&user).
+		WherePK().
+		Set("user_type = ?", types.UserTypeOrganization.String()).
+		Set("is_org_owner = ?", true).
+		Exec(ctx)
+	if err != nil {
+		return v1.WrapDatabaseError(err, v1.DatabaseOperationUpdate)
+	}
+
+	return nil
+}
+
+func (us *userStore) GetOrgAdmin(ctx context.Context, orgID uuid.UUID) (*types.User, error) {
+	user := &types.User{ID: orgID}
+
+	if err := us.
+		db.
+		NewSelect().
+		Model(user).
+		WherePK().
+		Where("user_type = ?", types.UserTypeOrganization.String()).
+		Scan(ctx); err != nil {
+		return nil, v1.WrapDatabaseError(err, v1.DatabaseOperationRead)
+	}
+
+	return user, nil
+}
+
+func (us *userStore) Search(ctx context.Context, query string) ([]*types.User, error) {
+	var users []*types.User
+
+	b := strings.Builder{}
+	b.WriteString("%")
+	b.WriteString(query)
+	b.WriteString("%")
+
+	q := us.
+		db.
+		NewSelect().
+		Model(&users).
+		WhereGroup(" AND ", func(sq *bun.SelectQuery) *bun.SelectQuery {
+			return sq.Where("user_type = ?", types.UserTypeRegular.String()) // only search for users (skip orgs and system users
+		}).
+		WhereGroup(" AND ", func(sq *bun.SelectQuery) *bun.SelectQuery {
+			return sq.WhereOr("username ilike ?", b.String()).
+				WhereOr("email ilike ?", b.String())
+		}).
+		ExcludeColumn("password").
+		ExcludeColumn("updated_at").
+		ExcludeColumn("created_at").
+		ExcludeColumn("is_active").
+		Limit(types.DefaultSearchLimit)
+
+	err := q.Scan(ctx)
+	if err != nil {
+		return nil, v1.WrapDatabaseError(err, v1.DatabaseOperationRead)
+	}
+
+	return users, nil
 }

@@ -7,8 +7,7 @@ import (
 	"net/http"
 	"time"
 
-	v2_types "github.com/containerish/OpenRegistry/store/v1/types"
-	"github.com/containerish/OpenRegistry/types"
+	"github.com/containerish/OpenRegistry/store/v1/types"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v4"
 	"github.com/labstack/echo/v4"
@@ -16,7 +15,7 @@ import (
 
 func (a *auth) SignIn(ctx echo.Context) error {
 	ctx.Set(types.HandlerStartTime, time.Now())
-	var user v2_types.User
+	var user types.User
 
 	if err := json.NewDecoder(ctx.Request().Body).Decode(&user); err != nil {
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
@@ -27,6 +26,15 @@ func (a *auth) SignIn(ctx echo.Context) error {
 		return echoErr
 	}
 	defer ctx.Request().Body.Close()
+
+	if user.Username == types.SystemUsernameIPFS {
+		err := fmt.Errorf("login is not allowed for this user")
+		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
+			"error": err.Error(),
+		})
+		a.logger.Log(ctx, err).Send()
+		return echoErr
+	}
 
 	err := user.Validate(true)
 	if err != nil {
@@ -39,11 +47,11 @@ func (a *auth) SignIn(ctx echo.Context) error {
 		return echoErr
 	}
 
-	var userFromDb *v2_types.User
+	var userFromDb *types.User
 	if user.Email != "" {
-		userFromDb, err = a.pgStore.GetUserByEmail(ctx.Request().Context(), user.Email)
+		userFromDb, err = a.userStore.GetUserByEmail(ctx.Request().Context(), user.Email)
 	} else {
-		userFromDb, err = a.pgStore.GetUserByUsername(ctx.Request().Context(), user.Username)
+		userFromDb, err = a.userStore.GetUserByUsername(ctx.Request().Context(), user.Username)
 	}
 
 	if err != nil {
@@ -76,7 +84,7 @@ func (a *auth) SignIn(ctx echo.Context) error {
 
 	if userFromDb.Password == "" {
 		if userFromDb.Identities.GetGitHubIdentity() != nil {
-			errMsg := fmt.Errorf("login method is not available for this user. Please try the GitHub method")
+			errMsg := fmt.Errorf("login method is not available for this user. Please try GitHub method")
 			echoErr := ctx.JSON(http.StatusPreconditionFailed, echo.Map{
 				"message": errMsg.Error(),
 				"error":   "LOGIN_METHOD_CONFLICT",

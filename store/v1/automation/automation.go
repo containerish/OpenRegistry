@@ -26,15 +26,9 @@ type BuildAutomationStore interface {
 	GetBuildJob(context.Context, *gha_v1.GetBuildJobRequest) (*gha_v1.GetBuildJobResponse, error)
 	BulkDeleteBuildJobs(context.Context, *gha_v1.BulkDeleteBuildJobsRequest) error
 	DeleteJob(context.Context, *gha_v1.DeleteJobRequest) error
-	Close()
 }
 
-func New(db *bun.DB, logger telemetry.Logger) (BuildAutomationStore, error) {
-
+func New(db *bun.DB, logger telemetry.Logger) BuildAutomationStore {
 	color.Green("Service - BuildAutomationStore - connection to database successful")
-	return &store{db: db, logger: logger}, nil
-}
-
-func (s *store) Close() {
-	_ = s.db.Close()
+	return &store{db: db, logger: logger}
 }

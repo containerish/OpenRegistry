@@ -5,7 +5,7 @@ import (
 	"github.com/uptrace/bun"
 )
 
-func NewStore(db *bun.DB) users.SessionStore {
+func New(db *bun.DB) users.SessionStore {
 	return &sessionStore{
 		db,
 	}

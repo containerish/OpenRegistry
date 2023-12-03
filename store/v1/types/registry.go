@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	RepositoryNameIPFS   = "ipfs"
+	SystemUsernameIPFS   = "ipfs"
 	HttpEndpointErrorKey = "HTTP_ERROR"
 	HandlerStartTime     = "HANDLER_START_TIME"
 )
@@ -59,11 +59,6 @@ type (
 		OwnerID       uuid.UUID                 `bun:"owner_id,type:uuid" json:"ownerId"`
 	}
 
-	// ImageManifestSubject struct {
-	// 	NewUnspecifiedField string `json:"newUnspecifiedField,omitempty"`
-	// 	OCIDescriptor
-	// }
-
 	Platform struct {
 		Architecture string   `json:"architecture,omitempty"`
 		Variant      string   `json:"variant,omitempty"`
@@ -102,7 +97,7 @@ type (
 		Project        *RepositoryBuild     `bun:"rel:has-one,join:id=repository_id" json:"-"`
 		Description    string               `bun:"description" json:"description"`
 		Visibility     RepositoryVisibility `bun:"visibility,notnull" json:"visibility"`
-		Name           string               `bun:"name,notnull,unique" json:"name"`
+		Name           string               `bun:"name,notnull" json:"name"`
 		ImageManifests []*ImageManifest     `bun:"rel:has-many,join:id=repository_id" json:"image_manifests,omitempty"`
 		Builds         []*RepositoryBuild   `bun:"rel:has-many,join:id=repository_id" json:"-"`
 		ID             uuid.UUID            `bun:"id,pk,type:uuid,default:gen_random_uuid()" json:"id"`
@@ -227,23 +222,6 @@ func (cir *ContainerImageRepository) BeforeAppendModel(ctx context.Context, quer
 var _ bun.AfterCreateTableHook = (*ImageManifest)(nil)
 var _ bun.AfterCreateTableHook = (*ContainerImageLayer)(nil)
 var _ bun.AfterCreateTableHook = (*ContainerImageRepository)(nil)
-var _ bun.AfterCreateTableHook = (*User)(nil)
-
-func (u *User) AfterCreateTable(ctx context.Context, query *bun.CreateTableQuery) error {
-	_, err := query.DB().NewCreateIndex().IfNotExists().Model(u).Index("email_idx").Column("email").Exec(ctx)
-	if err != nil {
-		return err
-	}
-	color.Yellow(`Create index in table "users" on column "email" succeeded ✔︎`)
-
-	_, err = query.DB().NewCreateIndex().IfNotExists().Model(u).Index("username_idx").Column("username").Exec(ctx)
-	if err != nil {
-		return err
-	}
-
-	color.Yellow(`Create index in table "users" on column "username" succeeded ✔︎`)
-	return nil
-}
 
 func (cir *ContainerImageRepository) AfterCreateTable(ctx context.Context, query *bun.CreateTableQuery) error {
 	_, err := query.DB().NewCreateIndex().IfNotExists().Model(cir).Index("name_idx").Column("name").Exec(ctx)
@@ -282,22 +260,6 @@ func (imf *ImageManifest) AfterCreateTable(ctx context.Context, query *bun.Creat
 var _ bun.AfterDropTableHook = (*ImageManifest)(nil)
 var _ bun.AfterDropTableHook = (*ContainerImageLayer)(nil)
 var _ bun.AfterDropTableHook = (*ContainerImageRepository)(nil)
-var _ bun.AfterDropTableHook = (*User)(nil)
-
-func (u *User) AfterDropTable(ctx context.Context, query *bun.DropTableQuery) error {
-	_, err := query.DB().NewDropIndex().IfExists().Model(u).Index("email_idx").Exec(ctx)
-	if err != nil {
-		return err
-	}
-	color.Yellow(`Drop index in table "users" on column "email" succeeded ✔︎`)
-
-	_, err = query.DB().NewDropIndex().IfExists().Model(u).Index("username_idx").Exec(ctx)
-	if err != nil {
-		return err
-	}
-	color.Yellow(`Drop index in table "users" on column "username" succeeded ✔︎`)
-	return nil
-}
 
 func (imf *ImageManifest) AfterDropTable(ctx context.Context, query *bun.DropTableQuery) error {
 	_, err := query.DB().NewDropIndex().IfExists().Model(imf).Index("digest_idx").Exec(ctx)

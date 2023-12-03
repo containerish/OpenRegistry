@@ -32,7 +32,7 @@ func NewRegistry(
 	dfs dfsImpl.DFS,
 	logger telemetry.Logger,
 	config *config.OpenRegistryConfig,
-) (Registry, error) {
+) Registry {
 	mu := &sync.RWMutex{}
 	r := &registry{
 		debug:  true,
@@ -55,7 +55,7 @@ func NewRegistry(
 
 	r.b.registry = r
 
-	return r, nil
+	return r
 }
 
 // LayerExists
@@ -94,7 +94,7 @@ func (r *registry) ManifestExists(ctx echo.Context) error {
 	ctx.Response().Header().Set("Docker-Content-Digest", manifest.Digest)
 	ctx.Response().Header().Set("Content-Type", img_spec_v1.MediaTypeImageManifest)
 	echoErr := ctx.NoContent(http.StatusOK)
-	r.logger.Log(ctx, nil).Send()
+	r.logger.Log(ctx, nil).Any("manifest", manifest).Send()
 	// nil is okay here since all the required information has been set above
 	return echoErr
 }
@@ -214,7 +214,10 @@ func (r *registry) PullManifest(ctx echo.Context) error {
 
 	if strings.HasPrefix(ref, "sha256:") {
 		if _, err := oci_digest.Parse(ref); err != nil {
-			errMsg := common.RegistryErrorResponse(RegistryErrorCodeDigestInvalid, err.Error(), nil)
+			errMsg := common.RegistryErrorResponse(RegistryErrorCodeDigestInvalid, err.Error(), echo.Map{
+				"namespace": namespace,
+				"ref":       ref,
+			})
 			echoErr := ctx.JSONBlob(http.StatusBadRequest, errMsg.Bytes())
 			r.logger.Log(ctx, fmt.Errorf("%s", errMsg)).Send()
 			return echoErr
@@ -223,7 +226,10 @@ func (r *registry) PullManifest(ctx echo.Context) error {
 
 	manifest, err := r.store.GetManifestByReference(ctx.Request().Context(), namespace, ref)
 	if err != nil {
-		errMsg := common.RegistryErrorResponse(RegistryErrorCodeManifestUnknown, err.Error(), nil)
+		errMsg := common.RegistryErrorResponse(RegistryErrorCodeManifestUnknown, err.Error(), echo.Map{
+			"namespace": namespace,
+			"ref":       ref,
+		})
 		echoErr := ctx.JSONBlob(http.StatusNotFound, errMsg.Bytes())
 		r.logger.Log(ctx, fmt.Errorf("%s", errMsg)).Send()
 		return echoErr
@@ -759,7 +765,7 @@ func (r *registry) PushManifest(ctx echo.Context) error {
 		}
 
 		// IPFS P2P repositories are public
-		if user.Username == types_v2.RepositoryNameIPFS {
+		if user.Username == types_v2.SystemUsernameIPFS {
 			repository.Visibility = types_v2.RepositoryVisibilityPublic
 		}
 

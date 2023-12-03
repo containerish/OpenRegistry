@@ -14,7 +14,7 @@ type emailStore struct {
 	db *bun.DB
 }
 
-func NewStore(db *bun.DB) users.EmailStore {
+func New(db *bun.DB) users.EmailStore {
 	return &emailStore{
 		db,
 	}

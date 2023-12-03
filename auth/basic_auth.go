@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/containerish/OpenRegistry/common"
 	"github.com/containerish/OpenRegistry/registry/v2"
 	"github.com/containerish/OpenRegistry/store/v1/types"
 	"github.com/labstack/echo/v4"
@@ -16,79 +17,40 @@ import (
 const (
 	JWT_AUTH_KEY           = "JWT_AUTH"
 	AuthorizationHeaderKey = "Authorization"
+	defaultRealm           = "Restricted"
+	authSchemeBearer       = "Bearer"
+	authSchemeBasic        = "Basic"
 )
 
 // BasicAuth returns a middleware which in turn can be used to perform http basic auth
 func (a *auth) BasicAuth() echo.MiddlewareFunc {
-	return a.BasicAuthWithConfig()
-}
-
-func (a *auth) buildBasicAuthenticationHeader(repoNamespace string) string {
-	return fmt.Sprintf(
-		"Bearer realm=%s,service=%s,scope=%s",
-		strconv.Quote(fmt.Sprintf("%s/token", a.c.Endpoint())),
-		strconv.Quote(a.c.Endpoint()),
-		strconv.Quote(fmt.Sprintf("repository:%s:pull,push", repoNamespace)),
-	)
-}
-
-func (a *auth) checkJWT(authHeader string, cookies []*http.Cookie) bool {
-	parts := strings.Split(authHeader, " ")
-	if len(parts) == 2 {
-		return strings.EqualFold(parts[0], "Bearer")
-	}
-
-	// fallback to check for auth header in cookies
-	for _, cookie := range cookies {
-		if cookie.Name == AccessCookieKey {
-			// early return if access_token is found in cookies, this will be checked by the JWT middlware and not the
-			// basic auth middleware
-			return true
-		}
-	}
-
-	return false
-}
-
-const (
-	defaultRealm    = "Restricted"
-	authScheme      = "Bearer"
-	authSchemeBasic = "Basic"
-)
-
-// BasicAuthConfig is a local copy of echo's middleware.BasicAuthWithConfig
-func (a *auth) BasicAuthWithConfig() echo.MiddlewareFunc {
 	return func(handler echo.HandlerFunc) echo.HandlerFunc {
 		return func(ctx echo.Context) error {
+
 			if a.SkipBasicAuth(ctx) {
-				a.logger.Debug().Bool("skip_basic_auth", true).Send()
+				a.logger.DebugWithContext(ctx).Bool("skip_basic_auth", true).Send()
 				// Note: there might be other middlewares attached to this handler
 				return handler(ctx)
 			}
 
 			auth := ctx.Request().Header.Get(echo.HeaderAuthorization)
-			l := len(authScheme)
-
-			if len(auth) > l+1 && strings.EqualFold(auth[:l], authScheme) {
-				b, err := base64.StdEncoding.DecodeString(auth[l+1:])
+			// auth should have something like "Basic username:password"
+			if len(auth) > len(authSchemeBasic)+1 && strings.EqualFold(auth[:len(authSchemeBasic)], authSchemeBasic) {
+				user, err := a.validateBasicAuthCredentials(auth)
 				if err != nil {
-					a.logger.Debug().Err(err).Send()
-					return err
+					registryErr := common.RegistryErrorResponse(
+						registry.RegistryErrorCodeDenied,
+						"invalid credentials",
+						echo.Map{
+							"error": err.Error(),
+						},
+					)
+
+					echoErr := ctx.JSONBlob(http.StatusBadRequest, registryErr.Bytes())
+					a.logger.DebugWithContext(ctx).Err(registryErr).Send()
+					return echoErr
 				}
-				cred := string(b)
-				for i := 0; i < len(cred); i++ {
-					if cred[i] == ':' {
-						// Verify credentials
-						valid, err := a.BasicAuthValidator(cred[:i], cred[i+1:], ctx)
-						if err != nil {
-							a.logger.Debug().Err(err).Send()
-							return err
-						} else if valid {
-							return handler(ctx)
-						}
-						break
-					}
-				}
+				ctx.Set(string(types.UserContextKey), user)
 			}
 
 			headerValue := fmt.Sprintf("Bearer realm=%s", strconv.Quote(fmt.Sprintf("%s/token", a.c.Endpoint())))
@@ -107,74 +69,102 @@ func (a *auth) BasicAuthWithConfig() echo.MiddlewareFunc {
 	}
 }
 
-func (a *auth) BasicAuthValidator(username string, password string, ctx echo.Context) (bool, error) {
-	ctx.Set(types.HandlerStartTime, time.Now())
-
-	_, err := a.validateUser(username, password)
-	usernameFromReq := ctx.Param("username")
-	if err != nil || usernameFromReq != username || usernameFromReq == types.RepositoryNameIPFS {
-		var errMsg registry.RegistryErrors
-		errMsg.Errors = append(errMsg.Errors, registry.RegistryError{
-			Code:    registry.RegistryErrorCodeUnauthorized,
-			Message: "user is not authorized to perform this action",
-			Detail: echo.Map{
-				"reason": "you are not allowed to push to this account, please check if you are logged in with the right user.",
-				"error":  err.Error(),
-			},
-		})
-		echoErr := ctx.JSON(http.StatusUnauthorized, errMsg)
-		a.logger.Log(ctx, fmt.Errorf("%s", errMsg)).Send()
-		return false, echoErr
-	}
-
-	return true, nil
-}
-
 func (a *auth) SkipBasicAuth(ctx echo.Context) bool {
 	authHeader := ctx.Request().Header.Get(echo.HeaderAuthorization)
 
+	hasJWT := a.checkJWT(authHeader, ctx.Request().Cookies())
+	if hasJWT {
+		return true
+	}
 	// if found, populate requested repository in request context, so that any of the chained middlwares can
 	// read the value from ctx instead of database
 	repo := a.tryPopulateRepository(ctx)
+	if !hasJWT || repo == nil {
+		return false
+	}
 
 	// if Authorization header contains JWT, we skip basic auth and perform a JWT validation
-	if ok := a.checkJWT(authHeader, ctx.Request().Cookies()); ok {
-		a.logger.Debug().
-			Bool("skip_basic_auth", true).
-			Str("method", ctx.Request().Method).
-			Str("path", ctx.Request().URL.RequestURI()).
-			Send()
-		return true
-	}
-	repoName := ctx.Param("imagename")
-
+	isIPFSRepo := ctx.Param("imagename") == types.SystemUsernameIPFS
 	readOp := ctx.Request().Method == http.MethodHead || ctx.Request().Method == http.MethodGet
-	// if it's a read operation on a public repository, we skip auth requirement
-	if repoName == types.RepositoryNameIPFS ||
-		(readOp && repo != nil && repo.Visibility == types.RepositoryVisibilityPublic) {
-		a.logger.Debug().
-			Bool("skip_basic_auth", true).
-			Str("method", ctx.Request().Method).
-			Str("path", ctx.Request().URL.RequestURI()).
-			Send()
-		return true
+	// only skip now if one of the following cases match:
+	// 1. It's a public pulls (IPFS pulls are always public)
+	// 2. The request contains a JWT, in which case, we let the JWT middleware handle validation + scoping
+	return readOp && (isIPFSRepo || repo.Visibility == types.RepositoryVisibilityPublic)
+}
+
+func (a *auth) tryPopulateRepository(ctx echo.Context) *types.ContainerImageRepository {
+	namespace := ctx.Param("username") + "/" + ctx.Param("imagename")
+	isOCIRequest := strings.HasPrefix(ctx.Request().URL.Path, "/v2/") && namespace != "/"
+	if isOCIRequest {
+		repo, err := a.registryStore.GetRepositoryByNamespace(ctx.Request().Context(), namespace)
+		if err == nil {
+			ctx.Set(string(types.UserRepositoryContextKey), repo)
+			return repo
+		}
+	}
+	return nil
+}
+
+func (a *auth) checkJWT(authHeader string, cookies []*http.Cookie) bool {
+	parts := strings.Split(authHeader, " ")
+	if len(parts) == 2 {
+		return strings.EqualFold(parts[0], authSchemeBearer)
+	}
+
+	// fallback to check for auth header in cookies
+	for _, cookie := range cookies {
+		if cookie.Name == AccessCookieKey || cookie.Name == QueryToken {
+			// early return if access_token or token is found in cookies,
+			// this will be checked by the JWT middlware and not the basic auth middleware
+			return true
+		}
 	}
 
 	return false
 }
 
-func (a *auth) tryPopulateRepository(ctx echo.Context) *types.ContainerImageRepository {
-	if strings.HasPrefix(ctx.Request().URL.Path, "/v2/") {
-		username := ctx.Param("username")
-		imageName := ctx.Param("imagename")
-		if username != "" && imageName != "" {
-			ns := username + "/" + imageName
-			repo, err := a.registryStore.GetRepositoryByNamespace(ctx.Request().Context(), ns)
-			if err == nil {
-				ctx.Set(string(types.UserRepositoryContextKey), repo)
-				return repo
-			}
-		}
+func (a *auth) BasicAuthValidator(username string, password string, ctx echo.Context) error {
+	ctx.Set(types.HandlerStartTime, time.Now())
+
+	user, err := a.validateUser(username, password)
+	if err != nil {
+		return err
 	}
+
+	ctx.Set(string(types.UserContextKey), user)
+
 	return nil
+}
+
+func (a *auth) buildBasicAuthenticationHeader(repoNamespace string) string {
+	return fmt.Sprintf(
+		"Bearer realm=%s,service=%s,scope=%s",
+		strconv.Quote(fmt.Sprintf("%s/token", a.c.Endpoint())),
+		strconv.Quote(a.c.Endpoint()),
+		strconv.Quote(fmt.Sprintf("repository:%s:pull,push", repoNamespace)),
+	)
+}
+
+func (a *auth) validateBasicAuthCredentials(auth string) (*types.User, error) {
+	l := len(authSchemeBasic)
+
+	if len(auth) > l+1 && strings.EqualFold(auth[:l], authSchemeBasic) {
+		decodedCredentials, err := base64.StdEncoding.DecodeString(auth[l+1:])
+		if err != nil {
+			return nil, err
+		}
+
+		basicAuthCredentials := strings.Split(string(decodedCredentials), ":")
+		username, password := basicAuthCredentials[0], basicAuthCredentials[1]
+
+		user, err := a.validateUser(username, password)
+		if err != nil {
+			return nil, err
+		}
+
+		return user, nil
+	}
+
+	return nil, fmt.Errorf("missing basic authentication credentials")
+
 }
