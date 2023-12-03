@@ -246,7 +246,17 @@ func (ms *fileBasedMockStorage) FileServer() {
 	e.Use(middleware.Recover(), middleware.RequestID())
 
 	e.Add(http.MethodGet, "/layers/:uuid", func(ctx echo.Context) error {
-		fileID := "layers/" + ctx.Param("uuid")
+		layerId, err := uuid.Parse(ctx.Param("uuid"))
+		if err != nil {
+			echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
+				"error": err.Error(),
+			})
+
+			ms.logger.Log(ctx, err).Send()
+			return echoErr
+		}
+
+		fileID := "layers/" + layerId.String()
 		fd, err := ms.fs.Open(fileID)
 		if err != nil {
 			echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
