@@ -102,6 +102,6 @@ jobs:
         with:
           name: oci-distribution-push-report-${{ steps.vars.outputs.short_commit_hash }}
           path: |
-            /home/runner/work/OpenRegistry/distribution-spec/conformance/report.html
-            /home/runner/work/OpenRegistry/distribution-spec/conformance/junit.xml
+            .out/report.html
+            .out/junit.xml
         if: success()

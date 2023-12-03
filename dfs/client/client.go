@@ -10,12 +10,13 @@ import (
 	"github.com/containerish/OpenRegistry/dfs/mock"
 	"github.com/containerish/OpenRegistry/dfs/storj"
 	"github.com/containerish/OpenRegistry/dfs/storj/uplink"
+	"github.com/containerish/OpenRegistry/telemetry"
 	"github.com/fatih/color"
 )
 
 // New returns the first enabled DFS for OpenRegistry.
 // It tries for all the possible backends and returns the first one that's enabled.
-func New(env config.Environment, registryEndpoint string, cfg *config.DFS) dfs.DFS {
+func New(env config.Environment, registryEndpoint string, cfg *config.DFS, logger telemetry.Logger) dfs.DFS {
 	if cfg.Filebase.Enabled {
 		color.Green("Storage backend: Filebase")
 		return filebase.New(env, &cfg.Filebase)
@@ -37,7 +38,7 @@ func New(env config.Environment, registryEndpoint string, cfg *config.DFS) dfs.D
 	}
 
 	if cfg.Mock.Enabled {
-		return mock.NewMockStorage(env, registryEndpoint, &cfg.Mock)
+		return mock.NewMockStorage(env, registryEndpoint, &cfg.Mock, logger)
 	}
 
 	log.Fatalln(color.RedString("no supported storage backend is enabled"))

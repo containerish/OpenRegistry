@@ -15,6 +15,7 @@ import (
 	"github.com/containerish/OpenRegistry/config"
 	"github.com/containerish/OpenRegistry/dfs"
 	types "github.com/containerish/OpenRegistry/store/v1/types"
+	"github.com/containerish/OpenRegistry/telemetry"
 	core_types "github.com/containerish/OpenRegistry/types"
 	"github.com/fatih/color"
 	"github.com/google/uuid"
@@ -24,13 +25,18 @@ import (
 
 type memMappedMockStorage struct {
 	memFs           afero.Fs
+	logger          telemetry.Logger
 	uploadSession   map[string]string
 	config          *config.S3CompatibleDFS
-	hostAddr        string
 	serviceEndpoint string
 }
 
-func newMemMappedMockStorage(env config.Environment, hostAddr string, cfg *config.S3CompatibleDFS) dfs.DFS {
+func newMemMappedMockStorage(
+	env config.Environment,
+	hostAddr string,
+	cfg *config.S3CompatibleDFS,
+	logger telemetry.Logger,
+) dfs.DFS {
 	if env != config.CI && env != config.Local {
 		panic("mock storage should only be used for CI or Local environments")
 	}
@@ -45,8 +51,8 @@ func newMemMappedMockStorage(env config.Environment, hostAddr string, cfg *confi
 		memFs:           afero.NewMemMapFs(),
 		uploadSession:   make(map[string]string),
 		config:          cfg,
-		serviceEndpoint: "0.0.0.0:8080",
-		hostAddr:        parsedHost.Hostname(),
+		serviceEndpoint: net.JoinHostPort(parsedHost.Hostname(), "5002"),
+		logger:          logger,
 	}
 
 	go mocker.FileServer()
@@ -189,13 +195,7 @@ func (ms *memMappedMockStorage) GetUploadProgress(identifier, uploadID string) (
 }
 
 func (ms *memMappedMockStorage) getServiceEndpoint() string {
-	_, port, err := net.SplitHostPort(ms.serviceEndpoint)
-	if err != nil {
-		color.Red("error splitting mock service host port: %s", err)
-		os.Exit(1)
-	}
-
-	return fmt.Sprintf("http://%s:%s", ms.hostAddr, port)
+	return fmt.Sprintf("http://%s", ms.serviceEndpoint)
 }
 
 func (ms *memMappedMockStorage) GeneratePresignedURL(ctx context.Context, key string) (string, error) {
