@@ -124,13 +124,13 @@ func (a *auth) tryBasicAuthFlow(ctx echo.Context, scopes types.OCITokenPermisson
 		}
 
 		// try the regular username + password based check
-		err := a.validateUser(username, password)
+		user, err := a.validateUser(username, password)
 		if err != nil {
 			a.logger.DebugWithContext(ctx).Err(err).Send()
 			return "", err
 		}
 
-		user := ctx.Get(string(types.UserContextKey)).(*types.User)
+		user = ctx.Get(string(types.UserContextKey)).(*types.User)
 
 		token, err := a.newOCIToken(user.ID, scopes)
 		if err != nil {
@@ -267,7 +267,6 @@ func (a *auth) getScopeFromQueryParams(param string) (*types.Scope, error) {
 	parts := strings.Split(param, ":")
 	if len(parts) != 3 {
 		errMsg := fmt.Errorf("invalid scope in params")
-		a.logger.Debug().Err(errMsg).Send()
 		return nil, errMsg
 	}
 

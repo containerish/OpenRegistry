@@ -12,7 +12,9 @@ import (
 	"github.com/containerish/OpenRegistry/orgmode"
 	"github.com/containerish/OpenRegistry/registry/v2"
 	"github.com/containerish/OpenRegistry/registry/v2/extensions"
+	"github.com/containerish/OpenRegistry/store/v1/automation"
 	registry_store "github.com/containerish/OpenRegistry/store/v1/registry"
+	users_store "github.com/containerish/OpenRegistry/store/v1/users"
 	"github.com/containerish/OpenRegistry/telemetry"
 	"github.com/google/uuid"
 	"github.com/labstack/echo-contrib/prometheus"
@@ -24,71 +26,57 @@ import (
 // nolint
 func Register(
 	cfg *config.OpenRegistryConfig,
-	e *echo.Echo,
-	reg registry.Registry,
-	authSvc auth.Authentication,
-	webauthnServer auth_server.WebauthnServer,
-	ext extensions.Extenion,
-	registryStore registry_store.RegistryStore,
-	orgModeSvc orgmode.OrgMode,
-	userApi users.UserApi,
 	logger telemetry.Logger,
-) {
-	e.HideBanner = true
-	e.Use(middleware.Recover())
-	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
-		AllowOrigins:     cfg.WebAppConfig.AllowedEndpoints,
-		AllowMethods:     middleware.DefaultCORSConfig.AllowMethods,
-		AllowHeaders:     middleware.DefaultCORSConfig.AllowHeaders,
-		AllowCredentials: true,
-		ExposeHeaders:    middleware.DefaultCORSConfig.ExposeHeaders,
-		MaxAge:           750,
-	}))
-	e.Use(middleware.RequestIDWithConfig(middleware.RequestIDConfig{
-		Generator: func() string {
-			requestId, err := uuid.NewRandom()
-			if err != nil {
-				return time.Now().Format(time.RFC3339Nano)
-			}
-			return requestId.String()
-		},
-		TargetHeader: echo.HeaderXRequestID,
-	}))
+	registryApi registry.Registry,
+	authApi auth.Authentication,
+	webauthnApi auth_server.WebauthnServer,
+	extensionsApi extensions.Extenion,
+	orgModeApi orgmode.OrgMode,
+	usersApi users.UserApi,
+	healthCheckApi http.HandlerFunc,
+	registryStore registry_store.RegistryStore,
+	usersStore users_store.UserStore,
+	automationStore automation.BuildAutomationStore,
+) *echo.Echo {
+	e := echo.New()
 
-	e.Add(http.MethodGet, TokenAuth, authSvc.Token, authSvc.RepositoryPermissionsMiddleware())
+	setDefaultEchoOptions(e, cfg.WebAppConfig, healthCheckApi)
 
-	p := prometheus.NewPrometheus("OpenRegistry", nil)
-	p.Use(e)
-
+	githubRouter := e.Group("/github")
 	baseAPIRouter := e.Group("/api")
-	userApiRouter := baseAPIRouter.Group("/users", authSvc.JWTRest())
-
-	v2Router := e.Group(V2, registryNamespaceValidator(logger), authSvc.BasicAuth(), authSvc.JWT())
-	nsRouter := v2Router.Group(
-		Namespace,
-		authSvc.ACL(),
-		authSvc.RepositoryPermissionsMiddleware(),
-	)
-
 	authRouter := e.Group(Auth)
 	webauthnRouter := e.Group(Webauthn)
+	orgModeRouter := e.Group("/org", authApi.JWTRest(), orgModeApi.AllowOrgAdmin())
+	ociRouter := e.Group(V2, registryNamespaceValidator(logger), authApi.BasicAuth(), authApi.JWT())
+	userApiRouter := baseAPIRouter.Group("/users", authApi.JWTRest())
+	nsRouter := ociRouter.Group(Namespace, authApi.ACL(), authApi.RepositoryPermissionsMiddleware())
 	authGithubRouter := authRouter.Group(GitHub)
 
-	v2Router.Add(http.MethodGet, Root, reg.ApiVersion)
+	ociRouter.Add(http.MethodGet, Root, registryApi.ApiVersion)
+	e.Add(http.MethodGet, TokenAuth, authApi.Token, authApi.RepositoryPermissionsMiddleware())
+	authGithubRouter.Add(http.MethodGet, "/callback", authApi.GithubLoginCallbackHandler)
+	authGithubRouter.Add(http.MethodGet, "/login", authApi.LoginWithGithub)
 
-	authGithubRouter.Add(http.MethodGet, "/callback", authSvc.GithubLoginCallbackHandler)
-	authGithubRouter.Add(http.MethodGet, "/login", authSvc.LoginWithGithub)
+	RegisterUserRoutes(userApiRouter, usersApi)
+	RegisterNSRoutes(nsRouter, registryApi, registryStore, logger)
+	RegisterAuthRoutes(authRouter, authApi)
+	Extensions(ociRouter, registryApi, extensionsApi)
+	RegisterWebauthnRoutes(webauthnRouter, webauthnApi)
+	RegisterOrgModeRoutes(orgModeRouter, orgModeApi)
+	if cfg.Integrations.GetGithubConfig() != nil && cfg.Integrations.GetGithubConfig().Enabled {
+		RegisterGitHubRoutes(
+			githubRouter,
+			cfg.Integrations.GetGithubConfig(),
+			cfg.Environment,
+			&cfg.Registry.Auth,
+			logger,
+			cfg.WebAppConfig.AllowedEndpoints,
+			usersStore,
+			automationStore,
+		)
+	}
 
-	orgModeRouter := e.Group("/org", authSvc.JWTRest(), orgModeSvc.AllowOrgAdmin())
-
-	RegisterUserRoutes(userApiRouter, userApi)
-	RegisterNSRoutes(nsRouter, reg, registryStore, logger)
-	RegisterAuthRoutes(authRouter, authSvc)
-	Extensions(v2Router, reg, ext)
-	RegisterWebauthnRoutes(webauthnRouter, webauthnServer)
-	RegisterOrgModeRoutes(orgModeRouter, orgModeSvc)
-
-	//catch-all will redirect user back to web interface
+	//catch-all will redirect user back to the web interface
 	e.Add(http.MethodGet, "/", func(ctx echo.Context) error {
 		webAppURL := ""
 		for _, url := range cfg.WebAppConfig.AllowedEndpoints {
@@ -104,94 +92,35 @@ func Register(
 
 		return ctx.Redirect(http.StatusTemporaryRedirect, webAppURL)
 	})
+
+	return e
 }
 
-// RegisterNSRoutes is one of the helper functions to Register
-// it works directly with registry endpoints
-func RegisterNSRoutes(
-	nsRouter *echo.Group,
-	reg registry.Registry,
-	registryStore registry_store.RegistryStore,
-	logger telemetry.Logger,
-) {
+func setDefaultEchoOptions(e *echo.Echo, webConfig config.WebAppConfig, healthCheck http.HandlerFunc) {
+	e.HideBanner = true
 
-	// ALL THE HEAD METHODS //
-	// HEAD /v2/<name>/blobs/<digest>
-	// (LayerExists) should be called reference/digest
-	nsRouter.Add(http.MethodHead, BlobsDigest, reg.LayerExists)
+	e.Use(middleware.Recover())
+	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
+		AllowOrigins:     webConfig.AllowedEndpoints,
+		AllowMethods:     middleware.DefaultCORSConfig.AllowMethods,
+		AllowHeaders:     middleware.DefaultCORSConfig.AllowHeaders,
+		AllowCredentials: true,
+		ExposeHeaders:    middleware.DefaultCORSConfig.ExposeHeaders,
+		MaxAge:           750,
+	}))
 
-	// HEAD /v2/<name>/manifests/<reference>
-	// should be called reference/digest
-	nsRouter.Add(http.MethodHead, ManifestsReference, reg.ManifestExists, registryReferenceOrTagValidator(logger))
+	e.Use(middleware.RequestIDWithConfig(middleware.RequestIDConfig{
+		Generator: func() string {
+			requestId, err := uuid.NewRandom()
+			if err != nil {
+				return time.Now().Format(time.RFC3339Nano)
+			}
+			return requestId.String()
+		},
+		TargetHeader: echo.HeaderXRequestID,
+	}))
+	p := prometheus.NewPrometheus("OpenRegistry", nil)
+	p.Use(e)
 
-	// ALL THE PUT METHODS
-
-	// PUT /v2/<name>/blobs/uploads/<uuid>?digest=<digest>
-	nsRouter.Add(http.MethodPut, BlobsUploadsUUID, reg.CompleteUpload)
-
-	nsRouter.Add(http.MethodPut, BlobsMonolithicPut, reg.MonolithicPut)
-
-	// PUT /v2/<name>/manifests/<reference>
-	nsRouter.Add(
-		http.MethodPut,
-		ManifestsReference,
-		reg.PushManifest,
-		registryReferenceOrTagValidator(logger),
-		propagateRepository(registryStore, logger),
-	)
-
-	// POST METHODS
-
-	// POST /v2/<name>/blobs/uploads/
-	nsRouter.Add(http.MethodPost, BlobsUploads, reg.StartUpload)
-
-	// POST /v2/<name>/blobs/uploads/<uuid>
-	nsRouter.Add(http.MethodPost, BlobsUploadsUUID, reg.PushLayer)
-
-	// PATCH METHODS
-
-	// PATCH /v2/<name>/blobs/uploads/<uuid>
-	nsRouter.Add(http.MethodPatch, BlobsUploadsUUID, reg.ChunkedUpload)
-	// router.Add(http.MethodPatch, "/blobs/uploads/", reg.ChunkedUpload)
-
-	// GET METHODS
-
-	// GET /v2/<name>/manifests/<reference>
-	nsRouter.Add(http.MethodGet, ManifestsReference, reg.PullManifest, registryReferenceOrTagValidator(logger))
-
-	// GET /v2/<name>/blobs/<digest>
-	nsRouter.Add(http.MethodGet, BlobsDigest, reg.PullLayer)
-
-	// GET /v2/<name>/blobs/uploads/<uuid>
-	nsRouter.Add(http.MethodGet, BlobsUploadsUUID, reg.UploadProgress)
-
-	// router.Add(http.MethodGet, "/blobs/:digest", reg.DownloadBlob)
-
-	///GET /v2/<name>/tags/list
-	nsRouter.Add(http.MethodGet, TagsList, reg.ListTags)
-
-	///GET /v2/<name>/tags/list
-	nsRouter.Add(http.MethodGet, GetReferrers, reg.ListReferrers)
-	/// mf/sha -> mf/latest
-	nsRouter.Add(http.MethodDelete, BlobsDigest, reg.DeleteLayer)
-	nsRouter.Add(http.MethodDelete, ManifestsReference, reg.DeleteTagOrManifest, registryReferenceOrTagValidator(logger))
-}
-
-// Extensions for teh OCI dist spec
-func Extensions(group *echo.Group, reg registry.Registry, ext extensions.Extenion, middlewares ...echo.MiddlewareFunc) {
-
-	// GET /v2/_catalog
-	group.Add(http.MethodGet, Catalog, reg.Catalog)
-	group.Add(http.MethodGet, PublicCatalog, ext.PublicCatalog)
-	// Auto-complete image search
-	group.Add(http.MethodGet, Search, reg.GetImageNamespace)
-	group.Add(http.MethodGet, CatalogDetail, ext.CatalogDetail, middlewares...)
-	group.Add(http.MethodGet, RepositoryDetail, ext.RepositoryDetail, middlewares...)
-	group.Add(http.MethodGet, UserCatalog, ext.GetUserCatalog, middlewares...)
-	group.Add(http.MethodPost, ChangeRepositoryVisibility, ext.ChangeContainerImageVisibility, middlewares...)
-	group.Add(http.MethodPost, CreateRepository, reg.CreateRepository, middlewares...)
-}
-
-func RegisterHealthCheckEndpoint(e *echo.Echo, fn http.HandlerFunc) {
-	e.Add(http.MethodGet, "/health", echo.WrapHandler(fn))
+	e.Add(http.MethodGet, "/health", echo.WrapHandler(healthCheck))
 }

@@ -15,7 +15,7 @@ type userStore struct {
 	logger telemetry.Logger
 }
 
-func NewStore(bunWrappedDB *bun.DB, logger telemetry.Logger) UserStore {
+func New(bunWrappedDB *bun.DB, logger telemetry.Logger) UserStore {
 	store := &userStore{
 		db:     bunWrappedDB,
 		logger: logger,

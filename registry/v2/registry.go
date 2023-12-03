@@ -32,7 +32,7 @@ func NewRegistry(
 	dfs dfsImpl.DFS,
 	logger telemetry.Logger,
 	config *config.OpenRegistryConfig,
-) (Registry, error) {
+) Registry {
 	mu := &sync.RWMutex{}
 	r := &registry{
 		debug:  true,
@@ -55,7 +55,7 @@ func NewRegistry(
 
 	r.b.registry = r
 
-	return r, nil
+	return r
 }
 
 // LayerExists

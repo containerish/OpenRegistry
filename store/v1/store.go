@@ -16,7 +16,7 @@ import (
 	"github.com/uptrace/bun/schema"
 )
 
-func NewDB(cfg config.Store, env config.Environment) *bun.DB {
+func New(cfg config.Store, env config.Environment) *bun.DB {
 	var (
 		dialect schema.Dialect
 		sqlDB   *sql.DB

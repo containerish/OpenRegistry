@@ -14,7 +14,7 @@ type webauthnStore struct {
 	db *bun.DB
 }
 
-func NewStore(db *bun.DB) WebAuthnStore {
+func New(db *bun.DB) WebAuthnStore {
 	return &webauthnStore{
 		db,
 	}

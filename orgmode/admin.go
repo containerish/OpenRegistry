@@ -52,7 +52,8 @@ func (o *orgMode) AllowOrgAdmin() echo.MiddlewareFunc {
 				orgOwner, err := o.userStore.GetOrgAdmin(ctx.Request().Context(), user.ID)
 				if err != nil {
 					echoErr := ctx.JSON(http.StatusUnauthorized, echo.Map{
-						"error": err.Error(),
+						"error":   err.Error(),
+						"message": "user does not have permission to add users to organization",
 					})
 					o.logger.Log(ctx, err).Send()
 					return echoErr

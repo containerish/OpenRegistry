@@ -28,7 +28,7 @@ type (
 	}
 )
 
-func NewStore(bunWrappedDB *bun.DB, logger telemetry.Logger) PermissionsStore {
+func New(bunWrappedDB *bun.DB, logger telemetry.Logger) PermissionsStore {
 	store := &permissionStore{
 		db:     bunWrappedDB,
 		logger: logger,

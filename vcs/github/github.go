@@ -2,6 +2,7 @@ package github
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"net/url"
 	"strings"
@@ -12,6 +13,7 @@ import (
 	"github.com/containerish/OpenRegistry/store/v1/types"
 	"github.com/containerish/OpenRegistry/telemetry"
 	"github.com/containerish/OpenRegistry/vcs"
+	"github.com/fatih/color"
 	"github.com/google/go-github/v56/github"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
@@ -35,10 +37,10 @@ func NewGithubApp(
 	logger telemetry.Logger,
 	webInterfaceURLs []string,
 	env config.Environment,
-) (vcs.VCS, error) {
+) vcs.VCS {
 	ghAppTransport, ghClient, err := newGHClient(cfg.AppID, cfg.PrivateKeyPem)
 	if err != nil {
-		return nil, fmt.Errorf("ERR_CREATE_NEW_GH_CLIENT: %w", err)
+		log.Fatalln(color.RedString("ERR_CREATE_NEW_GH_CLIENT: %w", err))
 	}
 
 	return &ghAppService{
@@ -51,7 +53,7 @@ func NewGithubApp(
 		automationBranchName: OpenRegistryAutomationBranchName,
 		webInterfaceURLs:     webInterfaceURLs,
 		env:                  env,
-	}, nil
+	}
 }
 
 // return any methods which can be called as APIs from an http client

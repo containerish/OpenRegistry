@@ -25,11 +25,11 @@ type extension struct {
 	logger telemetry.Logger
 }
 
-func New(store registry.RegistryStore, logger telemetry.Logger) (Extenion, error) {
+func New(store registry.RegistryStore, logger telemetry.Logger) Extenion {
 	return &extension{
 		store:  store,
 		logger: logger,
-	}, nil
+	}
 }
 
 // CatalogDetail returns a list of container images, goal is to keep it as light as possible

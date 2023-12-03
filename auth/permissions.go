@@ -78,7 +78,7 @@ func (a *auth) populateUserFromPermissionsCheck(ctx echo.Context) error {
 func (a *auth) RepositoryPermissionsMiddleware() echo.MiddlewareFunc {
 	return func(handler echo.HandlerFunc) echo.HandlerFunc {
 		return func(ctx echo.Context) error {
-			err := a.handleTokenRequest(ctx, handler)
+			err, responseHandled := a.handleTokenRequest(ctx, handler)
 			if err != nil {
 				registryErr := common.RegistryErrorResponse(
 					registry.RegistryErrorCodeDenied,
@@ -90,6 +90,10 @@ func (a *auth) RepositoryPermissionsMiddleware() echo.MiddlewareFunc {
 				echoErr := ctx.JSONBlob(http.StatusBadRequest, registryErr.Bytes())
 				a.logger.DebugWithContext(ctx).Err(registryErr).Send()
 				return echoErr
+			}
+
+			if responseHandled {
+				return nil
 			}
 
 			namespace, err := a.getImageNamespace(ctx)
@@ -109,6 +113,7 @@ func (a *auth) RepositoryPermissionsMiddleware() echo.MiddlewareFunc {
 			repository, err := a.registryStore.GetRepositoryByNamespace(ctx.Request().Context(), namespace)
 			if err == nil {
 				if repository.Visibility == types.RepositoryVisibilityPublic {
+					a.logger.DebugWithContext(ctx).Send()
 					return handler(ctx)
 				}
 			}
@@ -140,21 +145,33 @@ func (a *auth) RepositoryPermissionsMiddleware() echo.MiddlewareFunc {
 				return echoErr
 			}
 
+			a.logger.DebugWithContext(ctx).Send()
 			return handler(ctx)
 		}
 	}
 }
 
-func (a *auth) handleTokenRequest(ctx echo.Context, handler echo.HandlerFunc) error {
+func (a *auth) handleTokenRequest(ctx echo.Context, handler echo.HandlerFunc) (error, bool) {
 	if err := a.populateUserFromPermissionsCheck(ctx); err != nil {
-		return err
+		registryErr := common.RegistryErrorResponse(
+			registry.RegistryErrorCodeUnauthorized,
+			"missing user credentials in request",
+			echo.Map{
+				"error": err.Error(),
+			},
+		)
+
+		echoErr := ctx.JSONBlob(http.StatusUnauthorized, registryErr.Bytes())
+		a.logger.DebugWithContext(ctx).Err(err).Send()
+		return echoErr, true
 	}
 
 	if ctx.QueryParam("offline_token") == "true" {
-		return handler(ctx)
+		a.logger.DebugWithContext(ctx).Send()
+		return handler(ctx), true
 	}
 
-	return nil
+	return nil, false
 }
 
 func (a *auth) validateUserPermissions(ctx echo.Context, ns string, user *types.User, handler echo.HandlerFunc) error {

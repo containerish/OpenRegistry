@@ -51,7 +51,9 @@ func (a *auth) BasicAuth() echo.MiddlewareFunc {
 					a.logger.DebugWithContext(ctx).Err(err).Send()
 					return echoErr
 				}
+
 				cred := string(b)
+
 				for i := 0; i < len(cred); i++ {
 					if cred[i] == ':' {
 						// Verify credentials
@@ -150,15 +152,12 @@ func (a *auth) checkJWT(authHeader string, cookies []*http.Cookie) bool {
 func (a *auth) BasicAuthValidator(username string, password string, ctx echo.Context) error {
 	ctx.Set(types.HandlerStartTime, time.Now())
 
-	// readOp := ctx.Request().Method == http.MethodHead || ctx.Request().Method == http.MethodGet
-
-	// usernameFromReq := ctx.Param("username")
-
-	err := a.validateUser(username, password)
+	user, err := a.validateUser(username, password)
 	if err != nil {
-		// if err != nil || usernameFromReq != username || usernameFromReq == types.RepositoryNameIPFS {
 		return err
 	}
+
+	ctx.Set(string(types.UserContextKey), user)
 
 	return nil
 }
