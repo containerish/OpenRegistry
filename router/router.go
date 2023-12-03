@@ -42,14 +42,14 @@ func Register(
 
 	setDefaultEchoOptions(e, cfg.WebAppConfig, healthCheckApi)
 
-	githubRouter := e.Group("/github")
 	baseAPIRouter := e.Group("/api")
+	githubRouter := e.Group("/github")
 	authRouter := e.Group(Auth)
 	webauthnRouter := e.Group(Webauthn)
 	orgModeRouter := e.Group("/org", authApi.JWTRest(), orgModeApi.AllowOrgAdmin())
 	ociRouter := e.Group(V2, registryNamespaceValidator(logger), authApi.BasicAuth(), authApi.JWT())
 	userApiRouter := baseAPIRouter.Group("/users", authApi.JWTRest())
-	nsRouter := ociRouter.Group(Namespace, authApi.ACL(), authApi.RepositoryPermissionsMiddleware())
+	nsRouter := ociRouter.Group(Namespace, authApi.RepositoryPermissionsMiddleware())
 	authGithubRouter := authRouter.Group(GitHub)
 
 	ociRouter.Add(http.MethodGet, Root, registryApi.ApiVersion)
@@ -60,7 +60,7 @@ func Register(
 	RegisterUserRoutes(userApiRouter, usersApi)
 	RegisterNSRoutes(nsRouter, registryApi, registryStore, logger)
 	RegisterAuthRoutes(authRouter, authApi)
-	Extensions(ociRouter, registryApi, extensionsApi)
+	RegisterExtensionsRoutes(ociRouter, registryApi, extensionsApi)
 	RegisterWebauthnRoutes(webauthnRouter, webauthnApi)
 	RegisterOrgModeRoutes(orgModeRouter, orgModeApi)
 	if cfg.Integrations.GetGithubConfig() != nil && cfg.Integrations.GetGithubConfig().Enabled {

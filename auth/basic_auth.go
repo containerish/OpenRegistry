@@ -34,10 +34,9 @@ func (a *auth) BasicAuth() echo.MiddlewareFunc {
 			}
 
 			auth := ctx.Request().Header.Get(echo.HeaderAuthorization)
-			l := len(authSchemeBasic)
-
-			if len(auth) > l+1 && strings.EqualFold(auth[:l], authSchemeBasic) {
-				b, err := base64.StdEncoding.DecodeString(auth[l+1:])
+			// auth should have something like "Basic username:password"
+			if len(auth) > len(authSchemeBasic)+1 && strings.EqualFold(auth[:len(authSchemeBasic)], authSchemeBasic) {
+				user, err := a.validateBasicAuthCredentials(auth)
 				if err != nil {
 					registryErr := common.RegistryErrorResponse(
 						registry.RegistryErrorCodeDenied,
@@ -48,32 +47,10 @@ func (a *auth) BasicAuth() echo.MiddlewareFunc {
 					)
 
 					echoErr := ctx.JSONBlob(http.StatusBadRequest, registryErr.Bytes())
-					a.logger.DebugWithContext(ctx).Err(err).Send()
+					a.logger.DebugWithContext(ctx).Err(registryErr).Send()
 					return echoErr
 				}
-
-				cred := string(b)
-
-				for i := 0; i < len(cred); i++ {
-					if cred[i] == ':' {
-						// Verify credentials
-						if err = a.BasicAuthValidator(cred[:i], cred[i+1:], ctx); err != nil {
-							registryErr := common.RegistryErrorResponse(
-								registry.RegistryErrorCodeUnauthorized,
-								"user is not authorized to perform this action",
-								echo.Map{
-									"reason": "Unauthorized. Please check if you are logged in with the right user.",
-									"error":  err.Error(),
-								},
-							)
-							echoErr := ctx.JSONBlob(http.StatusUnauthorized, registryErr.Bytes())
-							a.logger.DebugWithContext(ctx).Err(registryErr).Send()
-							return echoErr
-						}
-
-						return handler(ctx)
-					}
-				}
+				ctx.Set(string(types.UserContextKey), user)
 			}
 
 			headerValue := fmt.Sprintf("Bearer realm=%s", strconv.Quote(fmt.Sprintf("%s/token", a.c.Endpoint())))
@@ -102,7 +79,7 @@ func (a *auth) SkipBasicAuth(ctx echo.Context) bool {
 	// if found, populate requested repository in request context, so that any of the chained middlwares can
 	// read the value from ctx instead of database
 	repo := a.tryPopulateRepository(ctx)
-	if repo == nil {
+	if !hasJWT || repo == nil {
 		return false
 	}
 
@@ -116,16 +93,13 @@ func (a *auth) SkipBasicAuth(ctx echo.Context) bool {
 }
 
 func (a *auth) tryPopulateRepository(ctx echo.Context) *types.ContainerImageRepository {
-	if strings.HasPrefix(ctx.Request().URL.Path, "/v2/") {
-		username := ctx.Param("username")
-		imageName := ctx.Param("imagename")
-		if username != "" && imageName != "" {
-			ns := username + "/" + imageName
-			repo, err := a.registryStore.GetRepositoryByNamespace(ctx.Request().Context(), ns)
-			if err == nil {
-				ctx.Set(string(types.UserRepositoryContextKey), repo)
-				return repo
-			}
+	namespace := ctx.Param("username") + "/" + ctx.Param("imagename")
+	isOCIRequest := strings.HasPrefix(ctx.Request().URL.Path, "/v2/") && namespace != "/"
+	if isOCIRequest {
+		repo, err := a.registryStore.GetRepositoryByNamespace(ctx.Request().Context(), namespace)
+		if err == nil {
+			ctx.Set(string(types.UserRepositoryContextKey), repo)
+			return repo
 		}
 	}
 	return nil
@@ -169,4 +143,28 @@ func (a *auth) buildBasicAuthenticationHeader(repoNamespace string) string {
 		strconv.Quote(a.c.Endpoint()),
 		strconv.Quote(fmt.Sprintf("repository:%s:pull,push", repoNamespace)),
 	)
+}
+
+func (a *auth) validateBasicAuthCredentials(auth string) (*types.User, error) {
+	l := len(authSchemeBasic)
+
+	if len(auth) > l+1 && strings.EqualFold(auth[:l], authSchemeBasic) {
+		decodedCredentials, err := base64.StdEncoding.DecodeString(auth[l+1:])
+		if err != nil {
+			return nil, err
+		}
+
+		basicAuthCredentials := strings.Split(string(decodedCredentials), ":")
+		username, password := basicAuthCredentials[0], basicAuthCredentials[1]
+
+		user, err := a.validateUser(username, password)
+		if err != nil {
+			return nil, err
+		}
+
+		return user, nil
+	}
+
+	return nil, fmt.Errorf("missing basic authentication credentials")
+
 }

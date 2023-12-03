@@ -163,5 +163,58 @@ func (l *logger) DebugWithContext(ctx echo.Context) *zerolog.Event {
 		return l.logger.Debug()
 	}
 
-	return l.Log(ctx, nil)
+	stop := time.Now()
+	start, ok := ctx.Get(types.HandlerStartTime).(time.Time)
+	if !ok {
+		start = stop
+	}
+	req := ctx.Request()
+	res := ctx.Response()
+
+	level := zerolog.InfoLevel
+	status := res.Status
+	if status >= 400 {
+		level = zerolog.ErrorLevel
+	}
+
+	event := l.
+		logger.
+		WithLevel(level).
+		Time("time", start).
+		Time("end", stop).
+		IPAddr("remote_ip", net.ParseIP(ctx.RealIP())).
+		Str("host", req.Host).
+		Str("uri", req.RequestURI).
+		Str("method", req.Method).
+		Str("protocol", req.Proto).
+		Str("referer", req.Referer()).
+		Str("user_agent", req.UserAgent()).
+		Int("status", res.Status).
+		Dur("latency", stop.Sub(start)).
+		Int64("bytes_out", res.Size).
+		Func(func(e *zerolog.Event) {
+			id := req.Header.Get(echo.HeaderXRequestID)
+			if id == "" {
+				id = res.Header().Get(echo.HeaderXRequestID)
+			}
+
+			e.Str("request_id", id)
+		}).
+		Func(func(e *zerolog.Event) {
+			p := req.URL.Path
+			if p == "" {
+				p = "/"
+			}
+			e.Str("path", p)
+		}).
+		Func(func(e *zerolog.Event) {
+			cl := req.Header.Get(echo.HeaderContentLength)
+			if cl == "" {
+				cl = "0"
+			}
+
+			e.Str("bytes_in", cl)
+		})
+
+	return event
 }

@@ -123,22 +123,31 @@ func (a *auth) tryBasicAuthFlow(ctx echo.Context, scopes types.OCITokenPermisson
 			return a.loginWithGitHubPAT(ctx, scopes, password)
 		}
 
-		// try the regular username + password based check
-		user, err := a.validateUser(username, password)
-		if err != nil {
-			a.logger.DebugWithContext(ctx).Err(err).Send()
-			return "", err
+		user, ok := ctx.Get(string(types.UserContextKey)).(*types.User)
+		if !ok {
+			registryErr := common.RegistryErrorResponse(
+				registry.RegistryErrorCodeUnauthorized,
+				"missing authentication info in request",
+				echo.Map{
+					"error": "missing user authentication info",
+				},
+			)
+			a.logger.Log(ctx, registryErr).Send()
+			echoErr := ctx.JSONBlob(http.StatusUnauthorized, registryErr.Bytes())
+			return "", echoErr
 		}
-
-		user = ctx.Get(string(types.UserContextKey)).(*types.User)
 
 		token, err := a.newOCIToken(user.ID, scopes)
 		if err != nil {
-			echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
-				"error":   err.Error(),
-				"message": "failed to get new service token",
-			})
-			a.logger.Log(ctx, err).Send()
+			registryErr := common.RegistryErrorResponse(
+				registry.RegistryErrorCodeUnknown,
+				"failed to get new service token",
+				echo.Map{
+					"error": err.Error(),
+				},
+			)
+			echoErr := ctx.JSONBlob(http.StatusBadRequest, registryErr.Bytes())
+			a.logger.Log(ctx, registryErr).Send()
 			return "", echoErr
 		}
 

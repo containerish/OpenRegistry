@@ -1,8 +1,6 @@
 package auth
 
 import (
-	"context"
-	"encoding/base64"
 	"fmt"
 	"net/http"
 	"strings"
@@ -29,40 +27,16 @@ func (a *auth) getImageNamespace(ctx echo.Context) (string, error) {
 
 func (a *auth) populateUserFromPermissionsCheck(ctx echo.Context) error {
 	auth := ctx.Request().Header.Get(echo.HeaderAuthorization)
-	l := len(authSchemeBasic)
-
 	isTokenRequest := ctx.Request().URL.Path == "/token"
 
-	if len(auth) > l+1 && strings.EqualFold(auth[:l], authSchemeBasic) {
-		b, err := base64.StdEncoding.DecodeString(auth[l+1:])
+	if len(auth) > len(authSchemeBasic)+1 && strings.EqualFold(auth[:len(authSchemeBasic)], authSchemeBasic) {
+		user, err := a.validateBasicAuthCredentials(auth)
 		if err != nil {
-			return fmt.Errorf("Base64DecodeErr: %s", err)
+			return err
 		}
-		cred := string(b)
-		for i := 0; i < len(cred); i++ {
-			if cred[i] == ':' {
-				username, password := cred[:i], cred[i+1:]
-				// Verify credentials
-				if username == "" {
-					return fmt.Errorf("username cannot be empty")
-				}
 
-				if password == "" {
-					return fmt.Errorf("password cannot be empty")
-				}
-
-				user, err := a.userStore.GetUserByUsername(context.Background(), username)
-				if err != nil {
-					return err
-				}
-
-				if !a.verifyPassword(user.Password, password) {
-					return fmt.Errorf("password is incorrect")
-				}
-				ctx.Set(string(types.UserContextKey), user)
-				return nil
-			}
-		}
+		ctx.Set(string(types.UserContextKey), user)
+		return nil
 	}
 
 	// Check if it's an OCI request
@@ -162,7 +136,7 @@ func (a *auth) handleTokenRequest(ctx echo.Context, handler echo.HandlerFunc) (e
 		)
 
 		echoErr := ctx.JSONBlob(http.StatusUnauthorized, registryErr.Bytes())
-		a.logger.DebugWithContext(ctx).Err(err).Send()
+		a.logger.DebugWithContext(ctx).Err(registryErr).Send()
 		return echoErr, true
 	}
 

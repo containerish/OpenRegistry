@@ -78,11 +78,21 @@ func RegisterNSRoutes(
 	nsRouter.Add(http.MethodGet, GetReferrers, reg.ListReferrers)
 	/// mf/sha -> mf/latest
 	nsRouter.Add(http.MethodDelete, BlobsDigest, reg.DeleteLayer)
-	nsRouter.Add(http.MethodDelete, ManifestsReference, reg.DeleteTagOrManifest, registryReferenceOrTagValidator(logger))
+	nsRouter.Add(
+		http.MethodDelete,
+		ManifestsReference,
+		reg.DeleteTagOrManifest,
+		registryReferenceOrTagValidator(logger),
+	)
 }
 
-// Extensions for teh OCI dist spec
-func Extensions(group *echo.Group, reg registry.Registry, ext extensions.Extenion, middlewares ...echo.MiddlewareFunc) {
+// RegisterExtensionsRoutes for teh OCI dist spec
+func RegisterExtensionsRoutes(
+	group *echo.Group,
+	reg registry.Registry,
+	ext extensions.Extenion,
+	middlewares ...echo.MiddlewareFunc,
+) {
 
 	// GET /v2/_catalog
 	group.Add(http.MethodGet, Catalog, reg.Catalog)

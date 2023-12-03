@@ -81,6 +81,7 @@ func (s *registryStore) GetRepositoryByNamespace(
 	if len(nsParts) != 2 {
 		return nil, fmt.Errorf("GetRepositoryByNamespace: invalid namespace format")
 	}
+
 	username, repoName := nsParts[0], nsParts[1]
 	repository := &types.ContainerImageRepository{}
 	err := s.
