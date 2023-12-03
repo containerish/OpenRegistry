@@ -40,10 +40,10 @@ func (ext *extension) CatalogDetail(ctx echo.Context) error {
 	queryParamOffset := ctx.QueryParam("last")
 	namespace := ctx.QueryParam("ns")
 	sortBy := ctx.QueryParam("sort_by")
-	var pageSize int64
-	var offset int64
+	var pageSize int
+	var offset int
 	if queryParamPageSize != "" {
-		ps, err := strconv.ParseInt(ctx.QueryParam("n"), 10, 64)
+		ps, err := strconv.Atoi(ctx.QueryParam("n"))
 		if err != nil {
 			echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 				"error": err.Error(),
@@ -55,7 +55,7 @@ func (ext *extension) CatalogDetail(ctx echo.Context) error {
 	}
 
 	if queryParamOffset != "" {
-		o, err := strconv.ParseInt(ctx.QueryParam("last"), 10, 64)
+		o, err := strconv.Atoi(ctx.QueryParam("last"))
 		if err != nil {
 			echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 				"error": err.Error(),
@@ -92,8 +92,8 @@ func (ext *extension) CatalogDetail(ctx echo.Context) error {
 	catalogWithDetail, err := ext.store.GetCatalogDetail(
 		ctx.Request().Context(),
 		namespace,
-		int(pageSize),
-		int(offset),
+		pageSize,
+		offset,
 		sortBy,
 	)
 	if err != nil {
@@ -123,10 +123,10 @@ func (ext *extension) RepositoryDetail(ctx echo.Context) error {
 	queryParamPageSize := ctx.QueryParam("n")
 	queryParamOffset := ctx.QueryParam("last")
 	namespace := ctx.QueryParam("ns")
-	var pageSize int64
-	var offset int64
+	var pageSize int
+	var offset int
 	if queryParamPageSize != "" {
-		ps, err := strconv.ParseInt(ctx.QueryParam("n"), 10, 64)
+		ps, err := strconv.Atoi(ctx.QueryParam("n"))
 		if err != nil {
 			echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 				"error": err.Error(),
@@ -138,7 +138,7 @@ func (ext *extension) RepositoryDetail(ctx echo.Context) error {
 	}
 
 	if queryParamOffset != "" {
-		o, err := strconv.ParseInt(ctx.QueryParam("last"), 10, 64)
+		o, err := strconv.Atoi(ctx.QueryParam("last"))
 		if err != nil {
 			echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 				"error": err.Error(),
@@ -149,7 +149,7 @@ func (ext *extension) RepositoryDetail(ctx echo.Context) error {
 		offset = o
 	}
 
-	repository, err := ext.store.GetRepoDetail(ctx.Request().Context(), namespace, int(pageSize), int(offset))
+	repository, err := ext.store.GetRepoDetail(ctx.Request().Context(), namespace, pageSize, offset)
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error": err.Error(),
@@ -171,7 +171,7 @@ func (ext *extension) PublicCatalog(ctx echo.Context) error {
 	var pageSize int
 	var offset int
 	if queryParamPageSize != "" {
-		ps, err := strconv.ParseInt(ctx.QueryParam("n"), 10, 64)
+		ps, err := strconv.Atoi(ctx.QueryParam("n"))
 		if err != nil {
 			echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 				"error": err.Error(),
@@ -179,11 +179,11 @@ func (ext *extension) PublicCatalog(ctx echo.Context) error {
 			ext.logger.Log(ctx, err).Send()
 			return echoErr
 		}
-		pageSize = int(ps)
+		pageSize = ps
 	}
 
 	if queryParamOffset != "" {
-		o, err := strconv.ParseInt(ctx.QueryParam("last"), 10, 64)
+		o, err := strconv.Atoi(ctx.QueryParam("last"))
 		if err != nil {
 			echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 				"error": err.Error(),
@@ -191,7 +191,7 @@ func (ext *extension) PublicCatalog(ctx echo.Context) error {
 			ext.logger.Log(ctx, err).Send()
 			return echoErr
 		}
-		offset = int(o)
+		offset = o
 	}
 
 	repositories, total, err := ext.store.GetPublicRepositories(ctx.Request().Context(), pageSize, offset)
@@ -227,7 +227,7 @@ func (ext *extension) GetUserCatalog(ctx echo.Context) error {
 	var pageSize int
 	var offset int
 	if queryParamPageSize != "" {
-		ps, err := strconv.ParseInt(ctx.QueryParam("n"), 10, 64)
+		ps, err := strconv.Atoi(ctx.QueryParam("n"))
 		if err != nil {
 			echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 				"error": err.Error(),
@@ -235,11 +235,11 @@ func (ext *extension) GetUserCatalog(ctx echo.Context) error {
 			ext.logger.Log(ctx, err).Send()
 			return echoErr
 		}
-		pageSize = int(ps)
+		pageSize = ps
 	}
 
 	if queryParamOffset != "" {
-		o, err := strconv.ParseInt(ctx.QueryParam("last"), 10, 64)
+		o, err := strconv.Atoi(ctx.QueryParam("last"))
 		if err != nil {
 			echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 				"error": err.Error(),
@@ -247,7 +247,7 @@ func (ext *extension) GetUserCatalog(ctx echo.Context) error {
 			ext.logger.Log(ctx, err).Send()
 			return echoErr
 		}
-		offset = int(o)
+		offset = o
 	}
 
 	var visibility types.RepositoryVisibility

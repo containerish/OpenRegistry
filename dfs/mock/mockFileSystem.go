@@ -15,22 +15,29 @@ import (
 	"github.com/containerish/OpenRegistry/config"
 	"github.com/containerish/OpenRegistry/dfs"
 	types "github.com/containerish/OpenRegistry/store/v1/types"
+	"github.com/containerish/OpenRegistry/telemetry"
 	core_types "github.com/containerish/OpenRegistry/types"
 	"github.com/fatih/color"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
 	"github.com/spf13/afero"
 )
 
 type fileBasedMockStorage struct {
 	fs              afero.Fs
+	logger          telemetry.Logger
 	uploadSession   map[string]string
 	config          *config.S3CompatibleDFS
-	hostAddr        string
 	serviceEndpoint string
 }
 
-func newFileBasedMockStorage(env config.Environment, hostAddr string, cfg *config.S3CompatibleDFS) dfs.DFS {
+func newFileBasedMockStorage(
+	env config.Environment,
+	hostAddr string,
+	cfg *config.S3CompatibleDFS,
+	logger telemetry.Logger,
+) dfs.DFS {
 	if env != config.CI && env != config.Local {
 		panic("mock storage should only be used for CI or Local environments")
 	}
@@ -41,13 +48,14 @@ func newFileBasedMockStorage(env config.Environment, hostAddr string, cfg *confi
 		os.Exit(1)
 	}
 
-	_ = os.MkdirAll(".mock-fs", os.ModePerm)
+	_ = os.MkdirAll(MockFSPath, os.ModePerm)
+	_ = os.MkdirAll(fmt.Sprintf("%s/%s", MockFSPath, LayerKeyPrefix), os.ModePerm)
 	mocker := &fileBasedMockStorage{
 		fs:              afero.NewBasePathFs(afero.NewOsFs(), ".mock-fs"),
 		uploadSession:   make(map[string]string),
 		config:          cfg,
-		serviceEndpoint: "0.0.0.0:8080",
-		hostAddr:        parsedHost.Hostname(),
+		serviceEndpoint: net.JoinHostPort(parsedHost.Hostname(), "5002"),
+		logger:          logger,
 	}
 
 	go mocker.FileServer()
@@ -60,6 +68,15 @@ func (ms *fileBasedMockStorage) CreateMultipartUpload(layerKey string) (string, 
 	return sessionId, nil
 }
 
+func (ms *fileBasedMockStorage) validateLayerPath(layerKey string) error {
+	layerKeyParts := strings.Split(layerKey, "/")
+	if len(layerKeyParts) != 2 || layerKeyParts[0] != LayerKeyPrefix {
+		return fmt.Errorf("invalid layer key format")
+	}
+
+	return nil
+}
+
 func (ms *fileBasedMockStorage) UploadPart(
 	ctx context.Context,
 	uploadId string,
@@ -69,12 +86,7 @@ func (ms *fileBasedMockStorage) UploadPart(
 	content io.ReadSeeker,
 	contentLength int64,
 ) (s3types.CompletedPart, error) {
-	idParts := strings.Split(layerKey, "/")
-	if len(idParts) > 1 {
-		_ = ms.fs.MkdirAll(strings.Join(idParts[:len(idParts)-1], "/"), os.ModePerm)
-	}
 	fd, err := ms.fs.OpenFile(layerKey, os.O_RDWR|os.O_CREATE, os.ModePerm)
-
 	if err != nil {
 		return s3types.CompletedPart{}, err
 	}
@@ -83,6 +95,7 @@ func (ms *fileBasedMockStorage) UploadPart(
 	if _, err = fd.Write(bz); err != nil {
 		return s3types.CompletedPart{}, err
 	}
+
 	if err = fd.Sync(); err != nil {
 		return s3types.CompletedPart{}, err
 	}
@@ -107,10 +120,10 @@ func (ms *fileBasedMockStorage) CompleteMultipartUpload(
 }
 
 func (ms *fileBasedMockStorage) Upload(ctx context.Context, identifier, digest string, content []byte) (string, error) {
-	idParts := strings.Split(identifier, "/")
-	if len(idParts) > 1 {
-		_ = ms.fs.MkdirAll(strings.Join(idParts[:len(idParts)-1], "/"), os.ModePerm)
+	if err := ms.validateLayerPath(identifier); err != nil {
+		return "", err
 	}
+
 	fd, err := ms.fs.Create(identifier)
 	if err != nil {
 		return "", err
@@ -128,6 +141,7 @@ func (ms *fileBasedMockStorage) Upload(ctx context.Context, identifier, digest s
 }
 
 func (ms *fileBasedMockStorage) Download(ctx context.Context, path string) (io.ReadCloser, error) {
+
 	fd, err := ms.fs.Open(path)
 	if err != nil {
 		return nil, err
@@ -198,19 +212,13 @@ func (ms *fileBasedMockStorage) GetUploadProgress(identifier, uploadID string) (
 }
 
 func (ms *fileBasedMockStorage) getServiceEndpoint() string {
-	_, port, err := net.SplitHostPort(ms.serviceEndpoint)
-	if err != nil {
-		color.Red("error splitting mock service host port: %s", err)
-		os.Exit(1)
-	}
-
-	return fmt.Sprintf("http://%s:%s", ms.hostAddr, port)
+	return fmt.Sprintf("http://%s", ms.serviceEndpoint)
 }
 
 func (ms *fileBasedMockStorage) GeneratePresignedURL(ctx context.Context, key string) (string, error) {
 	parts := strings.Split(key, "/")
 	if len(parts) == 1 {
-		key = "layers/" + key
+		key = LayerKeyPrefix + "/" + key
 	}
 
 	preSignedURL := fmt.Sprintf("%s/%s", ms.getServiceEndpoint(), key)
@@ -235,20 +243,30 @@ func (ms *fileBasedMockStorage) FileServer() {
 	e.HideBanner = true
 	e.HidePort = true
 
-	e.Add(http.MethodGet, "/:uuid", func(ctx echo.Context) error {
-		fileID := ctx.Param("uuid")
+	e.Use(middleware.Recover(), middleware.RequestID())
+
+	e.Add(http.MethodGet, "/layers/:uuid", func(ctx echo.Context) error {
+		fileID := "layers/" + ctx.Param("uuid")
 		fd, err := ms.fs.Open(fileID)
 		if err != nil {
-			return ctx.JSON(http.StatusBadRequest, echo.Map{
+			echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 				"error": err.Error(),
 			})
+
+			ms.logger.Log(ctx, err).Send()
+
+			return echoErr
 		}
 
 		bz, _ := io.ReadAll(fd)
-		fd.Close()
-		return ctx.Blob(http.StatusOK, "", bz)
+		defer fd.Close()
+
+		echoErr := ctx.Blob(http.StatusOK, "", bz)
+		ms.logger.Log(ctx, nil).Send()
+		return echoErr
 	})
 
+	color.Yellow("Started Mock FS based DFS on %s", ms.serviceEndpoint)
 	if err := e.Start(ms.serviceEndpoint); err != nil {
 		color.Red("MockStorage service failed: %s", err)
 		os.Exit(1)

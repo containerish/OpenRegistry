@@ -66,7 +66,7 @@ func RunRegistryServer(ctx *cli.Context) error {
 	}
 
 	logger := telemetry.ZeroLogger(cfg.Environment, cfg.Telemetry)
-	dfs := dfs_client.New(cfg.Environment, cfg.Endpoint(), &cfg.DFS)
+	dfs := dfs_client.New(cfg.Environment, cfg.Endpoint(), &cfg.DFS, logger)
 	rawDB := store_v2.New(cfg.StoreConfig, cfg.Environment)
 	defer rawDB.Close()
 

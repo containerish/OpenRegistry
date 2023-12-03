@@ -123,7 +123,7 @@ func (r *registry) Catalog(ctx echo.Context) error {
 	}
 
 	if queryParamOffset != "" {
-		o, err := strconv.ParseInt(ctx.QueryParam("last"), 10, 64)
+		o, err := strconv.Atoi(ctx.QueryParam("last"))
 		if err != nil {
 			echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 				"error": err.Error(),
@@ -295,7 +295,7 @@ func (r *registry) PullLayer(ctx echo.Context) error {
 	}
 
 	echoErr := ctx.Redirect(http.StatusTemporaryRedirect, downloadableURL)
-	r.logger.Log(ctx, nil).Send()
+	r.logger.Log(ctx, nil).Str("redirect_uri", downloadableURL).Send()
 	return echoErr
 }
 
