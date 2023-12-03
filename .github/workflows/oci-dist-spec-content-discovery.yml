@@ -101,5 +101,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: oci-distribution-content-discovery-report-${{ steps.vars.outputs.short_commit_hash }}
-          path: .out/
+          path: |
+            .out/report.html
+            .out/junit.xml
         if: success()

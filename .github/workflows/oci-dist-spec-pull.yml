@@ -92,7 +92,7 @@ jobs:
           OCI_DEBUG: 0
       - name: Setup tmate session if mode is debug and OpenRegistry or OCI Tests Fail
         uses: mxschmitt/action-tmate@v3
-        if:  ${{ always() && (github.event_name == 'workflow_dispatch') && inputs.debug_enabled }}
+        if:  ${{always()}}
       - name: Set output report name
         id: vars
         run: echo "short_commit_hash=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
@@ -101,6 +101,8 @@ jobs:
         if: always()
         with:
           name: oci-distribution-pull-report-${{ steps.vars.outputs.short_commit_hash }}
-          path: .out/
+          path: |
+            .out/report.html
+            .out/junit.xml
         env:
           GITHUB_SHORT_SHA: $(echo ${ github.sha } | cut -c1-8)
