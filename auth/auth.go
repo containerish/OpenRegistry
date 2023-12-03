@@ -20,11 +20,7 @@ import (
 type Authentication interface {
 	SignUp(ctx echo.Context) error
 	SignIn(ctx echo.Context) error
-	BasicAuth() echo.MiddlewareFunc
 	Token(ctx echo.Context) error
-	JWT() echo.MiddlewareFunc
-	JWTRest() echo.MiddlewareFunc
-	ACL() echo.MiddlewareFunc
 	LoginWithGithub(ctx echo.Context) error
 	GithubLoginCallbackHandler(ctx echo.Context) error
 	ExpireSessions(ctx echo.Context) error
@@ -36,7 +32,12 @@ type Authentication interface {
 	ResetForgottenPassword(ctx echo.Context) error
 	ForgotPassword(ctx echo.Context) error
 	Invites(ctx echo.Context) error
+
+	// Middlewares
+	BasicAuth() echo.MiddlewareFunc
 	RepositoryPermissionsMiddleware() echo.MiddlewareFunc
+	JWT() echo.MiddlewareFunc
+	JWTRest() echo.MiddlewareFunc
 }
 
 // New is the constructor function returns an Authentication implementation
