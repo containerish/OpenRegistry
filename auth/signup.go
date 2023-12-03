@@ -16,74 +16,48 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-func (a *auth) SignUp(ctx echo.Context) error {
-	ctx.Set(types.HandlerStartTime, time.Now())
-
-	var u types.User
-	if err := json.NewDecoder(ctx.Request().Body).Decode(&u); err != nil {
-		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
-			"error":   err.Error(),
-			"message": "error decoding request body in sign-up",
-		})
-		a.logger.Log(ctx, err).Send()
-		return echoErr
+func (a *auth) parseSignUpRequest(ctx echo.Context) (*types.User, error) {
+	var user types.User
+	if err := json.NewDecoder(ctx.Request().Body).Decode(&user); err != nil {
+		return nil, err
 	}
 	defer ctx.Request().Body.Close()
 
-	if u.UserType != "" &&
-		u.UserType != types.UserTypeRegular.String() &&
-		u.UserType != types.UserTypeOrganization.String() {
+	if user.UserType != "" &&
+		user.UserType != types.UserTypeRegular.String() &&
+		user.UserType != types.UserTypeOrganization.String() {
 		err := fmt.Errorf("invalid user type. Supported values are: user, organization")
-		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
-			"error": err.Error(),
-		})
-		a.logger.Log(ctx, err).Send()
-		return echoErr
+		return nil, err
 	}
 
 	// by default all users are regular users
-	if u.UserType == "" {
-		u.UserType = types.UserTypeRegular.String()
+	if user.UserType == "" {
+		user.UserType = types.UserTypeRegular.String()
 	}
 
-	if err := u.Validate(true); err != nil {
-		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
-			"error":   err.Error(),
-			"message": "invalid request for user sign up",
-		})
-		a.logger.Log(ctx, err).Send()
-		return echoErr
+	if err := user.Validate(true); err != nil {
+		return nil, err
 	}
 
-	passwordHash, err := a.hashPassword(u.Password)
+	passwordHash, err := a.hashPassword(user.Password)
 	if err != nil {
-		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
-			"error":   err.Error(),
-			"message": "internal server error: could not hash the password",
-		})
-		a.logger.Log(ctx, err).Send()
-		return echoErr
+		return nil, err
 	}
+	user.Password = passwordHash
 
-	u.Password = passwordHash
 	id, err := uuid.NewRandom()
 	if err != nil {
-		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
-			"error":   err.Error(),
-			"message": "error creating random id for user sign-up",
-		})
-		a.logger.Log(ctx, err).Send()
-		return echoErr
+		return nil, err
 	}
 
 	newUser := &types.User{
 		ID:        id,
 		UpdatedAt: time.Now(),
 		CreatedAt: time.Now(),
-		Password:  u.Password,
-		Username:  u.Username,
-		Email:     u.Email,
-		UserType:  u.UserType,
+		Password:  user.Password,
+		Username:  user.Username,
+		Email:     user.Email,
+		UserType:  user.UserType,
 	}
 
 	skipEmailVerification := !a.c.Email.Enabled || (a.c.Environment == config.Local || a.c.Environment == config.CI)
@@ -92,7 +66,22 @@ func (a *auth) SignUp(ctx echo.Context) error {
 		newUser.IsActive = true
 	}
 
-	err = a.userStore.AddUser(ctx.Request().Context(), newUser, nil)
+	return newUser, nil
+}
+
+func (a *auth) SignUp(ctx echo.Context) error {
+	ctx.Set(types.HandlerStartTime, time.Now())
+
+	user, err := a.parseSignUpRequest(ctx)
+	if err != nil {
+		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
+			"error": err.Error(),
+		})
+		a.logger.Log(ctx, err).Send()
+		return echoErr
+	}
+
+	err = a.userStore.AddUser(ctx.Request().Context(), user, nil)
 	if err != nil {
 		if strings.Contains(err.Error(), store_err.ErrDuplicateConstraintUsername) {
 			echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
@@ -121,7 +110,7 @@ func (a *auth) SignUp(ctx echo.Context) error {
 	}
 
 	// in case of CI setup, no need to send verification emails
-	if skipEmailVerification {
+	if user.IsActive {
 		echoErr := ctx.JSON(http.StatusCreated, echo.Map{
 			"message": "user successfully created",
 		})
@@ -139,7 +128,7 @@ func (a *auth) SignUp(ctx echo.Context) error {
 		return echoErr
 
 	}
-	err = a.emailStore.AddVerifyEmail(ctx.Request().Context(), token, newUser.ID)
+	err = a.emailStore.AddVerifyEmail(ctx.Request().Context(), token, user.ID)
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error":   err.Error(),
@@ -150,7 +139,7 @@ func (a *auth) SignUp(ctx echo.Context) error {
 	}
 
 	webAppURL := a.c.WebAppConfig.GetAllowedURLFromEchoContext(ctx, a.c.Environment)
-	err = a.emailClient.SendEmail(newUser, token.String(), email.VerifyEmailKind, webAppURL)
+	err = a.emailClient.SendEmail(user, token.String(), email.VerifyEmailKind, webAppURL)
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error":   err.Error(),
