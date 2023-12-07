@@ -36,6 +36,7 @@ func (r *registry) CreateRepository(ctx echo.Context) error {
 			"message": "error parsing request input",
 		})
 	}
+	defer ctx.Request().Body.Close()
 
 	if err = body.Validate(); err != nil {
 		return ctx.JSON(http.StatusBadRequest, echo.Map{
