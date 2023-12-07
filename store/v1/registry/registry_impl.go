@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	v2 "github.com/containerish/OpenRegistry/store/v1"
+	v1 "github.com/containerish/OpenRegistry/store/v1"
 	"github.com/containerish/OpenRegistry/store/v1/types"
 	"github.com/google/uuid"
 	oci_digest "github.com/opencontainers/go-digest"
@@ -52,7 +52,7 @@ func (s *registryStore) CreateRepository(ctx context.Context, repository *types.
 
 	if _, err := s.db.NewInsert().Model(repository).Exec(ctx); err != nil {
 		logEvent.Err(err).Send()
-		return v2.WrapDatabaseError(err, v2.DatabaseOperationWrite)
+		return v1.WrapDatabaseError(err, v1.DatabaseOperationWrite)
 	}
 
 	logEvent.Bool("success", true).Send()
@@ -65,7 +65,7 @@ func (s *registryStore) GetRepositoryByID(ctx context.Context, ID uuid.UUID) (*t
 	repository := &types.ContainerImageRepository{ID: ID}
 	if err := s.db.NewSelect().Model(repository).WherePK().Scan(ctx); err != nil {
 		logEvent.Err(err).Send()
-		return nil, v2.WrapDatabaseError(err, v2.DatabaseOperationRead)
+		return nil, v1.WrapDatabaseError(err, v1.DatabaseOperationRead)
 	}
 
 	logEvent.Bool("success", true).Send()
@@ -95,7 +95,7 @@ func (s *registryStore) GetRepositoryByNamespace(
 		Scan(ctx)
 	if err != nil {
 		logEvent.Err(err).Send()
-		return nil, v2.WrapDatabaseError(err, v2.DatabaseOperationRead)
+		return nil, v1.WrapDatabaseError(err, v1.DatabaseOperationRead)
 	}
 
 	logEvent.Bool("success", true).Send()
@@ -128,7 +128,7 @@ func (s *registryStore) GetRepositoryByName(
 		Scan(ctx)
 	if err != nil {
 		logEvent.Err(err).Send()
-		return nil, v2.WrapDatabaseError(err, v2.DatabaseOperationRead)
+		return nil, v1.WrapDatabaseError(err, v1.DatabaseOperationRead)
 	}
 
 	logEvent.Bool("success", true).Send()
@@ -141,7 +141,7 @@ func (s *registryStore) DeleteLayerByDigestWithTxn(ctx context.Context, txn *bun
 	_, err := txn.NewDelete().Model(&types.ContainerImageLayer{}).Where("digest = ?", digest).Exec(ctx)
 	if err != nil {
 		logEvent.Err(err).Send()
-		return v2.WrapDatabaseError(err, v2.DatabaseOperationDelete)
+		return v1.WrapDatabaseError(err, v1.DatabaseOperationDelete)
 	}
 
 	return nil
@@ -153,7 +153,7 @@ func (s *registryStore) DeleteLayerByDigest(ctx context.Context, digest string) 
 	_, err := s.db.NewDelete().Model(&types.ContainerImageLayer{}).Where("digest = ?", digest).Exec(ctx)
 	if err != nil {
 		logEvent.Err(err).Send()
-		return v2.WrapDatabaseError(err, v2.DatabaseOperationDelete)
+		return v1.WrapDatabaseError(err, v1.DatabaseOperationDelete)
 	}
 
 	logEvent.Bool("success", true).Send()
@@ -174,7 +174,7 @@ func (s *registryStore) DeleteManifestOrTag(ctx context.Context, reference strin
 
 	if err != nil {
 		logEvent.Err(err).Send()
-		return v2.WrapDatabaseError(err, v2.DatabaseOperationDelete)
+		return v1.WrapDatabaseError(err, v1.DatabaseOperationDelete)
 	}
 
 	logEvent.Bool("success", true).Send()
@@ -193,7 +193,7 @@ func (s *registryStore) DeleteManifestOrTagWithTxn(ctx context.Context, txn *bun
 
 	if err != nil {
 		logEvent.Err(err).Send()
-		return v2.WrapDatabaseError(err, v2.DatabaseOperationDelete)
+		return v1.WrapDatabaseError(err, v1.DatabaseOperationDelete)
 	}
 
 	logEvent.Bool("success", true).Send()
@@ -218,7 +218,7 @@ func (s *registryStore) GetCatalog(
 		Where("name = ? and visibility = ?", repositoryName, types.RepositoryVisibilityPublic).
 		Scan(ctx)
 	if err != nil {
-		return nil, v2.WrapDatabaseError(err, v2.DatabaseOperationRead)
+		return nil, v1.WrapDatabaseError(err, v1.DatabaseOperationRead)
 	}
 
 	namespaceList := make([]string, len(catalog))
@@ -243,7 +243,7 @@ func (s *registryStore) GetPublicRepositories(
 		Where("visibility = ?", types.RepositoryVisibilityPublic).
 		ScanAndCount(ctx)
 	if err != nil {
-		return nil, 0, v2.WrapDatabaseError(err, v2.DatabaseOperationRead)
+		return nil, 0, v1.WrapDatabaseError(err, v1.DatabaseOperationRead)
 	}
 
 	return repositories, total, nil
@@ -276,7 +276,7 @@ func (s *registryStore) GetUserRepositories(
 		}).
 		ScanAndCount(ctx)
 	if err != nil {
-		return nil, 0, v2.WrapDatabaseError(err, v2.DatabaseOperationRead)
+		return nil, 0, v1.WrapDatabaseError(err, v1.DatabaseOperationRead)
 	}
 
 	return repositories, total, nil
@@ -305,7 +305,7 @@ func (s *registryStore) GetCatalogCount(ctx context.Context, namespace string) (
 	count, err := stmnt.Count(ctx)
 	if err != nil {
 		logEvent.Err(err).Send()
-		return 0, v2.WrapDatabaseError(err, v2.DatabaseOperationRead)
+		return 0, v1.WrapDatabaseError(err, v1.DatabaseOperationRead)
 	}
 
 	logEvent.Bool("success", true).Send()
@@ -344,7 +344,7 @@ func (s *registryStore) GetCatalogDetail(
 	err := stmnt.Scan(ctx)
 	if err != nil {
 		logEvent.Err(err).Send()
-		return nil, v2.WrapDatabaseError(err, v2.DatabaseOperationRead)
+		return nil, v1.WrapDatabaseError(err, v1.DatabaseOperationRead)
 	}
 
 	logEvent.Bool("success", true).Send()
@@ -358,7 +358,7 @@ func (s *registryStore) GetContentHashById(ctx context.Context, uuid string) (st
 	err := s.db.NewSelect().Model(&types.ContainerImageLayer{}).Column("dfs_link").WherePK(uuid).Scan(ctx, &dfsLink)
 	if err != nil {
 		logEvent.Err(err).Send()
-		return "", v2.WrapDatabaseError(err, v2.DatabaseOperationRead)
+		return "", v1.WrapDatabaseError(err, v1.DatabaseOperationRead)
 	}
 
 	logEvent.Bool("success", true).Send()
@@ -373,7 +373,7 @@ func (s *registryStore) GetImageNamespace(ctx context.Context, search string) ([
 	err := s.db.NewSelect().Model(&manifests).Where("substr(namespace, 1, 50) LIKE ?", bun.Ident(search)).Scan(ctx)
 	if err != nil {
 		logEvent.Err(err).Send()
-		return nil, v2.WrapDatabaseError(err, v2.DatabaseOperationRead)
+		return nil, v1.WrapDatabaseError(err, v1.DatabaseOperationRead)
 	}
 
 	logEvent.Bool("success", true).Send()
@@ -395,7 +395,7 @@ func (s *registryStore) GetImageTags(ctx context.Context, namespace string) ([]s
 		Scan(ctx)
 	if err != nil {
 		logEvent.Err(err).Send()
-		return nil, v2.WrapDatabaseError(err, v2.DatabaseOperationRead)
+		return nil, v1.WrapDatabaseError(err, v1.DatabaseOperationRead)
 	}
 
 	logEvent.Bool("success", true).Send()
@@ -414,7 +414,7 @@ func (s *registryStore) GetLayer(ctx context.Context, digest string) (*types.Con
 	var layer types.ContainerImageLayer
 	if err := s.db.NewSelect().Model(&layer).Where("digest = ?", digest).Scan(ctx); err != nil {
 		logEvent.Err(err).Send()
-		return nil, v2.WrapDatabaseError(err, v2.DatabaseOperationRead)
+		return nil, v1.WrapDatabaseError(err, v1.DatabaseOperationRead)
 	}
 
 	logEvent.Bool("success", true).Send()
@@ -427,7 +427,7 @@ func (s *registryStore) GetManifest(ctx context.Context, id string) (*types.Imag
 	var manifest types.ImageManifest
 	if err := s.db.NewSelect().Model(&manifest).Where("id = ?", id).Scan(ctx); err != nil {
 		logEvent.Err(err).Send()
-		return nil, v2.WrapDatabaseError(err, v2.DatabaseOperationRead)
+		return nil, v1.WrapDatabaseError(err, v1.DatabaseOperationRead)
 	}
 
 	logEvent.Bool("success", true).Send()
@@ -470,7 +470,7 @@ func (s *registryStore) GetManifestByReference(
 
 	if err := q.Scan(ctx); err != nil {
 		logEvent.Err(err).Send()
-		return nil, v2.WrapDatabaseError(err, v2.DatabaseOperationRead)
+		return nil, v1.WrapDatabaseError(err, v1.DatabaseOperationRead)
 	}
 
 	logEvent.Bool("success", true).Send()
@@ -500,7 +500,7 @@ func (s *registryStore) GetRepoDetail(
 		Scan(ctx)
 	if err != nil {
 		logEvent.Err(err).Send()
-		return nil, v2.WrapDatabaseError(err, v2.DatabaseOperationRead)
+		return nil, v1.WrapDatabaseError(err, v1.DatabaseOperationRead)
 	}
 
 	logEvent.Bool("success", true).Send()
@@ -526,7 +526,7 @@ func (s *registryStore) SetContainerImageVisibility(
 
 	if err != nil {
 		logEvent.Err(err).Send()
-		return v2.WrapDatabaseError(err, v2.DatabaseOperationUpdate)
+		return v1.WrapDatabaseError(err, v1.DatabaseOperationUpdate)
 	}
 
 	logEvent.Bool("success", true).Send()
@@ -539,7 +539,7 @@ func (s *registryStore) SetLayer(ctx context.Context, txn *bun.Tx, l *types.Cont
 	_, err := txn.NewInsert().Model(l).On("conflict (digest) do update").Set("updated_at = ?", time.Now()).Exec(ctx)
 	if err != nil {
 		logEvent.Err(err).Send()
-		return v2.WrapDatabaseError(err, v2.DatabaseOperationWrite)
+		return v1.WrapDatabaseError(err, v1.DatabaseOperationWrite)
 	}
 
 	logEvent.Bool("success", true).Send()
@@ -562,7 +562,7 @@ func (s *registryStore) SetManifest(ctx context.Context, txn *bun.Tx, im *types.
 			Exec(ctx)
 		if err != nil {
 			logEvent.Err(err).Send()
-			return v2.WrapDatabaseError(err, v2.DatabaseOperationWrite)
+			return v1.WrapDatabaseError(err, v1.DatabaseOperationWrite)
 		}
 
 		logEvent.Bool("success", true).Send()
@@ -573,16 +573,16 @@ func (s *registryStore) SetManifest(ctx context.Context, txn *bun.Tx, im *types.
 		_, err := txn.NewInsert().Model(im).Exec(ctx)
 		if err != nil {
 			logEvent.Err(err).Send()
-			return v2.WrapDatabaseError(err, v2.DatabaseOperationWrite)
+			return v1.WrapDatabaseError(err, v1.DatabaseOperationWrite)
 		}
 
 		logEvent.Bool("success", true).Send()
 		return nil
 	}
 
-	return v2.WrapDatabaseError(
+	return v1.WrapDatabaseError(
 		fmt.Errorf("DB_ERR: InsertOnUpdate feature not available"),
-		v2.DatabaseOperationWrite,
+		v1.DatabaseOperationWrite,
 	)
 }
 
@@ -700,8 +700,92 @@ func (s *registryStore) GetImageSizeByLayerIds(ctx context.Context, layerIDs []s
 		Where("digest in (?)", bun.In(layerIDs)).
 		Scan(ctx, &size)
 	if err != nil {
-		return 0, err
+		return 0, v1.WrapDatabaseError(err, v1.DatabaseOperationUpdate)
 	}
 
 	return size, nil
+}
+
+func (s *registryStore) IncrementRepositoryPullCounter(ctx context.Context, repoID uuid.UUID) error {
+	repo := types.ContainerImageRepository{
+		ID: repoID,
+	}
+
+	_, err := s.db.NewUpdate().Model(&repo).WherePK().Set("pull_count = pull_count + 1").Exec(ctx)
+	if err != nil {
+		return v1.WrapDatabaseError(err, v1.DatabaseOperationUpdate)
+	}
+
+	return nil
+}
+
+func (s *registryStore) AddRepositoryToFavorites(ctx context.Context, repoID uuid.UUID, userID uuid.UUID) error {
+	user := types.User{}
+
+	q := s.
+		db.
+		NewUpdate().
+		Model(&user).
+		Set("favorite_repositories = array_append(favorite_repositories, ?)", repoID).
+		Where("id = ?", userID).
+		Where("NOT (? = ANY(favorite_repositories))", repoID)
+
+	result, err := q.Exec(ctx)
+	if err != nil {
+		return v1.WrapDatabaseError(err, v1.DatabaseOperationUpdate)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return v1.WrapDatabaseError(err, v1.DatabaseOperationUpdate)
+	}
+
+	if rowsAffected == 1 {
+		repo := types.ContainerImageRepository{
+			ID: repoID,
+		}
+
+		_, err = s.db.NewUpdate().Model(&repo).WherePK().Set("favorite_count = favorite_count + 1").Exec(ctx)
+		if err != nil {
+			return v1.WrapDatabaseError(err, v1.DatabaseOperationUpdate)
+		}
+
+		return nil
+	}
+
+	return v1.WrapDatabaseError(fmt.Errorf("repository is already in favorites list"), v1.DatabaseOperationUpdate)
+}
+
+func (s *registryStore) RemoveRepositoryFromFavorites(ctx context.Context, repoID uuid.UUID, userID uuid.UUID) error {
+	user := types.User{}
+	q := s.
+		db.
+		NewUpdate().
+		Model(&user).
+		Set("favorite_repositories = array_remove(favorite_repositories, ?)", repoID).
+		Where("id = ?", userID).
+		Where("? = ANY(favorite_repositories)", repoID)
+
+	result, err := q.Exec(ctx)
+	if err != nil {
+		return v1.WrapDatabaseError(err, v1.DatabaseOperationUpdate)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err == nil && rowsAffected == 1 {
+		repo := types.ContainerImageRepository{
+			ID: repoID,
+		}
+
+		_, err = s.db.NewUpdate().Model(&repo).WherePK().Set("favorite_count = favorite_count - 1").Exec(ctx)
+		if err != nil {
+			return v1.WrapDatabaseError(err, v1.DatabaseOperationUpdate)
+		}
+		return nil
+	}
+
+	return v1.WrapDatabaseError(
+		fmt.Errorf("repository is not in favorites list"),
+		v1.DatabaseOperationUpdate,
+	)
 }

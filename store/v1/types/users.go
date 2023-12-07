@@ -43,11 +43,13 @@ type (
 	User struct {
 		bun.BaseModel `bun:"table:users,alias:u" json:"-"`
 
-		UpdatedAt           time.Time                   `bun:"updated_at" json:"updated_at,omitempty" validate:"-"`
-		CreatedAt           time.Time                   `bun:"created_at" json:"created_at,omitempty" validate:"-"`
-		Identities          Identities                  `bun:"identities" json:"identities,omitempty"`
-		Username            string                      `bun:"username,notnull,unique" json:"username,omitempty" validate:"-"`
-		Password            string                      `bun:"password" json:"password,omitempty"`
+		UpdatedAt  time.Time  `bun:"updated_at" json:"updated_at,omitempty" validate:"-"`
+		CreatedAt  time.Time  `bun:"created_at" json:"created_at,omitempty" validate:"-"`
+		Identities Identities `bun:"identities" json:"identities,omitempty"`
+		// nolint:lll
+		Username string `bun:"username,notnull,unique" json:"username,omitempty" validate:"-"`
+		Password string `bun:"password" json:"password,omitempty"`
+		// nolint:lll
 		Email               string                      `bun:"email,notnull,unique" json:"email,omitempty" validate:"email"`
 		UserType            string                      `bun:"user_type" json:"user_type"`
 		Sessions            []*Session                  `bun:"rel:has-many,join:id=owner_id" json:"-"`
@@ -55,11 +57,13 @@ type (
 		WebauthnCredentials []*WebauthnCredential       `bun:"rel:has-many,join:id=credential_owner_id" json:"-"`
 		Permissions         []*Permissions              `bun:"rel:has-many,join:id=user_id" json:"-"`
 		Repositories        []*ContainerImageRepository `bun:"rel:has-many,join:id=owner_id" json:"-"`
-		ID                  uuid.UUID                   `bun:"id,type:uuid,pk" json:"id,omitempty" validate:"-"`
-		IsActive            bool                        `bun:"is_active" json:"is_active,omitempty" validate:"-"`
-		WebauthnConnected   bool                        `bun:"webauthn_connected" json:"webauthn_connected,omitempty"`
-		GithubConnected     bool                        `bun:"github_connected" json:"github_connected,omitempty"`
-		IsOrgOwner          bool                        `bun:"is_org_owner" json:"is_org_owner,omitempty"`
+		// nolint:lll
+		FavoriteRepositories []uuid.UUID `bun:"favorite_repositories,type:uuid[],default:'{}'" json:"favorite_repositories"`
+		ID                   uuid.UUID   `bun:"id,type:uuid,pk" json:"id,omitempty" validate:"-"`
+		IsActive             bool        `bun:"is_active" json:"is_active,omitempty" validate:"-"`
+		WebauthnConnected    bool        `bun:"webauthn_connected" json:"webauthn_connected"`
+		GithubConnected      bool        `bun:"github_connected" json:"github_connected"`
+		IsOrgOwner           bool        `bun:"is_org_owner" json:"is_org_owner,omitempty"`
 	}
 
 	// type here is string so that we can use it with echo.Context & std context.Context

@@ -25,7 +25,7 @@ func registryNamespaceValidator(logger telemetry.Logger) echo.MiddlewareFunc {
 			}
 
 			namespace := ctx.Param("username") + "/" + ctx.Param("imagename")
-			if !nsRegex.MatchString(namespace) {
+			if namespace != "/" && !nsRegex.MatchString(namespace) {
 				registryErr := common.RegistryErrorResponse(
 					registry.RegistryErrorCodeNameInvalid,
 					"invalid user namespace",
