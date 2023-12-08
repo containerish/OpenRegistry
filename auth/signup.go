@@ -19,7 +19,7 @@ import (
 func (a *auth) parseSignUpRequest(ctx echo.Context) (*types.User, error) {
 	var user types.User
 	if err := json.NewDecoder(ctx.Request().Body).Decode(&user); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error parsing signup request: %w", err)
 	}
 	defer ctx.Request().Body.Close()
 

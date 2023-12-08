@@ -18,6 +18,8 @@ type Extenion interface {
 	ChangeContainerImageVisibility(ctx echo.Context) error
 	PublicCatalog(ctx echo.Context) error
 	GetUserCatalog(ctx echo.Context) error
+	AddRepositoryToFavorites(ctx echo.Context) error
+	RemoveRepositoryFromFavorites(ctx echo.Context) error
 }
 
 type extension struct {

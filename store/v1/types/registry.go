@@ -102,6 +102,8 @@ type (
 		Builds         []*RepositoryBuild   `bun:"rel:has-many,join:id=repository_id" json:"-"`
 		ID             uuid.UUID            `bun:"id,pk,type:uuid,default:gen_random_uuid()" json:"id"`
 		OwnerID        uuid.UUID            `bun:"owner_id,type:uuid" json:"owner_id"`
+		PullCount      uint64               `bun:"pull_count" json:"pull_count"`
+		FavoriteCount  uint64               `bun:"favorite_count" json:"favorite_count"`
 	}
 
 	RepositoryVisibility string

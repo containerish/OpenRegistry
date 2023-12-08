@@ -83,4 +83,7 @@ type RegistryStore interface {
 	GetRepositoryByNamespace(ctx context.Context, namespace string) (*types.ContainerImageRepository, error)
 	RepositoryExists(ctx context.Context, namespace string) bool
 	GetRepositoryByName(ctx context.Context, userId uuid.UUID, name string) (*types.ContainerImageRepository, error)
+	IncrementRepositoryPullCounter(ctx context.Context, repoID uuid.UUID) error
+	AddRepositoryToFavorites(ctx context.Context, repoID uuid.UUID, userID uuid.UUID) error
+	RemoveRepositoryFromFavorites(ctx context.Context, repoID uuid.UUID, userID uuid.UUID) error
 }

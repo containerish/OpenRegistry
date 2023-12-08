@@ -35,6 +35,7 @@ func (o *orgMode) AllowOrgAdmin() echo.MiddlewareFunc {
 					o.logger.Log(ctx, err).Send()
 					return echoErr
 				}
+				defer ctx.Request().Body.Close()
 
 				// only allow self-migrate
 				if !strings.EqualFold(user.ID.String(), body.UserID.String()) {

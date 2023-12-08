@@ -38,9 +38,7 @@ func Register(
 	usersStore users_store.UserStore,
 	automationStore automation.BuildAutomationStore,
 ) *echo.Echo {
-	e := echo.New()
-
-	setDefaultEchoOptions(e, cfg.WebAppConfig, healthCheckApi)
+	e := setDefaultEchoOptions(cfg.WebAppConfig, healthCheckApi)
 
 	baseAPIRouter := e.Group("/api")
 	githubRouter := e.Group("/github")
@@ -63,6 +61,7 @@ func Register(
 	RegisterExtensionsRoutes(ociRouter, registryApi, extensionsApi)
 	RegisterWebauthnRoutes(webauthnRouter, webauthnApi)
 	RegisterOrgModeRoutes(orgModeRouter, orgModeApi)
+
 	if cfg.Integrations.GetGithubConfig() != nil && cfg.Integrations.GetGithubConfig().Enabled {
 		RegisterGitHubRoutes(
 			githubRouter,
@@ -96,7 +95,8 @@ func Register(
 	return e
 }
 
-func setDefaultEchoOptions(e *echo.Echo, webConfig config.WebAppConfig, healthCheck http.HandlerFunc) {
+func setDefaultEchoOptions(webConfig config.WebAppConfig, healthCheck http.HandlerFunc) *echo.Echo {
+	e := echo.New()
 	e.HideBanner = true
 
 	e.Use(middleware.Recover())
@@ -123,4 +123,6 @@ func setDefaultEchoOptions(e *echo.Echo, webConfig config.WebAppConfig, healthCh
 	p.Use(e)
 
 	e.Add(http.MethodGet, "/health", echo.WrapHandler(healthCheck))
+
+	return e
 }

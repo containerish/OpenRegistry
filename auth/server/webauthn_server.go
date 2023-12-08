@@ -348,6 +348,10 @@ func (wa *webauthn_server) BeginLogin(ctx echo.Context) error {
 		},
 	}
 
+	defer func() {
+		ctx.Request().Body.Close()
+	}()
+
 	credentialAssertion, err := wa.webauthn.BeginLogin(ctx.Request().Context(), opts)
 	if err != nil {
 		if werr := wa.webauthn.RemoveSessionData(ctx.Request().Context(), user.ID); werr != nil {
@@ -366,7 +370,6 @@ func (wa *webauthn_server) BeginLogin(ctx echo.Context) error {
 		wa.logger.Log(ctx, err).Send()
 		return echoErr
 	}
-	defer ctx.Request().Body.Close()
 
 	echoErr := ctx.JSON(http.StatusOK, echo.Map{
 		"options": credentialAssertion,

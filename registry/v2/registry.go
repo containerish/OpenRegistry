@@ -226,7 +226,8 @@ func (r *registry) PullManifest(ctx echo.Context) error {
 
 	manifest, err := r.store.GetManifestByReference(ctx.Request().Context(), namespace, ref)
 	if err != nil {
-		errMsg := common.RegistryErrorResponse(RegistryErrorCodeManifestUnknown, err.Error(), echo.Map{
+		errMsg := common.RegistryErrorResponse(RegistryErrorCodeManifestUnknown, "manifest not found", echo.Map{
+			"error":     err.Error(),
 			"namespace": namespace,
 			"ref":       ref,
 		})
@@ -234,6 +235,14 @@ func (r *registry) PullManifest(ctx echo.Context) error {
 		r.logger.Log(ctx, fmt.Errorf("%s", errMsg)).Send()
 		return echoErr
 	}
+
+	defer func() {
+		err = r.store.IncrementRepositoryPullCounter(ctx.Request().Context(), manifest.RepositoryID)
+		// silently fail
+		if err != nil {
+			r.logger.DebugWithContext(ctx).Err(err).Send()
+		}
+	}()
 
 	trimmedMf := manifest.ToOCISubject()
 	ctx.Response().Header().Set("Docker-Content-Digest", manifest.Digest)
