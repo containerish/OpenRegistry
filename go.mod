@@ -22,7 +22,7 @@ require (
 	github.com/google/uuid v1.4.0
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/honeycombio/honeycomb-opentelemetry-go v0.9.0
-	github.com/honeycombio/otel-config-go v1.13.0
+	github.com/honeycombio/otel-config-go v1.13.1
 	github.com/ipfs/boxo v0.15.0
 	github.com/ipfs/kubo v0.24.0
 	github.com/jackc/pgx/v4 v4.18.1
