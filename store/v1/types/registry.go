@@ -33,8 +33,8 @@ func (v RepositoryVisibility) String() string {
 
 type (
 	ContainerImageVisibilityChangeRequest struct {
-		ImageManifestUUID string               `json:"image_manifest_uuid"`
-		Visibility        RepositoryVisibility `json:"visibility_mode"`
+		Visibility   RepositoryVisibility `json:"visibility_mode"`
+		RepositoryID uuid.UUID            `json:"repository_id"`
 	}
 
 	ImageManifest struct {
@@ -96,7 +96,7 @@ type (
 		User           *User                `bun:"rel:belongs-to,join:owner_id=id" json:"-"`
 		Project        *RepositoryBuild     `bun:"rel:has-one,join:id=repository_id" json:"-"`
 		Description    string               `bun:"description" json:"description"`
-		Visibility     RepositoryVisibility `bun:"visibility,notnull" json:"visibility"`
+		Visibility     RepositoryVisibility `bun:"visibility,type:text,notnull" json:"visibility"`
 		Name           string               `bun:"name,notnull" json:"name"`
 		ImageManifests []*ImageManifest     `bun:"rel:has-many,join:id=repository_id" json:"image_manifests,omitempty"`
 		Builds         []*RepositoryBuild   `bun:"rel:has-many,join:id=repository_id" json:"-"`

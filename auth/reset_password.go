@@ -1,15 +1,13 @@
 package auth
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"time"
 
 	"github.com/containerish/OpenRegistry/services/email"
-	v2_types "github.com/containerish/OpenRegistry/store/v1/types"
-	"github.com/containerish/OpenRegistry/types"
+	"github.com/containerish/OpenRegistry/store/v1/types"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v4"
@@ -41,8 +39,8 @@ func (a *auth) ResetForgottenPassword(ctx echo.Context) error {
 		return echoErr
 	}
 
-	var pwd *types.Password
-	if err := json.NewDecoder(ctx.Request().Body).Decode(&pwd); err != nil {
+	var body types.PasswordResetRequest
+	if err := ctx.Bind(&body); err != nil {
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error":   err.Error(),
 			"message": "request body could not be decoded",
@@ -72,7 +70,7 @@ func (a *auth) ResetForgottenPassword(ctx echo.Context) error {
 		return echoErr
 	}
 
-	if err = v2_types.ValidatePassword(pwd.NewPassword); err != nil {
+	if err = types.ValidatePassword(body.NewPassword); err != nil {
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error": err.Error(),
 			"message": `password must be alphanumeric, at least 8 chars long, must have at least one special character
@@ -82,7 +80,7 @@ and an uppercase letter`,
 		return echoErr
 	}
 
-	if a.verifyPassword(user.Password, pwd.NewPassword) {
+	if a.verifyPassword(user.Password, body.NewPassword) {
 		err = fmt.Errorf("new password can not be same as old password")
 		// error is already user friendly
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
@@ -93,7 +91,7 @@ and an uppercase letter`,
 		return echoErr
 	}
 
-	hashPassword, err := a.hashPassword(pwd.NewPassword)
+	hashPassword, err := a.hashPassword(body.NewPassword)
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error":   err.Error(),
@@ -122,30 +120,19 @@ and an uppercase letter`,
 func (a *auth) ResetPassword(ctx echo.Context) error {
 	ctx.Set(types.HandlerStartTime, time.Now())
 
-	token, ok := ctx.Get("user").(*jwt.Token)
+	user, ok := ctx.Get(string(types.UserContextKey)).(*types.User)
 	if !ok {
-		err := fmt.Errorf("ERR_EMPTY_TOKEN")
-		echoErr := ctx.JSON(http.StatusUnauthorized, echo.Map{
-			"error":   err.Error(),
-			"message": "JWT token can not be empty",
-		})
-		a.logger.Log(ctx, err).Send()
-		return echoErr
-	}
-
-	c, ok := token.Claims.(*Claims)
-	if !ok {
-		err := fmt.Errorf("ERR_INVALID_CLAIMS")
+		errMsg := fmt.Errorf("ERR_MISSING_AUTH_CREDENTIALS")
 		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
-			"error":   err.Error(),
-			"message": "invalid claims in JWT",
+			"error":   errMsg,
+			"message": "error updating new password",
 		})
-		a.logger.Log(ctx, err).Send()
+		a.logger.Log(ctx, errMsg).Send()
 		return echoErr
 	}
 
-	var pwd *types.Password
-	err := json.NewDecoder(ctx.Request().Body).Decode(&pwd)
+	var body types.PasswordResetRequest
+	err := ctx.Bind(&body)
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error":   err.Error(),
@@ -156,28 +143,8 @@ func (a *auth) ResetPassword(ctx echo.Context) error {
 	}
 	defer ctx.Request().Body.Close()
 
-	userId, err := uuid.Parse(c.ID)
-	if err != nil {
-		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
-			"error":   err.Error(),
-			"message": "invalid user id format",
-		})
-		a.logger.Log(ctx, err).Send()
-		return echoErr
-	}
-
-	user, err := a.userStore.GetUserByID(ctx.Request().Context(), userId)
-	if err != nil {
-		echoErr := ctx.JSON(http.StatusNotFound, echo.Map{
-			"error":   err.Error(),
-			"message": "error getting user by ID from DB",
-		})
-		a.logger.Log(ctx, err).Send()
-		return echoErr
-	}
-
 	// compare the current password with password hash from DB
-	if !a.verifyPassword(user.Password, pwd.OldPassword) {
+	if !a.verifyPassword(user.Password, body.OldPassword) {
 		err = fmt.Errorf("ERR_WRONG_PASSWORD")
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error":   err.Error(),
@@ -187,7 +154,7 @@ func (a *auth) ResetPassword(ctx echo.Context) error {
 		return echoErr
 	}
 
-	hashPassword, err := a.hashPassword(pwd.NewPassword)
+	hashPassword, err := a.hashPassword(body.NewPassword)
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error":   err.Error(),
@@ -208,7 +175,7 @@ func (a *auth) ResetPassword(ctx echo.Context) error {
 		return echoErr
 	}
 
-	if err = v2_types.ValidatePassword(pwd.NewPassword); err != nil {
+	if err = types.ValidatePassword(body.NewPassword); err != nil {
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error": err.Error(),
 			"message": `password must be alphanumeric, at least 8 chars long, must have at least one special character
@@ -218,7 +185,7 @@ and an uppercase letter`,
 		return echoErr
 	}
 
-	if err = a.userStore.UpdateUserPWD(ctx.Request().Context(), userId, hashPassword); err != nil {
+	if err = a.userStore.UpdateUserPWD(ctx.Request().Context(), user.ID, hashPassword); err != nil {
 		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error":   err.Error(),
 			"message": "error updating new password",

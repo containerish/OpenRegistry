@@ -42,7 +42,7 @@ func Register(
 
 	baseAPIRouter := e.Group("/api")
 	githubRouter := e.Group("/github")
-	authRouter := e.Group(Auth)
+	authRouter := e.Group(Auth, authApi.JWTRest())
 	webauthnRouter := e.Group(Webauthn)
 	orgModeRouter := e.Group("/org", authApi.JWTRest(), orgModeApi.AllowOrgAdmin())
 	ociRouter := e.Group(V2, registryNamespaceValidator(logger), authApi.BasicAuth(), authApi.JWT())
@@ -58,7 +58,7 @@ func Register(
 	RegisterUserRoutes(userApiRouter, usersApi)
 	RegisterNSRoutes(nsRouter, registryApi, registryStore, logger)
 	RegisterAuthRoutes(authRouter, authApi)
-	RegisterExtensionsRoutes(ociRouter, registryApi, extensionsApi)
+	RegisterExtensionsRoutes(ociRouter, registryApi, extensionsApi, authApi.JWTRest())
 	RegisterWebauthnRoutes(webauthnRouter, webauthnApi)
 	RegisterOrgModeRoutes(orgModeRouter, orgModeApi)
 

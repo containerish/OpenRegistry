@@ -94,6 +94,11 @@ type (
 		Token  uuid.UUID `bun:"token,pk,type:uuid" json:"-"`
 		UserId uuid.UUID `bun:"user_id,type:uuid" json:"-"`
 	}
+
+	PasswordResetRequest struct {
+		OldPassword string `json:"old_password"`
+		NewPassword string `json:"new_password"`
+	}
 )
 
 const (

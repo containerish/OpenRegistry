@@ -3,6 +3,7 @@ package users
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"strings"
 
 	v1 "github.com/containerish/OpenRegistry/store/v1"
@@ -160,8 +161,17 @@ func (us *userStore) IsActive(ctx context.Context, id uuid.UUID) bool {
 
 // UpdateUser implements UserStore.
 func (us *userStore) UpdateUser(ctx context.Context, user *types.User) (*types.User, error) {
-	if _, err := us.db.NewUpdate().Model(user).WherePK().Exec(ctx); err != nil {
+	result, err := us.db.NewUpdate().Model(user).WherePK().Exec(ctx)
+	if err != nil {
 		return nil, v1.WrapDatabaseError(err, v1.DatabaseOperationUpdate)
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return nil, v1.WrapDatabaseError(err, v1.DatabaseOperationUpdate)
+	}
+
+	if rowsAffected != 1 {
+		return nil, v1.WrapDatabaseError(fmt.Errorf("no user found for provided input"), v1.DatabaseOperationUpdate)
 	}
 
 	return user, nil
@@ -169,9 +179,18 @@ func (us *userStore) UpdateUser(ctx context.Context, user *types.User) (*types.U
 
 // UpdateUserPWD implements UserStore.
 func (us *userStore) UpdateUserPWD(ctx context.Context, id uuid.UUID, newPassword string) error {
-	_, err := us.db.NewUpdate().Model(&types.User{ID: id}).Set("password = ?", newPassword).WherePK().Exec(ctx)
+	result, err := us.db.NewUpdate().Model(&types.User{ID: id}).Set("password = ?", newPassword).WherePK().Exec(ctx)
 	if err != nil {
 		return v1.WrapDatabaseError(err, v1.DatabaseOperationUpdate)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return v1.WrapDatabaseError(err, v1.DatabaseOperationUpdate)
+	}
+
+	if rowsAffected != 1 {
+		return fmt.Errorf("no user found for provided input")
 	}
 
 	return nil
