@@ -4,7 +4,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-const bcryptMinCost = 6
+const bcryptMinCost = 12
 
 func (a *auth) hashPassword(password string) (string, error) {
 	// Convert password string to byte slice
