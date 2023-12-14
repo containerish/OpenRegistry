@@ -22,7 +22,7 @@ import (
 type ghAppService struct {
 	store                vcs.VCSStore
 	logger               telemetry.Logger
-	config               *config.Integration
+	config               *config.GithubIntegration
 	ghClient             *github.Client
 	ghAppTransport       *ghinstallation.AppsTransport
 	automationBranchName string
@@ -32,7 +32,7 @@ type ghAppService struct {
 }
 
 func NewGithubApp(
-	cfg *config.Integration,
+	cfg *config.GithubIntegration,
 	store vcs.VCSStore,
 	logger telemetry.Logger,
 	webInterfaceURLs []string,
@@ -168,7 +168,7 @@ func (gh *ghAppService) getGitubInstallationID(skipRoutes ...string) echo.Middle
 func newGHClient(appID int64, privKeyPem string) (*ghinstallation.AppsTransport, *github.Client, error) {
 	transport, err := ghinstallation.NewAppsTransportKeyFromFile(http.DefaultTransport, appID, privKeyPem)
 	if err != nil {
-		return nil, nil, fmt.Errorf("ERR_CREATE_NEW_TRANSPORT: %w", err)
+		return nil, nil, fmt.Errorf("ERR_CREATE_NEW_TRANSPORT: %w - file: %s", err, privKeyPem)
 	}
 
 	client := github.NewClient(&http.Client{Transport: transport, Timeout: time.Second * 30})

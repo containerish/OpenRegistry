@@ -44,7 +44,7 @@ func Register(
 	githubRouter := e.Group("/github")
 	authRouter := e.Group(Auth)
 	webauthnRouter := e.Group(Webauthn)
-	orgModeRouter := e.Group("/org", authApi.JWTRest(), orgModeApi.AllowOrgAdmin())
+	orgModeRouter := baseAPIRouter.Group("/org", authApi.JWTRest(), orgModeApi.AllowOrgAdmin())
 	ociRouter := e.Group(V2, registryNamespaceValidator(logger), authApi.BasicAuth(), authApi.JWT())
 	userApiRouter := baseAPIRouter.Group("/users", authApi.JWTRest())
 	nsRouter := ociRouter.Group(Namespace, authApi.RepositoryPermissionsMiddleware())
@@ -61,6 +61,7 @@ func Register(
 	RegisterExtensionsRoutes(ociRouter, registryApi, extensionsApi)
 	RegisterWebauthnRoutes(webauthnRouter, webauthnApi)
 	RegisterOrgModeRoutes(orgModeRouter, orgModeApi)
+	RegisterVulnScaningRoutes(cfg.Integrations.GetClairConfig(), logger)
 
 	if cfg.Integrations.GetGithubConfig() != nil && cfg.Integrations.GetGithubConfig().Enabled {
 		RegisterGitHubRoutes(

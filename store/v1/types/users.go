@@ -50,13 +50,14 @@ type (
 		Username string `bun:"username,notnull,unique" json:"username,omitempty" validate:"-"`
 		Password string `bun:"password" json:"password,omitempty"`
 		// nolint:lll
-		Email               string                      `bun:"email,notnull,unique" json:"email,omitempty" validate:"email"`
-		UserType            string                      `bun:"user_type" json:"user_type"`
-		Sessions            []*Session                  `bun:"rel:has-many,join:id=owner_id" json:"-"`
-		WebauthnSessions    []*WebauthnSession          `bun:"rel:has-many,join:id=user_id" json:"-"`
-		WebauthnCredentials []*WebauthnCredential       `bun:"rel:has-many,join:id=credential_owner_id" json:"-"`
-		Permissions         []*Permissions              `bun:"rel:has-many,join:id=user_id" json:"-"`
-		Repositories        []*ContainerImageRepository `bun:"rel:has-many,join:id=owner_id" json:"-"`
+		Email               string                `bun:"email,notnull,unique" json:"email,omitempty" validate:"email"`
+		UserType            string                `bun:"user_type" json:"user_type"`
+		Sessions            []*Session            `bun:"rel:has-many,join:id=owner_id" json:"-"`
+		WebauthnSessions    []*WebauthnSession    `bun:"rel:has-many,join:id=user_id" json:"-"`
+		WebauthnCredentials []*WebauthnCredential `bun:"rel:has-many,join:id=credential_owner_id" json:"-"`
+		Permissions         []*Permissions        `bun:"rel:has-many,join:id=user_id" json:"permissions"`
+		// Permissions         []*Permissions              `bun:"m2m:permissions,join:" json:"permissions"`
+		Repositories []*ContainerImageRepository `bun:"rel:has-many,join:id=owner_id" json:"-"`
 		// nolint:lll
 		FavoriteRepositories []uuid.UUID `bun:"favorite_repositories,type:uuid[],default:'{}'" json:"favorite_repositories"`
 		ID                   uuid.UUID   `bun:"id,type:uuid,pk" json:"id,omitempty" validate:"-"`

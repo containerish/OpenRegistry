@@ -19,7 +19,7 @@ import (
 
 type GitHubActionsServer struct {
 	logger              telemetry.Logger
-	config              *config.Integration
+	config              *config.GithubIntegration
 	github              *github.Client
 	transport           *ghinstallation.AppsTransport
 	store               automation.BuildAutomationStore
@@ -33,7 +33,7 @@ type streamLogsJob struct {
 }
 
 func NewGithubActionsServer(
-	config *config.Integration,
+	config *config.GithubIntegration,
 	authConfig *config.Auth,
 	logger telemetry.Logger,
 	store automation.BuildAutomationStore,

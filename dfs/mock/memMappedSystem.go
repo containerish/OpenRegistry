@@ -230,16 +230,22 @@ func (ms *memMappedMockStorage) FileServer() {
 		fileID := ctx.Param("uuid")
 		fd, err := ms.memFs.Open(fileID)
 		if err != nil {
-			return ctx.JSON(http.StatusBadRequest, echo.Map{
+			echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 				"error": err.Error(),
 			})
+
+			ms.logger.Log(ctx, err).Send()
+			return echoErr
 		}
 
 		bz, _ := io.ReadAll(fd)
 		fd.Close()
-		return ctx.Blob(http.StatusOK, "", bz)
+		echoErr := ctx.Blob(http.StatusOK, "", bz)
+		ms.logger.Log(ctx, err).Send()
+		return echoErr
 	})
 
+	color.Yellow("Started Mock MemMapped DFS on %s", ms.serviceEndpoint)
 	if err := e.Start(ms.serviceEndpoint); err != nil {
 		color.Red("MockStorage service failed: %s", err)
 		os.Exit(1)

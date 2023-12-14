@@ -45,6 +45,8 @@ type UserReader interface {
 	UserExists(ctx context.Context, username, email string) (bool, bool)
 	GetOrgAdmin(ctx context.Context, orgID uuid.UUID) (*types.User, error)
 	Search(ctx context.Context, query string) ([]*types.User, error)
+	GetOrgUsersByOrgID(ctx context.Context, orgID uuid.UUID) ([]*types.Permissions, error)
+	MatchUserType(ctx context.Context, userType types.UserType, userIds ...uuid.UUID) bool
 }
 
 type UserWriter interface {

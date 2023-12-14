@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fatih/color"
 	"github.com/go-playground/locales/en"
 	ut "github.com/go-playground/universal-translator"
 	"github.com/go-playground/validator/v10"
@@ -13,6 +14,7 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/labstack/echo/v4"
 	"github.com/spf13/viper"
+	"gopkg.in/yaml.v3"
 )
 
 type (
@@ -75,7 +77,7 @@ type (
 	MockStorageBackend int
 
 	// just so that we can retrieve values easily
-	Integrations []*Integration
+	Integrations map[string]any
 
 	Registry struct {
 		DNSAddress string   `yaml:"dns_address" mapstructure:"dns_address" validate:"required"`
@@ -133,7 +135,8 @@ type (
 		Enabled       bool          `yaml:"enabled" mapstructure:"enabled"`
 		Timeout       time.Duration `yaml:"timeout" mapstructure:"timeout"`
 	}
-	Integration struct {
+
+	GithubIntegration struct {
 		Name                  string `yaml:"name" mapstructure:"name"`
 		ClientSecret          string `yaml:"client_secret" mapstructure:"client_secret"`
 		ClientID              string `yaml:"client_id" mapstructure:"client_id"`
@@ -145,6 +148,14 @@ type (
 		AppID                 int64  `yaml:"app_id" mapstructure:"app_id"`
 		Port                  int    `yaml:"port" mapstructure:"port"`
 		Enabled               bool   `yaml:"enabled" mapstructure:"enabled"`
+	}
+
+	ClairIntegration struct {
+		ClairEndpoint string `yaml:"clair_endpoint" mapstructure:"clair_endpoint"`
+		AuthToken     string `yaml:"auth_token" mapstructure:"auth_token"`
+		Host          string `yaml:"host" mapstructure:"host"`
+		Port          int    `yaml:"port" mapstructure:"port"`
+		Enabled       bool   `yaml:"enabled" mapstructure:"enabled"`
 	}
 
 	Auth struct {
@@ -289,23 +300,70 @@ func (oc *OpenRegistryConfig) Endpoint() string {
 	}
 }
 
-func (itg Integrations) GetGithubConfig() *Integration {
-	for _, cfg := range itg {
-		if cfg.Name == "github" && cfg.Enabled {
-			return cfg
-		}
+func (itg Integrations) GetClairConfig() *ClairIntegration {
+	cfg := ClairIntegration{
+		Enabled: false,
+	}
+	clairCfg, ok := itg["clair"]
+	if !ok {
+		return &cfg
 	}
 
-	return &Integration{}
+	bz, err := yaml.Marshal(clairCfg)
+	if err != nil {
+		color.Red("error reading clair integration config as json: %s", err)
+		return nil
+	}
+
+	if err = yaml.Unmarshal(bz, &cfg); err != nil {
+		color.Red("error parsing Clair integration config: %s", err)
+		return nil
+	}
+
+	if cfg.Host == "" {
+		cfg.Host = "localhost"
+	}
+
+	if cfg.Port == 0 {
+		cfg.Port = 5004
+	}
+
+	return &cfg
 }
 
-func (itg Integrations) SetGithubConfig(config *Integration) {
-	for i, cfg := range itg {
-		if cfg.Name == "github" {
-			itg[i] = config
-			break
-		}
+func (itg Integrations) GetGithubConfig() *GithubIntegration {
+	cfg := GithubIntegration{
+		Enabled: false,
 	}
+	ghCfg, ok := itg["github"]
+	if !ok {
+		return &cfg
+	}
+
+	bz, err := yaml.Marshal(ghCfg)
+	if err != nil {
+		color.Red("error reading github integration config as json: %s", err)
+		return nil
+	}
+
+	if err = yaml.Unmarshal(bz, &cfg); err != nil {
+		color.Red("error parsing GitHub integration config: %s", err)
+		return nil
+	}
+
+	if cfg.Host == "" {
+		cfg.Host = "localhost"
+	}
+
+	if cfg.Port == 0 {
+		cfg.Port = 5001
+	}
+
+	return &cfg
+}
+
+func (itg Integrations) SetGithubConfig(config map[string]any) {
+	itg["github"] = config
 }
 
 type Environment int
@@ -375,7 +433,11 @@ func (cfg *WebAppConfig) GetAllowedURLFromEchoContext(ctx echo.Context, env Envi
 	return cfg.AllowedEndpoints[0]
 }
 
-func (itg *Integration) GetAllowedURLFromEchoContext(ctx echo.Context, env Environment, allowedURLs []string) string {
+func (itg *GithubIntegration) GetAllowedURLFromEchoContext(
+	ctx echo.Context,
+	env Environment,
+	allowedURLs []string,
+) string {
 	origin := ctx.Request().Header.Get("Origin")
 	if env == Staging {
 		return origin

@@ -2,6 +2,7 @@ package router
 
 import (
 	"fmt"
+	"net"
 	"net/http"
 
 	"github.com/containerish/OpenRegistry/config"
@@ -18,7 +19,7 @@ import (
 
 func RegisterGitHubRoutes(
 	router *echo.Group,
-	cfg *config.Integration,
+	cfg *config.GithubIntegration,
 	env config.Environment,
 	authConfig *config.Auth,
 	logger telemetry.Logger,
@@ -44,10 +45,10 @@ func RegisterGitHubRoutes(
 			usersStore,
 		)
 		go func() {
-			hostPort := fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)
-			color.Green("connect-go gRPC running on: %s", hostPort)
-			if err := http.ListenAndServe(hostPort, h2c.NewHandler(githubMux, &http2.Server{})); err != nil {
-				color.Red("gRPC listen error: %s", err)
+			addr := net.JoinHostPort(cfg.Host, fmt.Sprintf("%d", cfg.Port))
+			color.Green("connect-go GitHub Automation gRPC service running on: %s", addr)
+			if err := http.ListenAndServe(addr, h2c.NewHandler(githubMux, &http2.Server{})); err != nil {
+				color.Red("connect-go GitHub Automation service listen error: %s", err)
 			}
 		}()
 	}

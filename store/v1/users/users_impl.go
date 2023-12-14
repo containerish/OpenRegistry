@@ -255,7 +255,7 @@ func (us *userStore) GetOrgAdmin(ctx context.Context, orgID uuid.UUID) (*types.U
 }
 
 func (us *userStore) Search(ctx context.Context, query string) ([]*types.User, error) {
-	var users []*types.User
+	users := []*types.User{}
 
 	b := strings.Builder{}
 	b.WriteString("%")
@@ -285,4 +285,37 @@ func (us *userStore) Search(ctx context.Context, query string) ([]*types.User, e
 	}
 
 	return users, nil
+}
+
+// GetOrgUsersByOrgID returns a list of Permission structs, which also has the user to which the permissions belongs to
+func (us *userStore) GetOrgUsersByOrgID(ctx context.Context, orgID uuid.UUID) ([]*types.Permissions, error) {
+	var perms []*types.Permissions
+
+	q := us.db.NewSelect().Model(&perms).Relation("User", func(sq *bun.SelectQuery) *bun.SelectQuery {
+		return sq.ExcludeColumn("password")
+	}).Where("organization_id = ?", orgID)
+
+	if err := q.Scan(ctx); err != nil {
+		return nil, v1.WrapDatabaseError(err, v1.DatabaseOperationRead)
+	}
+
+	return perms, nil
+}
+
+func (us *userStore) MatchUserType(ctx context.Context, userType types.UserType, userIds ...uuid.UUID) bool {
+	var users []*types.User
+
+	q := us.
+		db.
+		NewSelect().
+		Model(&users).
+		Where("user_type = ?", types.UserTypeRegular.String()).
+		Where("id in (?)", bun.In(userIds))
+
+	count, err := q.Count(ctx)
+	if err != nil {
+		return false
+	}
+
+	return len(userIds) == count
 }

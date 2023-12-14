@@ -26,8 +26,8 @@ func (o *orgMode) AllowOrgAdmin() echo.MiddlewareFunc {
 
 			p := ctx.Request().URL.Path
 			switch {
-			case p == "/org/migrate":
-				var body MigrateToOrgRequest
+			case p == "/api/org/migrate":
+				var body types.MigrateToOrgRequest
 				if err := json.NewDecoder(ctx.Request().Body).Decode(&body); err != nil {
 					echoErr := ctx.JSON(http.StatusUnauthorized, echo.Map{
 						"error": err.Error(),
@@ -49,7 +49,7 @@ func (o *orgMode) AllowOrgAdmin() echo.MiddlewareFunc {
 
 				ctx.Set(string(types.OrgModeRequestBodyContextKey), &body)
 				return handler(ctx)
-			case p == "/org/users" || strings.HasPrefix(p, "/org/permissions/users"):
+			case p == "/api/org/users" || strings.HasPrefix(p, "/api/org/permissions/users"):
 				orgOwner, err := o.userStore.GetOrgAdmin(ctx.Request().Context(), user.ID)
 				if err != nil {
 					echoErr := ctx.JSON(http.StatusUnauthorized, echo.Map{
@@ -61,9 +61,17 @@ func (o *orgMode) AllowOrgAdmin() echo.MiddlewareFunc {
 				}
 
 				switch ctx.Request().Method {
-				case http.MethodPost, http.MethodPatch:
+				case http.MethodPost:
+					if err = o.parseAddUsersToOrgRequest(ctx, user, orgOwner); err != nil {
+						echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
+							"error": err.Error(),
+						})
+						o.logger.Log(ctx, err).Send()
+						return echoErr
+					}
+				case http.MethodPatch:
 					if err = o.handleOrgModePermissionRequests(ctx, user, orgOwner); err != nil {
-						echoErr := ctx.JSON(http.StatusUnauthorized, echo.Map{
+						echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 							"error": err.Error(),
 						})
 						o.logger.Log(ctx, err).Send()
@@ -83,6 +91,22 @@ func (o *orgMode) AllowOrgAdmin() echo.MiddlewareFunc {
 			return handler(ctx)
 		}
 	}
+}
+
+func (o *orgMode) parseAddUsersToOrgRequest(ctx echo.Context, user *types.User, orgOwner *types.User) error {
+	var body types.AddUsersToOrgRequest
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	defer ctx.Request().Body.Close()
+
+	// @TODO(jay-dee7) - Use a better comparison method
+	if !strings.EqualFold(orgOwner.ID.String(), body.OrganizationID.String()) {
+		return fmt.Errorf("organization id mismatch, invalid organization id")
+	}
+
+	ctx.Set(string(types.OrgModeRequestBodyContextKey), &body)
+	return nil
 }
 
 func (o *orgMode) handleOrgModePermissionRequests(ctx echo.Context, user *types.User, orgOwner *types.User) error {
@@ -106,7 +130,7 @@ func (o *orgMode) handleOrgModePermissionRequests(ctx echo.Context, user *types.
 }
 
 func (o *orgMode) handleOrgModeRemoveUser(ctx echo.Context, p string, orgOwner *types.User) error {
-	if strings.HasPrefix(p, fmt.Sprintf("/org/permissions/users/%s/", orgOwner.ID.String())) {
+	if strings.HasPrefix(p, fmt.Sprintf("/api/org/permissions/users/%s/", orgOwner.ID.String())) {
 		orgID, err := uuid.Parse(ctx.Param("orgId"))
 		if err != nil {
 			return err
@@ -120,7 +144,7 @@ func (o *orgMode) handleOrgModeRemoveUser(ctx echo.Context, p string, orgOwner *
 			return echoErr
 		}
 
-		body := &RemoveUserFromOrgRequest{
+		body := &types.RemoveUserFromOrgRequest{
 			UserID:         userID,
 			OrganizationID: orgID,
 		}

@@ -14,14 +14,31 @@ import (
 // AddPermission implements PermissionsStore.
 func (p *permissionStore) AddPermissions(
 	ctx context.Context,
-	perm *types.Permissions,
+	input *types.AddUsersToOrgRequest,
 ) error {
-	err := p.validatePermissionInput(perm)
+	err := p.validateAddOrgMembersInput(input)
 	if err != nil {
 		return v1.WrapDatabaseError(err, v1.DatabaseOperationWrite)
 	}
+	perms := make([]*types.Permissions, len(input.Users))
 
-	if _, err = p.db.NewInsert().Model(perm).Exec(ctx); err != nil {
+	for i, p := range input.Users {
+		perm := &types.Permissions{
+			UserID:         p.ID,
+			OrganizationID: input.OrganizationID,
+			Push:           p.Push,
+			Pull:           p.Pull,
+			IsAdmin:        p.IsAdmin,
+		}
+		if p.IsAdmin {
+			perm.Pull = true
+			perm.Push = true
+		}
+
+		perms[i] = perm
+	}
+
+	if _, err = p.db.NewInsert().Model(&perms).Exec(ctx); err != nil {
 		return err
 	}
 
@@ -96,6 +113,24 @@ func (p *permissionStore) validatePermissionInput(perm *types.Permissions) error
 
 	if perm.OrganizationID.String() == "" {
 		return fmt.Errorf("invalid organization id")
+	}
+
+	return nil
+}
+
+func (p *permissionStore) validateAddOrgMembersInput(input *types.AddUsersToOrgRequest) error {
+	if input == nil {
+		return fmt.Errorf("permission set is nil")
+	}
+
+	if input.OrganizationID.String() == "" {
+		return fmt.Errorf("invalid organization id")
+	}
+
+	for _, u := range input.Users {
+		if u.ID.String() == "" {
+			return fmt.Errorf("invalid user id")
+		}
 	}
 
 	return nil

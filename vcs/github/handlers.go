@@ -51,6 +51,10 @@ func (gh *ghAppService) HandleAppFinish(ctx echo.Context) error {
 	}
 
 	if user.Identities.GetGitHubIdentity() == nil {
+		if user.Identities == nil {
+			user.Identities = make(types.Identities)
+		}
+
 		user.Identities[types.IdentityProviderGitHub] = &types.UserIdentity{
 			ID:             fmt.Sprintf("%d", ghUser.GetID()),
 			Name:           ghUser.GetName(),
