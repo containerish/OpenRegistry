@@ -98,7 +98,7 @@ jobs:
         id: vars
         run: echo "short_commit_hash=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
       - name: Upload test results zip as build artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: oci-distribution-push-report-${{ steps.vars.outputs.short_commit_hash }}
           path: |
