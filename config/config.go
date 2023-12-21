@@ -1,7 +1,11 @@
 package config
 
 import (
+	"bytes"
 	"crypto/rsa"
+	"crypto/sha256"
+	"crypto/x509"
+	"encoding/base32"
 	"fmt"
 	"strings"
 	"time"
@@ -11,6 +15,7 @@ import (
 	ut "github.com/go-playground/universal-translator"
 	"github.com/go-playground/validator/v10"
 	enTranslations "github.com/go-playground/validator/v10/translations/en"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/hashicorp/go-multierror"
 	"github.com/labstack/echo/v4"
 	"github.com/spf13/viper"
@@ -477,4 +482,35 @@ func (wan *WebAuthnConfig) GetAllowedURLFromEchoContext(ctx echo.Context, env En
 	}
 
 	return wan.RPOrigins[0]
+}
+
+func (a *Auth) keyIDEncode(b []byte) string {
+	s := strings.TrimRight(base32.StdEncoding.EncodeToString(b), "=")
+	var buf bytes.Buffer
+	var i int
+	for i = 0; i < len(s)/4-1; i++ {
+		start := i * 4
+		end := start + 4
+		buf.WriteString(s[start:end] + ":")
+	}
+	buf.WriteString(s[i*4:])
+	return buf.String()
+}
+
+func (a *Auth) SignWithPubKey(claims jwt.Claims) (string, error) {
+	pubKeyDerBz, err := x509.MarshalPKIXPublicKey(a.JWTSigningPubKey)
+	if err != nil {
+		return "", err
+	}
+
+	hasher := sha256.New()
+	hasher.Write(pubKeyDerBz)
+	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
+	token.Header["kid"] = a.keyIDEncode(hasher.Sum(nil)[:30])
+	signed, err := token.SignedString(a.JWTSigningPrivateKey)
+	if err != nil {
+		return "", fmt.Errorf("error signing secret %w", err)
+	}
+
+	return signed, nil
 }
