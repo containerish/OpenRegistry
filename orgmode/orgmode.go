@@ -76,6 +76,7 @@ func (o *orgMode) AddUserToOrg(ctx echo.Context) error {
 		o.logger.Log(ctx, err).Send()
 		return echoErr
 	}
+
 	if err := o.permissionsStore.AddPermissions(ctx.Request().Context(), body); err != nil {
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error": err.Error(),

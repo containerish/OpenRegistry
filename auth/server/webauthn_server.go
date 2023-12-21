@@ -12,11 +12,10 @@ import (
 	"github.com/containerish/OpenRegistry/auth"
 	"github.com/containerish/OpenRegistry/auth/webauthn"
 	"github.com/containerish/OpenRegistry/config"
-	v2_types "github.com/containerish/OpenRegistry/store/v1/types"
+	"github.com/containerish/OpenRegistry/store/v1/types"
 	"github.com/containerish/OpenRegistry/store/v1/users"
 	webauthn_store "github.com/containerish/OpenRegistry/store/v1/webauthn"
 	"github.com/containerish/OpenRegistry/telemetry"
-	"github.com/containerish/OpenRegistry/types"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	"github.com/uptrace/bun"
@@ -86,7 +85,7 @@ func (wa *webauthn_server) webAuthNTxnCleanup() {
 func (wa *webauthn_server) BeginRegistration(ctx echo.Context) error {
 	ctx.Set(types.HandlerStartTime, time.Now())
 
-	user := v2_types.User{}
+	user := types.User{}
 
 	if err := json.NewDecoder(ctx.Request().Body).Decode(&user); err != nil {
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
@@ -97,7 +96,7 @@ func (wa *webauthn_server) BeginRegistration(ctx echo.Context) error {
 		return echoErr
 	}
 	defer ctx.Request().Body.Close()
-	user.Identities = make(v2_types.Identities)
+	user.Identities = make(types.Identities)
 
 	err := user.Validate(false)
 	if err != nil {
@@ -131,7 +130,8 @@ func (wa *webauthn_server) BeginRegistration(ctx echo.Context) error {
 		user.ID = uuid.New()
 		user.IsActive = true
 		user.WebauthnConnected = true
-		user.Identities[v2_types.IdentityProviderWebauthn] = &v2_types.UserIdentity{
+		user.UserType = types.UserTypeRegular.String()
+		user.Identities[types.IdentityProviderWebauthn] = &types.UserIdentity{
 			ID:       user.ID.String(),
 			Username: user.Username,
 			Email:    user.Email,

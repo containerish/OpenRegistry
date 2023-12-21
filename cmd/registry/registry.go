@@ -99,6 +99,7 @@ func RunRegistryServer(ctx *cli.Context) error {
 		registryStore,
 		usersStore,
 		automationStore,
+		dfs,
 	)
 
 	otelShutdownFunc := otel.ConfigureOtel(cfg.Telemetry, "openregistry-api", baseRouter)

@@ -105,7 +105,23 @@ func (o *orgMode) parseAddUsersToOrgRequest(ctx echo.Context, user *types.User, 
 		return fmt.Errorf("organization id mismatch, invalid organization id")
 	}
 
-	ctx.Set(string(types.OrgModeRequestBodyContextKey), &body)
+	parsedBody := types.AddUsersToOrgRequest{
+		OrganizationID: body.OrganizationID,
+	}
+	for _, perm := range body.Users {
+		if perm.Pull && perm.Push && !perm.IsAdmin {
+			perm.IsAdmin = true
+		}
+
+		if perm.IsAdmin {
+			perm.Pull = true
+			perm.Push = true
+		}
+
+		parsedBody.Users = append(parsedBody.Users, perm)
+	}
+
+	ctx.Set(string(types.OrgModeRequestBodyContextKey), parsedBody)
 	return nil
 }
 
@@ -125,6 +141,16 @@ func (o *orgMode) handleOrgModePermissionRequests(ctx echo.Context, user *types.
 	if strings.EqualFold(perms.UserID.String(), perms.OrganizationID.String()) {
 		return fmt.Errorf("user id and organization id can not be the same")
 	}
+
+	if perms.Pull && perms.Push && !perms.IsAdmin {
+		perms.IsAdmin = true
+	}
+
+	if perms.IsAdmin {
+		perms.Pull = true
+		perms.Push = true
+	}
+
 	ctx.Set(string(types.OrgModeRequestBodyContextKey), &perms)
 	return nil
 }
