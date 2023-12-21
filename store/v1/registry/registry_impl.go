@@ -262,6 +262,9 @@ func (s *registryStore) GetUserRepositories(
 		db.
 		NewSelect().
 		Model(&repositories).
+		Relation("User", func(sq *bun.SelectQuery) *bun.SelectQuery {
+			return sq.ExcludeColumn("password").ExcludeColumn("github_connected").ExcludeColumn("webauthn_connected")
+		}).
 		WhereGroup(" AND ", func(q *bun.SelectQuery) *bun.SelectQuery {
 			if visibility != "" {
 				return q.Where("visibility = ?", visibility)
@@ -332,9 +335,7 @@ func (s *registryStore) GetCatalogDetail(
 		db.
 		NewSelect().
 		Model(&repositoryList).
-		Relation("User", func(sq *bun.SelectQuery) *bun.SelectQuery {
-			return sq.Column("username")
-		}).
+		Relation("User").
 		Relation("ImageManifests").
 		Limit(pageSize).
 		Offset(offset).
@@ -369,18 +370,25 @@ func (s *registryStore) GetContentHashById(ctx context.Context, uuid string) (st
 }
 
 // GetImageNamespace implements registry.RegistryStore.
-func (s *registryStore) GetImageNamespace(ctx context.Context, search string) ([]*types.ImageManifest, error) {
+func (s *registryStore) GetImageNamespace(
+	ctx context.Context,
+	search string,
+	visibility types.RepositoryVisibility,
+) ([]*types.ContainerImageRepository, error) {
 	logEvent := s.logger.Debug().Str("method", "GetImageNamespace").Str("search_query", search)
-	var manifests []*types.ImageManifest
+	var repos []*types.ContainerImageRepository
 
 	q := s.
 		db.
 		NewSelect().
-		Model(&manifests).
+		Model(&repos).
 		Relation("User").
-		Relation("Repository").
 		WhereOr("substr(username, 1, 50) ILIKE ?", search).
 		WhereOr("substr(name, 1, 50) ILIKE ?", search)
+
+	if visibility == types.RepositoryVisibilityPublic {
+		q.Where("visibility = ? ", visibility.String())
+	}
 
 	if err := q.Scan(ctx); err != nil {
 		logEvent.Err(err).Send()
@@ -388,7 +396,7 @@ func (s *registryStore) GetImageNamespace(ctx context.Context, search string) ([
 	}
 
 	logEvent.Bool("success", true).Send()
-	return manifests, nil
+	return repos, nil
 }
 
 // GetImageTags implements registry.RegistryStore.

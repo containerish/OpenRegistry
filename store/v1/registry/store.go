@@ -63,7 +63,11 @@ type RegistryStore interface {
 		offset int,
 	) (*types.ContainerImageRepository, error)
 	GetCatalogCount(ctx context.Context, ns string) (int64, error)
-	GetImageNamespace(ctx context.Context, search string) ([]*types.ImageManifest, error)
+	GetImageNamespace(
+		ctx context.Context,
+		search string,
+		visibility types.RepositoryVisibility,
+	) ([]*types.ContainerImageRepository, error)
 	DeleteLayerByDigest(ctx context.Context, digest string) error
 	GetPublicRepositories(ctx context.Context, pageSize int, offset int) ([]*types.ContainerImageRepository, int, error)
 	GetUserRepositories(

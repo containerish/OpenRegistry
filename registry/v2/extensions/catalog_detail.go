@@ -259,15 +259,13 @@ func (ext *extension) GetUserCatalog(ctx echo.Context) error {
 		visibility = types.RepositoryVisibilityPrivate
 	}
 
-	repositories, total, err := ext.
-		store.
-		GetUserRepositories(
-			ctx.Request().Context(),
-			user.ID,
-			visibility,
-			pageSize,
-			offset,
-		)
+	repositories, total, err := ext.store.GetUserRepositories(
+		ctx.Request().Context(),
+		user.ID,
+		visibility,
+		pageSize,
+		offset,
+	)
 	if err != nil {
 		return ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error": err.Error(),

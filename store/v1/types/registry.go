@@ -42,7 +42,7 @@ type (
 
 		CreatedAt     time.Time                 `bun:"created_at,notnull,default:current_timestamp" json:"createdAt"`
 		UpdatedAt     time.Time                 `bun:"updated_at,nullzero" json:"updatedAt"`
-		Repository    *ContainerImageRepository `bun:"rel:belongs-to,join:repository_id=id" json:"-"`
+		Repository    *ContainerImageRepository `bun:"rel:belongs-to,join:repository_id=id" json:"repository"`
 		User          *User                     `bun:"rel:belongs-to,join:owner_id=id" json:"-"`
 		Subject       *img_spec_v1.Descriptor   `bun:"embed:subject_" json:"subject,omitempty"`
 		Config        *img_spec_v1.Descriptor   `bun:"embed:config_" json:"config"`

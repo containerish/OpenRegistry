@@ -16,7 +16,6 @@ import (
 	"github.com/containerish/OpenRegistry/dfs"
 	types "github.com/containerish/OpenRegistry/store/v1/types"
 	"github.com/containerish/OpenRegistry/telemetry"
-	core_types "github.com/containerish/OpenRegistry/types"
 	"github.com/fatih/color"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
@@ -151,7 +150,7 @@ func (ms *memMappedMockStorage) Metadata(layer *types.ContainerImageLayer) (*typ
 		err error
 	)
 
-	identifier := core_types.GetLayerIdentifier(layer.ID)
+	identifier := types.GetLayerIdentifier(layer.ID)
 	parts := strings.Split(identifier, "/")
 	if len(parts) > 1 {
 		fd, err = ms.memFs.Open(parts[1])

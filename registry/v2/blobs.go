@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/containerish/OpenRegistry/types"
+	"github.com/containerish/OpenRegistry/store/v1/types"
 	"github.com/fatih/color"
 	"github.com/labstack/echo/v4"
 	oci_digest "github.com/opencontainers/go-digest"
