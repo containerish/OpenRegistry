@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"time"
 
 	connect_go "github.com/bufbuild/connect-go"
 	common_v1 "github.com/containerish/OpenRegistry/common/v1"
@@ -28,13 +27,10 @@ func (ghs *GitHubActionsServer) CreateProject(
 		return nil, connect_go.NewError(connect_go.CodeInvalidArgument, err)
 	}
 
-	if err = req.Msg.GetCreatedAt().CheckValid(); err != nil {
-		req.Msg.CreatedAt = timestamppb.New(time.Now())
-	}
-
 	req.Msg.Id = &common_v1.UUID{
 		Value: uuid.New().String(),
 	}
+	req.Msg.CreatedAt = timestamppb.Now()
 	if err = ghs.store.StoreProject(ctx, req.Msg); err != nil {
 		logEvent.Err(err).Send()
 		return nil, connect_go.NewError(connect_go.CodeInternal, err)

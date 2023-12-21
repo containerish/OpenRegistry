@@ -85,9 +85,11 @@ func (gh *ghAppService) RegisterRoutes(r *echo.Group) {
 func (gh *ghAppService) getUsernameMiddleware() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
+			// skip if it's a webhook call
 			if c.Path() == "/github"+vcs.HandleWebhookEventsEndpoint {
 				return next(c)
 			}
+
 			sessionCookie, err := c.Cookie("session_id")
 			if err != nil {
 				echoErr := c.JSON(http.StatusNotAcceptable, echo.Map{
@@ -157,6 +159,14 @@ func (gh *ghAppService) getGitubInstallationID(skipRoutes ...string) echo.Middle
 
 			if skip {
 				return next(c)
+			}
+
+			if user.Identities == nil || user.Identities.GetGitHubIdentity() == nil {
+				echoErr := c.JSON(http.StatusBadRequest, echo.Map{
+					"error": "GH_MDW_ERR: GitHub identity not found",
+				})
+				gh.logger.Log(c, echoErr).Send()
+				return echoErr
 			}
 
 			c.Set(string(GithubInstallationIDContextKey), user.Identities.GetGitHubIdentity().InstallationID)

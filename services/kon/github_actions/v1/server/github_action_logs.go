@@ -80,7 +80,7 @@ func (ghs *GitHubActionsServer) getLogsToStream(
 	sort.SliceStable(workflowSteps, func(i, j int) bool {
 		return workflowSteps[i].StepPosition < workflowSteps[j].StepPosition
 	})
-	ghs.logger.Log(nil, nil).Str("done_slice_sort", "true").Send()
+	ghs.logger.Debug().Str("done_slice_sort", "true").Send()
 	if len(errList) > 0 {
 		return nil, fmt.Errorf("%v", errList)
 	}

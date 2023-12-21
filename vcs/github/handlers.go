@@ -50,11 +50,11 @@ func (gh *ghAppService) HandleAppFinish(ctx echo.Context) error {
 		return echoErr
 	}
 
-	if user.Identities.GetGitHubIdentity() == nil {
-		if user.Identities == nil {
-			user.Identities = make(types.Identities)
-		}
+	if user.Identities == nil {
+		user.Identities = types.Identities{}
+	}
 
+	if user.Identities.GetGitHubIdentity() == nil {
 		user.Identities[types.IdentityProviderGitHub] = &types.UserIdentity{
 			ID:             fmt.Sprintf("%d", ghUser.GetID()),
 			Name:           ghUser.GetName(),
@@ -63,6 +63,9 @@ func (gh *ghAppService) HandleAppFinish(ctx echo.Context) error {
 			Avatar:         ghUser.GetAvatarURL(),
 			InstallationID: installationID,
 		}
+	} else {
+		user.Identities[types.IdentityProviderGitHub].Username = ghUser.GetEmail()
+		user.Identities[types.IdentityProviderGitHub].Email = ghUser.GetLogin()
 	}
 
 	if _, err = gh.store.UpdateUser(ctx.Request().Context(), user); err != nil {
@@ -91,23 +94,42 @@ func (gh *ghAppService) HandleSetupCallback(ctx echo.Context) error {
 		return echoErr
 	}
 
+	if user.Identities == nil {
+		user.Identities = types.Identities{}
+	}
+
 	if user.Identities.GetGitHubIdentity() == nil {
 		user.Identities[types.IdentityProviderGitHub] = &types.UserIdentity{}
 	}
+
 	installation, _, err := gh.ghClient.Apps.GetInstallation(ctx.Request().Context(), installationID)
 	if err != nil {
-		return ctx.JSON(http.StatusInternalServerError, echo.Map{
+		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error":   err.Error(),
 			"message": "could not find the GitHub App installation",
 		})
+
+		gh.logger.Log(ctx, err).Send()
+		return echoErr
+	}
+
+	ghClient := gh.refreshGHClient(installationID)
+	ghUser, _, err := ghClient.Users.Get(ctx.Request().Context(), installation.GetAccount().GetLogin())
+	if err != nil {
+		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
+			"error": err.Error(),
+		})
+
+		gh.logger.Log(ctx, err).Send()
+		return echoErr
 	}
 
 	user.Identities[types.IdentityProviderGitHub] = &types.UserIdentity{
 		ID:             fmt.Sprintf("%d", installation.GetID()),
-		Name:           installation.GetAccount().GetName(),
-		Username:       installation.GetAccount().GetLogin(),
-		Email:          installation.GetAccount().GetEmail(),
-		Avatar:         installation.GetAccount().GetAvatarURL(),
+		Name:           ghUser.GetName(),
+		Username:       ghUser.GetLogin(),
+		Email:          ghUser.GetEmail(),
+		Avatar:         ghUser.GetAvatarURL(),
 		InstallationID: installationID,
 	}
 
@@ -164,7 +186,9 @@ func (gh *ghAppService) HandleWebhookEvents(ctx echo.Context) error {
 	case *github.InstallationEvent:
 	}
 
-	return ctx.NoContent(http.StatusNoContent)
+	echoErr := ctx.NoContent(http.StatusNoContent)
+	gh.logger.Log(ctx, nil).Send()
+	return echoErr
 }
 
 // @TODO pending implementation (@jay-dee7)
@@ -235,9 +259,9 @@ func (gh *ghAppService) ListAuthorisedRepositories(ctx echo.Context) error {
 		})
 	}
 
-	err = ctx.JSON(http.StatusOK, repoList)
-	gh.logger.Log(ctx, err).Send()
-	return err
+	echoErr := ctx.JSON(http.StatusOK, repoList)
+	gh.logger.Log(ctx, nil).Send()
+	return echoErr
 }
 
 func (gh *ghAppService) CreateInitialPR(ctx echo.Context) error {

@@ -62,12 +62,14 @@ func (us *userStore) DeleteUser(ctx context.Context, identifier uuid.UUID) error
 // GetGitHubUser implements UserStore.
 func (us *userStore) GetGitHubUser(ctx context.Context, githubEmail string, txn *bun.Tx) (*types.User, error) {
 	user := &types.User{}
-	selectFn := us.db.NewSelect().Model(user)
+	q := us.db.NewSelect().Model(user)
 	if txn != nil {
-		selectFn = txn.NewSelect().Model(user)
+		q = txn.NewSelect().Model(user)
 	}
 
-	if err := selectFn.Where("coalesce(identities->'github'->>'email', '') = ?", githubEmail).Scan(ctx); err != nil {
+	q.Where("coalesce(identities->'github'->>'email', '') = ?", githubEmail)
+
+	if err := q.Scan(ctx); err != nil {
 		return nil, v1.WrapDatabaseError(err, v1.DatabaseOperationRead)
 	}
 

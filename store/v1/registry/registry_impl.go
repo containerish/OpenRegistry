@@ -510,7 +510,7 @@ func (s *registryStore) GetRepoDetail(
 // SetContainerImageVisibility implements registry.RegistryStore.
 func (s *registryStore) SetContainerImageVisibility(
 	ctx context.Context,
-	imageId string,
+	imageId uuid.UUID,
 	visibility types.RepositoryVisibility,
 ) error {
 	logEvent := s.logger.Debug().Str("method", "SetContainerImageVisibility")
@@ -518,9 +518,9 @@ func (s *registryStore) SetContainerImageVisibility(
 	_, err := s.
 		db.
 		NewUpdate().
-		Model(&types.ContainerImageRepository{}).
-		Set("visibility = ?", visibility).
-		WherePK(imageId).
+		Model(&types.ContainerImageRepository{ID: imageId}).
+		Set("visibility = ?", visibility.String()).
+		WherePK().
 		Where("name != ?", types.SystemUsernameIPFS). // IPFS repositories cannot be set to private since they are P2P
 		Exec(ctx)
 
@@ -788,4 +788,33 @@ func (s *registryStore) RemoveRepositoryFromFavorites(ctx context.Context, repoI
 		fmt.Errorf("repository is not in favorites list"),
 		v1.DatabaseOperationUpdate,
 	)
+}
+
+func (s *registryStore) GetLayersLinksForManifest(ctx context.Context, manifestDigest string) ([]*types.ContainerImageLayer, error) {
+	logEvent := s.logger.Debug().Str("method", "GetLayersLinksForManifest").Str("digest", manifestDigest)
+
+	manifest := &types.ImageManifest{}
+	err := s.db.NewSelect().Model(manifest).Where("digest = ?", manifestDigest).Scan(ctx)
+	if err != nil {
+		return nil, v1.WrapDatabaseError(err, v1.DatabaseOperationRead)
+	}
+
+	layerDigests := make([]string, len(manifest.Layers))
+	for i, l := range manifest.Layers {
+		layerDigests[i] = l.Digest.String()
+	}
+
+	var layers []*types.ContainerImageLayer
+	if err = s.
+		db.
+		NewSelect().
+		Model(&layers).
+		Where("digest in (?)", bun.In(layerDigests)).
+		Scan(ctx); err != nil {
+		logEvent.Err(err).Send()
+		return nil, v1.WrapDatabaseError(err, v1.DatabaseOperationRead)
+	}
+
+	logEvent.Bool("success", true).Send()
+	return layers, nil
 }

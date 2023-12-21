@@ -119,6 +119,7 @@ func (i *githubAppStreamingInterceptor) WrapUnary(next connect.UnaryFunc) connec
 			logEvent.Bool("skip_check", true).Str("Procedure", req.Spec().Procedure).Send()
 			return next(ctx, req)
 		}
+
 		githubIdentity := user.Identities.GetGitHubIdentity()
 		if githubIdentity == nil {
 			errMsg := fmt.Errorf("github identity is not available")
