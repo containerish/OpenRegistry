@@ -29,7 +29,6 @@ func (a *auth) BasicAuth() echo.MiddlewareFunc {
 		return func(ctx echo.Context) error {
 
 			if a.SkipBasicAuth(ctx) {
-				a.logger.DebugWithContext(ctx).Bool("skip_basic_auth", true).Send()
 				// Note: there might be other middlewares attached to this handler
 				return handler(ctx)
 			}

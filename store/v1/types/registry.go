@@ -93,7 +93,7 @@ type (
 		CreatedAt      time.Time            `bun:"created_at" json:"created_at"`
 		UpdatedAt      time.Time            `bun:"updated_at" json:"updated_at"`
 		MetaTags       map[string]any       `bun:"meta_tags" json:"meta_tags"`
-		User           *User                `bun:"rel:belongs-to,join:owner_id=id" json:"-"`
+		User           *User                `bun:"rel:belongs-to,join:owner_id=id" json:"user"`
 		Project        *RepositoryBuild     `bun:"rel:has-one,join:id=repository_id" json:"-"`
 		Name           string               `bun:"name,notnull" json:"name"`
 		Visibility     RepositoryVisibility `bun:"visibility,notnull" json:"visibility"`

@@ -291,7 +291,7 @@ func (s *registryStore) GetCatalogCount(ctx context.Context, namespace string) (
 		repositoryName = parts[1]
 	}
 
-	stmnt := s.
+	q := s.
 		db.
 		NewSelect().
 		Model(&types.ImageManifest{}).
@@ -299,10 +299,10 @@ func (s *registryStore) GetCatalogCount(ctx context.Context, namespace string) (
 		Where("visibility = ?", types.RepositoryVisibilityPublic)
 
 	if repositoryName != "" {
-		stmnt.Where("name = ?", repositoryName)
+		q.Where("name = ?", repositoryName)
 	}
 
-	count, err := stmnt.Count(ctx)
+	count, err := q.Count(ctx)
 	if err != nil {
 		logEvent.Err(err).Send()
 		return 0, v1.WrapDatabaseError(err, v1.DatabaseOperationRead)
@@ -328,20 +328,23 @@ func (s *registryStore) GetCatalogDetail(
 		repositoryName = parts[1]
 	}
 
-	stmnt := s.
+	q := s.
 		db.
 		NewSelect().
 		Model(&repositoryList).
+		Relation("User", func(sq *bun.SelectQuery) *bun.SelectQuery {
+			return sq.Column("username")
+		}).
 		Relation("ImageManifests").
 		Limit(pageSize).
 		Offset(offset).
 		Where("visibility = ?", types.RepositoryVisibilityPublic)
 
 	if repositoryName != "" {
-		stmnt.Where("name = ?", repositoryName)
+		q.Where("name = ?", repositoryName)
 	}
 
-	err := stmnt.Scan(ctx)
+	err := q.Scan(ctx)
 	if err != nil {
 		logEvent.Err(err).Send()
 		return nil, v1.WrapDatabaseError(err, v1.DatabaseOperationRead)
@@ -370,8 +373,16 @@ func (s *registryStore) GetImageNamespace(ctx context.Context, search string) ([
 	logEvent := s.logger.Debug().Str("method", "GetImageNamespace").Str("search_query", search)
 	var manifests []*types.ImageManifest
 
-	err := s.db.NewSelect().Model(&manifests).Where("substr(namespace, 1, 50) LIKE ?", bun.Ident(search)).Scan(ctx)
-	if err != nil {
+	q := s.
+		db.
+		NewSelect().
+		Model(&manifests).
+		Relation("User").
+		Relation("Repository").
+		WhereOr("substr(username, 1, 50) ILIKE ?", search).
+		WhereOr("substr(name, 1, 50) ILIKE ?", search)
+
+	if err := q.Scan(ctx); err != nil {
 		logEvent.Err(err).Send()
 		return nil, v1.WrapDatabaseError(err, v1.DatabaseOperationRead)
 	}

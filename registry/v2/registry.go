@@ -1004,31 +1004,42 @@ func (r *registry) GetImageNamespace(ctx echo.Context) error {
 
 	searchQuery := ctx.QueryParam("search_query")
 	if searchQuery == "" {
-		return ctx.JSON(http.StatusBadRequest, echo.Map{
-			"error": "search query must not be empty",
+		errMsg := fmt.Errorf("search query must not be empty")
+		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
+			"error": errMsg.Error(),
 		})
+
+		r.logger.Log(ctx, errMsg).Send()
+		return echoErr
 	}
 	result, err := r.store.GetImageNamespace(ctx.Request().Context(), searchQuery)
 	if err != nil {
-		return ctx.JSON(http.StatusInternalServerError, echo.Map{
+		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error":   err.Error(),
 			"message": "error getting image namespace",
 		})
+
+		r.logger.Log(ctx, err).Send()
+		return echoErr
 	}
 
 	// empty namespace to pull full catalog list
 	total, err := r.store.GetCatalogCount(ctx.Request().Context(), "")
 	if err != nil {
-		return ctx.JSON(http.StatusInternalServerError, echo.Map{
+		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error":   err.Error(),
 			"message": "ERR_GET_CATALOG_COUNT",
 		})
+		r.logger.Log(ctx, err).Send()
+		return echoErr
 	}
 
-	return ctx.JSON(http.StatusOK, echo.Map{
+	echoErr := ctx.JSON(http.StatusOK, echo.Map{
 		"repositories": result,
 		"total":        total,
 	})
+	r.logger.Log(ctx, nil).Send()
+	return echoErr
 }
 
 func (r *registry) GetUserFromCtx(ctx echo.Context) (*types_v2.User, error) {
