@@ -150,6 +150,16 @@ func setDefaultsForDatabaseStore(cfg *OpenRegistryConfig) {
 }
 
 func parseAndSetMockStorageDriverOptions(cfg *OpenRegistryConfig) {
+	mockConfig := viper.GetStringMap("dfs.mock")
+	keys := make([]string, 0, len(mockConfig))
+	for k := range mockConfig {
+		keys = append(keys, k)
+	}
+
+	// skip is mock config is absent
+	if len(keys) == 0 {
+		return
+	}
 	mockDFSType := viper.GetString("dfs.mock.type")
 	if mockDFSType == "MemMapped" {
 		viper.Set("dfs.mock.type", MockStorageBackendMemMapped)

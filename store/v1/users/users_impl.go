@@ -191,7 +191,7 @@ func (us *userStore) githubUserExists(ctx context.Context, username, email strin
 		NewSelect().
 		Model(&types.User{}).
 		Where(
-			"identities->'github'->>'email' = ?1 or identities->'github'->>'username' = ?",
+			"identities->'github'->>'email' = ? or identities->'github'->>'username' = ?",
 			bun.Ident(email),
 			bun.Ident(username),
 		).
@@ -210,7 +210,7 @@ func (us *userStore) webAuthnUserExists(ctx context.Context, username, email str
 		NewSelect().
 		Model(&types.User{}).
 		Where(
-			"identities->'webauthn'->>'email' = ?1 or identities->'webauthn'->>'username' = ?",
+			"identities->'webauthn'->>'email' = ? or identities->'webauthn'->>'username' = ?",
 			bun.Ident(email),
 			bun.Ident(username),
 		).
