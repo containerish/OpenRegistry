@@ -13,6 +13,16 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
+func (c *clair) EnableVulnerabilityScanning(
+	ctx context.Context,
+	req *connect.Request[clair_v1.EnableVulnerabilityScanningRequest],
+) (
+	*connect.Response[clair_v1.EnableVulnerabilityScanningResponse],
+	error,
+) {
+	return nil, connect.NewError(connect.CodeUnimplemented, fmt.Errorf("UNIMPLEMENTED"))
+}
+
 func (c *clair) GetVulnerabilityReport(
 	ctx context.Context,
 	req *connect.Request[clair_v1.GetVulnerabilityReportRequest],
@@ -71,7 +81,31 @@ func (c *clair) SubmitManifestToScan(
 
 	logEvent.Str("manifest", req.Msg.GetHash())
 
-	result, err := c.submitManifest(ctx, req.Msg)
+	dfsLinks, err := c.layerLinkReader(ctx, req.Msg.GetHash())
+	if err != nil {
+		logEvent.Err(err).Send()
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+
+	layers := make([]*clair_v1.ClairDescriptor, len(dfsLinks))
+	for i, link := range dfsLinks {
+		presignedURL, signErr := c.prePresignedURLGenerator(ctx, link.DFSLink)
+		if signErr != nil {
+			logEvent.Err(err).Send()
+			return nil, connect.NewError(connect.CodeInvalidArgument, err)
+		}
+		layers[i] = &clair_v1.ClairDescriptor{
+			Hash: link.Digest,
+			Uri:  presignedURL,
+		}
+	}
+
+	body := &clair_v1.ClairIndexManifestRequest{
+		Hash:   req.Msg.GetHash(),
+		Layers: layers,
+	}
+
+	result, err := c.submitManifest(ctx, body)
 	if err != nil {
 		logEvent.Err(err).Send()
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
@@ -113,7 +147,7 @@ func (c *clair) getVulnReport(ctx context.Context, manifestID string) (io.ReadCl
 
 func (c *clair) submitManifest(
 	ctx context.Context,
-	manifest *clair_v1.SubmitManifestToScanRequest,
+	manifest *clair_v1.ClairIndexManifestRequest,
 ) (io.ReadCloser, error) {
 	uri := fmt.Sprintf("%s/indexer/api/v1/index_report", c.config.ClairEndpoint)
 

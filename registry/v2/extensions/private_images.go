@@ -1,7 +1,6 @@
 package extensions
 
 import (
-	"encoding/json"
 	"net/http"
 	"time"
 
@@ -14,21 +13,28 @@ func (ext *extension) ChangeContainerImageVisibility(ctx echo.Context) error {
 
 	var body types.ContainerImageVisibilityChangeRequest
 
-	if err := json.NewDecoder(ctx.Request().Body).Decode(&body); err != nil {
-		return ctx.JSON(http.StatusBadRequest, echo.Map{
+	if err := ctx.Bind(&body); err != nil {
+		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error": "invalid request body",
 		})
+
+		ext.logger.Log(ctx, err).Send()
+		return echoErr
 	}
 	defer ctx.Request().Body.Close()
 
-	err := ext.store.SetContainerImageVisibility(ctx.Request().Context(), body.ImageManifestUUID, body.Visibility)
+	err := ext.store.SetContainerImageVisibility(ctx.Request().Context(), body.RepositoryID, body.Visibility)
 	if err != nil {
-		return ctx.JSON(http.StatusBadRequest, echo.Map{
+		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error": err.Error(),
 		})
+		ext.logger.Log(ctx, err).Send()
+		return echoErr
 	}
 
-	return ctx.JSON(http.StatusOK, echo.Map{
+	echoErr := ctx.JSON(http.StatusOK, echo.Map{
 		"message": "container image visibility mode changed successfully",
 	})
+	ext.logger.Log(ctx, nil).Send()
+	return echoErr
 }

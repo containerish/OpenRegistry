@@ -9,6 +9,7 @@ import (
 	"github.com/containerish/OpenRegistry/auth"
 	auth_server "github.com/containerish/OpenRegistry/auth/server"
 	"github.com/containerish/OpenRegistry/config"
+	"github.com/containerish/OpenRegistry/dfs"
 	"github.com/containerish/OpenRegistry/orgmode"
 	"github.com/containerish/OpenRegistry/registry/v2"
 	"github.com/containerish/OpenRegistry/registry/v2/extensions"
@@ -37,6 +38,7 @@ func Register(
 	registryStore registry_store.RegistryStore,
 	usersStore users_store.UserStore,
 	automationStore automation.BuildAutomationStore,
+	dfs dfs.DFS,
 ) *echo.Echo {
 	e := setDefaultEchoOptions(cfg.WebAppConfig, healthCheckApi)
 
@@ -58,10 +60,17 @@ func Register(
 	RegisterUserRoutes(userApiRouter, usersApi)
 	RegisterNSRoutes(nsRouter, registryApi, registryStore, logger)
 	RegisterAuthRoutes(authRouter, authApi)
-	RegisterExtensionsRoutes(ociRouter, registryApi, extensionsApi)
+	RegisterExtensionsRoutes(ociRouter, registryApi, extensionsApi, authApi.JWTRest())
 	RegisterWebauthnRoutes(webauthnRouter, webauthnApi)
 	RegisterOrgModeRoutes(orgModeRouter, orgModeApi)
-	RegisterVulnScaningRoutes(cfg.Integrations.GetClairConfig(), logger)
+	RegisterVulnScaningRoutes(
+		usersStore,
+		cfg.Integrations.GetClairConfig(),
+		&cfg.Registry.Auth,
+		logger,
+		registryStore.GetLayersLinksForManifest,
+		dfs.GeneratePresignedURL,
+	)
 
 	if cfg.Integrations.GetGithubConfig() != nil && cfg.Integrations.GetGithubConfig().Enabled {
 		RegisterGitHubRoutes(

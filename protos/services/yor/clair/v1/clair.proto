@@ -4,10 +4,20 @@ package services.yor.clair.v1;
 option go_package = "github.com/containerish/OpenRegistry/services/yor/clair/v1;clair";
 import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
+import "common/v1/id.proto";
 
 service ClairService {
   rpc SubmitManifestToScan(SubmitManifestToScanRequest) returns (SubmitManifestToScanResponse) {}
   rpc GetVulnerabilityReport(GetVulnerabilityReportRequest) returns (GetVulnerabilityReportResponse) {}
+  rpc EnableVulnerabilityScanning(EnableVulnerabilityScanningRequest) returns (EnableVulnerabilityScanningResponse) {}
+}
+
+message EnableVulnerabilityScanningRequest {
+	common.v1.UUID repository_id = 1;
+}
+
+message EnableVulnerabilityScanningResponse {
+	string message = 1;
 }
 
 message ClairReportPackage {
@@ -16,6 +26,7 @@ message ClairReportPackage {
 	string version = 3;
 	string kind = 4;
 	string arch = 5;
+	ClairPackageSource source = 6;
 }
 
 message SubmitManifestToScanResponse  {
@@ -37,11 +48,15 @@ message ClairDescriptor {
 
 message SubmitManifestToScanRequest {
 	string hash = 1;
-	repeated ClairDescriptor layers = 2;
 }
 
 message GetVulnerabilityReportRequest {
 	string manifest_id = 1;
+}
+
+message ClairIndexManifestRequest {
+	string hash = 1;
+	repeated ClairDescriptor layers = 2;
 }
 
 message ClairPackageSource {

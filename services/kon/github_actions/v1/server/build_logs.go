@@ -316,7 +316,11 @@ func (ghs *GitHubActionsServer) waitForJobToFinish(
 	stream *connect_go.ServerStream[github_actions_v1.StreamWorkflowRunLogsResponse],
 ) error {
 	now := time.Now()
-	logEvent := ghs.logger.Debug().Str("method", "waitForJobToFinish").Int64("run_id", req.Msg.GetRunId()).Str("repo_name", req.Msg.GetRepoName()).Str("repo_owner", req.Msg.GetRepoOwner())
+	logEvent := ghs.logger.Debug().
+		Str("method", "waitForJobToFinish").
+		Int64("run_id", req.Msg.GetRunId()).
+		Str("repo_name", req.Msg.GetRepoName()).
+		Str("repo_owner", req.Msg.GetRepoOwner())
 
 	workflowRun, _, err := githubClient.Actions.GetWorkflowRunByID(
 		ctx,

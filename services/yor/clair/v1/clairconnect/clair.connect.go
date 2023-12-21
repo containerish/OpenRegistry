@@ -39,12 +39,16 @@ const (
 	// ClairServiceGetVulnerabilityReportProcedure is the fully-qualified name of the ClairService's
 	// GetVulnerabilityReport RPC.
 	ClairServiceGetVulnerabilityReportProcedure = "/services.yor.clair.v1.ClairService/GetVulnerabilityReport"
+	// ClairServiceEnableVulnerabilityScanningProcedure is the fully-qualified name of the
+	// ClairService's EnableVulnerabilityScanning RPC.
+	ClairServiceEnableVulnerabilityScanningProcedure = "/services.yor.clair.v1.ClairService/EnableVulnerabilityScanning"
 )
 
 // ClairServiceClient is a client for the services.yor.clair.v1.ClairService service.
 type ClairServiceClient interface {
 	SubmitManifestToScan(context.Context, *connect_go.Request[v1.SubmitManifestToScanRequest]) (*connect_go.Response[v1.SubmitManifestToScanResponse], error)
 	GetVulnerabilityReport(context.Context, *connect_go.Request[v1.GetVulnerabilityReportRequest]) (*connect_go.Response[v1.GetVulnerabilityReportResponse], error)
+	EnableVulnerabilityScanning(context.Context, *connect_go.Request[v1.EnableVulnerabilityScanningRequest]) (*connect_go.Response[v1.EnableVulnerabilityScanningResponse], error)
 }
 
 // NewClairServiceClient constructs a client for the services.yor.clair.v1.ClairService service. By
@@ -67,13 +71,19 @@ func NewClairServiceClient(httpClient connect_go.HTTPClient, baseURL string, opt
 			baseURL+ClairServiceGetVulnerabilityReportProcedure,
 			opts...,
 		),
+		enableVulnerabilityScanning: connect_go.NewClient[v1.EnableVulnerabilityScanningRequest, v1.EnableVulnerabilityScanningResponse](
+			httpClient,
+			baseURL+ClairServiceEnableVulnerabilityScanningProcedure,
+			opts...,
+		),
 	}
 }
 
 // clairServiceClient implements ClairServiceClient.
 type clairServiceClient struct {
-	submitManifestToScan   *connect_go.Client[v1.SubmitManifestToScanRequest, v1.SubmitManifestToScanResponse]
-	getVulnerabilityReport *connect_go.Client[v1.GetVulnerabilityReportRequest, v1.GetVulnerabilityReportResponse]
+	submitManifestToScan        *connect_go.Client[v1.SubmitManifestToScanRequest, v1.SubmitManifestToScanResponse]
+	getVulnerabilityReport      *connect_go.Client[v1.GetVulnerabilityReportRequest, v1.GetVulnerabilityReportResponse]
+	enableVulnerabilityScanning *connect_go.Client[v1.EnableVulnerabilityScanningRequest, v1.EnableVulnerabilityScanningResponse]
 }
 
 // SubmitManifestToScan calls services.yor.clair.v1.ClairService.SubmitManifestToScan.
@@ -86,10 +96,16 @@ func (c *clairServiceClient) GetVulnerabilityReport(ctx context.Context, req *co
 	return c.getVulnerabilityReport.CallUnary(ctx, req)
 }
 
+// EnableVulnerabilityScanning calls services.yor.clair.v1.ClairService.EnableVulnerabilityScanning.
+func (c *clairServiceClient) EnableVulnerabilityScanning(ctx context.Context, req *connect_go.Request[v1.EnableVulnerabilityScanningRequest]) (*connect_go.Response[v1.EnableVulnerabilityScanningResponse], error) {
+	return c.enableVulnerabilityScanning.CallUnary(ctx, req)
+}
+
 // ClairServiceHandler is an implementation of the services.yor.clair.v1.ClairService service.
 type ClairServiceHandler interface {
 	SubmitManifestToScan(context.Context, *connect_go.Request[v1.SubmitManifestToScanRequest]) (*connect_go.Response[v1.SubmitManifestToScanResponse], error)
 	GetVulnerabilityReport(context.Context, *connect_go.Request[v1.GetVulnerabilityReportRequest]) (*connect_go.Response[v1.GetVulnerabilityReportResponse], error)
+	EnableVulnerabilityScanning(context.Context, *connect_go.Request[v1.EnableVulnerabilityScanningRequest]) (*connect_go.Response[v1.EnableVulnerabilityScanningResponse], error)
 }
 
 // NewClairServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -108,12 +124,19 @@ func NewClairServiceHandler(svc ClairServiceHandler, opts ...connect_go.HandlerO
 		svc.GetVulnerabilityReport,
 		opts...,
 	)
+	clairServiceEnableVulnerabilityScanningHandler := connect_go.NewUnaryHandler(
+		ClairServiceEnableVulnerabilityScanningProcedure,
+		svc.EnableVulnerabilityScanning,
+		opts...,
+	)
 	return "/services.yor.clair.v1.ClairService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ClairServiceSubmitManifestToScanProcedure:
 			clairServiceSubmitManifestToScanHandler.ServeHTTP(w, r)
 		case ClairServiceGetVulnerabilityReportProcedure:
 			clairServiceGetVulnerabilityReportHandler.ServeHTTP(w, r)
+		case ClairServiceEnableVulnerabilityScanningProcedure:
+			clairServiceEnableVulnerabilityScanningHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -129,4 +152,8 @@ func (UnimplementedClairServiceHandler) SubmitManifestToScan(context.Context, *c
 
 func (UnimplementedClairServiceHandler) GetVulnerabilityReport(context.Context, *connect_go.Request[v1.GetVulnerabilityReportRequest]) (*connect_go.Response[v1.GetVulnerabilityReportResponse], error) {
 	return nil, connect_go.NewError(connect_go.CodeUnimplemented, errors.New("services.yor.clair.v1.ClairService.GetVulnerabilityReport is not implemented"))
+}
+
+func (UnimplementedClairServiceHandler) EnableVulnerabilityScanning(context.Context, *connect_go.Request[v1.EnableVulnerabilityScanningRequest]) (*connect_go.Response[v1.EnableVulnerabilityScanningResponse], error) {
+	return nil, connect_go.NewError(connect_go.CodeUnimplemented, errors.New("services.yor.clair.v1.ClairService.EnableVulnerabilityScanning is not implemented"))
 }

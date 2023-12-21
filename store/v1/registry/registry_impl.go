@@ -790,7 +790,10 @@ func (s *registryStore) RemoveRepositoryFromFavorites(ctx context.Context, repoI
 	)
 }
 
-func (s *registryStore) GetLayersLinksForManifest(ctx context.Context, manifestDigest string) ([]*types.ContainerImageLayer, error) {
+func (s *registryStore) GetLayersLinksForManifest(
+	ctx context.Context,
+	manifestDigest string,
+) ([]*types.ContainerImageLayer, error) {
 	logEvent := s.logger.Debug().Str("method", "GetLayersLinksForManifest").Str("digest", manifestDigest)
 
 	manifest := &types.ImageManifest{}

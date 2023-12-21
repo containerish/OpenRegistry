@@ -35,6 +35,247 @@ var (
 	_ = sort.Sort
 )
 
+// Validate checks the field values on EnableVulnerabilityScanningRequest with
+// the rules defined in the proto definition for this message. If any rules
+// are violated, the first error encountered is returned, or nil if there are
+// no violations.
+func (m *EnableVulnerabilityScanningRequest) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on EnableVulnerabilityScanningRequest
+// with the rules defined in the proto definition for this message. If any
+// rules are violated, the result is a list of violation errors wrapped in
+// EnableVulnerabilityScanningRequestMultiError, or nil if none found.
+func (m *EnableVulnerabilityScanningRequest) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *EnableVulnerabilityScanningRequest) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	if all {
+		switch v := interface{}(m.GetRepositoryId()).(type) {
+		case interface{ ValidateAll() error }:
+			if err := v.ValidateAll(); err != nil {
+				errors = append(errors, EnableVulnerabilityScanningRequestValidationError{
+					field:  "RepositoryId",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		case interface{ Validate() error }:
+			if err := v.Validate(); err != nil {
+				errors = append(errors, EnableVulnerabilityScanningRequestValidationError{
+					field:  "RepositoryId",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		}
+	} else if v, ok := interface{}(m.GetRepositoryId()).(interface{ Validate() error }); ok {
+		if err := v.Validate(); err != nil {
+			return EnableVulnerabilityScanningRequestValidationError{
+				field:  "RepositoryId",
+				reason: "embedded message failed validation",
+				cause:  err,
+			}
+		}
+	}
+
+	if len(errors) > 0 {
+		return EnableVulnerabilityScanningRequestMultiError(errors)
+	}
+
+	return nil
+}
+
+// EnableVulnerabilityScanningRequestMultiError is an error wrapping multiple
+// validation errors returned by
+// EnableVulnerabilityScanningRequest.ValidateAll() if the designated
+// constraints aren't met.
+type EnableVulnerabilityScanningRequestMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m EnableVulnerabilityScanningRequestMultiError) Error() string {
+	var msgs []string
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m EnableVulnerabilityScanningRequestMultiError) AllErrors() []error { return m }
+
+// EnableVulnerabilityScanningRequestValidationError is the validation error
+// returned by EnableVulnerabilityScanningRequest.Validate if the designated
+// constraints aren't met.
+type EnableVulnerabilityScanningRequestValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e EnableVulnerabilityScanningRequestValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e EnableVulnerabilityScanningRequestValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e EnableVulnerabilityScanningRequestValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e EnableVulnerabilityScanningRequestValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e EnableVulnerabilityScanningRequestValidationError) ErrorName() string {
+	return "EnableVulnerabilityScanningRequestValidationError"
+}
+
+// Error satisfies the builtin error interface
+func (e EnableVulnerabilityScanningRequestValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sEnableVulnerabilityScanningRequest.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = EnableVulnerabilityScanningRequestValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = EnableVulnerabilityScanningRequestValidationError{}
+
+// Validate checks the field values on EnableVulnerabilityScanningResponse with
+// the rules defined in the proto definition for this message. If any rules
+// are violated, the first error encountered is returned, or nil if there are
+// no violations.
+func (m *EnableVulnerabilityScanningResponse) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on EnableVulnerabilityScanningResponse
+// with the rules defined in the proto definition for this message. If any
+// rules are violated, the result is a list of violation errors wrapped in
+// EnableVulnerabilityScanningResponseMultiError, or nil if none found.
+func (m *EnableVulnerabilityScanningResponse) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *EnableVulnerabilityScanningResponse) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	// no validation rules for Message
+
+	if len(errors) > 0 {
+		return EnableVulnerabilityScanningResponseMultiError(errors)
+	}
+
+	return nil
+}
+
+// EnableVulnerabilityScanningResponseMultiError is an error wrapping multiple
+// validation errors returned by
+// EnableVulnerabilityScanningResponse.ValidateAll() if the designated
+// constraints aren't met.
+type EnableVulnerabilityScanningResponseMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m EnableVulnerabilityScanningResponseMultiError) Error() string {
+	var msgs []string
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m EnableVulnerabilityScanningResponseMultiError) AllErrors() []error { return m }
+
+// EnableVulnerabilityScanningResponseValidationError is the validation error
+// returned by EnableVulnerabilityScanningResponse.Validate if the designated
+// constraints aren't met.
+type EnableVulnerabilityScanningResponseValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e EnableVulnerabilityScanningResponseValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e EnableVulnerabilityScanningResponseValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e EnableVulnerabilityScanningResponseValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e EnableVulnerabilityScanningResponseValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e EnableVulnerabilityScanningResponseValidationError) ErrorName() string {
+	return "EnableVulnerabilityScanningResponseValidationError"
+}
+
+// Error satisfies the builtin error interface
+func (e EnableVulnerabilityScanningResponseValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sEnableVulnerabilityScanningResponse.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = EnableVulnerabilityScanningResponseValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = EnableVulnerabilityScanningResponseValidationError{}
+
 // Validate checks the field values on ClairReportPackage with the rules
 // defined in the proto definition for this message. If any rules are
 // violated, the first error encountered is returned, or nil if there are no violations.
@@ -66,6 +307,35 @@ func (m *ClairReportPackage) validate(all bool) error {
 	// no validation rules for Kind
 
 	// no validation rules for Arch
+
+	if all {
+		switch v := interface{}(m.GetSource()).(type) {
+		case interface{ ValidateAll() error }:
+			if err := v.ValidateAll(); err != nil {
+				errors = append(errors, ClairReportPackageValidationError{
+					field:  "Source",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		case interface{ Validate() error }:
+			if err := v.Validate(); err != nil {
+				errors = append(errors, ClairReportPackageValidationError{
+					field:  "Source",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		}
+	} else if v, ok := interface{}(m.GetSource()).(interface{ Validate() error }); ok {
+		if err := v.Validate(); err != nil {
+			return ClairReportPackageValidationError{
+				field:  "Source",
+				reason: "embedded message failed validation",
+				cause:  err,
+			}
+		}
+	}
 
 	if len(errors) > 0 {
 		return ClairReportPackageMultiError(errors)
@@ -616,40 +886,6 @@ func (m *SubmitManifestToScanRequest) validate(all bool) error {
 
 	// no validation rules for Hash
 
-	for idx, item := range m.GetLayers() {
-		_, _ = idx, item
-
-		if all {
-			switch v := interface{}(item).(type) {
-			case interface{ ValidateAll() error }:
-				if err := v.ValidateAll(); err != nil {
-					errors = append(errors, SubmitManifestToScanRequestValidationError{
-						field:  fmt.Sprintf("Layers[%v]", idx),
-						reason: "embedded message failed validation",
-						cause:  err,
-					})
-				}
-			case interface{ Validate() error }:
-				if err := v.Validate(); err != nil {
-					errors = append(errors, SubmitManifestToScanRequestValidationError{
-						field:  fmt.Sprintf("Layers[%v]", idx),
-						reason: "embedded message failed validation",
-						cause:  err,
-					})
-				}
-			}
-		} else if v, ok := interface{}(item).(interface{ Validate() error }); ok {
-			if err := v.Validate(); err != nil {
-				return SubmitManifestToScanRequestValidationError{
-					field:  fmt.Sprintf("Layers[%v]", idx),
-					reason: "embedded message failed validation",
-					cause:  err,
-				}
-			}
-		}
-
-	}
-
 	if len(errors) > 0 {
 		return SubmitManifestToScanRequestMultiError(errors)
 	}
@@ -835,6 +1071,144 @@ var _ interface {
 	Cause() error
 	ErrorName() string
 } = GetVulnerabilityReportRequestValidationError{}
+
+// Validate checks the field values on ClairIndexManifestRequest with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the first error encountered is returned, or nil if there are no violations.
+func (m *ClairIndexManifestRequest) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on ClairIndexManifestRequest with the
+// rules defined in the proto definition for this message. If any rules are
+// violated, the result is a list of violation errors wrapped in
+// ClairIndexManifestRequestMultiError, or nil if none found.
+func (m *ClairIndexManifestRequest) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *ClairIndexManifestRequest) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	// no validation rules for Hash
+
+	for idx, item := range m.GetLayers() {
+		_, _ = idx, item
+
+		if all {
+			switch v := interface{}(item).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, ClairIndexManifestRequestValidationError{
+						field:  fmt.Sprintf("Layers[%v]", idx),
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, ClairIndexManifestRequestValidationError{
+						field:  fmt.Sprintf("Layers[%v]", idx),
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(item).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return ClairIndexManifestRequestValidationError{
+					field:  fmt.Sprintf("Layers[%v]", idx),
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	}
+
+	if len(errors) > 0 {
+		return ClairIndexManifestRequestMultiError(errors)
+	}
+
+	return nil
+}
+
+// ClairIndexManifestRequestMultiError is an error wrapping multiple validation
+// errors returned by ClairIndexManifestRequest.ValidateAll() if the
+// designated constraints aren't met.
+type ClairIndexManifestRequestMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m ClairIndexManifestRequestMultiError) Error() string {
+	var msgs []string
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m ClairIndexManifestRequestMultiError) AllErrors() []error { return m }
+
+// ClairIndexManifestRequestValidationError is the validation error returned by
+// ClairIndexManifestRequest.Validate if the designated constraints aren't met.
+type ClairIndexManifestRequestValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e ClairIndexManifestRequestValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e ClairIndexManifestRequestValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e ClairIndexManifestRequestValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e ClairIndexManifestRequestValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e ClairIndexManifestRequestValidationError) ErrorName() string {
+	return "ClairIndexManifestRequestValidationError"
+}
+
+// Error satisfies the builtin error interface
+func (e ClairIndexManifestRequestValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sClairIndexManifestRequest.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = ClairIndexManifestRequestValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = ClairIndexManifestRequestValidationError{}
 
 // Validate checks the field values on ClairPackageSource with the rules
 // defined in the proto definition for this message. If any rules are
