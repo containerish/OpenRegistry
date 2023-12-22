@@ -28,7 +28,7 @@ require (
 	github.com/jackc/pgx/v4 v4.18.1
 	github.com/labstack/echo-contrib v0.15.0
 	github.com/labstack/echo-jwt/v4 v4.2.0
-	github.com/labstack/echo/v4 v4.11.3
+	github.com/labstack/echo/v4 v4.11.4
 	github.com/multiformats/go-multiaddr v0.12.0
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.1.0-rc5
@@ -127,7 +127,7 @@ require (
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51 // indirect
 	github.com/klauspost/compress v1.17.2 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.6 // indirect
-	github.com/labstack/gommon v0.4.0 // indirect
+	github.com/labstack/gommon v0.4.2 // indirect
 	github.com/leodido/go-urn v1.2.4 // indirect
 	github.com/libp2p/go-buffer-pool v0.1.0 // indirect
 	github.com/libp2p/go-cidranger v1.1.0 // indirect
