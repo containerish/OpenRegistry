@@ -2,6 +2,7 @@ package otel
 
 import (
 	"log"
+	"os"
 
 	"github.com/containerish/OpenRegistry/config"
 	"github.com/fatih/color"
@@ -11,9 +12,11 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho"
 )
 
-func ConfigureOtel(config config.Telemetry, service string, e *echo.Echo) func() {
+func ConfigureOtel(config config.Honeycomb, service string, e *echo.Echo) func() {
 	if config.Enabled {
-		color.Green("OpenTelemetry: Enabled")
+		checkAndLoadHoneycombConfig(config)
+
+		color.Green("OpenTelemetry with Honeycomb.io: Enabled")
 		bsp := honeycomb.NewBaggageSpanProcessor()
 
 		otelShutdown, err := otelconfig.ConfigureOpenTelemetry(
@@ -30,4 +33,17 @@ func ConfigureOtel(config config.Telemetry, service string, e *echo.Echo) func()
 	}
 
 	return nil
+}
+
+func checkAndLoadHoneycombConfig(config config.Honeycomb) {
+	if config.ApiKey == "" {
+		log.Fatalln(color.RedString("ERR_MISSING_HONEYCOMB_API_KEY"))
+	}
+
+	if config.ServiceName == "" {
+		config.ServiceName = "openregistry-api"
+	}
+
+	os.Setenv("OTEL_SERVICE_NAME", config.ServiceName)
+	os.Setenv("HONEYCOMB_API_KEY", config.ApiKey)
 }

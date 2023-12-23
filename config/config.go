@@ -198,9 +198,16 @@ type (
 	}
 
 	Telemetry struct {
-		Logging Logging `yaml:"logging" mapstructure:"logging"`
-		Otel    Otel    `yaml:"otel" mapstructure:"otel"`
-		Enabled bool    `yaml:"enabled" mapstructure:"enabled"`
+		Honeycomb Honeycomb `yaml:"honeycomb" mapstructure:"honeycomb"`
+		Logging   Logging   `yaml:"logging" mapstructure:"logging"`
+		Otel      Otel      `yaml:"otel" mapstructure:"otel"`
+		Enabled   bool      `yaml:"enabled" mapstructure:"enabled"`
+	}
+
+	Honeycomb struct {
+		ServiceName string `yaml:"service_name" mapstructure:"service_name"`
+		ApiKey      string `yaml:"api_key" mapstructure:"api_key"`
+		Enabled     bool   `yaml:"enabled" mapstructure:"enabled"`
 	}
 
 	IpfsDFS struct {
