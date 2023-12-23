@@ -21,6 +21,7 @@ import (
 	store_v2 "github.com/containerish/OpenRegistry/store/v1/registry"
 	"github.com/containerish/OpenRegistry/store/v1/types"
 	"github.com/containerish/OpenRegistry/telemetry"
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	oci_digest "github.com/opencontainers/go-digest"
 	img_spec_v1 "github.com/opencontainers/image-spec/specs-go/v1"
@@ -1001,6 +1002,12 @@ func (r *registry) ApiVersion(ctx echo.Context) error {
 func (r *registry) GetImageNamespace(ctx echo.Context) error {
 	ctx.Set(types.HandlerStartTime, time.Now())
 
+	userId := uuid.NullUUID{}.UUID
+	user, ok := ctx.Get(string(types.UserContextKey)).(*types.User)
+	if ok {
+		userId = user.ID
+	}
+
 	searchQuery := ctx.QueryParam("search_query")
 	if searchQuery == "" {
 		errMsg := fmt.Errorf("search query must not be empty")
@@ -1017,7 +1024,7 @@ func (r *registry) GetImageNamespace(ctx echo.Context) error {
 		visibility = types.RepositoryVisibilityPublic
 	}
 
-	result, err := r.store.GetImageNamespace(ctx.Request().Context(), searchQuery, visibility)
+	result, err := r.store.GetImageNamespace(ctx.Request().Context(), searchQuery, visibility, userId)
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error":   err.Error(),

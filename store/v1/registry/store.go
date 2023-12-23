@@ -67,6 +67,7 @@ type RegistryStore interface {
 		ctx context.Context,
 		search string,
 		visibility types.RepositoryVisibility,
+		userId uuid.UUID,
 	) ([]*types.ContainerImageRepository, error)
 	DeleteLayerByDigest(ctx context.Context, digest string) error
 	GetPublicRepositories(ctx context.Context, pageSize int, offset int) ([]*types.ContainerImageRepository, int, error)

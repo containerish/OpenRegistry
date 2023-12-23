@@ -369,11 +369,16 @@ func (s *registryStore) GetContentHashById(ctx context.Context, uuid string) (st
 	return dfsLink, nil
 }
 
+func (s *registryStore) excludeUserSensitiveFieldsOnJoin(sq *bun.SelectQuery) *bun.SelectQuery {
+	return sq.ExcludeColumn("password").ExcludeColumn("created_at").ExcludeColumn("updated_at")
+}
+
 // GetImageNamespace implements registry.RegistryStore.
 func (s *registryStore) GetImageNamespace(
 	ctx context.Context,
 	search string,
 	visibility types.RepositoryVisibility,
+	userID uuid.UUID,
 ) ([]*types.ContainerImageRepository, error) {
 	logEvent := s.logger.Debug().Str("method", "GetImageNamespace").Str("search_query", search)
 	var repos []*types.ContainerImageRepository
@@ -382,9 +387,18 @@ func (s *registryStore) GetImageNamespace(
 		db.
 		NewSelect().
 		Model(&repos).
-		Relation("User").
-		WhereOr("substr(username, 1, 50) ILIKE ?", search).
-		WhereOr("substr(name, 1, 50) ILIKE ?", search)
+		Relation("User", func(sq *bun.SelectQuery) *bun.SelectQuery {
+			return s.excludeUserSensitiveFieldsOnJoin(sq)
+		}).
+		WhereGroup(" AND ", func(sq *bun.SelectQuery) *bun.SelectQuery {
+			return sq.
+				WhereOr("visibility = ?", types.RepositoryVisibilityPublic.String()).
+				WhereOr("owner_id = ?", userID)
+		}).
+		WhereGroup(" AND ", func(sq *bun.SelectQuery) *bun.SelectQuery {
+			return sq.WhereOr("substr(username, 1, 50) ILIKE ?", search).
+				WhereOr("substr(name, 1, 50) ILIKE ?", search)
+		})
 
 	if visibility == types.RepositoryVisibilityPublic {
 		q.Where("visibility = ? ", visibility.String())
