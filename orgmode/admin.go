@@ -121,7 +121,7 @@ func (o *orgMode) parseAddUsersToOrgRequest(ctx echo.Context, user *types.User, 
 		parsedBody.Users = append(parsedBody.Users, perm)
 	}
 
-	ctx.Set(string(types.OrgModeRequestBodyContextKey), parsedBody)
+	ctx.Set(string(types.OrgModeRequestBodyContextKey), &parsedBody)
 	return nil
 }
 
