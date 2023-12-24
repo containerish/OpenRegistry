@@ -24,12 +24,13 @@ func (c *clair) NewJWTInterceptor() connect.UnaryInterceptorFunc {
 
 			userID, err := c.getTokenFromReq(req, c.authConfig.JWTSigningPubKey)
 			if err != nil {
+				logEvent.Err(err).Send()
 				return nil, err
 			}
 
 			user, err := c.userGetter.GetUserByID(ctx, userID)
 			if err != nil {
-				logEvent.Str("error", err.Error()).Send()
+				logEvent.Err(err).Send()
 				return nil, connect.NewError(connect.CodeFailedPrecondition, err)
 			}
 
