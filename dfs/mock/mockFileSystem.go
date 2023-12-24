@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"sync"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
@@ -28,6 +29,7 @@ type fileBasedMockStorage struct {
 	logger          telemetry.Logger
 	uploadSession   map[string]string
 	config          *config.S3CompatibleDFS
+	mutex           *sync.RWMutex
 	serviceEndpoint string
 }
 
@@ -55,6 +57,7 @@ func newFileBasedMockStorage(
 		config:          cfg,
 		serviceEndpoint: net.JoinHostPort(parsedHost.Hostname(), "5002"),
 		logger:          logger,
+		mutex:           &sync.RWMutex{},
 	}
 
 	go mocker.FileServer()
@@ -63,7 +66,9 @@ func newFileBasedMockStorage(
 
 func (ms *fileBasedMockStorage) CreateMultipartUpload(layerKey string) (string, error) {
 	sessionId := uuid.NewString()
+	ms.mutex.Lock()
 	ms.uploadSession[sessionId] = sessionId
+	defer ms.mutex.Unlock()
 	return sessionId, nil
 }
 
@@ -114,7 +119,9 @@ func (ms *fileBasedMockStorage) CompleteMultipartUpload(
 	layerDigest string,
 	completedParts []s3types.CompletedPart,
 ) (string, error) {
+	ms.mutex.Lock()
 	delete(ms.uploadSession, layerKey)
+	defer ms.mutex.Unlock()
 	return layerKey, nil
 }
 
@@ -229,7 +236,9 @@ func (ms *fileBasedMockStorage) AbortMultipartUpload(ctx context.Context, layerK
 		return err
 	}
 
+	ms.mutex.Lock()
 	delete(ms.uploadSession, uploadId)
+	defer ms.mutex.Unlock()
 	return nil
 }
 
