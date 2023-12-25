@@ -1,37 +1,38 @@
 package auth
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
-	"regexp"
-	"strings"
 	"time"
 
+	"github.com/containerish/OpenRegistry/config"
 	"github.com/containerish/OpenRegistry/types"
 	"github.com/labstack/echo/v4"
 )
 
 type List struct {
-	Emails string
+	Emails []string `json:"emails"`
 }
+
+const MaxAllowedInvites = 5
 
 func (a *auth) Invites(ctx echo.Context) error {
 	ctx.Set(types.HandlerStartTime, time.Now())
 
-	var list List
-	err := json.NewDecoder(ctx.Request().Body).Decode(&list)
+	var body List
+	err := ctx.Bind(&body)
+	// err := json.NewDecoder(ctx.Request().Body).Decode(&list)
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
-			"error": err.Error(),
-			"msg":   "error decode body, expecting and array of emails",
+			"error":   err.Error(),
+			"message": "error decode body, expecting an array of emails",
 		})
 		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 	defer ctx.Request().Body.Close()
 
-	if list.Emails == "" {
+	if len(body.Emails) == 0 {
 		err = fmt.Errorf("ERR_EMPTY_LIST")
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error":   err,
@@ -41,9 +42,20 @@ func (a *auth) Invites(ctx echo.Context) error {
 		return echoErr
 	}
 
-	emails := strings.Split(list.Emails, ",")
+	if len(body.Emails) > MaxAllowedInvites {
+		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
+			"error": "TOO_MANY_INVITES",
+			"message": fmt.Sprintf(
+				"the request includes %d invites but maximum allowed invites are %d",
+				len(body.Emails),
+				MaxAllowedInvites,
+			),
+		})
+		a.logger.Log(ctx, err).Send()
+		return echoErr
+	}
 
-	if err = a.validateEmailList(emails); err != nil {
+	if err = a.validateEmailList(body.Emails); err != nil {
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error":   err.Error(),
 			"message": "error validating email list",
@@ -53,7 +65,7 @@ func (a *auth) Invites(ctx echo.Context) error {
 	}
 
 	webAppURL := a.c.WebAppConfig.GetAllowedURLFromEchoContext(ctx, a.c.Environment)
-	err = a.emailClient.WelcomeEmail(emails, webAppURL)
+	err = a.emailClient.WelcomeEmail(body.Emails, webAppURL)
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error":   err.Error(),
@@ -85,10 +97,7 @@ func (a *auth) verifyEmail(email string) error {
 		return fmt.Errorf("email can not be empty")
 	}
 
-	emailReg := regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+\\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}" +
-		"[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
-
-	if !emailReg.Match([]byte(email)) {
+	if !config.EmailRegex.Match([]byte(email)) {
 		return fmt.Errorf("email format invalid")
 	}
 

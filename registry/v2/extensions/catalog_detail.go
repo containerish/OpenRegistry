@@ -1,6 +1,7 @@
 package extensions
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -151,7 +152,22 @@ func (ext *extension) RepositoryDetail(ctx echo.Context) error {
 		offset = o
 	}
 
-	repository, err := ext.store.GetRepoDetail(ctx.Request().Context(), namespace, pageSize, offset)
+	if namespace == "" {
+		errMsg := fmt.Errorf("invalid request input, missing required field: ns")
+		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
+			"error": errMsg.Error(),
+		})
+
+		ext.logger.Log(ctx, errMsg).Send()
+		return echoErr
+	}
+
+	requestContext := ctx.Request().Context()
+	if user, ok := ctx.Get(string(types.UserContextKey)).(*types.User); ok {
+		requestContext = context.WithValue(requestContext, types.UserContextKey, user)
+	}
+
+	repository, err := ext.store.GetRepoDetail(requestContext, namespace, pageSize, offset)
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error": err.Error(),

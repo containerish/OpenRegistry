@@ -3,6 +3,7 @@ package auth
 import (
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/containerish/OpenRegistry/common"
@@ -21,6 +22,11 @@ func (a *auth) JWT() echo.MiddlewareFunc {
 			if _, ok := ctx.Get(types.HandlerStartTime).(*time.Time); !ok {
 				// if handler timer isn't set, set one now
 				ctx.Set(types.HandlerStartTime, time.Now())
+			}
+
+			// skip OCI extension APIs
+			if strings.HasPrefix(ctx.Request().URL.Path, "/v2/ext") {
+				return true
 			}
 
 			// public read is allowed
