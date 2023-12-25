@@ -165,7 +165,12 @@ func (c *clair) submitManifest(
 		return nil, err
 	}
 
-	return res.Body, nil
+	if res.StatusCode >= 200 && res.StatusCode <= 300 {
+		return res.Body, nil
+	}
+
+	return nil, fmt.Errorf("ERR_SUBMIT_MANIFEST_TO_SCAN: CODE: %d", res.StatusCode)
+
 }
 
 func (c *clair) newClairRequest(ctx context.Context, method string, url string, body io.Reader) (*http.Request, error) {

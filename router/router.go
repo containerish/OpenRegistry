@@ -70,6 +70,7 @@ func Register(
 		logger,
 		registryStore.GetLayersLinksForManifest,
 		dfs.GeneratePresignedURL,
+		cfg.WebAppConfig.AllowedEndpoints,
 	)
 
 	if cfg.Integrations.GetGithubConfig() != nil && cfg.Integrations.GetGithubConfig().Enabled {
@@ -82,6 +83,7 @@ func Register(
 			cfg.WebAppConfig.AllowedEndpoints,
 			usersStore,
 			automationStore,
+			cfg.WebAppConfig.AllowedEndpoints,
 		)
 	}
 

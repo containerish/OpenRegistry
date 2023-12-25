@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"strings"
 
 	"github.com/containerish/OpenRegistry/config"
 	github_actions_server "github.com/containerish/OpenRegistry/services/kon/github_actions/v1/server"
@@ -13,6 +14,7 @@ import (
 	"github.com/containerish/OpenRegistry/vcs/github"
 	"github.com/fatih/color"
 	"github.com/labstack/echo/v4"
+	"github.com/rs/cors"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 )
@@ -26,6 +28,7 @@ func RegisterGitHubRoutes(
 	allowedEndpoints []string,
 	usersStore vcs.VCSStore,
 	automationStore automation.BuildAutomationStore,
+	allowedOrigins []string,
 ) {
 	if cfg != nil && cfg.Enabled {
 		ghAppApi := github.NewGithubApp(
@@ -47,7 +50,22 @@ func RegisterGitHubRoutes(
 		go func() {
 			addr := net.JoinHostPort(cfg.Host, fmt.Sprintf("%d", cfg.Port))
 			color.Green("connect-go GitHub Automation gRPC service running on: %s", addr)
-			if err := http.ListenAndServe(addr, h2c.NewHandler(githubMux, &http2.Server{})); err != nil {
+			ghCors := cors.New(cors.Options{
+				AllowedOrigins: allowedOrigins,
+				AllowOriginFunc: func(origin string) bool {
+					return strings.HasSuffix(origin, "openregistry.dev") ||
+						strings.HasSuffix(origin, "cntr.sh") ||
+						strings.HasSuffix(origin, "openregistry-web.pages.dev")
+				},
+				AllowedMethods: []string{
+					http.MethodOptions, http.MethodGet, http.MethodPost,
+				},
+				AllowedHeaders:   []string{"*"},
+				AllowCredentials: true,
+				Debug:            true,
+			})
+			handler := ghCors.Handler(h2c.NewHandler(githubMux, &http2.Server{}))
+			if err := http.ListenAndServe(addr, handler); err != nil {
 				color.Red("connect-go GitHub Automation service listen error: %s", err)
 			}
 		}()

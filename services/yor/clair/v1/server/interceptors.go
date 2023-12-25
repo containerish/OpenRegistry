@@ -42,15 +42,18 @@ func (c *clair) NewJWTInterceptor() connect.UnaryInterceptorFunc {
 }
 
 func (c *clair) getTokenFromReq(req connect.AnyRequest, jwtSigningPubKey *rsa.PublicKey) (uuid.UUID, error) {
-	token, err := c.tryTokenFromReqHeaders(req, jwtSigningPubKey)
-	if err != nil {
-		token, err = c.tryTokenFromReqCookies(req, jwtSigningPubKey)
-		if err != nil {
-			return uuid.Nil, fmt.Errorf("getTokenFromReq: tryTokenFromReqCookies: %w", err)
+	tokenFromHeaders, headerErr := c.tryTokenFromReqHeaders(req, jwtSigningPubKey)
+	if headerErr != nil {
+		tokenFromCookies, cookieErr := c.tryTokenFromReqCookies(req, jwtSigningPubKey)
+		if cookieErr != nil {
+			return uuid.Nil, fmt.Errorf(
+				"getTokenFromReq: tryTokenFromReqCookies: %w - tryTokenFromReqHeaders: %w", cookieErr, headerErr,
+			)
 		}
+		return tokenFromCookies, nil
 	}
 
-	return token, nil
+	return tokenFromHeaders, nil
 }
 
 func (c *clair) tryTokenFromReqCookies(req connect.AnyRequest, jwtSigningPubKey *rsa.PublicKey) (uuid.UUID, error) {
