@@ -15,6 +15,9 @@ certs:
 	openssl req -x509 -newkey rsa:4096 -keyout .certs/registry.local -out .certs/registry.local.crt -sha256 -days 365 \
 	-subj "/C=US/ST=Oregon/L=Portland/O=Company Name/OU=Org/CN=registry.local" -nodes
 
+load_dummy_users:
+	sh ./scripts/load_dummy_users.sh
+
 reset:
 	psql -c 'drop database open_registry' && \
 		psql -c 'drop role open_registry_user' && \

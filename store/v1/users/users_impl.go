@@ -3,7 +3,9 @@ package users
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"strings"
+	"time"
 
 	v1 "github.com/containerish/OpenRegistry/store/v1"
 	"github.com/containerish/OpenRegistry/store/v1/types"
@@ -320,4 +322,56 @@ func (us *userStore) MatchUserType(ctx context.Context, userType types.UserType,
 	}
 
 	return len(userIds) == count
+}
+
+func (us *userStore) AddAuthToken(ctx context.Context, token *types.AuthTokens) error {
+	if token.ExpiresAt.IsZero() {
+		token.ExpiresAt = time.Now().AddDate(1, 0, 0)
+	}
+
+	_, err := us.db.NewInsert().Model(token).Exec(ctx)
+	return err
+}
+
+func (us *userStore) ListAuthTokens(ctx context.Context, ownerID uuid.UUID) ([]*types.AuthTokens, error) {
+	var tokens []*types.AuthTokens
+
+	err := us.
+		db.
+		NewSelect().
+		Model(&tokens).
+		ExcludeColumn("auth_token").
+		ExcludeColumn("owner_id").
+		Where("owner_id = ?", ownerID).
+		Scan(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return tokens, nil
+}
+
+func (us *userStore) GetAuthToken(
+	ctx context.Context,
+	ownerID uuid.UUID,
+	hashedToken string,
+) (*types.AuthTokens, error) {
+	var token types.AuthTokens
+
+	err := us.
+		db.
+		NewSelect().
+		Model(&token).
+		Where("owner_id = ?", ownerID).
+		Where("auth_token = ?", hashedToken).
+		Scan(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if token.ExpiresAt.Unix() < time.Now().Unix() {
+		return nil, fmt.Errorf("Token has expired, please generate a new one")
+	}
+
+	return &token, nil
 }

@@ -43,6 +43,9 @@ type UserReader interface {
 	Search(ctx context.Context, query string) ([]*types.User, error)
 	GetOrgUsersByOrgID(ctx context.Context, orgID uuid.UUID) ([]*types.Permissions, error)
 	MatchUserType(ctx context.Context, userType types.UserType, userIds ...uuid.UUID) bool
+	AddAuthToken(ctx context.Context, token *types.AuthTokens) error
+	ListAuthTokens(ctx context.Context, ownerID uuid.UUID) ([]*types.AuthTokens, error)
+	GetAuthToken(ctx context.Context, ownerID uuid.UUID, hashedToken string) (*types.AuthTokens, error)
 }
 
 type UserGetter interface {

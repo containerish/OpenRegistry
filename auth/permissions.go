@@ -129,10 +129,8 @@ func (a *auth) handleTokenRequest(ctx echo.Context, handler echo.HandlerFunc) (e
 	if err := a.populateUserFromPermissionsCheck(ctx); err != nil {
 		registryErr := common.RegistryErrorResponse(
 			registry.RegistryErrorCodeUnauthorized,
-			"missing user credentials in request",
-			echo.Map{
-				"error": err.Error(),
-			},
+			err.Error(),
+			nil,
 		)
 
 		echoErr := ctx.JSONBlob(http.StatusUnauthorized, registryErr.Bytes())

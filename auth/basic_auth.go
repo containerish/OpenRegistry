@@ -172,6 +172,16 @@ func (a *auth) validateBasicAuthCredentials(auth string) (*types.User, error) {
 
 			return user, nil
 		}
+
+		if strings.HasPrefix(password, types.OpenRegistryAuthTokenPrefix) {
+			user, err := a.validateUserWithPAT(context.Background(), username, password)
+			if err != nil {
+				return nil, err
+			}
+
+			return user, nil
+		}
+
 		user, err := a.validateUser(username, password)
 		if err != nil {
 			return nil, err

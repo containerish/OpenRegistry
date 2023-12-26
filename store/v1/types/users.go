@@ -58,6 +58,7 @@ type (
 		Permissions         []*Permissions              `bun:"rel:has-many,join:id=user_id" json:"permissions"`
 		Repositories        []*ContainerImageRepository `bun:"rel:has-many,join:id=owner_id" json:"-"`
 		Projects            []*RepositoryBuildProject   `bun:"rel:has-many,join:id=repository_owner_id" json:"-"`
+		AuthTokens          []*AuthTokens               `bun:"rel:has-many,join:id=owner_id" json:"-"`
 		// nolint:lll
 		FavoriteRepositories []uuid.UUID `bun:"favorite_repositories,type:uuid[],default:'{}'" json:"favorite_repositories"`
 		ID                   uuid.UUID   `bun:"id,type:uuid,pk" json:"id,omitempty" validate:"-"`
@@ -65,6 +66,16 @@ type (
 		WebauthnConnected    bool        `bun:"webauthn_connected" json:"webauthn_connected"`
 		GithubConnected      bool        `bun:"github_connected" json:"github_connected"`
 		IsOrgOwner           bool        `bun:"is_org_owner" json:"is_org_owner,omitempty"`
+	}
+
+	AuthTokens struct {
+		bun.BaseModel `bun:"table:auth_tokens,alias:s" json:"-"`
+
+		Name      string    `bun:"name" json:"name"`
+		CreatedAt time.Time `bun:"created_at" json:"created_at,omitempty" validate:"-"`
+		ExpiresAt time.Time `bun:"expires_at" json:"expires_at,omitempty" validate:"-"`
+		OwnerID   uuid.UUID `bun:"owner_id,type:uuid" json:"-"`
+		AuthToken string    `bun:"auth_token,type:text,pk" json:"-"`
 	}
 
 	// type here is string so that we can use it with echo.Context & std context.Context
@@ -94,6 +105,11 @@ type (
 
 		Token  uuid.UUID `bun:"token,pk,type:uuid" json:"-"`
 		UserId uuid.UUID `bun:"user_id,type:uuid" json:"-"`
+	}
+
+	CreateAuthTokenRequest struct {
+		ExpiresAt time.Time `json:"expires_at"`
+		Name      string    `json:"name"`
 	}
 )
 

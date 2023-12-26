@@ -156,6 +156,14 @@ func createOpenRegistryTables(ctx *cli.Context, db *bun.DB) error {
 	}
 	color.Green(`Table "permissions" created ✔︎`)
 
+	_, err = db.NewCreateTable().Model(&types.AuthTokens{}).Table().IfNotExists().Exec(ctx.Context)
+	if err != nil {
+		return errors.New(
+			color.RedString("Table=auth_tokens Created=❌ Error=%s", err),
+		)
+	}
+	color.Green(`Table "auth_tokens" created ✔︎`)
+
 	return nil
 }
 
