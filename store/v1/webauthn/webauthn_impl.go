@@ -39,7 +39,7 @@ func (ws *webauthnStore) GetWebAuthnSessionData(
 	userId uuid.UUID,
 	sessionType string,
 ) (*webauthn.SessionData, error) {
-	var session types.WebauthnSession
+	session := &types.WebauthnSession{}
 
 	err := ws.
 		db.

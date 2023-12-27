@@ -125,12 +125,12 @@ func (us *userStore) GetUserByUsernameWithTxn(ctx context.Context, username stri
 }
 
 func (us *userStore) GetIPFSUser(ctx context.Context) (*types.User, error) {
-	var user types.User
-	if err := us.db.NewSelect().Model(&user).Where("username = ?", types.SystemUsernameIPFS).Scan(ctx); err != nil {
+	user := &types.User{}
+	if err := us.db.NewSelect().Model(user).Where("username = ?", types.SystemUsernameIPFS).Scan(ctx); err != nil {
 		return nil, v1.WrapDatabaseError(err, v1.DatabaseOperationRead)
 	}
 
-	return &user, nil
+	return user, nil
 }
 
 // GetUserWithSession implements UserStore.
@@ -225,12 +225,12 @@ func (us *userStore) webAuthnUserExists(ctx context.Context, username, email str
 }
 
 func (us *userStore) ConvertUserToOrg(ctx context.Context, userID uuid.UUID) error {
-	user := types.User{ID: userID}
+	user := &types.User{ID: userID}
 
 	_, err := us.
 		db.
 		NewUpdate().
-		Model(&user).
+		Model(user).
 		WherePK().
 		Set("user_type = ?", types.UserTypeOrganization.String()).
 		Set("is_org_owner = ?", true).
@@ -370,7 +370,7 @@ func (us *userStore) GetAuthToken(
 	}
 
 	if token.ExpiresAt.Unix() < time.Now().Unix() {
-		return nil, fmt.Errorf("Token has expired, please generate a new one")
+		return nil, fmt.Errorf("token has expired, please generate a new one")
 	}
 
 	return &token, nil

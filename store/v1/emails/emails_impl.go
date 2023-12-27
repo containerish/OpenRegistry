@@ -42,9 +42,9 @@ func (es *emailStore) DeleteVerifyEmail(ctx context.Context, userID uuid.UUID) e
 }
 
 func (es *emailStore) GetVerifyEmail(ctx context.Context, userID uuid.UUID) (uuid.UUID, error) {
-	var email types.Email
+	var email *types.Email
 
-	if err := es.db.NewSelect().Model(&email).Where("user_id = ?", userID).Scan(ctx); err != nil {
+	if err := es.db.NewSelect().Model(email).Where("user_id = ?", userID).Scan(ctx); err != nil {
 		return uuid.UUID{}, v2.WrapDatabaseError(err, v2.DatabaseOperationRead)
 	}
 
