@@ -10,6 +10,7 @@ import (
 
 	"github.com/containerish/OpenRegistry/config"
 	"github.com/containerish/OpenRegistry/store/v1/types"
+	"github.com/fatih/color"
 	"github.com/google/go-github/v56/github"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
@@ -176,18 +177,12 @@ func (a *auth) createCookie(
 ) *http.Cookie {
 	secure := true
 	sameSite := http.SameSiteNoneMode
-	domain := ""
-	url, err := url.Parse(a.c.WebAppConfig.GetAllowedURLFromEchoContext(ctx, a.c.Environment))
-	if err != nil {
-		domain = a.c.Registry.FQDN
-	} else {
-		domain = url.Hostname()
-	}
+	domain := a.c.Registry.FQDN
 
-	if a.c.Environment == config.Local {
+	if a.c.Environment == config.Local && domain == "" {
 		secure = false
 		sameSite = http.SameSiteLaxMode
-		url, err = url.Parse(a.c.WebAppConfig.GetAllowedURLFromEchoContext(ctx, a.c.Environment))
+		url, err := url.Parse(a.c.WebAppConfig.GetAllowedURLFromEchoContext(ctx, a.c.Environment))
 		if err != nil {
 			domain = "localhost"
 		} else {
@@ -205,6 +200,8 @@ func (a *auth) createCookie(
 		SameSite: sameSite,
 		HttpOnly: httpOnly,
 	}
+
+	color.Red("cookie: %#v", cookie)
 
 	if expiresAt.Unix() < time.Now().Unix() {
 		// set cookie deletion

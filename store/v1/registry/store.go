@@ -92,4 +92,5 @@ type RegistryStore interface {
 	AddRepositoryToFavorites(ctx context.Context, repoID uuid.UUID, userID uuid.UUID) error
 	RemoveRepositoryFromFavorites(ctx context.Context, repoID uuid.UUID, userID uuid.UUID) error
 	GetLayersLinksForManifest(ctx context.Context, manifestDigest string) ([]*types.ContainerImageLayer, error)
+	ListFavoriteRepositories(ctx context.Context, userID uuid.UUID) ([]*types.ContainerImageRepository, error)
 }

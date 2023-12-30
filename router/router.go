@@ -88,7 +88,7 @@ func Register(
 	}
 
 	//catch-all will redirect user back to the web interface
-	e.Add(http.MethodGet, "/", func(ctx echo.Context) error {
+	e.Add(http.MethodGet, "", func(ctx echo.Context) error {
 		webAppURL := ""
 		for _, url := range cfg.WebAppConfig.AllowedEndpoints {
 			if url == ctx.Request().Header.Get("Origin") {
@@ -101,7 +101,18 @@ func Register(
 			webAppURL = ctx.Request().Header.Get("Origin")
 		}
 
-		return ctx.Redirect(http.StatusTemporaryRedirect, webAppURL)
+		if webAppURL != "" {
+			echoErr := ctx.Redirect(http.StatusTemporaryRedirect, webAppURL)
+			logger.Log(ctx, nil).Send()
+			return echoErr
+		}
+
+		echoErr := ctx.JSON(http.StatusOK, echo.Map{
+			"API": "running",
+		})
+
+		logger.Log(ctx, nil).Send()
+		return echoErr
 	})
 
 	return e

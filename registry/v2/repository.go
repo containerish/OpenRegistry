@@ -31,18 +31,24 @@ func (r *registry) CreateRepository(ctx echo.Context) error {
 	var body CreateRepositoryRequest
 	err := json.NewDecoder(ctx.Request().Body).Decode(&body)
 	if err != nil {
-		return ctx.JSON(http.StatusBadRequest, echo.Map{
+		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error":   err.Error(),
 			"message": "error parsing request input",
 		})
+
+		r.logger.Log(ctx, err).Send()
+		return echoErr
 	}
 	defer ctx.Request().Body.Close()
 
 	if err = body.Validate(); err != nil {
-		return ctx.JSON(http.StatusBadRequest, echo.Map{
+		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error":   err.Error(),
 			"message": "invalid request body",
 		})
+
+		r.logger.Log(ctx, err).Send()
+		return echoErr
 	}
 
 	user := ctx.Get(string(types.UserContextKey)).(*types.User)
@@ -55,13 +61,19 @@ func (r *registry) CreateRepository(ctx echo.Context) error {
 		OwnerID:     user.ID,
 	}
 	if err := r.store.CreateRepository(ctx.Request().Context(), repository); err != nil {
-		return ctx.JSON(http.StatusBadGateway, echo.Map{
+		echoErr := ctx.JSON(http.StatusBadGateway, echo.Map{
 			"error":   err.Error(),
 			"message": "error creating repository",
 		})
+
+		r.logger.Log(ctx, err).Send()
+		return echoErr
 	}
 
-	return ctx.JSON(http.StatusCreated, echo.Map{
+	echoErr := ctx.JSON(http.StatusCreated, echo.Map{
 		"message": "repository created successfully",
 	})
+
+	r.logger.Log(ctx, nil).Send()
+	return echoErr
 }

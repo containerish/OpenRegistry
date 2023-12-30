@@ -854,3 +854,42 @@ func (s *registryStore) GetLayersLinksForManifest(
 	logEvent.Bool("success", true).Send()
 	return layers, nil
 }
+func (s *registryStore) ListFavoriteRepositories(
+	ctx context.Context,
+	userID uuid.UUID,
+) ([]*types.ContainerImageRepository, error) {
+	logEvent := s.logger.Debug().Str("method", "ListFavoriteRepositories")
+
+	repositories := []*types.ContainerImageRepository{}
+	user := &types.User{ID: userID}
+	err := s.
+		db.
+		NewSelect().
+		Model(user).
+		WherePK().
+		Scan(ctx)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if len(user.FavoriteRepositories) == 0 {
+		return repositories, nil
+	}
+
+	q := s.
+		db.
+		NewSelect().
+		Model(&repositories).
+		Where(`"r"."id" in (?)`, bun.In(user.FavoriteRepositories)).
+		Relation("User", func(sq *bun.SelectQuery) *bun.SelectQuery {
+			return sq.ExcludeColumn("password").ExcludeColumn("github_connected").ExcludeColumn("webauthn_connected")
+		})
+
+	if err := q.Scan(ctx); err != nil {
+		logEvent.Err(err).Send()
+		return nil, v1.WrapDatabaseError(err, v1.DatabaseOperationRead)
+	}
+
+	return repositories, nil
+}

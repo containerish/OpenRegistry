@@ -234,9 +234,13 @@ func (a *auth) ForgotPassword(ctx echo.Context) error {
 	}
 
 	if !user.IsActive {
-		return ctx.JSON(http.StatusUnauthorized, echo.Map{
-			"message": "account is inactive, please check your email and verify your account",
+		err = fmt.Errorf("account is inactive, please check your email and verify your account")
+		echoErr := ctx.JSON(http.StatusUnauthorized, echo.Map{
+			"message": err.Error(),
 		})
+
+		a.logger.Log(ctx, err).Send()
+		return echoErr
 	}
 
 	opts := &WebLoginJWTOptions{

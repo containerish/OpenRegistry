@@ -86,8 +86,9 @@ func (r *registry) ManifestExists(ctx echo.Context) error {
 		}
 
 		errMsg := common.RegistryErrorResponse(RegistryErrorCodeManifestBlobUnknown, err.Error(), details)
-		r.logger.Log(ctx, fmt.Errorf("%s", errMsg)).Send()
-		return ctx.NoContent(http.StatusNotFound)
+		echoErr := ctx.JSONBlob(http.StatusNotFound, errMsg.Bytes())
+		r.logger.Log(ctx, errMsg).Send()
+		return echoErr
 	}
 
 	ctx.Response().Header().Set("Content-Length", fmt.Sprintf("%d", manifest.Size))
@@ -792,10 +793,13 @@ func (r *registry) PushManifest(ctx echo.Context) error {
 	buf := &bytes.Buffer{}
 	_, err = io.Copy(buf, ctx.Request().Body)
 	if err != nil {
-		return ctx.JSON(http.StatusBadRequest, echo.Map{
+		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error":   err.Error(),
 			"message": "failed in push manifest while io Copy",
 		})
+
+		r.logger.Log(ctx, nil).Send()
+		return echoErr
 	}
 	defer ctx.Request().Body.Close()
 

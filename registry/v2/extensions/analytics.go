@@ -86,3 +86,27 @@ func (ext *extension) RemoveRepositoryFromFavorites(ctx echo.Context) error {
 	ext.logger.Log(ctx, nil).Send()
 	return echoErr
 }
+
+func (ext *extension) ListFavoriteRepositories(ctx echo.Context) error {
+	ctx.Set(types.HandlerStartTime, time.Now())
+
+	user, ok := ctx.Get(string(types.UserContextKey)).(*types.User)
+	if !ok {
+		err := fmt.Errorf("missing authentication credentials")
+		echoErr := ctx.JSON(http.StatusForbidden, echo.Map{
+			"error": err.Error(),
+		})
+		ext.logger.Log(ctx, err).Send()
+		return echoErr
+	}
+
+	repos, err := ext.store.ListFavoriteRepositories(ctx.Request().Context(), user.ID)
+	if err != nil {
+		repos = make([]*types.ContainerImageRepository, 0)
+	}
+
+	echoErr := ctx.JSON(http.StatusOK, repos)
+
+	ext.logger.Log(ctx, nil).Send()
+	return echoErr
+}
