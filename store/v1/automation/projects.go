@@ -5,12 +5,13 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
+	"google.golang.org/protobuf/types/known/timestamppb"
+
 	common_v1 "github.com/containerish/OpenRegistry/common/v1"
 	github_actions_v1 "github.com/containerish/OpenRegistry/services/kon/github_actions/v1"
 	v1 "github.com/containerish/OpenRegistry/store/v1"
 	"github.com/containerish/OpenRegistry/store/v1/types"
-	"github.com/google/uuid"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // DeleteProject implements BuildAutomationStore
@@ -19,7 +20,7 @@ func (s *store) DeleteProject(ctx context.Context, project *github_actions_v1.De
 		db.
 		NewDelete().
 		Model(&types.RepositoryBuildProject{}).
-		Where("id = ?", project.GetId()).
+		Where("id = ?", project.GetId().GetValue()).
 		Exec(ctx); err != nil {
 		return fmt.Errorf("ERR_DELETE_PROJECT: %w", err)
 	}

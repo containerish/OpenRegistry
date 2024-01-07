@@ -84,6 +84,7 @@ func Register(
 			usersStore,
 			automationStore,
 			cfg.WebAppConfig.AllowedEndpoints,
+			cfg.Endpoint(),
 		)
 	}
 

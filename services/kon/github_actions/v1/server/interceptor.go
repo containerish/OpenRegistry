@@ -5,7 +5,9 @@ import (
 	"fmt"
 
 	"github.com/bufbuild/connect-go"
+
 	"github.com/containerish/OpenRegistry/config"
+	"github.com/containerish/OpenRegistry/store/v1/types"
 	"github.com/containerish/OpenRegistry/telemetry"
 	"github.com/containerish/OpenRegistry/vcs"
 	"github.com/containerish/OpenRegistry/vcs/github"
@@ -38,7 +40,7 @@ func NewGitHubAppUsernameInterceptor(
 			}
 
 			logEvent.Bool("success", true).Send()
-			ctx = context.WithValue(ctx, github.UsernameContextKey, user.Username)
+			ctx = context.WithValue(ctx, types.UserContextKey, user)
 			return next(ctx, req)
 		})
 	})
@@ -64,7 +66,7 @@ func PopulateContextWithUserInterceptor(
 			}
 
 			logEvent.Bool("success", true).Send()
-			ctx = context.WithValue(ctx, github.UsernameContextKey, user.Username)
+			ctx = context.WithValue(ctx, types.UserContextKey, user)
 			return next(ctx, req)
 		})
 	})
@@ -106,8 +108,7 @@ func (i *githubAppStreamingInterceptor) WrapUnary(next connect.UnaryFunc) connec
 		ctx = context.WithValue(ctx, OpenRegistryUserContextKey, user)
 
 		logEvent.Bool("success", true)
-		ctx = context.WithValue(ctx, github.UsernameContextKey, user.Username)
-		ctx = context.WithValue(ctx, github.UserContextKey, user)
+		ctx = context.WithValue(ctx, types.UserContextKey, user)
 		skip := false
 		for _, r := range i.routesToSkip {
 			if req.Spec().Procedure == r {
@@ -166,7 +167,7 @@ func (i *githubAppStreamingInterceptor) WrapStreamingHandler(
 		}
 
 		logEvent.Bool("success", true).Send()
-		ctx = context.WithValue(ctx, github.UsernameContextKey, user.Username)
+		ctx = context.WithValue(ctx, types.UserContextKey, user)
 		skip := false
 		for _, r := range i.routesToSkip {
 			if conn.Spec().Procedure == r {

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/google/go-github/v56/github"
+	"gopkg.in/yaml.v3"
 )
 
 func (gh *ghAppService) doesWorkflowExist(ctx context.Context, client *github.Client, r *github.Repository) bool {
@@ -72,7 +73,18 @@ func (gh *ghAppService) createBranch(ctx context.Context, client *github.Client,
 	return nil
 }
 
-func (gh *ghAppService) createWorkflowFile(ctx context.Context, client *github.Client, r *github.Repository) error {
+type WorkflowProperties struct {
+	RegistryEndpoint string
+	RepositoryOwner  string
+	RepositoryName   string
+}
+
+func (gh *ghAppService) createWorkflowFile(
+	ctx context.Context,
+	client *github.Client,
+	r *github.Repository,
+	props *WorkflowProperties,
+) error {
 	msg := "build(ci): OpenRegistry build and push"
 
 	tpl, err := template.New("github-actions-workflow").Delims("[[", "]]").Parse(buildAndPushTemplate)
@@ -81,13 +93,23 @@ func (gh *ghAppService) createWorkflowFile(ctx context.Context, client *github.C
 	}
 
 	buf := &bytes.Buffer{}
-	if err = tpl.Execute(buf, r.GetDefaultBranch()); err != nil {
+	if err = tpl.Execute(buf, props); err != nil {
 		return fmt.Errorf("ERR_EXECUTE_TEMPLATE: %w", err)
+	}
+
+	yamlWorkflow := make(map[any]any)
+	if err = yaml.Unmarshal(buf.Bytes(), &yamlWorkflow); err != nil {
+		return fmt.Errorf("ERR_ENCODE_YAML_WORKFLOW: %w", err)
+	}
+
+	yamlWorkflowBz, err := yaml.Marshal(yamlWorkflow)
+	if err != nil {
+		return err
 	}
 
 	opts := &github.RepositoryContentFileOptions{
 		Message: github.String(msg),
-		Content: buf.Bytes(),
+		Content: yamlWorkflowBz,
 		Branch:  github.String(gh.automationBranchName),
 	}
 	_, _, err = client.Repositories.CreateFile(ctx, r.GetOwner().GetLogin(), r.GetName(), gh.workflowFilePath, opts)

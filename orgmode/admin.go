@@ -6,9 +6,10 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/containerish/OpenRegistry/store/v1/types"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
+
+	"github.com/containerish/OpenRegistry/store/v1/types"
 )
 
 func (o *orgMode) AllowOrgAdmin() echo.MiddlewareFunc {
@@ -52,7 +53,7 @@ func (o *orgMode) AllowOrgAdmin() echo.MiddlewareFunc {
 			case p == "/api/org/users" || strings.HasPrefix(p, "/api/org/permissions/users"):
 				orgOwner, err := o.userStore.GetOrgAdmin(ctx.Request().Context(), user.ID)
 				if err != nil {
-					echoErr := ctx.JSON(http.StatusUnauthorized, echo.Map{
+					echoErr := ctx.JSON(http.StatusForbidden, echo.Map{
 						"error":   err.Error(),
 						"message": "user does not have permission to add users to organization",
 					})

@@ -29,6 +29,7 @@ func RegisterGitHubRoutes(
 	usersStore vcs.VCSStore,
 	automationStore automation.BuildAutomationStore,
 	allowedOrigins []string,
+	registryEndpoint string,
 ) {
 	if cfg != nil && cfg.Enabled {
 		ghAppApi := github.NewGithubApp(
@@ -37,6 +38,7 @@ func RegisterGitHubRoutes(
 			logger,
 			allowedEndpoints,
 			env,
+			registryEndpoint,
 		)
 
 		ghAppApi.RegisterRoutes(router)

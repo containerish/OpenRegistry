@@ -11,14 +11,15 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/containerish/OpenRegistry/store/v1/types"
-	"github.com/containerish/OpenRegistry/vcs"
 	"github.com/google/go-github/v56/github"
 	"github.com/labstack/echo/v4"
+
+	"github.com/containerish/OpenRegistry/store/v1/types"
+	"github.com/containerish/OpenRegistry/vcs"
 )
 
 func (gh *ghAppService) HandleAppFinish(ctx echo.Context) error {
-	user := ctx.Get(string(UserContextKey)).(*types.User)
+	user := ctx.Get(string(types.UserContextKey)).(*types.User)
 
 	installationID, err := strconv.ParseInt(ctx.QueryParam("installation_id"), 10, 64)
 	if err != nil {
@@ -83,7 +84,7 @@ func (gh *ghAppService) HandleAppFinish(ctx echo.Context) error {
 
 // HandleSetupCallback implements vcs.VCS
 func (gh *ghAppService) HandleSetupCallback(ctx echo.Context) error {
-	user := ctx.Get(string(UserContextKey)).(*types.User)
+	user := ctx.Get(string(types.UserContextKey)).(*types.User)
 
 	installationID, err := strconv.ParseInt(ctx.QueryParam("installation_id"), 10, 64)
 	if err != nil {
@@ -266,6 +267,7 @@ func (gh *ghAppService) ListAuthorisedRepositories(ctx echo.Context) error {
 
 func (gh *ghAppService) CreateInitialPR(ctx echo.Context) error {
 	installationID := ctx.Get(string(GithubInstallationIDContextKey)).(int64)
+	user := ctx.Get(string(types.UserContextKey)).(*types.User)
 
 	var req vcs.InitialPRRequest
 	if err := json.NewDecoder(ctx.Request().Body).Decode(&req); err != nil {
@@ -310,7 +312,17 @@ func (gh *ghAppService) CreateInitialPR(ctx echo.Context) error {
 		return echoErr
 	}
 
-	if err = gh.createGitubActionsWorkflow(ctx.Request().Context(), client, &repository); err != nil {
+	err = gh.createGitubActionsWorkflow(
+		ctx.Request().Context(),
+		client,
+		&repository,
+		&WorkflowProperties{
+			RegistryEndpoint: gh.registryEndpoint,
+			RepositoryOwner:  user.Username,
+			RepositoryName:   req.RepositoryName,
+		},
+	)
+	if err != nil {
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error": err.Error(),
 		})
@@ -381,6 +393,7 @@ func (gh *ghAppService) createGitubActionsWorkflow(
 	ctx context.Context,
 	client *github.Client,
 	repo *github.Repository,
+	props *WorkflowProperties,
 ) error {
 	ctx, cancel := context.WithTimeout(ctx, time.Second*30)
 	defer cancel()
@@ -390,5 +403,5 @@ func (gh *ghAppService) createGitubActionsWorkflow(
 		return err
 	}
 
-	return gh.createWorkflowFile(ctx, client, repo)
+	return gh.createWorkflowFile(ctx, client, repo, props)
 }
