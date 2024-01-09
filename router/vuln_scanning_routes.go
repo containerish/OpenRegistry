@@ -6,14 +6,15 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/containerish/OpenRegistry/config"
-	"github.com/containerish/OpenRegistry/services/yor/clair/v1/server"
-	"github.com/containerish/OpenRegistry/store/v1/users"
-	"github.com/containerish/OpenRegistry/telemetry"
 	"github.com/fatih/color"
 	"github.com/rs/cors"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
+
+	"github.com/containerish/OpenRegistry/config"
+	"github.com/containerish/OpenRegistry/services/yor/clair/v1/server"
+	"github.com/containerish/OpenRegistry/store/v1/users"
+	"github.com/containerish/OpenRegistry/telemetry"
 )
 
 func RegisterVulnScaningRoutes(

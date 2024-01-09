@@ -8,13 +8,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/containerish/OpenRegistry/config"
-	"github.com/containerish/OpenRegistry/store/v1/types"
-	"github.com/fatih/color"
 	"github.com/google/go-github/v56/github"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	"golang.org/x/oauth2"
+
+	"github.com/containerish/OpenRegistry/config"
+	"github.com/containerish/OpenRegistry/store/v1/types"
 )
 
 func (a *auth) LoginWithGithub(ctx echo.Context) error {
@@ -200,8 +200,6 @@ func (a *auth) createCookie(
 		SameSite: sameSite,
 		HttpOnly: httpOnly,
 	}
-
-	color.Red("cookie: %#v", cookie)
 
 	if expiresAt.Unix() < time.Now().Unix() {
 		// set cookie deletion

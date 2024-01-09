@@ -7,12 +7,13 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/containerish/OpenRegistry/services/email"
-	"github.com/containerish/OpenRegistry/store/v1/types"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v4"
 	"github.com/labstack/echo/v4"
+
+	"github.com/containerish/OpenRegistry/services/email"
+	"github.com/containerish/OpenRegistry/store/v1/types"
 )
 
 func (a *auth) ResetForgottenPassword(ctx echo.Context) error {
@@ -123,7 +124,7 @@ func (a *auth) ResetPassword(ctx echo.Context) error {
 
 	user, ok := ctx.Get(string(types.UserContextKey)).(*types.User)
 	if !ok {
-		err := fmt.Errorf("Unauthorized: missing user auth credentials")
+		err := fmt.Errorf("unauthorized: missing user auth credentials")
 		echoErr := ctx.JSON(http.StatusUnauthorized, echo.Map{
 			"error": err.Error(),
 		})

@@ -3,14 +3,16 @@ package server
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 
 	"github.com/bufbuild/connect-go"
-	clair_v1 "github.com/containerish/OpenRegistry/services/yor/clair/v1"
 	"github.com/golang-jwt/jwt/v5"
 	"google.golang.org/protobuf/encoding/protojson"
+
+	clair_v1 "github.com/containerish/OpenRegistry/services/yor/clair/v1"
 )
 
 func (c *clair) EnableVulnerabilityScanning(
@@ -40,21 +42,16 @@ func (c *clair) GetVulnerabilityReport(
 
 	manifestID := req.Msg.GetManifestId()
 	logEvent.Str("manifest", manifestID)
-	report, err := c.getVulnReport(ctx, manifestID)
+	reportBz, err := c.getVulnReport(ctx, manifestID)
 	if err != nil {
-		logEvent.Err(err).Send()
+		var errMap map[string]any
+		_ = json.Unmarshal(reportBz, &errMap)
+		logEvent.Err(err).Any("get_manifest_err", errMap).Send()
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 
-	reportBz, err := io.ReadAll(report)
-	if err != nil {
-		logEvent.Err(err).Send()
-		return nil, connect.NewError(connect.CodeInternal, err)
-	}
-	defer report.Close()
-
 	resp := &clair_v1.GetVulnerabilityReportResponse{}
-	if err = protojson.Unmarshal(reportBz, resp); err != nil {
+	if err = (protojson.UnmarshalOptions{DiscardUnknown: true}).Unmarshal(reportBz, resp); err != nil {
 		logEvent.Err(err).Send()
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
@@ -105,21 +102,16 @@ func (c *clair) SubmitManifestToScan(
 		Layers: layers,
 	}
 
-	result, err := c.submitManifest(ctx, body)
+	resultBz, err := c.submitManifest(ctx, body)
 	if err != nil {
-		logEvent.Err(err).Send()
+		var errMap map[string]any
+		_ = json.Unmarshal(resultBz, &errMap)
+		logEvent.Err(err).Any("manifest_submit_err", errMap).Send()
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 
-	resultBz, err := io.ReadAll(result)
-	if err != nil {
-		logEvent.Err(err).Send()
-		return nil, connect.NewError(connect.CodeInternal, err)
-	}
-	defer result.Close()
-
 	msg := &clair_v1.SubmitManifestToScanResponse{}
-	if err = protojson.Unmarshal(resultBz, msg); err != nil {
+	if err = (protojson.UnmarshalOptions{DiscardUnknown: true}).Unmarshal(resultBz, msg); err != nil {
 		logEvent.Err(err).Send()
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
@@ -129,7 +121,7 @@ func (c *clair) SubmitManifestToScan(
 	return connect.NewResponse(msg), nil
 }
 
-func (c *clair) getVulnReport(ctx context.Context, manifestID string) (io.ReadCloser, error) {
+func (c *clair) getVulnReport(ctx context.Context, manifestID string) ([]byte, error) {
 	uri := fmt.Sprintf("%s/matcher/api/v1/vulnerability_report/%s", c.config.ClairEndpoint, manifestID)
 
 	req, err := c.newClairRequest(ctx, http.MethodGet, uri, nil)
@@ -142,13 +134,23 @@ func (c *clair) getVulnReport(ctx context.Context, manifestID string) (io.ReadCl
 		return nil, err
 	}
 
-	return resp.Body, nil
+	bz, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("ERR_GET_VULN_REPORT: READ_RESPONSE: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 200 && resp.StatusCode <= 299 {
+		return bz, nil
+	}
+
+	return bz, fmt.Errorf("ERR_GET_VULN_REPORT: INVALID_RESPONSE: %d", resp.StatusCode)
 }
 
 func (c *clair) submitManifest(
 	ctx context.Context,
 	manifest *clair_v1.ClairIndexManifestRequest,
-) (io.ReadCloser, error) {
+) ([]byte, error) {
 	uri := fmt.Sprintf("%s/indexer/api/v1/index_report", c.config.ClairEndpoint)
 
 	bz, err := protojson.Marshal(manifest)
@@ -165,12 +167,17 @@ func (c *clair) submitManifest(
 		return nil, err
 	}
 
+	bz, err = io.ReadAll(res.Body)
+	if err != nil {
+		return nil, fmt.Errorf("ERR_SUBMIT_MANIFEST_TO_SCAN: READ_RESPONSE: %w", err)
+	}
+	defer res.Body.Close()
+
 	if res.StatusCode >= 200 && res.StatusCode <= 300 {
-		return res.Body, nil
+		return bz, nil
 	}
 
-	return nil, fmt.Errorf("ERR_SUBMIT_MANIFEST_TO_SCAN: CODE: %d", res.StatusCode)
-
+	return bz, fmt.Errorf("ERR_SUBMIT_MANIFEST_TO_SCAN: CODE: %d", res.StatusCode)
 }
 
 func (c *clair) newClairRequest(ctx context.Context, method string, url string, body io.Reader) (*http.Request, error) {

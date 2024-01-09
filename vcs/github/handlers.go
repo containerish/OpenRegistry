@@ -307,7 +307,7 @@ func (gh *ghAppService) CreateInitialPR(ctx echo.Context) error {
 
 	workflowExists := gh.doesWorkflowExist(ctx.Request().Context(), client, &repository)
 	if workflowExists {
-		echoErr := ctx.NoContent(http.StatusAccepted)
+		echoErr := ctx.NoContent(http.StatusNoContent)
 		gh.logger.Log(ctx, echoErr).Send()
 		return echoErr
 	}
