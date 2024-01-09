@@ -9,14 +9,15 @@ import (
 	"time"
 
 	"github.com/bradleyfalzon/ghinstallation/v2"
-	"github.com/containerish/OpenRegistry/config"
-	"github.com/containerish/OpenRegistry/store/v1/types"
-	"github.com/containerish/OpenRegistry/telemetry"
-	"github.com/containerish/OpenRegistry/vcs"
 	"github.com/fatih/color"
 	"github.com/google/go-github/v56/github"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
+
+	"github.com/containerish/OpenRegistry/config"
+	"github.com/containerish/OpenRegistry/store/v1/types"
+	"github.com/containerish/OpenRegistry/telemetry"
+	"github.com/containerish/OpenRegistry/vcs"
 )
 
 type ghAppService struct {
@@ -88,10 +89,6 @@ func (gh *ghAppService) RegisterRoutes(router *echo.Group) {
 func (gh *ghAppService) getUsernameMiddleware() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(ctx echo.Context) error {
-			for key, header := range ctx.Request().Header {
-				color.Green("getUsernameMiddleware %s = %s", key, header)
-			}
-
 			// skip if it's a webhook call
 			// if c.Path() == "/github"+vcs.HandleWebhookEventsEndpoint || c.Path() == "/github/app/callback" {
 			if ctx.Path() == "/github"+vcs.HandleWebhookEventsEndpoint {

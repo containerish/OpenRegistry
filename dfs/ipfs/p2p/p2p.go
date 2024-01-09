@@ -10,18 +10,19 @@ import (
 	"strings"
 	"time"
 
-	hexmap "github.com/alphadose/haxmap"
+	"github.com/alphadose/haxmap"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
-	"github.com/containerish/OpenRegistry/config"
-	"github.com/containerish/OpenRegistry/dfs"
-	"github.com/containerish/OpenRegistry/store/v1/types"
 	"github.com/fatih/color"
 	"github.com/google/uuid"
 	boxo_files "github.com/ipfs/boxo/files"
 	boxo_path "github.com/ipfs/boxo/path"
 	"github.com/ipfs/kubo/client/rpc"
 	"github.com/multiformats/go-multiaddr"
+
+	"github.com/containerish/OpenRegistry/config"
+	"github.com/containerish/OpenRegistry/dfs"
+	"github.com/containerish/OpenRegistry/store/v1/types"
 )
 
 const (
@@ -33,8 +34,8 @@ type (
 	ipfsP2p struct {
 		node          *rpc.HttpApi
 		config        *config.IpfsDFS
-		uploadSession *hexmap.Map[string, *multipartSession]
-		uploadParts   *hexmap.Map[string, *uploadParts]
+		uploadSession *haxmap.Map[string, *multipartSession]
+		uploadParts   *haxmap.Map[string, *uploadParts]
 	}
 
 	multipartSession struct {
@@ -87,8 +88,8 @@ func New(config *config.IpfsDFS) dfs.DFS {
 	dfs := &ipfsP2p{
 		node:          node,
 		config:        config,
-		uploadSession: hexmap.New[string, *multipartSession](),
-		uploadParts:   hexmap.New[string, *uploadParts](),
+		uploadSession: haxmap.New[string, *multipartSession](),
+		uploadParts:   haxmap.New[string, *uploadParts](),
 	}
 
 	// run garbage collection in background
@@ -231,12 +232,15 @@ func (ipfs *ipfsP2p) Download(ctx context.Context, path string) (io.ReadCloser, 
 	buf := bytes.NewBuffer(node.RawData())
 	return io.NopCloser(buf), nil
 }
+
 func (ipfs *ipfsP2p) DownloadDir(dfsLink, dir string) error {
 	return nil
 }
+
 func (ipfs *ipfsP2p) List(path string) ([]*types.Metadata, error) {
 	return nil, nil
 }
+
 func (ipfs *ipfsP2p) AddImage(ns string, mf, l map[string][]byte) (string, error) {
 	return "", nil
 }

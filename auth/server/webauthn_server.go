@@ -5,9 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/url"
 	"strings"
 	"time"
+
+	"github.com/google/uuid"
+	"github.com/labstack/echo/v4"
+	"github.com/uptrace/bun"
 
 	"github.com/containerish/OpenRegistry/auth"
 	"github.com/containerish/OpenRegistry/auth/webauthn"
@@ -16,9 +19,6 @@ import (
 	"github.com/containerish/OpenRegistry/store/v1/users"
 	webauthn_store "github.com/containerish/OpenRegistry/store/v1/webauthn"
 	"github.com/containerish/OpenRegistry/telemetry"
-	"github.com/google/uuid"
-	"github.com/labstack/echo/v4"
-	"github.com/uptrace/bun"
 )
 
 type (
@@ -459,19 +459,11 @@ func (wa *webauthn_server) FinishLogin(ctx echo.Context) error {
 		return echoErr
 	}
 
-	domain := ""
-	url, err := url.Parse(wa.cfg.WebAuthnConfig.GetAllowedURLFromEchoContext(ctx, wa.cfg.Environment))
-	if err != nil {
-		domain = wa.cfg.WebAuthnConfig.RPOrigins[0]
-	} else {
-		domain = url.Hostname()
-	}
-
 	sessionIdCookie := auth.CreateCookie(&auth.CreateCookieOptions{
-		ExpiresAt:   time.Now().Add(time.Hour * 750), //one month
+		ExpiresAt:   time.Now().Add(time.Hour * 750), // one month
 		Name:        "session_id",
 		Value:       sessionId,
-		FQDN:        domain,
+		FQDN:        wa.cfg.Registry.FQDN,
 		Environment: wa.cfg.Environment,
 		HTTPOnly:    false,
 	})
@@ -480,16 +472,16 @@ func (wa *webauthn_server) FinishLogin(ctx echo.Context) error {
 		ExpiresAt:   time.Now().Add(time.Hour * 750),
 		Name:        auth.AccessCookieKey,
 		Value:       accessToken,
-		FQDN:        domain,
+		FQDN:        wa.cfg.Registry.FQDN,
 		Environment: wa.cfg.Environment,
 		HTTPOnly:    true,
 	})
 
 	refreshTokenCookie := auth.CreateCookie(&auth.CreateCookieOptions{
-		ExpiresAt:   time.Now().Add(time.Hour * 750), //one month
+		ExpiresAt:   time.Now().Add(time.Hour * 750), // one month
 		Name:        auth.RefreshCookKey,
 		Value:       refreshToken,
-		FQDN:        domain,
+		FQDN:        wa.cfg.Registry.FQDN,
 		Environment: wa.cfg.Environment,
 		HTTPOnly:    true,
 	})
