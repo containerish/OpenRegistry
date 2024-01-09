@@ -10,10 +10,11 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
+	oci_digest "github.com/opencontainers/go-digest"
+
 	"github.com/containerish/OpenRegistry/config"
 	"github.com/containerish/OpenRegistry/dfs"
 	"github.com/containerish/OpenRegistry/store/v1/types"
-	oci_digest "github.com/opencontainers/go-digest"
 )
 
 type filebase struct {
@@ -207,12 +208,15 @@ func (fb *filebase) Download(ctx context.Context, path string) (io.ReadCloser, e
 
 	return resp.Body, nil
 }
+
 func (fb *filebase) DownloadDir(dfsLink, dir string) error {
 	return nil
 }
+
 func (fb *filebase) List(path string) ([]*types.Metadata, error) {
 	return nil, nil
 }
+
 func (fb *filebase) AddImage(ns string, mf, l map[string][]byte) (string, error) {
 	return "", nil
 }
@@ -290,21 +294,8 @@ func (fb *filebase) AbortMultipartUpload(ctx context.Context, layerKey, uploadId
 }
 
 func (fb *filebase) GeneratePresignedURL(ctx context.Context, key string) (string, error) {
-	opts := &s3.GetObjectInput{
-		Bucket: &fb.bucket,
-		Key:    aws.String("layers/" + key),
-	}
-
-	duration := func(o *s3.PresignOptions) {
-		o.Expires = time.Minute * 20
-	}
-
-	resp, err := fb.preSigner.PresignGetObject(ctx, opts, duration)
-	if err != nil {
-		return "", fmt.Errorf("ERR_FILEBASE_GENERATE_PRESIGNED_URL: %w", err)
-	}
-
-	return resp.URL, nil
+	// Filebase+IPFS content can be directly resolved over an IPFS gateway
+	return fmt.Sprintf("%s/%s", fb.config.DFSLinkResolver, key), nil
 }
 
 func (fb *filebase) Config() *config.S3CompatibleDFS {
