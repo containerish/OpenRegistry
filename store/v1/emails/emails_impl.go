@@ -34,7 +34,7 @@ func (es *emailStore) AddVerifyEmail(ctx context.Context, userID uuid.UUID, toke
 }
 
 func (es *emailStore) DeleteVerifyEmail(ctx context.Context, userID uuid.UUID) error {
-	if _, err := es.db.NewDelete().Model(&types.Email{}).Where("user_id = ?1", userID).Exec(ctx); err != nil {
+	if _, err := es.db.NewDelete().Model(&types.Email{}).Where("user_id = ?", userID).Exec(ctx); err != nil {
 		return v2.WrapDatabaseError(err, v2.DatabaseOperationDelete)
 	}
 
@@ -42,8 +42,9 @@ func (es *emailStore) DeleteVerifyEmail(ctx context.Context, userID uuid.UUID) e
 }
 
 func (es *emailStore) GetVerifyEmail(ctx context.Context, userID uuid.UUID) (uuid.UUID, error) {
-	email := &types.Email{}
-	if err := es.db.NewSelect().Model(email).Where("user_id = ?1", userID).Scan(ctx); err != nil {
+	var email *types.Email
+
+	if err := es.db.NewSelect().Model(email).Where("user_id = ?", userID).Scan(ctx); err != nil {
 		return uuid.UUID{}, v2.WrapDatabaseError(err, v2.DatabaseOperationRead)
 	}
 

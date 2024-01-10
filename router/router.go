@@ -9,6 +9,7 @@ import (
 	"github.com/containerish/OpenRegistry/auth"
 	auth_server "github.com/containerish/OpenRegistry/auth/server"
 	"github.com/containerish/OpenRegistry/config"
+	"github.com/containerish/OpenRegistry/dfs"
 	"github.com/containerish/OpenRegistry/orgmode"
 	"github.com/containerish/OpenRegistry/registry/v2"
 	"github.com/containerish/OpenRegistry/registry/v2/extensions"
@@ -37,6 +38,7 @@ func Register(
 	registryStore registry_store.RegistryStore,
 	usersStore users_store.UserStore,
 	automationStore automation.BuildAutomationStore,
+	dfs dfs.DFS,
 ) *echo.Echo {
 	e := setDefaultEchoOptions(cfg.WebAppConfig, healthCheckApi)
 
@@ -44,7 +46,7 @@ func Register(
 	githubRouter := e.Group("/github")
 	authRouter := e.Group(Auth)
 	webauthnRouter := e.Group(Webauthn)
-	orgModeRouter := e.Group("/org", authApi.JWTRest(), orgModeApi.AllowOrgAdmin())
+	orgModeRouter := baseAPIRouter.Group("/org", authApi.JWTRest(), orgModeApi.AllowOrgAdmin())
 	ociRouter := e.Group(V2, registryNamespaceValidator(logger), authApi.BasicAuth(), authApi.JWT())
 	userApiRouter := baseAPIRouter.Group("/users", authApi.JWTRest())
 	nsRouter := ociRouter.Group(Namespace, authApi.RepositoryPermissionsMiddleware())
@@ -58,9 +60,18 @@ func Register(
 	RegisterUserRoutes(userApiRouter, usersApi)
 	RegisterNSRoutes(nsRouter, registryApi, registryStore, logger)
 	RegisterAuthRoutes(authRouter, authApi)
-	RegisterExtensionsRoutes(ociRouter, registryApi, extensionsApi)
+	RegisterExtensionsRoutes(ociRouter, registryApi, extensionsApi, authApi.JWTRest())
 	RegisterWebauthnRoutes(webauthnRouter, webauthnApi)
 	RegisterOrgModeRoutes(orgModeRouter, orgModeApi)
+	RegisterVulnScaningRoutes(
+		usersStore,
+		cfg.Integrations.GetClairConfig(),
+		&cfg.Registry.Auth,
+		logger,
+		registryStore.GetLayersLinksForManifest,
+		dfs.GeneratePresignedURL,
+		cfg.WebAppConfig.AllowedEndpoints,
+	)
 
 	if cfg.Integrations.GetGithubConfig() != nil && cfg.Integrations.GetGithubConfig().Enabled {
 		RegisterGitHubRoutes(
@@ -72,11 +83,13 @@ func Register(
 			cfg.WebAppConfig.AllowedEndpoints,
 			usersStore,
 			automationStore,
+			cfg.WebAppConfig.AllowedEndpoints,
+			cfg.Endpoint(),
 		)
 	}
 
 	//catch-all will redirect user back to the web interface
-	e.Add(http.MethodGet, "/", func(ctx echo.Context) error {
+	e.Add(http.MethodGet, "", func(ctx echo.Context) error {
 		webAppURL := ""
 		for _, url := range cfg.WebAppConfig.AllowedEndpoints {
 			if url == ctx.Request().Header.Get("Origin") {
@@ -89,7 +102,18 @@ func Register(
 			webAppURL = ctx.Request().Header.Get("Origin")
 		}
 
-		return ctx.Redirect(http.StatusTemporaryRedirect, webAppURL)
+		if webAppURL != "" {
+			echoErr := ctx.Redirect(http.StatusTemporaryRedirect, webAppURL)
+			logger.Log(ctx, nil).Send()
+			return echoErr
+		}
+
+		echoErr := ctx.JSON(http.StatusOK, echo.Map{
+			"API": "running",
+		})
+
+		logger.Log(ctx, nil).Send()
+		return echoErr
 	})
 
 	return e

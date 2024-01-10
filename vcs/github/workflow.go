@@ -2,7 +2,7 @@ package github
 
 const (
 	buildAndPushTemplate = `name: "Build Container Image"
-on: [push, pull_request]
+on: [ push, pull_request ]
 
 defaults:
   run:
@@ -16,30 +16,25 @@ jobs:
     name: "Build Container image"
     runs-on: ubuntu-latest
     env:
-      CONTAINER_IMAGE_NAME: openregistry.dev/${{ github.repository }}:${{ github.sha }}
+      CONTAINER_IMAGE_NAME: "[[.RegistryEndpoint]]/[[.RepositoryOwner]]/[[.RepositoryName]]:${{ github.sha }}"
 
     steps:
       - name: Checkout the branch
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-
+        uses: actions/checkout@v4
       - name: Setup Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
         id: buildx
         with:
           install: true
           version: latest
-
       - name: Login to OpenRegistry
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
-          registry: openregistry.dev
-          username: ${{ github.repository_owner }}
+          registry: [[.RegistryEndpoint]]
+          username: [[.RepositoryOwner]]
           password: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Build image
-        uses: docker/build-push-action@v3
+        uses: docker/build-push-action@v5
         with:
           context: .
           file: Dockerfile

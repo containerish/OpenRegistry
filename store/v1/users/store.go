@@ -32,19 +32,28 @@ type UserStore interface {
 }
 
 type UserReader interface {
+	UserGetter
+
 	GetIPFSUser(ctx context.Context) (*types.User, error)
-	GetUserByID(ctx context.Context, userID uuid.UUID) (*types.User, error)
 	GetUserByIDWithTxn(ctx context.Context, id uuid.UUID, txn *bun.Tx) (*types.User, error)
-	GetUserByUsername(ctx context.Context, username string) (*types.User, error)
 	GetUserByUsernameWithTxn(ctx context.Context, username string, txn *bun.Tx) (*types.User, error)
-	GetUserByEmail(ctx context.Context, email string) (*types.User, error)
-	GetUserWithSession(ctx context.Context, sessionId string) (*types.User, error)
 	GetGitHubUser(ctx context.Context, identifier string, txn *bun.Tx) (*types.User, error)
 	IsActive(ctx context.Context, identifier uuid.UUID) bool
-	// ID can be either a username, oauth login (GitHub username) or the user id (uuid)
-	UserExists(ctx context.Context, username, email string) (bool, bool)
 	GetOrgAdmin(ctx context.Context, orgID uuid.UUID) (*types.User, error)
 	Search(ctx context.Context, query string) ([]*types.User, error)
+	GetOrgUsersByOrgID(ctx context.Context, orgID uuid.UUID) ([]*types.Permissions, error)
+	MatchUserType(ctx context.Context, userType types.UserType, userIds ...uuid.UUID) bool
+	AddAuthToken(ctx context.Context, token *types.AuthTokens) error
+	ListAuthTokens(ctx context.Context, ownerID uuid.UUID) ([]*types.AuthTokens, error)
+	GetAuthToken(ctx context.Context, ownerID uuid.UUID, hashedToken string) (*types.AuthTokens, error)
+}
+
+type UserGetter interface {
+	GetUserByID(ctx context.Context, userID uuid.UUID) (*types.User, error)
+	GetUserByUsername(ctx context.Context, username string) (*types.User, error)
+	GetUserByEmail(ctx context.Context, email string) (*types.User, error)
+	GetUserWithSession(ctx context.Context, sessionId string) (*types.User, error)
+	UserExists(ctx context.Context, username, email string) (bool, bool)
 }
 
 type UserWriter interface {

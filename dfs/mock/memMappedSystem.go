@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"sync"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
@@ -16,7 +17,6 @@ import (
 	"github.com/containerish/OpenRegistry/dfs"
 	types "github.com/containerish/OpenRegistry/store/v1/types"
 	"github.com/containerish/OpenRegistry/telemetry"
-	core_types "github.com/containerish/OpenRegistry/types"
 	"github.com/fatih/color"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
@@ -28,6 +28,7 @@ type memMappedMockStorage struct {
 	logger          telemetry.Logger
 	uploadSession   map[string]string
 	config          *config.S3CompatibleDFS
+	mutex           *sync.RWMutex
 	serviceEndpoint string
 }
 
@@ -53,6 +54,7 @@ func newMemMappedMockStorage(
 		config:          cfg,
 		serviceEndpoint: net.JoinHostPort(parsedHost.Hostname(), "5002"),
 		logger:          logger,
+		mutex:           &sync.RWMutex{},
 	}
 
 	go mocker.FileServer()
@@ -61,7 +63,9 @@ func newMemMappedMockStorage(
 
 func (ms *memMappedMockStorage) CreateMultipartUpload(layerKey string) (string, error) {
 	sessionId := uuid.NewString()
+	ms.mutex.Lock()
 	ms.uploadSession[sessionId] = sessionId
+	defer ms.mutex.Unlock()
 	return sessionId, nil
 }
 
@@ -102,7 +106,9 @@ func (ms *memMappedMockStorage) CompleteMultipartUpload(
 	layerDigest string,
 	completedParts []s3types.CompletedPart,
 ) (string, error) {
+	ms.mutex.Lock()
 	delete(ms.uploadSession, layerKey)
+	defer ms.mutex.Unlock()
 	return layerKey, nil
 }
 
@@ -151,7 +157,7 @@ func (ms *memMappedMockStorage) Metadata(layer *types.ContainerImageLayer) (*typ
 		err error
 	)
 
-	identifier := core_types.GetLayerIdentifier(layer.ID)
+	identifier := types.GetLayerIdentifier(layer.ID)
 	parts := strings.Split(identifier, "/")
 	if len(parts) > 1 {
 		fd, err = ms.memFs.Open(parts[1])
@@ -213,7 +219,9 @@ func (ms *memMappedMockStorage) AbortMultipartUpload(ctx context.Context, layerK
 		return err
 	}
 
+	ms.mutex.Lock()
 	delete(ms.uploadSession, uploadId)
+	defer ms.mutex.Unlock()
 	return nil
 }
 
@@ -230,16 +238,22 @@ func (ms *memMappedMockStorage) FileServer() {
 		fileID := ctx.Param("uuid")
 		fd, err := ms.memFs.Open(fileID)
 		if err != nil {
-			return ctx.JSON(http.StatusBadRequest, echo.Map{
+			echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 				"error": err.Error(),
 			})
+
+			ms.logger.Log(ctx, err).Send()
+			return echoErr
 		}
 
 		bz, _ := io.ReadAll(fd)
 		fd.Close()
-		return ctx.Blob(http.StatusOK, "", bz)
+		echoErr := ctx.Blob(http.StatusOK, "", bz)
+		ms.logger.Log(ctx, err).Send()
+		return echoErr
 	})
 
+	color.Yellow("Started Mock MemMapped DFS on %s", ms.serviceEndpoint)
 	if err := e.Start(ms.serviceEndpoint); err != nil {
 		color.Red("MockStorage service failed: %s", err)
 		os.Exit(1)

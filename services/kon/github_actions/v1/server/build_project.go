@@ -2,13 +2,11 @@ package server
 
 import (
 	"context"
-	"time"
 
 	connect_go "github.com/bufbuild/connect-go"
 	common_v1 "github.com/containerish/OpenRegistry/common/v1"
 	github_actions_v1 "github.com/containerish/OpenRegistry/services/kon/github_actions/v1"
 	"github.com/containerish/OpenRegistry/store/v1/types"
-	"github.com/containerish/OpenRegistry/vcs/github"
 	"github.com/google/uuid"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -28,13 +26,10 @@ func (ghs *GitHubActionsServer) CreateProject(
 		return nil, connect_go.NewError(connect_go.CodeInvalidArgument, err)
 	}
 
-	if err = req.Msg.GetCreatedAt().CheckValid(); err != nil {
-		req.Msg.CreatedAt = timestamppb.New(time.Now())
-	}
-
 	req.Msg.Id = &common_v1.UUID{
 		Value: uuid.New().String(),
 	}
+	req.Msg.CreatedAt = timestamppb.Now()
 	if err = ghs.store.StoreProject(ctx, req.Msg); err != nil {
 		logEvent.Err(err).Send()
 		return nil, connect_go.NewError(connect_go.CodeInternal, err)
@@ -109,8 +104,7 @@ func (ghs *GitHubActionsServer) ListProjects(
 	error,
 ) {
 	logEvent := ghs.logger.Debug().Str("procedure", req.Spec().Procedure)
-	user := ctx.Value(github.UserContextKey).(*types.User)
-	ghs.logger.Debug().Any("user", user).Send()
+	user := ctx.Value(types.UserContextKey).(*types.User)
 	err := req.Msg.Validate()
 	if err != nil {
 		logEvent.Err(err).Send()

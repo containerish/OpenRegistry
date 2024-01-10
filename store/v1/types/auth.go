@@ -19,6 +19,11 @@ type (
 		Type    string
 		Name    string
 	}
+
+	ResetPasswordRequest struct {
+		OldPassword string `json:"old_password"`
+		NewPassword string `json:"new_password"`
+	}
 )
 
 func (c *OCITokenPermissonClaim) HasPushAccess() bool {

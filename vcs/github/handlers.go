@@ -11,14 +11,15 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/containerish/OpenRegistry/store/v1/types"
-	"github.com/containerish/OpenRegistry/vcs"
 	"github.com/google/go-github/v56/github"
 	"github.com/labstack/echo/v4"
+
+	"github.com/containerish/OpenRegistry/store/v1/types"
+	"github.com/containerish/OpenRegistry/vcs"
 )
 
 func (gh *ghAppService) HandleAppFinish(ctx echo.Context) error {
-	user := ctx.Get(string(UserContextKey)).(*types.User)
+	user := ctx.Get(string(types.UserContextKey)).(*types.User)
 
 	installationID, err := strconv.ParseInt(ctx.QueryParam("installation_id"), 10, 64)
 	if err != nil {
@@ -50,6 +51,10 @@ func (gh *ghAppService) HandleAppFinish(ctx echo.Context) error {
 		return echoErr
 	}
 
+	if user.Identities == nil {
+		user.Identities = types.Identities{}
+	}
+
 	if user.Identities.GetGitHubIdentity() == nil {
 		user.Identities[types.IdentityProviderGitHub] = &types.UserIdentity{
 			ID:             fmt.Sprintf("%d", ghUser.GetID()),
@@ -59,6 +64,9 @@ func (gh *ghAppService) HandleAppFinish(ctx echo.Context) error {
 			Avatar:         ghUser.GetAvatarURL(),
 			InstallationID: installationID,
 		}
+	} else {
+		user.Identities[types.IdentityProviderGitHub].Username = ghUser.GetEmail()
+		user.Identities[types.IdentityProviderGitHub].Email = ghUser.GetLogin()
 	}
 
 	if _, err = gh.store.UpdateUser(ctx.Request().Context(), user); err != nil {
@@ -76,7 +84,7 @@ func (gh *ghAppService) HandleAppFinish(ctx echo.Context) error {
 
 // HandleSetupCallback implements vcs.VCS
 func (gh *ghAppService) HandleSetupCallback(ctx echo.Context) error {
-	user := ctx.Get(string(UserContextKey)).(*types.User)
+	user := ctx.Get(string(types.UserContextKey)).(*types.User)
 
 	installationID, err := strconv.ParseInt(ctx.QueryParam("installation_id"), 10, 64)
 	if err != nil {
@@ -87,23 +95,42 @@ func (gh *ghAppService) HandleSetupCallback(ctx echo.Context) error {
 		return echoErr
 	}
 
+	if user.Identities == nil {
+		user.Identities = types.Identities{}
+	}
+
 	if user.Identities.GetGitHubIdentity() == nil {
 		user.Identities[types.IdentityProviderGitHub] = &types.UserIdentity{}
 	}
+
 	installation, _, err := gh.ghClient.Apps.GetInstallation(ctx.Request().Context(), installationID)
 	if err != nil {
-		return ctx.JSON(http.StatusInternalServerError, echo.Map{
+		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error":   err.Error(),
 			"message": "could not find the GitHub App installation",
 		})
+
+		gh.logger.Log(ctx, err).Send()
+		return echoErr
+	}
+
+	ghClient := gh.refreshGHClient(installationID)
+	ghUser, _, err := ghClient.Users.Get(ctx.Request().Context(), installation.GetAccount().GetLogin())
+	if err != nil {
+		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
+			"error": err.Error(),
+		})
+
+		gh.logger.Log(ctx, err).Send()
+		return echoErr
 	}
 
 	user.Identities[types.IdentityProviderGitHub] = &types.UserIdentity{
 		ID:             fmt.Sprintf("%d", installation.GetID()),
-		Name:           installation.GetAccount().GetName(),
-		Username:       installation.GetAccount().GetLogin(),
-		Email:          installation.GetAccount().GetEmail(),
-		Avatar:         installation.GetAccount().GetAvatarURL(),
+		Name:           ghUser.GetName(),
+		Username:       ghUser.GetLogin(),
+		Email:          ghUser.GetEmail(),
+		Avatar:         ghUser.GetAvatarURL(),
 		InstallationID: installationID,
 	}
 
@@ -160,7 +187,9 @@ func (gh *ghAppService) HandleWebhookEvents(ctx echo.Context) error {
 	case *github.InstallationEvent:
 	}
 
-	return ctx.NoContent(http.StatusNoContent)
+	echoErr := ctx.NoContent(http.StatusNoContent)
+	gh.logger.Log(ctx, nil).Send()
+	return echoErr
 }
 
 // @TODO pending implementation (@jay-dee7)
@@ -231,13 +260,14 @@ func (gh *ghAppService) ListAuthorisedRepositories(ctx echo.Context) error {
 		})
 	}
 
-	err = ctx.JSON(http.StatusOK, repoList)
-	gh.logger.Log(ctx, err).Send()
-	return err
+	echoErr := ctx.JSON(http.StatusOK, repoList)
+	gh.logger.Log(ctx, nil).Send()
+	return echoErr
 }
 
 func (gh *ghAppService) CreateInitialPR(ctx echo.Context) error {
 	installationID := ctx.Get(string(GithubInstallationIDContextKey)).(int64)
+	user := ctx.Get(string(types.UserContextKey)).(*types.User)
 
 	var req vcs.InitialPRRequest
 	if err := json.NewDecoder(ctx.Request().Body).Decode(&req); err != nil {
@@ -277,12 +307,22 @@ func (gh *ghAppService) CreateInitialPR(ctx echo.Context) error {
 
 	workflowExists := gh.doesWorkflowExist(ctx.Request().Context(), client, &repository)
 	if workflowExists {
-		echoErr := ctx.NoContent(http.StatusAccepted)
+		echoErr := ctx.NoContent(http.StatusNoContent)
 		gh.logger.Log(ctx, echoErr).Send()
 		return echoErr
 	}
 
-	if err = gh.createGitubActionsWorkflow(ctx.Request().Context(), client, &repository); err != nil {
+	err = gh.createGitubActionsWorkflow(
+		ctx.Request().Context(),
+		client,
+		&repository,
+		&WorkflowProperties{
+			RegistryEndpoint: gh.registryEndpoint,
+			RepositoryOwner:  user.Username,
+			RepositoryName:   req.RepositoryName,
+		},
+	)
+	if err != nil {
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error": err.Error(),
 		})
@@ -353,6 +393,7 @@ func (gh *ghAppService) createGitubActionsWorkflow(
 	ctx context.Context,
 	client *github.Client,
 	repo *github.Repository,
+	props *WorkflowProperties,
 ) error {
 	ctx, cancel := context.WithTimeout(ctx, time.Second*30)
 	defer cancel()
@@ -362,5 +403,5 @@ func (gh *ghAppService) createGitubActionsWorkflow(
 		return err
 	}
 
-	return gh.createWorkflowFile(ctx, client, repo)
+	return gh.createWorkflowFile(ctx, client, repo, props)
 }

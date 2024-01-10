@@ -158,7 +158,7 @@ func (ws *webauthnStore) WebauthnUserExists(ctx context.Context, email, username
 		NewSelect().
 		Model(&types.User{}).
 		Where(
-			"identities->'webauthn'->>'email' = ?1 or identities->'webauthn'->>'username' = ?",
+			"identities->'webauthn'->>'email' = ? or identities->'webauthn'->>'username' = ?",
 			bun.Ident(email),
 			bun.Ident(username),
 		).

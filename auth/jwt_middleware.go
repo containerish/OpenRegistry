@@ -22,6 +22,11 @@ const (
 // JWT basically uses the default JWT middleware by echo, but has a slightly different skipper func
 func (a *auth) JWTRest() echo.MiddlewareFunc {
 	return echo_jwt.WithConfig(echo_jwt.Config{
+		Skipper: func(ctx echo.Context) bool {
+			p := ctx.Request().URL.Path
+			isPublicRepoDetailApi := p == "/v2/ext/catalog/repository" && ctx.QueryParam("public") == "true"
+			return p == "/v2/ext/catalog/detail" || p == "/v2/_catalog/public" || isPublicRepoDetailApi
+		},
 		ErrorHandler: func(ctx echo.Context, err error) error {
 			ctx.Set(types.HandlerStartTime, time.Now())
 
