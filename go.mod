@@ -10,7 +10,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/credentials v1.16.14
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.48.0
 	github.com/axiomhq/axiom-go v0.17.2
-	github.com/bradleyfalzon/ghinstallation/v2 v2.8.0
+	github.com/bradleyfalzon/ghinstallation/v2 v2.9.0
 	github.com/bufbuild/connect-go v1.10.0
 	github.com/fatih/color v1.16.0
 	github.com/go-playground/locales v0.14.1
@@ -90,6 +90,7 @@ require (
 	github.com/golang-jwt/jwt v3.2.2+incompatible // indirect
 	github.com/golang-jwt/jwt/v4 v4.5.0 // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
+	github.com/google/go-github/v57 v57.0.0 // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/google/go-tpm v0.9.0 // indirect
 	github.com/google/gopacket v1.1.19 // indirect
