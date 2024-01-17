@@ -36,12 +36,12 @@ require (
 	github.com/sendgrid/sendgrid-go v3.14.0+incompatible
 	github.com/spf13/afero v1.11.0
 	github.com/spf13/viper v1.18.2
-	github.com/uptrace/bun v1.1.16
-	github.com/uptrace/bun/dialect/pgdialect v1.1.16
-	github.com/uptrace/bun/dialect/sqlitedialect v1.1.16
-	github.com/uptrace/bun/driver/pgdriver v1.1.16
+	github.com/uptrace/bun v1.1.17
+	github.com/uptrace/bun/dialect/pgdialect v1.1.17
+	github.com/uptrace/bun/dialect/sqlitedialect v1.1.17
+	github.com/uptrace/bun/driver/pgdriver v1.1.17
 	github.com/uptrace/bun/driver/sqliteshim v1.1.17
-	github.com/uptrace/bun/extra/bundebug v1.1.16
+	github.com/uptrace/bun/extra/bundebug v1.1.17
 	github.com/urfave/cli/v2 v2.27.1
 	go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho v0.46.1
 	golang.org/x/crypto v0.18.0
@@ -190,7 +190,7 @@ require (
 	github.com/tmthrgd/go-hex v0.0.0-20190904060850-447a3041c3bc // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasttemplate v1.2.2 // indirect
-	github.com/vmihailenco/msgpack/v5 v5.3.5 // indirect
+	github.com/vmihailenco/msgpack/v5 v5.4.1 // indirect
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
 	github.com/whyrusleeping/base32 v0.0.0-20170828182744-c30ac30633cc // indirect
 	github.com/whyrusleeping/go-keyspace v0.0.0-20160322163242-5b898ac5add1 // indirect
