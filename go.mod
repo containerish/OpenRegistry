@@ -31,7 +31,7 @@ require (
 	github.com/labstack/echo/v4 v4.11.4
 	github.com/multiformats/go-multiaddr v0.12.1
 	github.com/opencontainers/go-digest v1.0.0
-	github.com/opencontainers/image-spec v1.1.0-rc5
+	github.com/opencontainers/image-spec v1.1.0-rc.6
 	github.com/rs/zerolog v1.31.0
 	github.com/sendgrid/sendgrid-go v3.14.0+incompatible
 	github.com/spf13/afero v1.11.0
