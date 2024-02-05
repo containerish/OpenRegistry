@@ -158,7 +158,6 @@ func (r *registry) Catalog(ctx echo.Context) error {
 	})
 	r.logger.Log(ctx, echoErr).Send()
 	return echoErr
-
 }
 
 // ListTags Content discovery
@@ -201,6 +200,7 @@ func (r *registry) ListTags(ctx echo.Context) error {
 	r.logger.Log(ctx, echoErr).Send()
 	return echoErr
 }
+
 func (r *registry) List(ctx echo.Context) error {
 	return fmt.Errorf("not implemented")
 }

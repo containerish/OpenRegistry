@@ -1,28 +1,23 @@
 name: OCI Distribution Spec - Content Discovery
-
 on:
   pull_request:
   push:
-    branches:
-      - main
+    branches: [main]
   workflow_dispatch:
     inputs:
       debug_enabled:
         type: boolean
-        description: 'Run the build with tmate debugging enabled (https://github.com/marketplace/actions/debugging-with-tmate)'
+        description: Run the build with tmate debugging enabled (https://github.com/marketplace/actions/debugging-with-tmate)
         required: false
         default: false
-
 concurrency:
   group: content-discovery-${{ github.workflow }}-${{ github.head_ref || github.run_id }}
   cancel-in-progress: true
-
 env:
   PGUSER: postgres
   POSTGRES_DB: open_registry
   POSTGRES_PASSWORD: Qwerty@123
   POSTGRES_USER: postgres
-
 jobs:
   conformance:
     runs-on: ubuntu-latest
@@ -39,9 +34,9 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-        ports:
-          - 5432:5432
+        ports: [5432:5432]
     steps:
+      - run: sudo snap install --edge --classic just
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
@@ -58,7 +53,7 @@ jobs:
           yq e -i '.dfs.mock.type = "FS"' config.yaml
           go mod download
           go build
-          make certs
+          just certs
           ./OpenRegistry migrations init \
             --admin-db="postgres" \
             --admin-db-username="postgres" \
@@ -93,7 +88,7 @@ jobs:
           OCI_DEBUG: 0
       - name: Setup tmate session if mode is debug and OpenRegistry or OCI Tests Fail
         uses: mxschmitt/action-tmate@v3
-        if:  ${{ always() && (github.event_name == 'workflow_dispatch') && inputs.debug_enabled }}
+        if: ${{ always() && (github.event_name == 'workflow_dispatch') && inputs.debug_enabled }}
       - name: Set output report name
         id: vars
         run: echo "short_commit_hash=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
