@@ -23,7 +23,7 @@ require (
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/honeycombio/honeycomb-opentelemetry-go v0.9.0
 	github.com/honeycombio/otel-config-go v1.13.1
-	github.com/ipfs/boxo v0.17.0
+	github.com/ipfs/boxo v0.18.0
 	github.com/ipfs/kubo v0.26.0
 	github.com/jackc/pgx/v4 v4.18.1
 	github.com/labstack/echo-contrib v0.15.0
