@@ -47,7 +47,7 @@ require (
 	golang.org/x/crypto v0.21.0
 	golang.org/x/net v0.21.0
 	golang.org/x/oauth2 v0.17.0
-	google.golang.org/protobuf v1.32.0
+	google.golang.org/protobuf v1.33.0
 	gopkg.in/yaml.v2 v2.4.0
 	storj.io/uplink v1.12.2
 )
