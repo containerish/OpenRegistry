@@ -781,8 +781,8 @@ github.com/uptrace/bun/driver/pgdriver v1.1.17 h1:hLj6WlvSZk5x45frTQnJrYtyhvgI6C
 github.com/uptrace/bun/driver/pgdriver v1.1.17/go.mod h1:c9fa6FiiQjOe9mCaJC9NmFUE6vCGKTEsqrtLjPNz+kk=
 github.com/uptrace/bun/driver/sqliteshim v1.2.1 h1:xBsGsoMIskK7+dhtWIQ4CrO+UTWzC96G3vGzNDkr5aQ=
 github.com/uptrace/bun/driver/sqliteshim v1.2.1/go.mod h1:oJtOPSCDdDHgNw/0jwIGr+V0yUFxQ8NrBwJ3xbp4XOU=
-github.com/uptrace/bun/extra/bundebug v1.1.17 h1:LcZ8DzyyGdXAmbUqmnCpBq7TPFegMp59FGy+uzEE21c=
-github.com/uptrace/bun/extra/bundebug v1.1.17/go.mod h1:FOwNaBEGGChv3qBVh3pz3TPlUuikZ93qKjd/LJdl91o=
+github.com/uptrace/bun/extra/bundebug v1.2.1 h1:85MYpX3QESYI02YerKxUi1CD9mHuLrc2BXs1eOCtQus=
+github.com/uptrace/bun/extra/bundebug v1.2.1/go.mod h1:sfGKIi0HSGxsTC/sgIHGwpnYduHHYhdMeOIwurgSY+Y=
 github.com/urfave/cli v1.22.10/go.mod h1:Gos4lmkARVdJ6EkW0WaNv/tZAAMe9V7XWyB60NtXRu0=
 github.com/urfave/cli/v2 v2.27.1 h1:8xSQ6szndafKVRmfyeUMxkNUJQMjL1F2zmsZ+qHpfho=
 github.com/urfave/cli/v2 v2.27.1/go.mod h1:8qnjx1vcq5s2/wpsqoZFndg2CE5tNFyrTvS6SinrnYQ=
