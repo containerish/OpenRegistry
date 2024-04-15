@@ -37,9 +37,9 @@ require (
 	github.com/spf13/afero v1.11.0
 	github.com/spf13/viper v1.18.2
 	github.com/uptrace/bun v1.2.1
-	github.com/uptrace/bun/dialect/pgdialect v1.1.17
+	github.com/uptrace/bun/dialect/pgdialect v1.2.1
 	github.com/uptrace/bun/dialect/sqlitedialect v1.2.1
-	github.com/uptrace/bun/driver/pgdriver v1.1.17
+	github.com/uptrace/bun/driver/pgdriver v1.2.1
 	github.com/uptrace/bun/driver/sqliteshim v1.2.1
 	github.com/uptrace/bun/extra/bundebug v1.2.1
 	github.com/urfave/cli/v2 v2.27.1
