@@ -26,7 +26,7 @@ require (
 	github.com/ipfs/boxo v0.19.0
 	github.com/ipfs/kubo v0.27.0
 	github.com/jackc/pgx/v4 v4.18.3
-	github.com/labstack/echo-contrib v0.16.0
+	github.com/labstack/echo-contrib v0.17.0
 	github.com/labstack/echo-jwt/v4 v4.2.0
 	github.com/labstack/echo/v4 v4.11.4
 	github.com/multiformats/go-multiaddr v0.12.3
