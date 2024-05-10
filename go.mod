@@ -8,7 +8,7 @@ require (
 	github.com/aws/aws-sdk-go-v2 v1.26.1
 	github.com/aws/aws-sdk-go-v2/config v1.27.12
 	github.com/aws/aws-sdk-go-v2/credentials v1.17.12
-	github.com/aws/aws-sdk-go-v2/service/s3 v1.53.1
+	github.com/aws/aws-sdk-go-v2/service/s3 v1.53.2
 	github.com/axiomhq/axiom-go v0.17.7
 	github.com/bradleyfalzon/ghinstallation/v2 v2.10.0
 	github.com/bufbuild/connect-go v1.10.0
