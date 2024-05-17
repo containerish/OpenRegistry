@@ -9,7 +9,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/config v1.27.12
 	github.com/aws/aws-sdk-go-v2/credentials v1.17.15
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.53.2
-	github.com/axiomhq/axiom-go v0.17.7
+	github.com/axiomhq/axiom-go v0.17.8
 	github.com/bradleyfalzon/ghinstallation/v2 v2.10.0
 	github.com/bufbuild/connect-go v1.10.0
 	github.com/fatih/color v1.17.0
@@ -165,7 +165,7 @@ require (
 	github.com/ncruces/go-strftime v0.1.9 // indirect
 	github.com/opentracing/opentracing-go v1.2.0 // indirect
 	github.com/pbnjay/memory v0.0.0-20210728143218-7b4eea64cf58 // indirect
-	github.com/pelletier/go-toml/v2 v2.2.0 // indirect
+	github.com/pelletier/go-toml/v2 v2.2.2 // indirect
 	github.com/petar/GoLLRB v0.0.0-20210522233825-ae3b015fd3e9 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/polydawn/refmt v0.89.0 // indirect
@@ -183,7 +183,7 @@ require (
 	github.com/samber/lo v1.39.0 // indirect
 	github.com/sendgrid/rest v2.6.9+incompatible // indirect
 	github.com/sethvargo/go-envconfig v0.9.0 // indirect
-	github.com/shirou/gopsutil/v3 v3.24.3 // indirect
+	github.com/shirou/gopsutil/v3 v3.24.4 // indirect
 	github.com/shoenig/go-m1cpu v0.1.6 // indirect
 	github.com/sourcegraph/conc v0.3.0 // indirect
 	github.com/spacemonkeygo/monkit/v3 v3.0.22 // indirect
@@ -235,7 +235,7 @@ require (
 	golang.org/x/sys v0.20.0 // indirect
 	golang.org/x/text v0.15.0 // indirect
 	golang.org/x/time v0.5.0 // indirect
-	golang.org/x/tools v0.20.0 // indirect
+	golang.org/x/tools v0.21.0 // indirect
 	golang.org/x/xerrors v0.0.0-20231012003039-104605ab7028 // indirect
 	gonum.org/v1/gonum v0.14.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20240401170217-c3f982113cda // indirect
