@@ -12,7 +12,7 @@ require (
 	github.com/axiomhq/axiom-go v0.17.7
 	github.com/bradleyfalzon/ghinstallation/v2 v2.10.0
 	github.com/bufbuild/connect-go v1.10.0
-	github.com/fatih/color v1.16.0
+	github.com/fatih/color v1.17.0
 	github.com/go-playground/locales v0.14.1
 	github.com/go-playground/universal-translator v0.18.1
 	github.com/go-playground/validator/v10 v10.20.0
