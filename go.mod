@@ -49,7 +49,7 @@ require (
 	golang.org/x/oauth2 v0.20.0
 	google.golang.org/protobuf v1.34.1
 	gopkg.in/yaml.v2 v2.4.0
-	storj.io/uplink v1.12.2
+	storj.io/uplink v1.13.0
 )
 
 require (
@@ -124,10 +124,9 @@ require (
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgproto3/v2 v2.3.3 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20221227161230-091c0ba34f0a // indirect
-	github.com/jackc/pgtype v1.14.0 // indirect
+	github.com/jackc/pgtype v1.14.1 // indirect
 	github.com/jbenet/goprocess v0.1.4 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
-	github.com/jtolio/eventkit v0.0.0-20221004135224-074cf276595b // indirect
 	github.com/jtolio/noiseconn v0.0.0-20230111204749-d7ec1a08b0b8 // indirect
 	github.com/klauspost/compress v1.17.8 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.7 // indirect
@@ -252,8 +251,9 @@ require (
 	modernc.org/sqlite v1.29.5 // indirect
 	modernc.org/strutil v1.2.0 // indirect
 	modernc.org/token v1.1.0 // indirect
-	storj.io/common v0.0.0-20231101115145-09481ec98b57 // indirect
+	storj.io/common v0.0.0-20240424123607-5f226fc92c16 // indirect
 	storj.io/drpc v0.0.33 // indirect
-	storj.io/infectious v0.0.1 // indirect
-	storj.io/picobuf v0.0.2-0.20230906122608-c4ba17033c6c // indirect
+	storj.io/eventkit v0.0.0-20240306141230-6cb545e5f892 // indirect
+	storj.io/infectious v0.0.2 // indirect
+	storj.io/picobuf v0.0.3 // indirect
 )
