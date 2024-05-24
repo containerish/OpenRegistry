@@ -6,7 +6,7 @@ require (
 	github.com/alexliesenfeld/health v0.8.0
 	github.com/alphadose/haxmap v1.4.0
 	github.com/aws/aws-sdk-go-v2 v1.27.0
-	github.com/aws/aws-sdk-go-v2/config v1.27.15
+	github.com/aws/aws-sdk-go-v2/config v1.27.16
 	github.com/aws/aws-sdk-go-v2/credentials v1.17.16
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.54.3
 	github.com/axiomhq/axiom-go v0.17.8
