@@ -1,10 +1,10 @@
 package extensions
 
 import (
-	"encoding/json"
 	"net/http"
 	"time"
 
+	store_v1 "github.com/containerish/OpenRegistry/store/v1"
 	"github.com/containerish/OpenRegistry/store/v1/types"
 	"github.com/labstack/echo/v4"
 )
@@ -12,23 +12,43 @@ import (
 func (ext *extension) ChangeContainerImageVisibility(ctx echo.Context) error {
 	ctx.Set(types.HandlerStartTime, time.Now())
 
-	var body types.ContainerImageVisibilityChangeRequest
+	user, ok := ctx.Get(string(types.UserContextKey)).(*types.User)
+	if !ok {
+		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
+			"error": store_v1.ErrMissingUserInContext.Error(),
+		})
 
-	if err := json.NewDecoder(ctx.Request().Body).Decode(&body); err != nil {
-		return ctx.JSON(http.StatusBadRequest, echo.Map{
+		ext.logger.Log(ctx, store_v1.ErrMissingUserInContext).Send()
+		return echoErr
+	}
+
+	var body types.ContainerImageVisibilityChangeRequest
+	if err := ctx.Bind(&body); err != nil {
+		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error": "invalid request body",
 		})
+		ext.logger.Log(ctx, err).Send()
+		return echoErr
 	}
 	defer ctx.Request().Body.Close()
 
-	err := ext.store.SetContainerImageVisibility(ctx.Request().Context(), body.ImageManifestUUID, body.Visibility)
+	err := ext.store.SetContainerImageVisibility(
+		ctx.Request().Context(),
+		body.RepositoryID,
+		user.ID,
+		body.Visibility,
+	)
 	if err != nil {
-		return ctx.JSON(http.StatusBadRequest, echo.Map{
+		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error": err.Error(),
 		})
+		ext.logger.Log(ctx, err).Send()
+		return echoErr
 	}
 
-	return ctx.JSON(http.StatusOK, echo.Map{
+	echoErr := ctx.JSON(http.StatusOK, echo.Map{
 		"message": "container image visibility mode changed successfully",
 	})
+	ext.logger.Log(ctx, nil).Send()
+	return echoErr
 }

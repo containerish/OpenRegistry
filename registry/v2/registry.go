@@ -970,7 +970,6 @@ func (r *registry) DeleteTagOrManifest(ctx echo.Context) error {
 
 func (r *registry) DeleteLayer(ctx echo.Context) error {
 	ctx.Set(types.HandlerStartTime, time.Now())
-
 	digest := ctx.Param("digest")
 
 	txnOp, _ := r.store.NewTxn(context.Background())

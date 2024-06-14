@@ -22,6 +22,15 @@ const (
 // JWT basically uses the default JWT middleware by echo, but has a slightly different skipper func
 func (a *auth) JWTRest() echo.MiddlewareFunc {
 	return echo_jwt.WithConfig(echo_jwt.Config{
+		Skipper: func(ctx echo.Context) bool {
+			p := ctx.Request().URL.Path
+
+			if p == "/auth/signup" || p == "/auth/signin" {
+				return true
+			}
+
+			return false
+		},
 		ErrorHandler: func(ctx echo.Context, err error) error {
 			ctx.Set(types.HandlerStartTime, time.Now())
 

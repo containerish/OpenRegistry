@@ -93,17 +93,19 @@ func RegisterExtensionsRoutes(
 	ext extensions.Extenion,
 	middlewares ...echo.MiddlewareFunc,
 ) {
-
-	// GET /v2/_catalog
+	// GET
 	group.Add(http.MethodGet, Catalog, reg.Catalog)
 	group.Add(http.MethodGet, PublicCatalog, ext.PublicCatalog)
-	// Auto-complete image search
 	group.Add(http.MethodGet, Search, reg.GetImageNamespace)
 	group.Add(http.MethodGet, CatalogDetail, ext.CatalogDetail, middlewares...)
 	group.Add(http.MethodGet, RepositoryDetail, ext.RepositoryDetail, middlewares...)
 	group.Add(http.MethodGet, UserCatalog, ext.GetUserCatalog, middlewares...)
+
+	// POST
 	group.Add(http.MethodPost, ChangeRepositoryVisibility, ext.ChangeContainerImageVisibility, middlewares...)
 	group.Add(http.MethodPost, CreateRepository, reg.CreateRepository, middlewares...)
 	group.Add(http.MethodPost, RepositoryFavorites, ext.AddRepositoryToFavorites, middlewares...)
+
+	// DELETE
 	group.Add(http.MethodDelete, RepositoryFavorites, ext.RemoveRepositoryFromFavorites, middlewares...)
 }

@@ -76,8 +76,12 @@ type RegistryStore interface {
 	DeleteLayerByDigestWithTxn(ctx context.Context, txn *bun.Tx, digest string) error
 	DeleteManifestOrTag(ctx context.Context, reference string) error
 	DeleteManifestOrTagWithTxn(ctx context.Context, txn *bun.Tx, reference string) error
-	SetContainerImageVisibility(ctx context.Context, imageId string, visibility types.RepositoryVisibility) error
-
+	SetContainerImageVisibility(
+		ctx context.Context,
+		repositoryID uuid.UUID,
+		repositoryOwnerID uuid.UUID,
+		visibility types.RepositoryVisibility,
+	) error
 	CreateRepository(ctx context.Context, repository *types.ContainerImageRepository) error
 	GetRepositoryByID(ctx context.Context, ID uuid.UUID) (*types.ContainerImageRepository, error)
 	GetRepositoryByNamespace(ctx context.Context, namespace string) (*types.ContainerImageRepository, error)

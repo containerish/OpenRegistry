@@ -3,9 +3,9 @@ package router
 import (
 	"fmt"
 	"net/http"
-	"regexp"
 
 	"github.com/containerish/OpenRegistry/common"
+	"github.com/containerish/OpenRegistry/config"
 	"github.com/containerish/OpenRegistry/registry/v2"
 	registry_store "github.com/containerish/OpenRegistry/store/v1/registry"
 	"github.com/containerish/OpenRegistry/store/v1/types"
@@ -14,9 +14,6 @@ import (
 )
 
 func registryNamespaceValidator(logger telemetry.Logger) echo.MiddlewareFunc {
-	// Reference: https://github.com/opencontainers/distribution-spec/blob/main/spec.md#pulling-manifests
-	nsRegex := regexp.MustCompile(`[a-z0-9]+((\.|_|__|-+)[a-z0-9]+)*(/[a-z0-9]+((\.|_|__|-+)[a-z0-9]+)*)*`)
-
 	return func(handler echo.HandlerFunc) echo.HandlerFunc {
 		return func(ctx echo.Context) error {
 			// we skip the /v2/ path since it isn't a namespaced path
@@ -25,7 +22,7 @@ func registryNamespaceValidator(logger telemetry.Logger) echo.MiddlewareFunc {
 			}
 
 			namespace := ctx.Param("username") + "/" + ctx.Param("imagename")
-			if namespace != "/" && !nsRegex.MatchString(namespace) {
+			if namespace != "/" && !config.RegistryNSRegex.MatchString(namespace) {
 				registryErr := common.RegistryErrorResponse(
 					registry.RegistryErrorCodeNameInvalid,
 					"invalid user namespace",
@@ -45,18 +42,18 @@ func registryNamespaceValidator(logger telemetry.Logger) echo.MiddlewareFunc {
 }
 
 func registryReferenceOrTagValidator(logger telemetry.Logger) echo.MiddlewareFunc {
-	// Reference: https://github.com/opencontainers/distribution-spec/blob/main/spec.md#pulling-manifests
-	refRegex := regexp.MustCompile(`[a-zA-Z0-9_][a-zA-Z0-9._-]{0,127}`)
-
 	return func(handler echo.HandlerFunc) echo.HandlerFunc {
 		return func(ctx echo.Context) error {
 			ref := ctx.Param("reference")
-			if ref == "" || !refRegex.MatchString(ref) {
+			if ref == "" || !config.RegistryManifestRefRegex.MatchString(ref) {
 				registryErr := common.RegistryErrorResponse(
 					registry.RegistryErrorCodeTagInvalid,
 					"reference/tag does not match the required format",
 					echo.Map{
-						"error": fmt.Sprintf("reference/tag must match the following regex: %s", refRegex.String()),
+						"error": fmt.Sprintf(
+							"reference/tag must match the following regex: %s",
+							config.RegistryManifestRefRegex.String(),
+						),
 					},
 				)
 
