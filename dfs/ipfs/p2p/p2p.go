@@ -223,7 +223,13 @@ func (ipfs *ipfsP2p) Download(ctx context.Context, path string) (io.ReadCloser, 
 		return nil, err
 	}
 
-	node, err := ipfs.node.Object().Get(ctx, ipfsPath)
+	resolvedPath, _, err := ipfs.node.ResolvePath(ctx, ipfsPath)
+	if err != nil {
+		return nil, err
+	}
+
+	node, err := ipfs.node.Dag().Get(ctx, resolvedPath.RootCid())
+	// node, err := ipfs.node.Object().Get(ctx, ipfsPath)
 	if err != nil {
 		return nil, err
 	}
@@ -231,12 +237,15 @@ func (ipfs *ipfsP2p) Download(ctx context.Context, path string) (io.ReadCloser, 
 	buf := bytes.NewBuffer(node.RawData())
 	return io.NopCloser(buf), nil
 }
+
 func (ipfs *ipfsP2p) DownloadDir(dfsLink, dir string) error {
 	return nil
 }
+
 func (ipfs *ipfsP2p) List(path string) ([]*types.Metadata, error) {
 	return nil, nil
 }
+
 func (ipfs *ipfsP2p) AddImage(ns string, mf, l map[string][]byte) (string, error) {
 	return "", nil
 }
@@ -256,14 +265,14 @@ func (ipfs *ipfsP2p) Metadata(layer *types.ContainerImageLayer) (*types.ObjectMe
 		return nil, err
 	}
 
-	stat, err := ipfs.node.Object().Stat(context.Background(), ipfsPath)
+	stat, err := ipfs.node.Block().Stat(context.TODO(), ipfsPath)
 	if err != nil {
 		return nil, err
 	}
 
 	return &types.ObjectMetadata{
 		DFSLink:       ipfsPath.String(),
-		ContentLength: stat.DataSize,
+		ContentLength: stat.Size(),
 	}, nil
 }
 

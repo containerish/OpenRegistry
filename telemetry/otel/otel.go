@@ -3,18 +3,20 @@ package otel
 import (
 	"log"
 
-	"github.com/containerish/OpenRegistry/config"
 	"github.com/fatih/color"
-	"github.com/honeycombio/honeycomb-opentelemetry-go"
 	"github.com/honeycombio/otel-config-go/otelconfig"
 	"github.com/labstack/echo/v4"
-	"go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho" //nolint:staticcheck
+	"go.opentelemetry.io/contrib/processors/baggagecopy"
+	"go.opentelemetry.io/otel/baggage"
+
+	"github.com/containerish/OpenRegistry/config"
 )
 
 func ConfigureOtel(config config.Telemetry, service string, e *echo.Echo) func() {
 	if config.Enabled {
 		color.Green("OpenTelemetry: Enabled")
-		bsp := honeycomb.NewBaggageSpanProcessor()
+		bsp := baggagecopy.NewSpanProcessor(func(member baggage.Member) bool { return true })
 
 		otelShutdown, err := otelconfig.ConfigureOpenTelemetry(
 			otelconfig.WithServiceName(service),

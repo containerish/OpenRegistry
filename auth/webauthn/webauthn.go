@@ -124,8 +124,6 @@ func New(cfg *config.WebAuthnConfig, store webauthn_store.WebAuthnStore) WebAuth
 	core, err := webauthn.New(&webauthn.Config{
 		RPDisplayName:         cfg.RPDisplayName,
 		RPID:                  cfg.RPID,
-		RPIcon:                cfg.RPIcon,
-		RPOrigin:              cfg.RPOrigin,
 		RPOrigins:             cfg.RPOrigins,
 		AttestationPreference: protocol.PreferNoAttestation,
 		AuthenticatorSelection: protocol.AuthenticatorSelection{
@@ -300,7 +298,7 @@ func (wa *webAuthnService) FinishLogin(ctx context.Context, opts *FinishLoginOpt
 
 	opts.User.AddWebAuthNCredential(creds)
 
-	//Validate login gives back credential
+	// Validate login gives back credential
 	_, err = wa.core.ValidateLogin(opts.User, *sessionData, parsedResponse)
 	if err != nil {
 		return fmt.Errorf("ERR_VALIDATE_WEBAUTHN_LOGIN: %w", err)
