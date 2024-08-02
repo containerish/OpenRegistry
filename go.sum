@@ -279,8 +279,6 @@ github.com/hashicorp/golang-lru/v2 v2.0.7 h1:a+bsQ5rvGLjzHuww6tVxozPZFVghXaHOwFs
 github.com/hashicorp/golang-lru/v2 v2.0.7/go.mod h1:QeFd9opnmA6QUJc5vARoKUSoFhyfM2/ZepoAG6RGpeM=
 github.com/hashicorp/hcl v1.0.0 h1:0Anlzjpi4vEasTeNFn2mLJgTSwt0+6sfsiTG8qcWGx4=
 github.com/hashicorp/hcl v1.0.0/go.mod h1:E5yfLk+7swimpb2L/Alb/PJmXilQ/rhwaUYs4T20WEQ=
-github.com/honeycombio/honeycomb-opentelemetry-go v0.11.0 h1:x0DndAGP+m1rk9JrlPLnrnAjJotoq/EbWtg9agwnl7I=
-github.com/honeycombio/honeycomb-opentelemetry-go v0.11.0/go.mod h1:2DZt7DdTnnd1o7biwC9Ab0Z3OAGXId56gYVPR7LsLQs=
 github.com/honeycombio/otel-config-go v1.17.0 h1:3/zig0L3IGnfgiCrEfAwBsM0rF57+TKTyJ/a8yqW2eM=
 github.com/honeycombio/otel-config-go v1.17.0/go.mod h1:g2mMdfih4sYKfXBtz2mNGvo3HiQYqX4Up4pdA8JOF2s=
 github.com/huin/goupnp v1.3.0 h1:UvLUlWDNpoUdYzb2TCn+MuTWtcjXKSza2n6CBdQ0xXc=
@@ -839,8 +837,8 @@ go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.53.0 h1:4K4tsIX
 go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.53.0/go.mod h1:jjdQuTGVsXV4vSs+CJ2qYDeDPf9yIJV23qlIzBm73Vg=
 go.opentelemetry.io/contrib/instrumentation/runtime v0.53.0 h1:nOlJEAJyrcy8hexK65M+dsCHIx7CVVbybcFDNkcTcAc=
 go.opentelemetry.io/contrib/instrumentation/runtime v0.53.0/go.mod h1:u79lGGIlkg3Ryw425RbMjEkGYNxSnXRyR286O840+u4=
-go.opentelemetry.io/contrib/processors/baggage/baggagetrace v0.0.0-20240508140322-077e60990642 h1:zkHgBq5jbXtm0KQnZ4v20Co+I6rWI2qcN3UJhqinK3c=
-go.opentelemetry.io/contrib/processors/baggage/baggagetrace v0.0.0-20240508140322-077e60990642/go.mod h1:UcoljQLXr6q6mGhJtAm199ieZRndJYkJDAd0Iut7IUU=
+go.opentelemetry.io/contrib/processors/baggagecopy v0.1.0 h1:COxSh6wABHg0nkhYTdrCVmnnEqCyl0ZpjAY0+qOzxNk=
+go.opentelemetry.io/contrib/processors/baggagecopy v0.1.0/go.mod h1:JXYs/Eru3YwohEFeYE4z2zfRrL/w+3EQb6KhF6/Uv40=
 go.opentelemetry.io/contrib/propagators/b3 v1.28.0 h1:XR6CFQrQ/ttAYmTBX2loUEFGdk1h17pxYI8828dk/1Y=
 go.opentelemetry.io/contrib/propagators/b3 v1.28.0/go.mod h1:DWRkzJONLquRz7OJPh2rRbZ7MugQj62rk7g6HRnEqh0=
 go.opentelemetry.io/contrib/propagators/ot v1.28.0 h1:rmlG+2pc5k5M7Y7izDrxAHZUIwDERdGMTD9oMV7llMk=

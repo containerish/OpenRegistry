@@ -11,6 +11,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/config v1.27.15
 	github.com/aws/aws-sdk-go-v2/credentials v1.17.27
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.58.2
+	github.com/aws/smithy-go v1.20.3
 	github.com/axiomhq/axiom-go v0.20.0
 	github.com/bradleyfalzon/ghinstallation/v2 v2.11.0
 	github.com/bufbuild/connect-go v1.10.0
@@ -23,7 +24,6 @@ require (
 	github.com/google/go-github/v56 v56.0.0
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/go-multierror v1.1.1
-	github.com/honeycombio/honeycomb-opentelemetry-go v0.11.0
 	github.com/honeycombio/otel-config-go v1.17.0
 	github.com/ipfs/boxo v0.21.0
 	github.com/ipfs/kubo v0.29.0
@@ -46,6 +46,8 @@ require (
 	github.com/uptrace/bun/extra/bundebug v1.2.1
 	github.com/urfave/cli/v2 v2.27.3
 	go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho v0.53.0
+	go.opentelemetry.io/contrib/processors/baggagecopy v0.1.0
+	go.opentelemetry.io/otel v1.28.0
 	golang.org/x/crypto v0.25.0
 	golang.org/x/net v0.27.0
 	golang.org/x/oauth2 v0.21.0
@@ -69,7 +71,6 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/sso v1.22.4 // indirect
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.26.4 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sts v1.30.3 // indirect
-	github.com/aws/smithy-go v1.20.3 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/blang/semver/v4 v4.0.0 // indirect
 	github.com/calebcase/tmpfile v1.0.3 // indirect
@@ -211,16 +212,13 @@ require (
 	go.opentelemetry.io/contrib/instrumentation/net/http/httptrace/otelhttptrace v0.53.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.53.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/runtime v0.53.0 // indirect
-	go.opentelemetry.io/contrib/processors/baggage/baggagetrace v0.0.0-20240508140322-077e60990642 // indirect
 	go.opentelemetry.io/contrib/propagators/b3 v1.28.0 // indirect
 	go.opentelemetry.io/contrib/propagators/ot v1.28.0 // indirect
-	go.opentelemetry.io/otel v1.28.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc v1.28.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp v1.28.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.28.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.28.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.28.0 // indirect
-	go.opentelemetry.io/otel/exporters/stdout/stdouttrace v1.27.0 // indirect
 	go.opentelemetry.io/otel/metric v1.28.0 // indirect
 	go.opentelemetry.io/otel/sdk v1.28.0 // indirect
 	go.opentelemetry.io/otel/sdk/metric v1.28.0 // indirect
