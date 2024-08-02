@@ -5,16 +5,16 @@ import (
 
 	"github.com/containerish/OpenRegistry/config"
 	"github.com/fatih/color"
-	"github.com/honeycombio/honeycomb-opentelemetry-go"
 	"github.com/honeycombio/otel-config-go/otelconfig"
 	"github.com/labstack/echo/v4"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho"
+	"go.opentelemetry.io/contrib/processors/baggage/baggagetrace"
 )
 
 func ConfigureOtel(config config.Telemetry, service string, e *echo.Echo) func() {
 	if config.Enabled {
 		color.Green("OpenTelemetry: Enabled")
-		bsp := honeycomb.NewBaggageSpanProcessor()
+		bsp := baggagetrace.New()
 
 		otelShutdown, err := otelconfig.ConfigureOpenTelemetry(
 			otelconfig.WithServiceName(service),
