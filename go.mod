@@ -53,7 +53,7 @@ require (
 	golang.org/x/oauth2 v0.21.0
 	google.golang.org/protobuf v1.34.2
 	gopkg.in/yaml.v2 v2.4.0
-	storj.io/uplink v1.13.0
+	storj.io/uplink v1.13.1
 )
 
 require (
@@ -250,9 +250,9 @@ require (
 	modernc.org/sqlite v1.29.5 // indirect
 	modernc.org/strutil v1.2.0 // indirect
 	modernc.org/token v1.1.0 // indirect
-	storj.io/common v0.0.0-20240424123607-5f226fc92c16 // indirect
-	storj.io/drpc v0.0.33 // indirect
-	storj.io/eventkit v0.0.0-20240306141230-6cb545e5f892 // indirect
+	storj.io/common v0.0.0-20240812101423-26b53789c348 // indirect
+	storj.io/drpc v0.0.35-0.20240709171858-0075ac871661 // indirect
+	storj.io/eventkit v0.0.0-20240415002644-1d9596fee086 // indirect
 	storj.io/infectious v0.0.2 // indirect
 	storj.io/picobuf v0.0.3 // indirect
 )
