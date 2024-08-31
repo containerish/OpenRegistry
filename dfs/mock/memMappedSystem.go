@@ -12,15 +12,16 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
+	"github.com/fatih/color"
+	"github.com/google/uuid"
+	"github.com/labstack/echo/v4"
+	"github.com/spf13/afero"
+
 	"github.com/containerish/OpenRegistry/config"
 	"github.com/containerish/OpenRegistry/dfs"
 	types "github.com/containerish/OpenRegistry/store/v1/types"
 	"github.com/containerish/OpenRegistry/telemetry"
 	core_types "github.com/containerish/OpenRegistry/types"
-	"github.com/fatih/color"
-	"github.com/google/uuid"
-	"github.com/labstack/echo/v4"
-	"github.com/spf13/afero"
 )
 
 type memMappedMockStorage struct {
@@ -70,7 +71,7 @@ func (ms *memMappedMockStorage) UploadPart(
 	uploadId string,
 	layerKey string,
 	digest string,
-	partNumber int64,
+	partNumber int32,
 	content io.ReadSeeker,
 	contentLength int64,
 ) (s3types.CompletedPart, error) {
@@ -91,7 +92,7 @@ func (ms *memMappedMockStorage) UploadPart(
 	return s3types.CompletedPart{
 		ChecksumCRC32:  &digest,
 		ChecksumCRC32C: &layerKey,
-		PartNumber:     aws.Int32(int32(partNumber)),
+		PartNumber:     aws.Int32(partNumber),
 	}, nil
 }
 
@@ -175,7 +176,6 @@ func (ms *memMappedMockStorage) Metadata(layer *types.ContainerImageLayer) (*typ
 		DFSLink:       identifier,
 		ContentLength: int(stat.Size()),
 	}, nil
-
 }
 
 func (ms *memMappedMockStorage) GetUploadProgress(identifier, uploadID string) (*types.ObjectMetadata, error) {

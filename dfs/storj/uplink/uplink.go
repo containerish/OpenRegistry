@@ -9,13 +9,14 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
+	"github.com/fatih/color"
+	"storj.io/uplink"
+	"storj.io/uplink/edge"
+
 	"github.com/containerish/OpenRegistry/config"
 	"github.com/containerish/OpenRegistry/dfs"
 	"github.com/containerish/OpenRegistry/store/v1/types"
 	core_types "github.com/containerish/OpenRegistry/types"
-	"github.com/fatih/color"
-	"storj.io/uplink"
-	"storj.io/uplink/edge"
 )
 
 type storjUplink struct {
@@ -70,7 +71,7 @@ func (u *storjUplink) UploadPart(
 	uploadId string,
 	key string,
 	digest string,
-	partNumber int64,
+	partNumber int32,
 	content io.ReadSeeker,
 	contentLength int64,
 ) (s3types.CompletedPart, error) {
@@ -122,7 +123,6 @@ func (u *storjUplink) CompleteMultipartUpload(
 			"digest": finalDigest,
 		},
 	})
-
 	if err != nil {
 		return "", fmt.Errorf("ERR_STORJ_UPLINK_COMMIT_UPLOAD: %w", err)
 	}

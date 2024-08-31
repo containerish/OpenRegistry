@@ -10,11 +10,12 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
+	oci_digest "github.com/opencontainers/go-digest"
+
 	"github.com/containerish/OpenRegistry/config"
 	"github.com/containerish/OpenRegistry/dfs"
 	"github.com/containerish/OpenRegistry/store/v1/types"
 	core_types "github.com/containerish/OpenRegistry/types"
-	oci_digest "github.com/opencontainers/go-digest"
 )
 
 type filebase struct {
@@ -64,7 +65,7 @@ func (fb *filebase) UploadPart(
 	uploadId string,
 	layerKey string,
 	digest string,
-	partNumber int64,
+	partNumber int32,
 	content io.ReadSeeker,
 	contentLength int64,
 ) (s3types.CompletedPart, error) {
@@ -78,7 +79,7 @@ func (fb *filebase) UploadPart(
 		ChecksumSHA256:    aws.String(digest),
 		ContentLength:     &contentLength,
 		Key:               &layerKey,
-		PartNumber:        aws.Int32(int32(partNumber)),
+		PartNumber:        aws.Int32(partNumber),
 		UploadId:          &uploadId,
 	}
 
@@ -208,12 +209,15 @@ func (fb *filebase) Download(ctx context.Context, path string) (io.ReadCloser, e
 
 	return resp.Body, nil
 }
+
 func (fb *filebase) DownloadDir(dfsLink, dir string) error {
 	return nil
 }
+
 func (fb *filebase) List(path string) ([]*types.Metadata, error) {
 	return nil, nil
 }
+
 func (fb *filebase) AddImage(ns string, mf, l map[string][]byte) (string, error) {
 	return "", nil
 }

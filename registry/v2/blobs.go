@@ -9,10 +9,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/containerish/OpenRegistry/types"
 	"github.com/fatih/color"
 	"github.com/labstack/echo/v4"
 	oci_digest "github.com/opencontainers/go-digest"
+
+	"github.com/containerish/OpenRegistry/types"
 )
 
 func (b *blobs) errorResponse(code, msg string, detail map[string]interface{}) []byte {
@@ -126,7 +127,7 @@ func (b *blobs) UploadBlob(ctx echo.Context) error {
 
 		b.mu.Lock()
 		b.layerParts[uploadID] = append(b.layerParts[uploadID], part)
-		b.layerLengthCounter[uploadID] = int64(buf.Len())
+		b.layerLengthCounter[uploadID] = buf.Len()
 		b.mu.Unlock()
 
 		locationHeader := fmt.Sprintf("/v2/%s/blobs/uploads/%s", namespace, identifier)
@@ -138,7 +139,7 @@ func (b *blobs) UploadBlob(ctx echo.Context) error {
 	}
 
 	// continue with rest of the chunks for the layer
-	var start, end int64
+	var start, end int
 	// 0-90
 	if _, err := fmt.Sscanf(contentRange, "%d-%d", &start, &end); err != nil {
 		details := map[string]interface{}{
@@ -195,7 +196,7 @@ func (b *blobs) UploadBlob(ctx echo.Context) error {
 
 	b.mu.Lock()
 	b.layerParts[uploadID] = append(b.layerParts[uploadID], part)
-	b.layerLengthCounter[uploadID] += int64(buf.Len())
+	b.layerLengthCounter[uploadID] += buf.Len()
 	b.mu.Unlock()
 	locationHeader := fmt.Sprintf("/v2/%s/blobs/uploads/%s", namespace, identifier)
 	ctx.Response().Header().Set("Location", locationHeader)

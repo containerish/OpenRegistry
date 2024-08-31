@@ -2,6 +2,7 @@ package config
 
 import (
 	"crypto/rsa"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -259,7 +260,7 @@ func translateError(err error, trans ut.Translator) error {
 			return err
 		}
 		for _, e := range validatorErrs {
-			translatedErr = multierror.Append(translatedErr, fmt.Errorf(e.Translate(trans)))
+			translatedErr = multierror.Append(translatedErr, errors.New(e.Translate(trans)))
 		}
 
 		return translatedErr

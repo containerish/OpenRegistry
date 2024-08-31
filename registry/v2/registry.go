@@ -15,6 +15,10 @@ import (
 	"time"
 
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
+	"github.com/labstack/echo/v4"
+	oci_digest "github.com/opencontainers/go-digest"
+	img_spec_v1 "github.com/opencontainers/image-spec/specs-go/v1"
+
 	"github.com/containerish/OpenRegistry/common"
 	"github.com/containerish/OpenRegistry/config"
 	dfsImpl "github.com/containerish/OpenRegistry/dfs"
@@ -22,9 +26,6 @@ import (
 	types_v2 "github.com/containerish/OpenRegistry/store/v1/types"
 	"github.com/containerish/OpenRegistry/telemetry"
 	"github.com/containerish/OpenRegistry/types"
-	"github.com/labstack/echo/v4"
-	oci_digest "github.com/opencontainers/go-digest"
-	img_spec_v1 "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 func NewRegistry(
@@ -43,8 +44,8 @@ func NewRegistry(
 			contents:           make(map[string][]byte),
 			uploads:            make(map[string][]byte),
 			layers:             make(map[string][]string),
-			blobCounter:        make(map[string]int64),
-			layerLengthCounter: make(map[string]int64),
+			blobCounter:        make(map[string]int32),
+			layerLengthCounter: make(map[string]int),
 			layerParts:         make(map[string][]s3types.CompletedPart),
 			mu:                 mu,
 		},
@@ -157,7 +158,6 @@ func (r *registry) Catalog(ctx echo.Context) error {
 	})
 	r.logger.Log(ctx, echoErr).Send()
 	return echoErr
-
 }
 
 // ListTags Content discovery
@@ -200,6 +200,7 @@ func (r *registry) ListTags(ctx echo.Context) error {
 	r.logger.Log(ctx, echoErr).Send()
 	return echoErr
 }
+
 func (r *registry) List(ctx echo.Context) error {
 	return fmt.Errorf("not implemented")
 }
@@ -643,7 +644,7 @@ func (r *registry) CompleteUpload(ctx echo.Context) error {
 
 		r.mu.Lock()
 		r.b.layerParts[uploadID] = append(r.b.layerParts[uploadID], part)
-		r.b.layerLengthCounter[uploadID] += int64(buf.Len())
+		r.b.layerLengthCounter[uploadID] += buf.Len()
 		r.mu.Unlock()
 	}
 
