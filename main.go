@@ -7,10 +7,11 @@ import (
 	"os"
 	"strings"
 
+	"github.com/urfave/cli/v2"
+
 	"github.com/containerish/OpenRegistry/cmd/extras"
 	"github.com/containerish/OpenRegistry/cmd/migrations"
 	"github.com/containerish/OpenRegistry/cmd/registry"
-	"github.com/urfave/cli/v2"
 )
 
 var (

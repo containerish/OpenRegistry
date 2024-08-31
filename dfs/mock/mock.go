@@ -1,10 +1,11 @@
 package mock
 
 import (
+	"github.com/fatih/color"
+
 	"github.com/containerish/OpenRegistry/config"
 	"github.com/containerish/OpenRegistry/dfs"
 	"github.com/containerish/OpenRegistry/telemetry"
-	"github.com/fatih/color"
 )
 
 func NewMockStorage(
@@ -27,6 +28,7 @@ func NewMockStorage(
 }
 
 const (
-	MockFSPath     = ".mock-fs"
-	LayerKeyPrefix = "layers"
+	MockFSPath        = ".mock-fs"
+	LayerKeyPrefix    = "layers"
+	LayerKeyPrefixLen = len(LayerKeyPrefix) // to account for trailing slash
 )

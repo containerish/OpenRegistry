@@ -75,6 +75,10 @@ func (ms *memMappedMockStorage) UploadPart(
 	content io.ReadSeeker,
 	contentLength int64,
 ) (s3types.CompletedPart, error) {
+	if err := ms.validateLayerPrefix(layerKey); err != nil {
+		return s3types.CompletedPart{}, err
+	}
+
 	fd, err := ms.memFs.OpenFile(layerKey, os.O_RDWR|os.O_CREATE, os.ModePerm)
 	if err != nil {
 		return s3types.CompletedPart{}, err
@@ -108,6 +112,10 @@ func (ms *memMappedMockStorage) CompleteMultipartUpload(
 }
 
 func (ms *memMappedMockStorage) Upload(ctx context.Context, identifier, digest string, content []byte) (string, error) {
+	if err := ms.validateLayerPrefix(identifier); err != nil {
+		return "", err
+	}
+
 	fd, err := ms.memFs.Create(identifier)
 	if err != nil {
 		return "", err
@@ -178,7 +186,23 @@ func (ms *memMappedMockStorage) Metadata(layer *types.ContainerImageLayer) (*typ
 	}, nil
 }
 
+func (ms *memMappedMockStorage) validateLayerPrefix(identifier string) error {
+	if len(identifier) <= LayerKeyPrefixLen || identifier[0:LayerKeyPrefixLen] != LayerKeyPrefix {
+		return fmt.Errorf(
+			"invalid layer prefix. Found: %s, expected: %s",
+			identifier[0:LayerKeyPrefixLen],
+			LayerKeyPrefix,
+		)
+	}
+
+	return nil
+}
+
 func (ms *memMappedMockStorage) GetUploadProgress(identifier, uploadID string) (*types.ObjectMetadata, error) {
+	if err := ms.validateLayerPrefix(identifier); err != nil {
+		return nil, err
+	}
+
 	fd, err := ms.memFs.Open(identifier)
 	if err != nil {
 		return nil, err
@@ -209,6 +233,10 @@ func (ms *memMappedMockStorage) GeneratePresignedURL(ctx context.Context, key st
 }
 
 func (ms *memMappedMockStorage) AbortMultipartUpload(ctx context.Context, layerKey string, uploadId string) error {
+	if err := ms.validateLayerPrefix(layerKey); err != nil {
+		return err
+	}
+
 	if err := ms.memFs.Remove(layerKey); err != nil {
 		return err
 	}
@@ -228,6 +256,11 @@ func (ms *memMappedMockStorage) FileServer() {
 
 	e.Add(http.MethodGet, "/:uuid", func(ctx echo.Context) error {
 		fileID := ctx.Param("uuid")
+		if err := ms.validateLayerPrefix(fileID); err != nil {
+			return ctx.JSON(http.StatusBadRequest, echo.Map{
+				"error": err.Error(),
+			})
+		}
 		fd, err := ms.memFs.Open(fileID)
 		if err != nil {
 			return ctx.JSON(http.StatusBadRequest, echo.Map{
