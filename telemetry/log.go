@@ -56,9 +56,6 @@ func setupLogger(config config.Logging) zerolog.Logger {
 		TimeFormat: time.RFC3339,
 	}
 
-	if !config.Enabled {
-		return zerolog.Nop()
-	}
 	l = l.Output(consoleWriter)
 
 	if config.RemoteForwarding {
