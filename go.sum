@@ -766,10 +766,10 @@ github.com/tmthrgd/go-hex v0.0.0-20190904060850-447a3041c3bc h1:9lRDQMhESg+zvGYm
 github.com/tmthrgd/go-hex v0.0.0-20190904060850-447a3041c3bc/go.mod h1:bciPuU6GHm1iF1pBvUfxfsH0Wmnc2VbpgvbI9ZWuIRs=
 github.com/ucarion/urlpath v0.0.0-20200424170820-7ccc79b76bbb h1:Ywfo8sUltxogBpFuMOFRrrSifO788kAFxmvVw31PtQQ=
 github.com/ucarion/urlpath v0.0.0-20200424170820-7ccc79b76bbb/go.mod h1:ikPs9bRWicNw3S7XpJ8sK/smGwU9WcSVU3dy9qahYBM=
-github.com/uptrace/bun v1.2.2 h1:+PxDjUQotbncTDJ66ieIvoJ0ax/uzDeQrz+HQUVYzfo=
-github.com/uptrace/bun v1.2.2/go.mod h1:8frYFHrO/Zol3I4FEjoXam0HoNk+t5k7aJRl3FXp0mk=
-github.com/uptrace/bun/dialect/pgdialect v1.2.2 h1:+wjHevzczr2rUPFkMataSrfms5389QWKtjs0+DPrixs=
-github.com/uptrace/bun/dialect/pgdialect v1.2.2/go.mod h1:yAXC0eUVm6o81QiZcBjXxNdSqgUX1sCmwTU4GEBb48E=
+github.com/uptrace/bun v1.2.3 h1:6KDc6YiNlXde38j9ATKufb8o7MS8zllhAOeIyELKrk0=
+github.com/uptrace/bun v1.2.3/go.mod h1:8frYFHrO/Zol3I4FEjoXam0HoNk+t5k7aJRl3FXp0mk=
+github.com/uptrace/bun/dialect/pgdialect v1.2.3 h1:YyCxxqeL0lgFWRZzKCOt6mnxUsjqITcxSo0mLqgwMUA=
+github.com/uptrace/bun/dialect/pgdialect v1.2.3/go.mod h1:Vx9TscyEq1iN4tnirn6yYGwEflz0KG3rBZTBCLpKAjc=
 github.com/uptrace/bun/dialect/sqlitedialect v1.2.2 h1:LECPgenuszEgytndZ7Se7si1ROrj2hBYFl7VkkEUsDI=
 github.com/uptrace/bun/dialect/sqlitedialect v1.2.2/go.mod h1:zC1dqXkcU5agts1rmmI32VYdlZbKVAaRgKCrLC1DzY0=
 github.com/uptrace/bun/driver/pgdriver v1.2.2 h1:AwOhgNu6ctu3b3U5jnk1S2EcEfM5jNzswiRXsUtQnfQ=
