@@ -52,7 +52,7 @@ func newFileBasedMockStorage(
 	_ = os.MkdirAll(MockFSPath, os.ModePerm)
 	_ = os.MkdirAll(fmt.Sprintf("%s/%s", MockFSPath, LayerKeyPrefix), os.ModePerm)
 	mocker := &fileBasedMockStorage{
-		fs:              afero.NewBasePathFs(afero.NewOsFs(), ".mock-fs"),
+		fs:              afero.NewBasePathFs(afero.NewOsFs(), MockFSPath),
 		uploadSession:   make(map[string]string),
 		config:          cfg,
 		serviceEndpoint: net.JoinHostPort(parsedHost.Hostname(), "5002"),
@@ -87,6 +87,10 @@ func (ms *fileBasedMockStorage) UploadPart(
 	content io.ReadSeeker,
 	contentLength int64,
 ) (s3types.CompletedPart, error) {
+	if err := ms.validateLayerKey(layerKey); err != nil {
+		return s3types.CompletedPart{}, err
+	}
+
 	fd, err := ms.fs.OpenFile(layerKey, os.O_RDWR|os.O_CREATE, os.ModePerm)
 	if err != nil {
 		return s3types.CompletedPart{}, err
@@ -120,7 +124,22 @@ func (ms *fileBasedMockStorage) CompleteMultipartUpload(
 	return layerKey, nil
 }
 
+func (ms *fileBasedMockStorage) validateLayerKey(identifier string) error {
+	if len(identifier) <= LayerKeyPrefixLen || identifier[0:LayerKeyPrefixLen] != LayerKeyPrefix {
+		return fmt.Errorf(
+			"invalid layer prefix. Found: %s, expected: %s",
+			identifier[0:LayerKeyPrefixLen],
+			LayerKeyPrefix,
+		)
+	}
+
+	return nil
+}
+
 func (ms *fileBasedMockStorage) Upload(ctx context.Context, identifier, digest string, content []byte) (string, error) {
+	if err := ms.validateLayerKey(identifier); err != nil {
+		return "", err
+	}
 	if err := ms.validateLayerPath(identifier); err != nil {
 		return "", err
 	}
@@ -195,6 +214,10 @@ func (ms *fileBasedMockStorage) Metadata(layer *types.ContainerImageLayer) (*typ
 }
 
 func (ms *fileBasedMockStorage) GetUploadProgress(identifier, uploadID string) (*types.ObjectMetadata, error) {
+	if err := ms.validateLayerKey(identifier); err != nil {
+		return nil, err
+	}
+
 	fd, err := ms.fs.Open(identifier)
 	if err != nil {
 		return nil, err

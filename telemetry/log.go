@@ -7,11 +7,12 @@ import (
 	"time"
 
 	"github.com/axiomhq/axiom-go/axiom"
-	"github.com/containerish/OpenRegistry/config"
-	"github.com/containerish/OpenRegistry/types"
 	"github.com/fatih/color"
 	"github.com/labstack/echo/v4"
 	"github.com/rs/zerolog"
+
+	"github.com/containerish/OpenRegistry/config"
+	"github.com/containerish/OpenRegistry/types"
 )
 
 type Logger interface {
@@ -55,6 +56,9 @@ func setupLogger(config config.Logging) zerolog.Logger {
 		TimeFormat: time.RFC3339,
 	}
 
+	if !config.Enabled {
+		return zerolog.Nop()
+	}
 	l = l.Output(consoleWriter)
 
 	if config.RemoteForwarding {

@@ -112,7 +112,7 @@ func (r *registry) Catalog(ctx echo.Context) error {
 	var pageSize int
 	var offset int
 	if queryParamPageSize != "" {
-		ps, err := strconv.ParseInt(ctx.QueryParam("n"), 10, 64)
+		ps, err := strconv.Atoi(ctx.QueryParam("n"))
 		if err != nil {
 			echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 				"error": err.Error(),
@@ -120,7 +120,7 @@ func (r *registry) Catalog(ctx echo.Context) error {
 			r.logger.Log(ctx, err).Send()
 			return echoErr
 		}
-		pageSize = int(ps)
+		pageSize = ps
 	}
 
 	if queryParamOffset != "" {
