@@ -42,7 +42,7 @@ require (
 	github.com/uptrace/bun/dialect/pgdialect v1.2.2
 	github.com/uptrace/bun/dialect/sqlitedialect v1.2.2
 	github.com/uptrace/bun/driver/pgdriver v1.2.2
-	github.com/uptrace/bun/driver/sqliteshim v1.2.2
+	github.com/uptrace/bun/driver/sqliteshim v1.2.3
 	github.com/uptrace/bun/extra/bundebug v1.2.2
 	github.com/urfave/cli/v2 v2.27.4
 	go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho v0.54.0
@@ -245,7 +245,7 @@ require (
 	lukechampine.com/blake3 v1.3.0 // indirect
 	mellium.im/sasl v0.3.1 // indirect
 	modernc.org/gc/v3 v3.0.0-20240801135723-a856999a2e4a // indirect
-	modernc.org/libc v1.60.0 // indirect
+	modernc.org/libc v1.60.1 // indirect
 	modernc.org/mathutil v1.6.0 // indirect
 	modernc.org/memory v1.8.0 // indirect
 	modernc.org/sqlite v1.32.0 // indirect
