@@ -6,6 +6,14 @@ concurrency:
   group: linter-${{ github.workflow }}-${{ github.head_ref || github.run_id }}
   cancel-in-progress: true
 
+permissions:
+  # Required: allow read access to the content for analysis.
+  contents: read
+  # Optional: allow read access to pull request. Use with `only-new-issues` option.
+  pull-requests: read
+  # Optional: allow write access to checks to allow the action to annotate code in the PR.
+  checks: write
+
 jobs:
   golangci:
     name: lint
@@ -14,10 +22,10 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.22"
-          cache: false
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v6
         with:
-          version: v1.56
+          version: v1.60.3
           args: --config .golangci.yml

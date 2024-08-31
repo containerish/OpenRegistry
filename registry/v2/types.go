@@ -5,12 +5,13 @@ import (
 	"time"
 
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
+	"github.com/labstack/echo/v4"
+	"github.com/uptrace/bun"
+
 	"github.com/containerish/OpenRegistry/config"
 	dfsImpl "github.com/containerish/OpenRegistry/dfs"
 	store_v2 "github.com/containerish/OpenRegistry/store/v1/registry"
 	"github.com/containerish/OpenRegistry/telemetry"
-	"github.com/labstack/echo/v4"
-	"github.com/uptrace/bun"
 )
 
 /*
@@ -69,8 +70,8 @@ const (
 // // OCI - Distribution Spec compliant Error Codes
 const (
 	RegistryErrorCodeUnknown             = "UNKNOWN"               // error unknown to registry
-	RegistryErrorCodeBlobUnknown         = "BLOB_UNKNOWN"          //blob unknown to registry
-	RegistryErrorCodeBlobUploadInvalid   = "BLOB_UPLOAD_INVALID"   //blob upload invalid
+	RegistryErrorCodeBlobUnknown         = "BLOB_UNKNOWN"          // blob unknown to registry
+	RegistryErrorCodeBlobUploadInvalid   = "BLOB_UPLOAD_INVALID"   // blob upload invalid
 	RegistryErrorCodeBlobUploadUnknown   = "BLOB_UPLOAD_UNKNOWN"   // blob upload unknown to registry
 	RegistryErrorCodeDigestInvalid       = "DIGEST_INVALID"        // provided digest did not match uploaded content
 	RegistryErrorCodeManifestBlobUnknown = "MANIFEST_BLOB_UNKNOWN" // blob unknown to registry
@@ -79,7 +80,7 @@ const (
 	RegistryErrorCodeManifestUnverified  = "MANIFEST_UNVERIFIED"   // manifest failed sign verification
 	RegistryErrorCodeNameInvalid         = "NAME_INVALID"          // invalid repository name
 	RegistryErrorCodeNameUnknown         = "NAME_UNKNOWN"          // repository name not known to registry
-	RegistryErrorCodeSizeInvalid         = "SIZE_INVALID"          //provided length did not match content length
+	RegistryErrorCodeSizeInvalid         = "SIZE_INVALID"          // provided length did not match content length
 	RegistryErrorCodeTagInvalid          = "TAG_INVALID"           // manifest tag did not match URI
 	RegistryErrorCodeUnauthorized        = "UNAUTHORIZED"          // authentication is required
 	RegistryErrorCodeDenied              = "DENIED"                // request access to resource is denied
@@ -111,8 +112,8 @@ type (
 		uploads            map[string][]byte
 		layers             map[string][]string
 		registry           *registry
-		blobCounter        map[string]int64
-		layerLengthCounter map[string]int64
+		blobCounter        map[string]int32
+		layerLengthCounter map[string]int
 		layerParts         map[string][]s3types.CompletedPart
 	}
 )
@@ -175,7 +176,7 @@ type Registry interface {
 	// <Layer Chunk Binary Data>
 
 	// 416 Requested Range Not Satisfiable
-	//Location: /v2/<name>/blobs/uploads/<uuid>
+	// Location: /v2/<name>/blobs/uploads/<uuid>
 	// Range: 0-<last valid range>
 	// Content-Length: 0
 	// Docker-Upload-UUID: <uuid>
@@ -239,7 +240,7 @@ type Registry interface {
 
 	// Success : 202
 	DeleteTagOrManifest(ctx echo.Context) error
-	//The list of available repositories is made available through the catalog
+	// The list of available repositories is made available through the catalog
 	Catalog(ctx echo.Context) error
 	GetImageNamespace(ctx echo.Context) error
 

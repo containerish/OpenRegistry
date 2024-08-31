@@ -10,11 +10,12 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
+	oci_digest "github.com/opencontainers/go-digest"
+
 	"github.com/containerish/OpenRegistry/config"
 	"github.com/containerish/OpenRegistry/dfs"
 	"github.com/containerish/OpenRegistry/store/v1/types"
 	core_types "github.com/containerish/OpenRegistry/types"
-	oci_digest "github.com/opencontainers/go-digest"
 )
 
 type storj struct {
@@ -62,7 +63,7 @@ func (sj *storj) UploadPart(
 	uploadId string,
 	layerKey string,
 	digest string,
-	partNumber int64,
+	partNumber int32,
 	content io.ReadSeeker,
 	contentLength int64,
 ) (s3types.CompletedPart, error) {
@@ -76,7 +77,7 @@ func (sj *storj) UploadPart(
 		ChecksumSHA256:    aws.String(digest),
 		ContentLength:     &contentLength,
 		Key:               &layerKey,
-		PartNumber:        aws.Int32(int32(partNumber)),
+		PartNumber:        aws.Int32(partNumber),
 		UploadId:          &uploadId,
 	}
 

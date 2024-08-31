@@ -13,15 +13,16 @@ import (
 	hexmap "github.com/alphadose/haxmap"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
-	"github.com/containerish/OpenRegistry/config"
-	"github.com/containerish/OpenRegistry/dfs"
-	"github.com/containerish/OpenRegistry/store/v1/types"
 	"github.com/fatih/color"
 	"github.com/google/uuid"
 	boxo_files "github.com/ipfs/boxo/files"
 	boxo_path "github.com/ipfs/boxo/path"
 	"github.com/ipfs/kubo/client/rpc"
 	"github.com/multiformats/go-multiaddr"
+
+	"github.com/containerish/OpenRegistry/config"
+	"github.com/containerish/OpenRegistry/dfs"
+	"github.com/containerish/OpenRegistry/store/v1/types"
 )
 
 const (
@@ -112,7 +113,7 @@ func (ipfs *ipfsP2p) UploadPart(
 	uploadId string,
 	layerKey string,
 	digest string,
-	partNumber int64,
+	partNumber int32,
 	content io.ReadSeeker,
 	contentLength int64,
 ) (s3types.CompletedPart, error) {
@@ -151,7 +152,7 @@ func (ipfs *ipfsP2p) UploadPart(
 
 	return s3types.CompletedPart{
 		ChecksumSHA256: &digest,
-		PartNumber:     aws.Int32(int32(partNumber)),
+		PartNumber:     aws.Int32(partNumber),
 	}, nil
 }
 

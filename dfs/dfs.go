@@ -5,6 +5,7 @@ import (
 	"io"
 
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
+
 	"github.com/containerish/OpenRegistry/config"
 	"github.com/containerish/OpenRegistry/store/v1/types"
 )
@@ -18,7 +19,7 @@ type DFS interface {
 		uploadId string,
 		key string,
 		digest string,
-		partNumber int64,
+		partNumber int32,
 		content io.ReadSeeker,
 		contentLength int64,
 	) (s3types.CompletedPart, error)

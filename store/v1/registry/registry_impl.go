@@ -7,14 +7,15 @@ import (
 	"strings"
 	"time"
 
-	v1 "github.com/containerish/OpenRegistry/store/v1"
-	"github.com/containerish/OpenRegistry/store/v1/types"
 	"github.com/google/uuid"
 	oci_digest "github.com/opencontainers/go-digest"
 	img_spec "github.com/opencontainers/image-spec/specs-go"
 	img_spec_v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/uptrace/bun"
 	"github.com/uptrace/bun/dialect/feature"
+
+	v1 "github.com/containerish/OpenRegistry/store/v1"
+	"github.com/containerish/OpenRegistry/store/v1/types"
 )
 
 func (s *registryStore) RepositoryExists(ctx context.Context, namespace string) bool {
@@ -33,7 +34,6 @@ func (s *registryStore) RepositoryExists(ctx context.Context, namespace string) 
 		Where("username = ?", username).
 		Where("name = ?", repoName).
 		Scan(ctx)
-
 	if err != nil {
 		logEvent.Err(err).Send()
 		return false
@@ -171,7 +171,6 @@ func (s *registryStore) DeleteManifestOrTag(ctx context.Context, reference strin
 		WhereOr("reference = ?", reference).
 		WhereOr("digest = ? ", reference).
 		Exec(ctx)
-
 	if err != nil {
 		logEvent.Err(err).Send()
 		return v1.WrapDatabaseError(err, v1.DatabaseOperationDelete)
@@ -190,7 +189,6 @@ func (s *registryStore) DeleteManifestOrTagWithTxn(ctx context.Context, txn *bun
 		WhereOr("reference = ?", reference).
 		WhereOr("digest = ? ", reference).
 		Exec(ctx)
-
 	if err != nil {
 		logEvent.Err(err).Send()
 		return v1.WrapDatabaseError(err, v1.DatabaseOperationDelete)
@@ -523,7 +521,6 @@ func (s *registryStore) SetContainerImageVisibility(
 		WherePK(imageId).
 		Where("name != ?", types.SystemUsernameIPFS). // IPFS repositories cannot be set to private since they are P2P
 		Exec(ctx)
-
 	if err != nil {
 		logEvent.Err(err).Send()
 		return v1.WrapDatabaseError(err, v1.DatabaseOperationUpdate)
@@ -663,7 +660,7 @@ func (s *registryStore) GetReferrers(
 			descriptor := img_spec_v1.Descriptor{
 				MediaType:    m.MediaType,
 				Digest:       d,
-				Size:         int64(m.Size),
+				Size:         m.Size,
 				ArtifactType: m.ArtifactType,
 				Annotations:  m.Annotations,
 			}
@@ -676,7 +673,7 @@ func (s *registryStore) GetReferrers(
 			descriptor := img_spec_v1.Descriptor{
 				MediaType:    m.MediaType,
 				Digest:       d,
-				Size:         int64(m.Size),
+				Size:         m.Size,
 				ArtifactType: m.ArtifactType,
 				Annotations:  m.Annotations,
 			}
@@ -690,8 +687,8 @@ func (s *registryStore) GetReferrers(
 	return imgIndex, nil
 }
 
-func (s *registryStore) GetImageSizeByLayerIds(ctx context.Context, layerIDs []string) (uint64, error) {
-	var size uint64
+func (s *registryStore) GetImageSizeByLayerIds(ctx context.Context, layerIDs []string) (int64, error) {
+	var size int64
 	err := s.
 		db.
 		NewSelect().

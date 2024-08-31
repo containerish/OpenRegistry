@@ -3,12 +3,13 @@ package registry
 import (
 	"context"
 
-	store_v2 "github.com/containerish/OpenRegistry/store/v1"
-	"github.com/containerish/OpenRegistry/store/v1/types"
-	"github.com/containerish/OpenRegistry/telemetry"
 	"github.com/google/uuid"
 	img_spec_v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/uptrace/bun"
+
+	store_v2 "github.com/containerish/OpenRegistry/store/v1"
+	"github.com/containerish/OpenRegistry/store/v1/types"
+	"github.com/containerish/OpenRegistry/telemetry"
 )
 
 type registryStore struct {
@@ -49,7 +50,7 @@ type RegistryStore interface {
 	// The base registry store methods
 	RegistryBaseStore
 
-	GetImageSizeByLayerIds(ctx context.Context, layerIDs []string) (uint64, error)
+	GetImageSizeByLayerIds(ctx context.Context, layerIDs []string) (int64, error)
 	GetContentHashById(ctx context.Context, uuid string) (string, error)
 	GetImageTags(ctx context.Context, namespace string) ([]string, error)
 	GetCatalog(ctx context.Context, namespace string, pageSize int, offset int) ([]string, error)
