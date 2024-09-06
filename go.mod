@@ -50,7 +50,7 @@ require (
 	go.opentelemetry.io/otel v1.29.0
 	golang.org/x/crypto v0.26.0
 	golang.org/x/net v0.28.0
-	golang.org/x/oauth2 v0.22.0
+	golang.org/x/oauth2 v0.23.0
 	google.golang.org/protobuf v1.34.2
 	gopkg.in/yaml.v2 v2.4.0
 	storj.io/uplink v1.13.1
