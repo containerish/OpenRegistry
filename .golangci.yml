@@ -1,19 +1,16 @@
 run:
   timeout: 2m
 
-skip-dirs:
-  - .go-skynet
-
 linters-settings:
   cyclop:
     max-complexity: 16
   gosec:
     excludes:
       - G114
+  lll:
+    line-length: 120
+    tab-width: 1
 
-lll:
-  line-length: 120
-  tab-width: 1
 
 linters:
   enable:

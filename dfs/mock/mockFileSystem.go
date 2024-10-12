@@ -2,6 +2,7 @@ package mock
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -78,6 +79,10 @@ func (ms *fileBasedMockStorage) UploadPart(
 	content io.ReadSeeker,
 	contentLength int64,
 ) (s3types.CompletedPart, error) {
+	if partNumber > config.MaxS3UploadParts {
+		return s3types.CompletedPart{}, errors.New("ERR_TOO_MANY_PARTS")
+	}
+
 	if err := ms.validateLayerPrefix(layerKey); err != nil {
 		return s3types.CompletedPart{}, err
 	}

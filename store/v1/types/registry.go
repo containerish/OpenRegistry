@@ -84,7 +84,7 @@ type (
 		Digest    string    `bun:"digest,notnull,unique" json:"digest"`
 		MediaType string    `bun:"media_type,notnull" json:"mediaType"`
 		DFSLink   string    `bun:"dfs_link" json:"dfsLink"`
-		Size      uint64    `bun:"size,default:0" json:"size"`
+		Size      int64     `bun:"size,default:0" json:"size"`
 	}
 
 	ContainerImageRepository struct {

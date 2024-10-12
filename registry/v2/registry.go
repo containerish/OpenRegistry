@@ -365,7 +365,7 @@ func (r *registry) MonolithicUpload(ctx echo.Context) error {
 		Digest:    imageDigest,
 		DFSLink:   dfsLink,
 		ID:        uuid,
-		Size:      uint64(buf.Len()),
+		Size:      int64(buf.Len()),
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	}
@@ -558,7 +558,7 @@ func (r *registry) MonolithicPut(ctx echo.Context) error {
 		Digest:    digest,
 		MediaType: ctx.Request().Header.Get("content-type"),
 		DFSLink:   dfsLink,
-		Size:      uint64(buf.Len()),
+		Size:      int64(buf.Len()),
 	}
 
 	if err = r.store.SetLayer(ctx.Request().Context(), txnOp.txn, layer); err != nil {
@@ -688,7 +688,7 @@ func (r *registry) CompleteUpload(ctx echo.Context) error {
 		Digest:    digest,
 		DFSLink:   dfsLink,
 		ID:        layerKey,
-		Size:      uint64(r.b.layerLengthCounter[uploadID]),
+		Size:      int64(r.b.layerLengthCounter[uploadID]),
 		CreatedAt: time.Now(),
 	}
 

@@ -25,3 +25,4 @@ config.yml.bak
 *.test
 telemetry/*.yml
 /.mock-fs
+/.local
