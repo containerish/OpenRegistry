@@ -1,6 +1,7 @@
 syntax = "proto3";
 
 package services.kon.github_actions.v1;
+
 option go_package = "github.com/containerish/OpenRegistry/services/kon/github_actions/v1;github_actions_v1";
 
 service GitHubActionsLogsService {
@@ -9,26 +10,26 @@ service GitHubActionsLogsService {
 }
 
 message DumpLogsRequest {
-    string repo_owner = 1;
-    string repo_name = 2;
-    int64 run_id = 3;
-    bool skip_to_previous_run = 4;
+  string repo_owner = 1;
+  string repo_name = 2;
+  int64 run_id = 3;
+  bool skip_to_previous_run = 4;
 }
 
 message DumpLogsResponse {
-    repeated string logs = 1;
+  repeated string logs = 1;
 }
 
 message StreamWorkflowRunLogsRequest {
-    string repo_owner = 1;
-    string repo_name = 2;
-    int64 run_id = 3;
-    bool skip_to_previous_run = 4;
+  string repo_owner = 1;
+  string repo_name = 2;
+  int64 run_id = 3;
+  bool skip_to_previous_run = 4;
 }
 message StreamWorkflowDispatchLogsRequest {
-    string repo_owner = 1;
-    string repo_name = 2;
-    int64 dispatch_id = 3;
+  string repo_owner = 1;
+  string repo_name = 2;
+  int64 dispatch_id = 3;
 }
 
 message StreamWorkflowRunLogsResponse {
@@ -41,9 +42,9 @@ message StreamWorkflowDispatchLogsResponse {
 }
 
 enum StreamWorkflowRunMessageType {
-    STREAM_WORKFLOW_RUN_MESSAGE_TYPE_UNSPECIFIED = 0;
-    STREAM_WORKFLOW_RUN_MESSAGE_TYPE_WAIT = 1;
-    STREAM_WORKFLOW_RUN_MESSAGE_TYPE_LOG = 2;
-    STREAM_WORKFLOW_RUN_MESSAGE_TYPE_PROCESSING = 3;
-    STREAM_WORKFLOW_RUN_MESSAGE_TYPE_STEP = 4;
+  STREAM_WORKFLOW_RUN_MESSAGE_TYPE_UNSPECIFIED = 0;
+  STREAM_WORKFLOW_RUN_MESSAGE_TYPE_WAIT = 1;
+  STREAM_WORKFLOW_RUN_MESSAGE_TYPE_LOG = 2;
+  STREAM_WORKFLOW_RUN_MESSAGE_TYPE_PROCESSING = 3;
+  STREAM_WORKFLOW_RUN_MESSAGE_TYPE_STEP = 4;
 }

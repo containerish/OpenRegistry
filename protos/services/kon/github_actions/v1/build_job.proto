@@ -1,10 +1,12 @@
 syntax = "proto3";
 
 package services.kon.github_actions.v1;
-option go_package = "github.com/containerish/OpenRegistry/services/kon/github_actions/v1;github_actions_v1";
+
+import "common/v1/id.proto";
 import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
-import "common/v1/id.proto";
+
+option go_package = "github.com/containerish/OpenRegistry/services/kon/github_actions/v1;github_actions_v1";
 
 service GithubActionsBuildService {
   rpc StoreJob(StoreJobRequest) returns (StoreJobResponse) {}
@@ -17,91 +19,89 @@ service GithubActionsBuildService {
 }
 
 message BulkDeleteBuildJobsRequest {
-    common.v1.UUID repository_id = 1;
-    repeated common.v1.UUID job_ids = 2;
-    string repo = 3;
+  common.v1.UUID repository_id = 1;
+  repeated common.v1.UUID job_ids = 2;
+  string repo = 3;
 }
 
 message BulkDeleteBuildJobsResponse {
-    string message = 1;
+  string message = 1;
 }
 
 message TriggerBuildRequest {
-    common.v1.UUID run_id = 1;
-    google.protobuf.Timestamp triggered_at = 2;
-    common.v1.UUID repository_id = 3;
-    string repo = 4;
+  common.v1.UUID run_id = 1;
+  google.protobuf.Timestamp triggered_at = 2;
+  common.v1.UUID repository_id = 3;
+  string repo = 4;
 }
 
 message TriggerBuildResponse {
-    string message = 1;
+  string message = 1;
 }
 
-
 message CancelBuildRequest {
-    common.v1.UUID job_id = 1;
-    int64 run_id = 2;
-    google.protobuf.Timestamp cancelled_at = 3;
-    common.v1.UUID repository_id = 4;
-    string repo = 5;
+  common.v1.UUID job_id = 1;
+  int64 run_id = 2;
+  google.protobuf.Timestamp cancelled_at = 3;
+  common.v1.UUID repository_id = 4;
+  string repo = 5;
 }
 
 message CancelBuildResponse {
-    string message = 1;
+  string message = 1;
 }
 
 message GetBuildJobRequest {
-    common.v1.UUID job_id = 1;
-    common.v1.UUID repository_id = 2;
-    string repo = 3;
+  common.v1.UUID job_id = 1;
+  common.v1.UUID repository_id = 2;
+  string repo = 3;
 }
 
 message GetBuildJobResponse {
-    common.v1.UUID id = 1;
-    string logs_url = 2;
-    string status = 3;
-    string triggered_by = 4;
-    google.protobuf.Duration duration = 5;
-    string branch = 6;
-    string commit_hash = 7;
-    google.protobuf.Timestamp triggered_at = 8;
-    common.v1.UUID repository_id = 9;
+  common.v1.UUID id = 1;
+  string logs_url = 2;
+  string status = 3;
+  string triggered_by = 4;
+  google.protobuf.Duration duration = 5;
+  string branch = 6;
+  string commit_hash = 7;
+  google.protobuf.Timestamp triggered_at = 8;
+  common.v1.UUID repository_id = 9;
 }
 
 message DeleteJobRequest {
-    int64 run_id = 1;
-    common.v1.UUID repository_id = 2;
-    string repo = 3;
+  int64 run_id = 1;
+  common.v1.UUID repository_id = 2;
+  string repo = 3;
 }
 
 message DeleteJobResponse {
-    string message = 1;
+  string message = 1;
 }
 
 message StoreJobResponse {
-    string message = 1;
-	common.v1.UUID id = 2;
+  string message = 1;
+  common.v1.UUID id = 2;
 }
 
 message StoreJobRequest {
-    string id = 1;
-    string logs_url = 2;
-    string status = 3;
-    string triggered_by = 4;
-    google.protobuf.Duration duration = 5;
-    string branch = 6;
-    string commit_hash = 7;
-    google.protobuf.Timestamp triggered_at = 8;
-    common.v1.UUID repository_id = 9;
+  string id = 1;
+  string logs_url = 2;
+  string status = 3;
+  string triggered_by = 4;
+  google.protobuf.Duration duration = 5;
+  string branch = 6;
+  string commit_hash = 7;
+  google.protobuf.Timestamp triggered_at = 8;
+  common.v1.UUID repository_id = 9;
 }
 
 message ListBuildJobsRequest {
-    string id = 1;
-    common.v1.UUID repository_id = 2;
-    string repo = 3;
+  string id = 1;
+  common.v1.UUID repository_id = 2;
+  string repo = 3;
 }
 
 message ListBuildJobsResponse {
-    repeated GetBuildJobResponse jobs = 1;
+  repeated GetBuildJobResponse jobs = 1;
 }
-
