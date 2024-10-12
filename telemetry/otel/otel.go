@@ -2,22 +2,21 @@ package otel
 
 import (
 	"log"
-	"os"
 
-	"github.com/containerish/OpenRegistry/config"
 	"github.com/fatih/color"
-	"github.com/honeycombio/honeycomb-opentelemetry-go"
 	"github.com/honeycombio/otel-config-go/otelconfig"
 	"github.com/labstack/echo/v4"
-	"go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho" //nolint:staticcheck
+	"go.opentelemetry.io/contrib/processors/baggagecopy"
+	"go.opentelemetry.io/otel/baggage"
+
+	"github.com/containerish/OpenRegistry/config"
 )
 
 func ConfigureOtel(config config.Honeycomb, service string, e *echo.Echo) func() {
 	if config.Enabled {
-		checkAndLoadHoneycombConfig(config)
-
-		color.Green("OpenTelemetry with Honeycomb.io: Enabled")
-		bsp := honeycomb.NewBaggageSpanProcessor()
+		color.Green("OpenTelemetry: Enabled")
+		bsp := baggagecopy.NewSpanProcessor(func(member baggage.Member) bool { return true })
 
 		otelShutdown, err := otelconfig.ConfigureOpenTelemetry(
 			otelconfig.WithServiceName(service),
@@ -33,17 +32,4 @@ func ConfigureOtel(config config.Honeycomb, service string, e *echo.Echo) func()
 	}
 
 	return nil
-}
-
-func checkAndLoadHoneycombConfig(config config.Honeycomb) {
-	if config.ApiKey == "" {
-		log.Fatalln(color.RedString("ERR_MISSING_HONEYCOMB_API_KEY"))
-	}
-
-	if config.ServiceName == "" {
-		config.ServiceName = "openregistry-api"
-	}
-
-	os.Setenv("OTEL_SERVICE_NAME", config.ServiceName)
-	os.Setenv("HONEYCOMB_API_KEY", config.ApiKey)
 }

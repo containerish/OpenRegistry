@@ -1,6 +1,7 @@
 package types
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"unicode"
@@ -59,7 +60,7 @@ func ValidatePassword(password string) error {
 	}
 
 	if len(errorString) != 0 {
-		return fmt.Errorf(errorString)
+		return errors.New(errorString)
 	}
 
 	return nil

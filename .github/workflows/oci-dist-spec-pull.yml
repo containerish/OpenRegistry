@@ -77,7 +77,7 @@ jobs:
         run: |
           git clone https://github.com/opencontainers/distribution-spec.git
           pushd distribution-spec/conformance
-          git checkout v1.1.0-rc.3
+          git checkout v1.1.0
           go test -c
           ./conformance.test
           popd

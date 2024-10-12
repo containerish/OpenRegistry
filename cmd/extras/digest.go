@@ -2,7 +2,7 @@ package extras
 
 import (
 	"encoding/json"
-	"fmt"
+	"errors"
 	"strings"
 
 	"github.com/fatih/color"
@@ -37,7 +37,7 @@ func newDigestCommand() *cli.Command {
 func generateDigest(ctx *cli.Context) error {
 	input := ctx.String("input")
 	if input == "" {
-		return fmt.Errorf(color.RedString("input is empty"))
+		return errors.New(color.RedString("input is empty"))
 	}
 
 	digestType := strings.ToUpper(ctx.String("type"))
@@ -49,7 +49,7 @@ func generateDigest(ctx *cli.Context) error {
 
 	manifestContent, err := json.Marshal([]byte(input))
 	if err != nil {
-		return fmt.Errorf(color.RedString("generateDigest: ERR_MARSHAL_INDENT: %s", err))
+		return errors.New(color.RedString("generateDigest: ERR_MARSHAL_INDENT: %s", err))
 	}
 
 	var inputDigest oci_digest.Digest

@@ -1,7 +1,12 @@
 package registry
 
 import (
-	"fmt"
+	"errors"
+
+	"github.com/fatih/color"
+	"github.com/google/uuid"
+	"github.com/labstack/echo/v4"
+	"github.com/urfave/cli/v2"
 
 	user_api "github.com/containerish/OpenRegistry/api/users"
 	"github.com/containerish/OpenRegistry/auth"
@@ -23,10 +28,6 @@ import (
 	"github.com/containerish/OpenRegistry/store/v1/webauthn"
 	"github.com/containerish/OpenRegistry/telemetry"
 	"github.com/containerish/OpenRegistry/telemetry/otel"
-	"github.com/fatih/color"
-	"github.com/google/uuid"
-	"github.com/labstack/echo/v4"
-	"github.com/urfave/cli/v2"
 )
 
 // const CategoryOpenRegistry = "OpenRegistry"
@@ -62,7 +63,7 @@ func RunRegistryServer(ctx *cli.Context) error {
 	configPath := ctx.String("config")
 	cfg, err := config.ReadYamlConfig(configPath)
 	if err != nil {
-		return fmt.Errorf(color.RedString("error reading cfg file: %s", err.Error()))
+		return errors.New(color.RedString("error reading cfg file: %s", err.Error()))
 	}
 
 	logger := telemetry.ZeroLogger(cfg.Environment, cfg.Telemetry)
@@ -108,7 +109,7 @@ func RunRegistryServer(ctx *cli.Context) error {
 	}
 
 	if err = buildHTTPServer(cfg, baseRouter); err != nil {
-		return fmt.Errorf(color.RedString("error initialising OpenRegistry Server: %s", err))
+		return errors.New(color.RedString("error initialising OpenRegistry Server: %s", err))
 	}
 
 	return nil

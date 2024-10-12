@@ -2,6 +2,7 @@ package mock
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -13,14 +14,15 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
-	"github.com/containerish/OpenRegistry/config"
-	"github.com/containerish/OpenRegistry/dfs"
-	types "github.com/containerish/OpenRegistry/store/v1/types"
-	"github.com/containerish/OpenRegistry/telemetry"
 	"github.com/fatih/color"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	"github.com/spf13/afero"
+
+	"github.com/containerish/OpenRegistry/config"
+	"github.com/containerish/OpenRegistry/dfs"
+	types "github.com/containerish/OpenRegistry/store/v1/types"
+	"github.com/containerish/OpenRegistry/telemetry"
 )
 
 type memMappedMockStorage struct {
@@ -74,10 +76,18 @@ func (ms *memMappedMockStorage) UploadPart(
 	uploadId string,
 	layerKey string,
 	digest string,
-	partNumber int64,
+	partNumber int32,
 	content io.ReadSeeker,
 	contentLength int64,
 ) (s3types.CompletedPart, error) {
+	if partNumber > config.MaxS3UploadParts {
+		return s3types.CompletedPart{}, errors.New("ERR_TOO_MANY_PARTS")
+	}
+
+	if err := ms.validateLayerPrefix(layerKey); err != nil {
+		return s3types.CompletedPart{}, err
+	}
+
 	fd, err := ms.memFs.OpenFile(layerKey, os.O_RDWR|os.O_CREATE, os.ModePerm)
 	if err != nil {
 		return s3types.CompletedPart{}, err
@@ -95,7 +105,7 @@ func (ms *memMappedMockStorage) UploadPart(
 	return s3types.CompletedPart{
 		ChecksumCRC32:  &digest,
 		ChecksumCRC32C: &layerKey,
-		PartNumber:     aws.Int32(int32(partNumber)),
+		PartNumber:     aws.Int32(partNumber),
 	}, nil
 }
 
@@ -113,6 +123,10 @@ func (ms *memMappedMockStorage) CompleteMultipartUpload(
 }
 
 func (ms *memMappedMockStorage) Upload(ctx context.Context, identifier, digest string, content []byte) (string, error) {
+	if err := ms.validateLayerPrefix(identifier); err != nil {
+		return "", err
+	}
+
 	fd, err := ms.memFs.Create(identifier)
 	if err != nil {
 		return "", err
@@ -181,10 +195,25 @@ func (ms *memMappedMockStorage) Metadata(layer *types.ContainerImageLayer) (*typ
 		DFSLink:       identifier,
 		ContentLength: int(stat.Size()),
 	}, nil
+}
 
+func (ms *memMappedMockStorage) validateLayerPrefix(identifier string) error {
+	if len(identifier) <= LayerKeyPrefixLen || identifier[0:LayerKeyPrefixLen] != LayerKeyPrefix {
+		return fmt.Errorf(
+			"invalid layer prefix. Found: %s, expected: %s",
+			identifier[0:LayerKeyPrefixLen],
+			LayerKeyPrefix,
+		)
+	}
+
+	return nil
 }
 
 func (ms *memMappedMockStorage) GetUploadProgress(identifier, uploadID string) (*types.ObjectMetadata, error) {
+	if err := ms.validateLayerPrefix(identifier); err != nil {
+		return nil, err
+	}
+
 	fd, err := ms.memFs.Open(identifier)
 	if err != nil {
 		return nil, err
@@ -215,6 +244,10 @@ func (ms *memMappedMockStorage) GeneratePresignedURL(ctx context.Context, key st
 }
 
 func (ms *memMappedMockStorage) AbortMultipartUpload(ctx context.Context, layerKey string, uploadId string) error {
+	if err := ms.validateLayerPrefix(layerKey); err != nil {
+		return err
+	}
+
 	if err := ms.memFs.Remove(layerKey); err != nil {
 		return err
 	}
@@ -236,6 +269,11 @@ func (ms *memMappedMockStorage) FileServer() {
 
 	e.Add(http.MethodGet, "/:uuid", func(ctx echo.Context) error {
 		fileID := ctx.Param("uuid")
+		if err := ms.validateLayerPrefix(fileID); err != nil {
+			return ctx.JSON(http.StatusBadRequest, echo.Map{
+				"error": err.Error(),
+			})
+		}
 		fd, err := ms.memFs.Open(fileID)
 		if err != nil {
 			echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{

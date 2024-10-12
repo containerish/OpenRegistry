@@ -2,7 +2,7 @@ version: v1
 name: buf.build/containerish/openregistry
 lint:
   use:
-    - DEFAULT
+    - STANDARD
 deps:
   - buf.build/googleapis/googleapis
   - buf.build/envoyproxy/protoc-gen-validate

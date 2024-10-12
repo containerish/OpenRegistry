@@ -2,6 +2,7 @@ package mock
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -13,15 +14,16 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
-	"github.com/containerish/OpenRegistry/config"
-	"github.com/containerish/OpenRegistry/dfs"
-	types "github.com/containerish/OpenRegistry/store/v1/types"
-	"github.com/containerish/OpenRegistry/telemetry"
 	"github.com/fatih/color"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/spf13/afero"
+
+	"github.com/containerish/OpenRegistry/config"
+	"github.com/containerish/OpenRegistry/dfs"
+	types "github.com/containerish/OpenRegistry/store/v1/types"
+	"github.com/containerish/OpenRegistry/telemetry"
 )
 
 type fileBasedMockStorage struct {
@@ -52,7 +54,7 @@ func newFileBasedMockStorage(
 	_ = os.MkdirAll(MockFSPath, os.ModePerm)
 	_ = os.MkdirAll(fmt.Sprintf("%s/%s", MockFSPath, LayerKeyPrefix), os.ModePerm)
 	mocker := &fileBasedMockStorage{
-		fs:              afero.NewBasePathFs(afero.NewOsFs(), ".mock-fs"),
+		fs:              afero.NewBasePathFs(afero.NewOsFs(), MockFSPath),
 		uploadSession:   make(map[string]string),
 		config:          cfg,
 		serviceEndpoint: net.JoinHostPort(parsedHost.Hostname(), "5002"),
@@ -72,24 +74,23 @@ func (ms *fileBasedMockStorage) CreateMultipartUpload(layerKey string) (string, 
 	return sessionId, nil
 }
 
-func (ms *fileBasedMockStorage) validateLayerPath(layerKey string) error {
-	layerKeyParts := strings.Split(layerKey, "/")
-	if len(layerKeyParts) != 2 || layerKeyParts[0] != LayerKeyPrefix {
-		return fmt.Errorf("invalid layer key format")
-	}
-
-	return nil
-}
-
 func (ms *fileBasedMockStorage) UploadPart(
 	ctx context.Context,
 	uploadId string,
 	layerKey string,
 	digest string,
-	partNumber int64,
+	partNumber int32,
 	content io.ReadSeeker,
 	contentLength int64,
 ) (s3types.CompletedPart, error) {
+	if partNumber > config.MaxS3UploadParts {
+		return s3types.CompletedPart{}, errors.New("ERR_TOO_MANY_PARTS")
+	}
+
+	if err := ms.validateLayerPrefix(layerKey); err != nil {
+		return s3types.CompletedPart{}, err
+	}
+
 	fd, err := ms.fs.OpenFile(layerKey, os.O_RDWR|os.O_CREATE, os.ModePerm)
 	if err != nil {
 		return s3types.CompletedPart{}, err
@@ -108,7 +109,7 @@ func (ms *fileBasedMockStorage) UploadPart(
 	return s3types.CompletedPart{
 		ChecksumCRC32:  &digest,
 		ChecksumCRC32C: &layerKey,
-		PartNumber:     aws.Int32(int32(partNumber)),
+		PartNumber:     aws.Int32(partNumber),
 	}, nil
 }
 
@@ -125,8 +126,20 @@ func (ms *fileBasedMockStorage) CompleteMultipartUpload(
 	return layerKey, nil
 }
 
+func (ms *fileBasedMockStorage) validateLayerPrefix(identifier string) error {
+	if len(identifier) <= LayerKeyPrefixLen || identifier[0:LayerKeyPrefixLen] != LayerKeyPrefix {
+		return fmt.Errorf(
+			"invalid layer prefix. Found: %s, expected: %s",
+			identifier[0:LayerKeyPrefixLen],
+			LayerKeyPrefix,
+		)
+	}
+
+	return nil
+}
+
 func (ms *fileBasedMockStorage) Upload(ctx context.Context, identifier, digest string, content []byte) (string, error) {
-	if err := ms.validateLayerPath(identifier); err != nil {
+	if err := ms.validateLayerPrefix(identifier); err != nil {
 		return "", err
 	}
 
@@ -147,7 +160,6 @@ func (ms *fileBasedMockStorage) Upload(ctx context.Context, identifier, digest s
 }
 
 func (ms *fileBasedMockStorage) Download(ctx context.Context, path string) (io.ReadCloser, error) {
-
 	fd, err := ms.fs.Open(path)
 	if err != nil {
 		return nil, err
@@ -198,10 +210,13 @@ func (ms *fileBasedMockStorage) Metadata(layer *types.ContainerImageLayer) (*typ
 		DFSLink:       identifier,
 		ContentLength: int(stat.Size()),
 	}, nil
-
 }
 
 func (ms *fileBasedMockStorage) GetUploadProgress(identifier, uploadID string) (*types.ObjectMetadata, error) {
+	if err := ms.validateLayerPrefix(identifier); err != nil {
+		return nil, err
+	}
+
 	fd, err := ms.fs.Open(identifier)
 	if err != nil {
 		return nil, err

@@ -3,6 +3,7 @@ package p2p
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -113,10 +114,14 @@ func (ipfs *ipfsP2p) UploadPart(
 	uploadId string,
 	layerKey string,
 	digest string,
-	partNumber int64,
+	partNumber int32,
 	content io.ReadSeeker,
 	contentLength int64,
 ) (s3types.CompletedPart, error) {
+	if partNumber > config.MaxS3UploadParts {
+		return s3types.CompletedPart{}, errors.New("ERR_TOO_MANY_PARTS")
+	}
+
 	session, ok := ipfs.uploadSession.Get(uploadId)
 	if !ok {
 		return s3types.CompletedPart{}, fmt.Errorf("UploadPart: multipart session not found")
@@ -152,7 +157,7 @@ func (ipfs *ipfsP2p) UploadPart(
 
 	return s3types.CompletedPart{
 		ChecksumSHA256: &digest,
-		PartNumber:     aws.Int32(int32(partNumber)),
+		PartNumber:     aws.Int32(partNumber),
 	}, nil
 }
 
@@ -224,7 +229,13 @@ func (ipfs *ipfsP2p) Download(ctx context.Context, path string) (io.ReadCloser, 
 		return nil, err
 	}
 
-	node, err := ipfs.node.Object().Get(ctx, ipfsPath)
+	resolvedPath, _, err := ipfs.node.ResolvePath(ctx, ipfsPath)
+	if err != nil {
+		return nil, err
+	}
+
+	node, err := ipfs.node.Dag().Get(ctx, resolvedPath.RootCid())
+	// node, err := ipfs.node.Object().Get(ctx, ipfsPath)
 	if err != nil {
 		return nil, err
 	}
@@ -260,14 +271,14 @@ func (ipfs *ipfsP2p) Metadata(layer *types.ContainerImageLayer) (*types.ObjectMe
 		return nil, err
 	}
 
-	stat, err := ipfs.node.Object().Stat(context.Background(), ipfsPath)
+	stat, err := ipfs.node.Block().Stat(context.TODO(), ipfsPath)
 	if err != nil {
 		return nil, err
 	}
 
 	return &types.ObjectMetadata{
 		DFSLink:       ipfsPath.String(),
-		ContentLength: stat.DataSize,
+		ContentLength: stat.Size(),
 	}, nil
 }
 

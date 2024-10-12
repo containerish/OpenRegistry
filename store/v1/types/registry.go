@@ -53,7 +53,7 @@ type (
 		Reference     string                    `bun:"reference,notnull" json:"reference"`
 		Layers        ImageManifestLayers       `bun:"layers,type:jsonb" json:"layers"`
 		SchemaVersion int                       `bun:"schema_version,notnull" json:"schemaVersion"`
-		Size          uint64                    `bun:"size,notnull" json:"size"`
+		Size          int64                     `bun:"size,notnull" json:"size"`
 		RepositoryID  uuid.UUID                 `bun:"repository_id,type:uuid" json:"repositoryId"`
 		ID            uuid.UUID                 `bun:"id,pk,type:uuid" json:"id"`
 		OwnerID       uuid.UUID                 `bun:"owner_id,type:uuid" json:"ownerId"`
@@ -84,7 +84,7 @@ type (
 		Digest    string    `bun:"digest,notnull,unique" json:"digest"`
 		MediaType string    `bun:"media_type,notnull" json:"mediaType"`
 		DFSLink   string    `bun:"dfs_link" json:"dfsLink"`
-		Size      uint64    `bun:"size,default:0" json:"size"`
+		Size      int64     `bun:"size,default:0" json:"size"`
 	}
 
 	ContainerImageRepository struct {
@@ -110,6 +110,7 @@ type (
 )
 
 var _ driver.Valuer = (*ImageManifestLayers)(nil)
+
 var _ sql.Scanner = (*ImageManifestLayers)(nil)
 
 func (l ImageManifestLayers) Value() (driver.Value, error) {
@@ -174,7 +175,9 @@ const (
 )
 
 var _ bun.BeforeAppendModelHook = (*ImageManifest)(nil)
+
 var _ bun.BeforeAppendModelHook = (*ContainerImageLayer)(nil)
+
 var _ bun.BeforeAppendModelHook = (*ContainerImageRepository)(nil)
 
 func (imf *ImageManifest) String() string {
@@ -199,6 +202,7 @@ func (imf *ImageManifest) BeforeAppendModel(ctx context.Context, query bun.Query
 
 	return nil
 }
+
 func (l *ContainerImageLayer) BeforeAppendModel(ctx context.Context, query bun.Query) error {
 	switch query.(type) {
 	case *bun.InsertQuery:
@@ -222,7 +226,9 @@ func (cir *ContainerImageRepository) BeforeAppendModel(ctx context.Context, quer
 }
 
 var _ bun.AfterCreateTableHook = (*ImageManifest)(nil)
+
 var _ bun.AfterCreateTableHook = (*ContainerImageLayer)(nil)
+
 var _ bun.AfterCreateTableHook = (*ContainerImageRepository)(nil)
 
 func (cir *ContainerImageRepository) AfterCreateTable(ctx context.Context, query *bun.CreateTableQuery) error {
@@ -260,7 +266,9 @@ func (imf *ImageManifest) AfterCreateTable(ctx context.Context, query *bun.Creat
 }
 
 var _ bun.AfterDropTableHook = (*ImageManifest)(nil)
+
 var _ bun.AfterDropTableHook = (*ContainerImageLayer)(nil)
+
 var _ bun.AfterDropTableHook = (*ContainerImageRepository)(nil)
 
 func (imf *ImageManifest) AfterDropTable(ctx context.Context, query *bun.DropTableQuery) error {

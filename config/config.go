@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base32"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -224,6 +225,8 @@ const (
 	StoreKindPostgres StoreKind = "postgres"
 	StoreKindSQLite   StoreKind = "sqlite"
 
+	MaxS3UploadParts int32 = 1000
+
 	MockStorageBackendMemMapped MockStorageBackend = iota + 1
 	MockStorageBackendFileBased
 )
@@ -282,7 +285,7 @@ func translateError(err error, trans ut.Translator) error {
 			return err
 		}
 		for _, e := range validatorErrs {
-			translatedErr = multierror.Append(translatedErr, fmt.Errorf(e.Translate(trans)))
+			translatedErr = multierror.Append(translatedErr, errors.New(e.Translate(trans)))
 		}
 
 		return translatedErr

@@ -2,6 +2,7 @@ package uplink
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -9,12 +10,13 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
-	"github.com/containerish/OpenRegistry/config"
-	"github.com/containerish/OpenRegistry/dfs"
-	"github.com/containerish/OpenRegistry/store/v1/types"
 	"github.com/fatih/color"
 	"storj.io/uplink"
 	"storj.io/uplink/edge"
+
+	"github.com/containerish/OpenRegistry/config"
+	"github.com/containerish/OpenRegistry/dfs"
+	"github.com/containerish/OpenRegistry/store/v1/types"
 )
 
 type storjUplink struct {
@@ -69,13 +71,18 @@ func (u *storjUplink) UploadPart(
 	uploadId string,
 	key string,
 	digest string,
-	partNumber int64,
+	partNumber int32,
 	content io.ReadSeeker,
 	contentLength int64,
 ) (s3types.CompletedPart, error) {
+	if partNumber > config.MaxS3UploadParts {
+		return s3types.CompletedPart{}, errors.New("ERR_TOO_MANY_PARTS")
+	}
+
 	ctx, cancel := context.WithTimeout(ctx, time.Minute*20)
 	defer cancel()
 
+	//nolint:gosec
 	resp, err := u.client.UploadPart(ctx, u.bucket, key, uploadId, uint32(partNumber))
 	if err != nil {
 		return s3types.CompletedPart{}, err
@@ -121,7 +128,6 @@ func (u *storjUplink) CompleteMultipartUpload(
 			"digest": finalDigest,
 		},
 	})
-
 	if err != nil {
 		return "", fmt.Errorf("ERR_STORJ_UPLINK_COMMIT_UPLOAD: %w", err)
 	}

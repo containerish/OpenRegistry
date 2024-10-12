@@ -3,6 +3,7 @@ package filebase
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"time"
@@ -64,10 +65,14 @@ func (fb *filebase) UploadPart(
 	uploadId string,
 	layerKey string,
 	digest string,
-	partNumber int64,
+	partNumber int32,
 	content io.ReadSeeker,
 	contentLength int64,
 ) (s3types.CompletedPart, error) {
+	if partNumber > config.MaxS3UploadParts {
+		return s3types.CompletedPart{}, errors.New("ERR_TOO_MANY_PARTS")
+	}
+
 	ctx, cancel := context.WithTimeout(ctx, time.Minute*10)
 	defer cancel()
 
@@ -78,7 +83,7 @@ func (fb *filebase) UploadPart(
 		ChecksumSHA256:    aws.String(digest),
 		ContentLength:     &contentLength,
 		Key:               &layerKey,
-		PartNumber:        aws.Int32(int32(partNumber)),
+		PartNumber:        aws.Int32(partNumber),
 		UploadId:          &uploadId,
 	}
 
