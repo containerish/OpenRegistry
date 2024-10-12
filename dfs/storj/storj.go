@@ -3,6 +3,7 @@ package storj
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"time"
@@ -67,6 +68,10 @@ func (sj *storj) UploadPart(
 	content io.ReadSeeker,
 	contentLength int64,
 ) (s3types.CompletedPart, error) {
+	if partNumber > config.MaxS3UploadParts {
+		return s3types.CompletedPart{}, errors.New("ERR_TOO_MANY_PARTS")
+	}
+
 	ctx, cancel := context.WithTimeout(ctx, time.Minute*10)
 	defer cancel()
 

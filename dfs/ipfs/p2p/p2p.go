@@ -3,6 +3,7 @@ package p2p
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -117,6 +118,10 @@ func (ipfs *ipfsP2p) UploadPart(
 	content io.ReadSeeker,
 	contentLength int64,
 ) (s3types.CompletedPart, error) {
+	if partNumber > config.MaxS3UploadParts {
+		return s3types.CompletedPart{}, errors.New("ERR_TOO_MANY_PARTS")
+	}
+
 	session, ok := ipfs.uploadSession.Get(uploadId)
 	if !ok {
 		return s3types.CompletedPart{}, fmt.Errorf("UploadPart: multipart session not found")

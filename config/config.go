@@ -202,6 +202,8 @@ const (
 	StoreKindPostgres StoreKind = "postgres"
 	StoreKindSQLite   StoreKind = "sqlite"
 
+	MaxS3UploadParts int32 = 1000
+
 	MockStorageBackendMemMapped MockStorageBackend = iota + 1
 	MockStorageBackendFileBased
 )

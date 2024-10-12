@@ -2,6 +2,7 @@ package uplink
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -75,9 +76,18 @@ func (u *storjUplink) UploadPart(
 	content io.ReadSeeker,
 	contentLength int64,
 ) (s3types.CompletedPart, error) {
+	if partNumber > config.MaxS3UploadParts {
+		return s3types.CompletedPart{}, errors.New("ERR_TOO_MANY_PARTS")
+	}
+
 	ctx, cancel := context.WithTimeout(ctx, time.Minute*20)
 	defer cancel()
 
+	if partNumber > config.MaxS3UploadParts {
+		return s3types.CompletedPart{}, errors.New("ERR_TOO_MANY_PARTS")
+	}
+
+	//nolint:gosec
 	resp, err := u.client.UploadPart(ctx, u.bucket, key, uploadId, uint32(partNumber))
 	if err != nil {
 		return s3types.CompletedPart{}, err
