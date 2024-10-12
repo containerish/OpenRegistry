@@ -1,9 +1,11 @@
 syntax = "proto3";
 
 package services.kon.github_actions.v1;
-option go_package = "github.com/containerish/OpenRegistry/services/kon/github_actions/v1;github_actions_v1";
-import "google/protobuf/timestamp.proto";
+
 import "common/v1/id.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/containerish/OpenRegistry/services/kon/github_actions/v1;github_actions_v1";
 
 service GitHubActionsProjectService {
   rpc CreateProject(CreateProjectRequest) returns (CreateProjectResponse) {}
@@ -13,63 +15,62 @@ service GitHubActionsProjectService {
 }
 
 message ListProjectsRequest {
-    common.v1.UUID owner_id = 1;
+  common.v1.UUID owner_id = 1;
 }
 
 message ListProjectsResponse {
-    repeated GetProjectResponse projects = 1;
+  repeated GetProjectResponse projects = 1;
 }
 
-message CreateProjectRequest  {
-    common.v1.UUID id = 1;
-    common.v1.UUID owner_id = 2;
-    string project_name = 3;
-    string production_branch = 4;
-    ProjectBuildSettingsMessage build_settings = 5;
-    ProjectEnvironmentVariableListMessage environment_variables = 6;
-    google.protobuf.Timestamp created_at = 7;
+message CreateProjectRequest {
+  common.v1.UUID id = 1;
+  common.v1.UUID owner_id = 2;
+  string project_name = 3;
+  string production_branch = 4;
+  ProjectBuildSettingsMessage build_settings = 5;
+  ProjectEnvironmentVariableListMessage environment_variables = 6;
+  google.protobuf.Timestamp created_at = 7;
 }
 
 message GetProjectRequest {
-    common.v1.UUID id = 1;
+  common.v1.UUID id = 1;
 }
 
 message DeleteProjectRequest {
-    common.v1.UUID id = 1;
+  common.v1.UUID id = 1;
 }
 
 message DeleteProjectResponse {
-    string message = 1;
+  string message = 1;
 }
 
 message GetProjectResponse {
-    common.v1.UUID id = 1;
-    string project_name = 2;
-    string production_branch = 3;
-    ProjectBuildSettingsMessage build_settings = 4;
-    ProjectEnvironmentVariableListMessage environment_variables = 5;
-    google.protobuf.Timestamp created_at = 6;
-    common.v1.UUID owner_id = 7;
+  common.v1.UUID id = 1;
+  string project_name = 2;
+  string production_branch = 3;
+  ProjectBuildSettingsMessage build_settings = 4;
+  ProjectEnvironmentVariableListMessage environment_variables = 5;
+  google.protobuf.Timestamp created_at = 6;
+  common.v1.UUID owner_id = 7;
 }
 
 message ProjectEnvironmentVariableListMessage {
-    repeated ProjectEnvironmentVariable environment_variables = 1;
+  repeated ProjectEnvironmentVariable environment_variables = 1;
 }
 
 message ProjectEnvironmentVariable {
-    string key = 1;
-    string value = 2;
-    bool encrypted = 3;
+  string key = 1;
+  string value = 2;
+  bool encrypted = 3;
 }
 
 message ProjectBuildSettingsMessage {
-    string build_tool = 1;
-    string exec_command = 2;
-    string worfklow_file = 3;
+  string build_tool = 1;
+  string exec_command = 2;
+  string worfklow_file = 3;
 }
 
 message CreateProjectResponse {
-    string message = 1;
-	common.v1.UUID id = 2;
+  string message = 1;
+  common.v1.UUID id = 2;
 }
-
