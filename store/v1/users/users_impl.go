@@ -3,7 +3,9 @@ package users
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"strings"
+	"time"
 
 	v1 "github.com/containerish/OpenRegistry/store/v1"
 	"github.com/containerish/OpenRegistry/store/v1/types"
@@ -62,12 +64,14 @@ func (us *userStore) DeleteUser(ctx context.Context, identifier uuid.UUID) error
 // GetGitHubUser implements UserStore.
 func (us *userStore) GetGitHubUser(ctx context.Context, githubEmail string, txn *bun.Tx) (*types.User, error) {
 	user := &types.User{}
-	selectFn := us.db.NewSelect().Model(user)
+	q := us.db.NewSelect().Model(user)
 	if txn != nil {
-		selectFn = txn.NewSelect().Model(user)
+		q = txn.NewSelect().Model(user)
 	}
 
-	if err := selectFn.Where("coalesce(identities->'github'->>'email', '') = ?", githubEmail).Scan(ctx); err != nil {
+	q.Where("coalesce(identities->'github'->>'email', '') = ?", githubEmail)
+
+	if err := q.Scan(ctx); err != nil {
 		return nil, v1.WrapDatabaseError(err, v1.DatabaseOperationRead)
 	}
 
@@ -121,12 +125,12 @@ func (us *userStore) GetUserByUsernameWithTxn(ctx context.Context, username stri
 }
 
 func (us *userStore) GetIPFSUser(ctx context.Context) (*types.User, error) {
-	var user types.User
-	if err := us.db.NewSelect().Model(&user).Where("username = ?", types.SystemUsernameIPFS).Scan(ctx); err != nil {
+	user := &types.User{}
+	if err := us.db.NewSelect().Model(user).Where("username = ?", types.SystemUsernameIPFS).Scan(ctx); err != nil {
 		return nil, v1.WrapDatabaseError(err, v1.DatabaseOperationRead)
 	}
 
-	return &user, nil
+	return user, nil
 }
 
 // GetUserWithSession implements UserStore.
@@ -189,7 +193,7 @@ func (us *userStore) githubUserExists(ctx context.Context, username, email strin
 		NewSelect().
 		Model(&types.User{}).
 		Where(
-			"identities->'github'->>'email' = ?1 or identities->'github'->>'username' = ?",
+			"identities->'github'->>'email' = ? or identities->'github'->>'username' = ?",
 			bun.Ident(email),
 			bun.Ident(username),
 		).
@@ -208,7 +212,7 @@ func (us *userStore) webAuthnUserExists(ctx context.Context, username, email str
 		NewSelect().
 		Model(&types.User{}).
 		Where(
-			"identities->'webauthn'->>'email' = ?1 or identities->'webauthn'->>'username' = ?",
+			"identities->'webauthn'->>'email' = ? or identities->'webauthn'->>'username' = ?",
 			bun.Ident(email),
 			bun.Ident(username),
 		).
@@ -221,12 +225,12 @@ func (us *userStore) webAuthnUserExists(ctx context.Context, username, email str
 }
 
 func (us *userStore) ConvertUserToOrg(ctx context.Context, userID uuid.UUID) error {
-	user := types.User{ID: userID}
+	user := &types.User{ID: userID}
 
 	_, err := us.
 		db.
 		NewUpdate().
-		Model(&user).
+		Model(user).
 		WherePK().
 		Set("user_type = ?", types.UserTypeOrganization.String()).
 		Set("is_org_owner = ?", true).
@@ -255,7 +259,7 @@ func (us *userStore) GetOrgAdmin(ctx context.Context, orgID uuid.UUID) (*types.U
 }
 
 func (us *userStore) Search(ctx context.Context, query string) ([]*types.User, error) {
-	var users []*types.User
+	users := []*types.User{}
 
 	b := strings.Builder{}
 	b.WriteString("%")
@@ -285,4 +289,89 @@ func (us *userStore) Search(ctx context.Context, query string) ([]*types.User, e
 	}
 
 	return users, nil
+}
+
+// GetOrgUsersByOrgID returns a list of Permission structs, which also has the user to which the permissions belongs to
+func (us *userStore) GetOrgUsersByOrgID(ctx context.Context, orgID uuid.UUID) ([]*types.Permissions, error) {
+	var perms []*types.Permissions
+
+	q := us.db.NewSelect().Model(&perms).Relation("User", func(sq *bun.SelectQuery) *bun.SelectQuery {
+		return sq.ExcludeColumn("password")
+	}).Where("organization_id = ?", orgID)
+
+	if err := q.Scan(ctx); err != nil {
+		return nil, v1.WrapDatabaseError(err, v1.DatabaseOperationRead)
+	}
+
+	return perms, nil
+}
+
+func (us *userStore) MatchUserType(ctx context.Context, userType types.UserType, userIds ...uuid.UUID) bool {
+	var users []*types.User
+
+	q := us.
+		db.
+		NewSelect().
+		Model(&users).
+		Where("user_type = ?", types.UserTypeRegular.String()).
+		Where("id in (?)", bun.In(userIds))
+
+	count, err := q.Count(ctx)
+	if err != nil {
+		return false
+	}
+
+	return len(userIds) == count
+}
+
+func (us *userStore) AddAuthToken(ctx context.Context, token *types.AuthTokens) error {
+	if token.ExpiresAt.IsZero() {
+		token.ExpiresAt = time.Now().AddDate(1, 0, 0)
+	}
+
+	_, err := us.db.NewInsert().Model(token).Exec(ctx)
+	return err
+}
+
+func (us *userStore) ListAuthTokens(ctx context.Context, ownerID uuid.UUID) ([]*types.AuthTokens, error) {
+	var tokens []*types.AuthTokens
+
+	err := us.
+		db.
+		NewSelect().
+		Model(&tokens).
+		ExcludeColumn("auth_token").
+		ExcludeColumn("owner_id").
+		Where("owner_id = ?", ownerID).
+		Scan(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return tokens, nil
+}
+
+func (us *userStore) GetAuthToken(
+	ctx context.Context,
+	ownerID uuid.UUID,
+	hashedToken string,
+) (*types.AuthTokens, error) {
+	var token types.AuthTokens
+
+	err := us.
+		db.
+		NewSelect().
+		Model(&token).
+		Where("owner_id = ?", ownerID).
+		Where("auth_token = ?", hashedToken).
+		Scan(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if token.ExpiresAt.Unix() < time.Now().Unix() {
+		return nil, fmt.Errorf("token has expired, please generate a new one")
+	}
+
+	return &token, nil
 }

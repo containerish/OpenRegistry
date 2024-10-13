@@ -33,8 +33,8 @@ func (v RepositoryVisibility) String() string {
 
 type (
 	ContainerImageVisibilityChangeRequest struct {
-		ImageManifestUUID string               `json:"image_manifest_uuid"`
-		Visibility        RepositoryVisibility `json:"visibility_mode"`
+		Visibility   RepositoryVisibility `json:"visibility_mode"`
+		RepositoryID uuid.UUID            `json:"repository_id"`
 	}
 
 	ImageManifest struct {
@@ -42,7 +42,7 @@ type (
 
 		CreatedAt     time.Time                 `bun:"created_at,notnull,default:current_timestamp" json:"createdAt"`
 		UpdatedAt     time.Time                 `bun:"updated_at,nullzero" json:"updatedAt"`
-		Repository    *ContainerImageRepository `bun:"rel:belongs-to,join:repository_id=id" json:"-"`
+		Repository    *ContainerImageRepository `bun:"rel:belongs-to,join:repository_id=id" json:"repository"`
 		User          *User                     `bun:"rel:belongs-to,join:owner_id=id" json:"-"`
 		Subject       *img_spec_v1.Descriptor   `bun:"embed:subject_" json:"subject,omitempty"`
 		Config        *img_spec_v1.Descriptor   `bun:"embed:config_" json:"config"`
@@ -93,17 +93,17 @@ type (
 		CreatedAt      time.Time            `bun:"created_at" json:"created_at"`
 		UpdatedAt      time.Time            `bun:"updated_at" json:"updated_at"`
 		MetaTags       map[string]any       `bun:"meta_tags" json:"meta_tags"`
-		User           *User                `bun:"rel:belongs-to,join:owner_id=id" json:"-"`
+		User           *User                `bun:"rel:belongs-to,join:owner_id=id" json:"user"`
 		Project        *RepositoryBuild     `bun:"rel:has-one,join:id=repository_id" json:"-"`
-		Description    string               `bun:"description" json:"description"`
-		Visibility     RepositoryVisibility `bun:"visibility,notnull" json:"visibility"`
 		Name           string               `bun:"name,notnull" json:"name"`
+		Visibility     RepositoryVisibility `bun:"visibility,notnull" json:"visibility"`
+		Description    string               `bun:"description" json:"description"`
 		ImageManifests []*ImageManifest     `bun:"rel:has-many,join:id=repository_id" json:"image_manifests,omitempty"`
 		Builds         []*RepositoryBuild   `bun:"rel:has-many,join:id=repository_id" json:"-"`
-		ID             uuid.UUID            `bun:"id,pk,type:uuid,default:gen_random_uuid()" json:"id"`
-		OwnerID        uuid.UUID            `bun:"owner_id,type:uuid" json:"owner_id"`
 		PullCount      uint64               `bun:"pull_count" json:"pull_count"`
 		FavoriteCount  uint64               `bun:"favorite_count" json:"favorite_count"`
+		ID             uuid.UUID            `bun:"id,pk,type:uuid,default:gen_random_uuid()" json:"id"`
+		OwnerID        uuid.UUID            `bun:"owner_id,type:uuid" json:"owner_id"`
 	}
 
 	RepositoryVisibility string

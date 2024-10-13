@@ -5,11 +5,13 @@ import (
 	"fmt"
 	"time"
 
-	common_v1 "github.com/containerish/OpenRegistry/common/v1"
-	github_actions_v1 "github.com/containerish/OpenRegistry/services/kon/github_actions/v1"
-	"github.com/containerish/OpenRegistry/store/v1/types"
 	"github.com/google/uuid"
 	"google.golang.org/protobuf/types/known/timestamppb"
+
+	common_v1 "github.com/containerish/OpenRegistry/common/v1"
+	github_actions_v1 "github.com/containerish/OpenRegistry/services/kon/github_actions/v1"
+	v1 "github.com/containerish/OpenRegistry/store/v1"
+	"github.com/containerish/OpenRegistry/store/v1/types"
 )
 
 // DeleteProject implements BuildAutomationStore
@@ -18,7 +20,7 @@ func (s *store) DeleteProject(ctx context.Context, project *github_actions_v1.De
 		db.
 		NewDelete().
 		Model(&types.RepositoryBuildProject{}).
-		Where("id = ?", project.GetId()).
+		Where("id = ?", project.GetId().GetValue()).
 		Exec(ctx); err != nil {
 		return fmt.Errorf("ERR_DELETE_PROJECT: %w", err)
 	}
@@ -64,16 +66,25 @@ func (s *store) GetProject(
 // ListProjects implements BuildAutomationStore
 func (s *store) ListProjects(
 	ctx context.Context,
-	project *github_actions_v1.ListProjectsRequest,
+	req *github_actions_v1.ListProjectsRequest,
 ) (*github_actions_v1.ListProjectsResponse, error) {
 	projects := make([]*types.RepositoryBuildProject, 0)
-	if err := s.db.NewSelect().Model(&projects).Scan(ctx); err != nil {
+
+	err := s.
+		db.
+		NewSelect().
+		Model(&projects).
+		Relation("Repository").
+		Where("owner_id = ?", req.GetOwnerId().GetValue()).
+		Scan(ctx)
+	if err != nil {
 		return nil, fmt.Errorf("ERR_LIST_PROJECTS: %w", err)
 	}
 
 	protoProjects := &github_actions_v1.ListProjectsResponse{
 		Projects: make([]*github_actions_v1.GetProjectResponse, len(projects)),
 	}
+
 	for i, p := range projects {
 		proj := &github_actions_v1.GetProjectResponse{
 			Id: &common_v1.UUID{
@@ -87,6 +98,13 @@ func (s *store) ListProjects(
 				WorfklowFile: p.WorkflowFile,
 			},
 			CreatedAt: timestamppb.New(p.CreatedAt),
+			OwnerId: &common_v1.UUID{
+				Value: p.RepositoryOwnerID.String(),
+			},
+			RepositoryId: &common_v1.UUID{
+				Value: p.RepositoryID.String(),
+			},
+			RepositoryName: p.Repository.Name,
 		}
 
 		for key, value := range p.EnvironmentVariables {
@@ -108,15 +126,30 @@ func (s *store) ListProjects(
 
 // StoreProject implements BuildAutomationStore
 func (s *store) StoreProject(ctx context.Context, project *github_actions_v1.CreateProjectRequest) error {
+	projectID, err := uuid.Parse(project.GetId().GetValue())
+	if err != nil {
+		return v1.WrapDatabaseError(err, v1.DatabaseOperationWrite)
+	}
+	ownerID, err := uuid.Parse(project.GetOwnerId().GetValue())
+	if err != nil {
+		return v1.WrapDatabaseError(err, v1.DatabaseOperationWrite)
+	}
+
+	repositoryID, err := uuid.Parse(project.GetRepositoryId().GetValue())
+	if err != nil {
+		return v1.WrapDatabaseError(err, v1.DatabaseOperationWrite)
+	}
+
 	proj := &types.RepositoryBuildProject{
-		CreatedAt:        time.Now(),
-		Name:             project.GetProjectName(),
-		ProductionBranch: project.GetProductionBranch(),
-		BuildTool:        project.GetBuildSettings().GetBuildTool(),
-		ExecCommand:      project.GetBuildSettings().GetExecCommand(),
-		WorkflowFile:     project.GetBuildSettings().GetWorfklowFile(),
-		ID:               uuid.MustParse(project.GetId().GetValue()),
-		RepositoryID:     uuid.MustParse(project.GetOwnerId().GetValue()),
+		CreatedAt:         time.Now(),
+		Name:              project.GetProjectName(),
+		ProductionBranch:  project.GetProductionBranch(),
+		BuildTool:         project.GetBuildSettings().GetBuildTool(),
+		ExecCommand:       project.GetBuildSettings().GetExecCommand(),
+		WorkflowFile:      project.GetBuildSettings().GetWorfklowFile(),
+		ID:                projectID,
+		RepositoryOwnerID: ownerID,
+		RepositoryID:      repositoryID,
 	}
 
 	for _, envVar := range project.GetEnvironmentVariables().GetEnvironmentVariables() {

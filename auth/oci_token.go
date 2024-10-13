@@ -25,6 +25,100 @@ const (
 	DefaultOCITokenLifetime = time.Minute * 10
 )
 
+// Request format: https://openregistry.dev/token?service=registry.docker.io&scope=repository:samalba/my-app:pull,push
+func (a *auth) Token(ctx echo.Context) error {
+	// TODO (jay-dee7) - check for all valid query params here like serive, client_id, offline_token, etc
+	// more at this link - https://docs.docker.com/registry/spec/auth/token/
+	ctx.Set(types.HandlerStartTime, time.Now())
+
+	scopes, err := ParseOCITokenPermissionRequest(ctx.Request().URL)
+	if err != nil {
+		registryErr := common.RegistryErrorResponse(registry.RegistryErrorCodeUnknown, "invalid scope provided", echo.Map{
+			"error": err.Error(),
+		})
+		echoErr := ctx.JSONBlob(http.StatusBadRequest, registryErr.Bytes())
+		a.logger.Log(ctx, registryErr).Send()
+		return echoErr
+	}
+
+	// when scopes only have one action, and that action is pull
+	isPullRequest := len(scopes) == 1 && len(scopes[0].Actions) == 1 && scopes[0].HasPullAccess()
+	if isPullRequest {
+		repo, repoErr := a.registryStore.GetRepositoryByNamespace(ctx.Request().Context(), scopes[0].Name)
+		if repoErr != nil {
+			registryErr := common.RegistryErrorResponse(
+				registry.RegistryErrorCodeNameInvalid,
+				"requested resource does not exist on the registry",
+				echo.Map{
+					"error": repoErr.Error(),
+				},
+			)
+			echoErr := ctx.JSONBlob(http.StatusBadRequest, registryErr.Bytes())
+			a.logger.Log(ctx, registryErr).Send()
+			return echoErr
+		}
+		user := ctx.Get(string(types.UserContextKey)).(*types.User)
+
+		if repo.Visibility == types.RepositoryVisibilityPublic {
+			token, tokenErr := a.newOCIToken(user.ID, scopes)
+			if tokenErr != nil {
+				registryErr := common.RegistryErrorResponse(
+					registry.RegistryErrorCodeNameInvalid,
+					"error creating oci token",
+					echo.Map{
+						"error": tokenErr.Error(),
+					},
+				)
+				echoErr := ctx.JSONBlob(http.StatusBadRequest, registryErr.Bytes())
+				a.logger.Log(ctx, registryErr).Send()
+				return echoErr
+			}
+			now := time.Now()
+			echoErr := ctx.JSON(http.StatusOK, echo.Map{
+				"token":      token,
+				"expires_in": now.Add(DefaultOCITokenLifetime).Unix(),
+				"issued_at":  now,
+			})
+			a.logger.Log(ctx, nil).Send()
+			return echoErr
+		}
+	}
+
+	authHeader := ctx.Request().Header.Get(AuthorizationHeaderKey)
+	if authHeader != "" && len(scopes) != 0 {
+		token, authErr := a.tryBasicAuthFlow(ctx, scopes)
+		if authErr != nil {
+			registryErr := common.RegistryErrorResponse(
+				registry.RegistryErrorCodeUnauthorized,
+				"authentication failed",
+				echo.Map{
+					"error": authErr.Error(),
+				},
+			)
+			echoErr := ctx.JSONBlob(http.StatusUnauthorized, registryErr.Bytes())
+			a.logger.Log(ctx, authErr).Send()
+			return echoErr
+		}
+		now := time.Now()
+		echoErr := ctx.JSON(http.StatusOK, echo.Map{
+			"token":      token,
+			"expires_in": now.Add(DefaultOCITokenLifetime).Unix(),
+			"issued_at":  now,
+		})
+		a.logger.Log(ctx, nil).Send()
+		return echoErr
+	}
+
+	registryErr := common.RegistryErrorResponse(
+		registry.RegistryErrorCodeUnauthorized,
+		"authentication failed",
+		nil,
+	)
+	err = ctx.JSONBlob(http.StatusUnauthorized, registryErr.Bytes())
+	a.logger.Log(ctx, registryErr).Send()
+	return err
+}
+
 func isOCILoginRequest(url *url.URL) types.OCITokenPermissonClaimList {
 	account := url.Query().Get(OCITokenQueryParamAccount)
 	if account != "" {
@@ -155,102 +249,6 @@ func (a *auth) tryBasicAuthFlow(ctx echo.Context, scopes types.OCITokenPermisson
 	}
 
 	return "", nil
-}
-
-// Token
-// request basically comes for
-// https://openregistry.dev/token?service=registry.docker.io&scope=repository:samalba/my-app:pull,push
-func (a *auth) Token(ctx echo.Context) error {
-	// TODO (jay-dee7) - check for all valid query params here like serive, client_id, offline_token, etc
-	// more at this link - https://docs.docker.com/registry/spec/auth/token/
-	ctx.Set(types.HandlerStartTime, time.Now())
-
-	scopes, err := ParseOCITokenPermissionRequest(ctx.Request().URL)
-	if err != nil {
-		registryErr := common.RegistryErrorResponse(registry.RegistryErrorCodeUnknown, "invalid scope provided", echo.Map{
-			"error": err.Error(),
-		})
-		echoErr := ctx.JSONBlob(http.StatusBadRequest, registryErr.Bytes())
-		a.logger.Log(ctx, registryErr).Send()
-		return echoErr
-	}
-
-	// when scopes only have one action, and that action is pull
-	isPullRequest := len(scopes) == 1 && len(scopes[0].Actions) == 1 && scopes[0].HasPullAccess()
-	if isPullRequest {
-		repo, repoErr := a.registryStore.GetRepositoryByNamespace(ctx.Request().Context(), scopes[0].Name)
-		if repoErr != nil {
-			registryErr := common.RegistryErrorResponse(
-				registry.RegistryErrorCodeNameInvalid,
-				"requested resource does not exist on the registry",
-				echo.Map{
-					"error": repoErr.Error(),
-				},
-			)
-			echoErr := ctx.JSONBlob(http.StatusBadRequest, registryErr.Bytes())
-			a.logger.Log(ctx, registryErr).Send()
-			return echoErr
-		}
-		user := ctx.Get(string(types.UserContextKey)).(*types.User)
-
-		if repo.Visibility == types.RepositoryVisibilityPublic {
-			token, tokenErr := a.newOCIToken(user.ID, scopes)
-			if tokenErr != nil {
-				registryErr := common.RegistryErrorResponse(
-					registry.RegistryErrorCodeNameInvalid,
-					"error creating oci token",
-					echo.Map{
-						"error": tokenErr.Error(),
-					},
-				)
-				echoErr := ctx.JSONBlob(http.StatusBadRequest, registryErr.Bytes())
-				a.logger.Log(ctx, registryErr).Send()
-				return echoErr
-			}
-			now := time.Now()
-			echoErr := ctx.JSON(http.StatusOK, echo.Map{
-				"token":      token,
-				"expires_in": now.Add(DefaultOCITokenLifetime).Unix(),
-				"issued_at":  now,
-			})
-			a.logger.Log(ctx, nil).Send()
-			return echoErr
-		}
-	}
-
-	authHeader := ctx.Request().Header.Get(AuthorizationHeaderKey)
-	if authHeader != "" && len(scopes) != 0 {
-		token, authErr := a.tryBasicAuthFlow(ctx, scopes)
-		if authErr != nil {
-			registryErr := common.RegistryErrorResponse(
-				registry.RegistryErrorCodeUnauthorized,
-				"authentication failed",
-				echo.Map{
-					"error": authErr.Error(),
-				},
-			)
-			echoErr := ctx.JSONBlob(http.StatusUnauthorized, registryErr.Bytes())
-			a.logger.Log(ctx, authErr).Send()
-			return echoErr
-		}
-		now := time.Now()
-		echoErr := ctx.JSON(http.StatusOK, echo.Map{
-			"token":      token,
-			"expires_in": now.Add(DefaultOCITokenLifetime).Unix(),
-			"issued_at":  now,
-		})
-		a.logger.Log(ctx, nil).Send()
-		return echoErr
-	}
-
-	registryErr := common.RegistryErrorResponse(
-		registry.RegistryErrorCodeUnauthorized,
-		"authentication failed",
-		nil,
-	)
-	err = ctx.JSONBlob(http.StatusUnauthorized, registryErr.Bytes())
-	a.logger.Log(ctx, registryErr).Send()
-	return err
 }
 
 func (a *auth) getCredsFromHeader(r *http.Request) (string, string, error) {

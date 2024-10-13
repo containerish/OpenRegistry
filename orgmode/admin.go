@@ -6,9 +6,10 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/containerish/OpenRegistry/store/v1/types"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
+
+	"github.com/containerish/OpenRegistry/store/v1/types"
 )
 
 func (o *orgMode) AllowOrgAdmin() echo.MiddlewareFunc {
@@ -26,8 +27,8 @@ func (o *orgMode) AllowOrgAdmin() echo.MiddlewareFunc {
 
 			p := ctx.Request().URL.Path
 			switch {
-			case p == "/org/migrate":
-				var body MigrateToOrgRequest
+			case p == "/api/org/migrate":
+				var body types.MigrateToOrgRequest
 				if err := json.NewDecoder(ctx.Request().Body).Decode(&body); err != nil {
 					echoErr := ctx.JSON(http.StatusUnauthorized, echo.Map{
 						"error": err.Error(),
@@ -49,10 +50,10 @@ func (o *orgMode) AllowOrgAdmin() echo.MiddlewareFunc {
 
 				ctx.Set(string(types.OrgModeRequestBodyContextKey), &body)
 				return handler(ctx)
-			case p == "/org/users" || strings.HasPrefix(p, "/org/permissions/users"):
+			case p == "/api/org/users" || strings.HasPrefix(p, "/api/org/permissions/users"):
 				orgOwner, err := o.userStore.GetOrgAdmin(ctx.Request().Context(), user.ID)
 				if err != nil {
-					echoErr := ctx.JSON(http.StatusUnauthorized, echo.Map{
+					echoErr := ctx.JSON(http.StatusForbidden, echo.Map{
 						"error":   err.Error(),
 						"message": "user does not have permission to add users to organization",
 					})
@@ -61,9 +62,17 @@ func (o *orgMode) AllowOrgAdmin() echo.MiddlewareFunc {
 				}
 
 				switch ctx.Request().Method {
-				case http.MethodPost, http.MethodPatch:
+				case http.MethodPost:
+					if err = o.parseAddUsersToOrgRequest(ctx, user, orgOwner); err != nil {
+						echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
+							"error": err.Error(),
+						})
+						o.logger.Log(ctx, err).Send()
+						return echoErr
+					}
+				case http.MethodPatch:
 					if err = o.handleOrgModePermissionRequests(ctx, user, orgOwner); err != nil {
-						echoErr := ctx.JSON(http.StatusUnauthorized, echo.Map{
+						echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 							"error": err.Error(),
 						})
 						o.logger.Log(ctx, err).Send()
@@ -85,6 +94,38 @@ func (o *orgMode) AllowOrgAdmin() echo.MiddlewareFunc {
 	}
 }
 
+func (o *orgMode) parseAddUsersToOrgRequest(ctx echo.Context, user *types.User, orgOwner *types.User) error {
+	var body types.AddUsersToOrgRequest
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	defer ctx.Request().Body.Close()
+
+	// @TODO(jay-dee7) - Use a better comparison method
+	if !strings.EqualFold(orgOwner.ID.String(), body.OrganizationID.String()) {
+		return fmt.Errorf("organization id mismatch, invalid organization id")
+	}
+
+	parsedBody := types.AddUsersToOrgRequest{
+		OrganizationID: body.OrganizationID,
+	}
+	for _, perm := range body.Users {
+		if perm.Pull && perm.Push && !perm.IsAdmin {
+			perm.IsAdmin = true
+		}
+
+		if perm.IsAdmin {
+			perm.Pull = true
+			perm.Push = true
+		}
+
+		parsedBody.Users = append(parsedBody.Users, perm)
+	}
+
+	ctx.Set(string(types.OrgModeRequestBodyContextKey), &parsedBody)
+	return nil
+}
+
 func (o *orgMode) handleOrgModePermissionRequests(ctx echo.Context, user *types.User, orgOwner *types.User) error {
 	var perms types.Permissions
 	if err := json.NewDecoder(ctx.Request().Body).Decode(&perms); err != nil {
@@ -101,12 +142,22 @@ func (o *orgMode) handleOrgModePermissionRequests(ctx echo.Context, user *types.
 	if strings.EqualFold(perms.UserID.String(), perms.OrganizationID.String()) {
 		return fmt.Errorf("user id and organization id can not be the same")
 	}
+
+	if perms.Pull && perms.Push && !perms.IsAdmin {
+		perms.IsAdmin = true
+	}
+
+	if perms.IsAdmin {
+		perms.Pull = true
+		perms.Push = true
+	}
+
 	ctx.Set(string(types.OrgModeRequestBodyContextKey), &perms)
 	return nil
 }
 
 func (o *orgMode) handleOrgModeRemoveUser(ctx echo.Context, p string, orgOwner *types.User) error {
-	if strings.HasPrefix(p, fmt.Sprintf("/org/permissions/users/%s/", orgOwner.ID.String())) {
+	if strings.HasPrefix(p, fmt.Sprintf("/api/org/permissions/users/%s/", orgOwner.ID.String())) {
 		orgID, err := uuid.Parse(ctx.Param("orgId"))
 		if err != nil {
 			return err
@@ -120,7 +171,7 @@ func (o *orgMode) handleOrgModeRemoveUser(ctx echo.Context, p string, orgOwner *
 			return echoErr
 		}
 
-		body := &RemoveUserFromOrgRequest{
+		body := &types.RemoveUserFromOrgRequest{
 			UserID:         userID,
 			OrganizationID: orgID,
 		}

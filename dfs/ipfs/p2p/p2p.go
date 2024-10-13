@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	hexmap "github.com/alphadose/haxmap"
+	"github.com/alphadose/haxmap"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/fatih/color"
@@ -35,8 +35,8 @@ type (
 	ipfsP2p struct {
 		node          *rpc.HttpApi
 		config        *config.IpfsDFS
-		uploadSession *hexmap.Map[string, *multipartSession]
-		uploadParts   *hexmap.Map[string, *uploadParts]
+		uploadSession *haxmap.Map[string, *multipartSession]
+		uploadParts   *haxmap.Map[string, *uploadParts]
 	}
 
 	multipartSession struct {
@@ -89,8 +89,8 @@ func New(config *config.IpfsDFS) dfs.DFS {
 	dfs := &ipfsP2p{
 		node:          node,
 		config:        config,
-		uploadSession: hexmap.New[string, *multipartSession](),
-		uploadParts:   hexmap.New[string, *uploadParts](),
+		uploadSession: haxmap.New[string, *multipartSession](),
+		uploadParts:   haxmap.New[string, *uploadParts](),
 	}
 
 	// run garbage collection in background

@@ -118,7 +118,7 @@ func NewWebLoginToken(opts *WebLoginJWTOptions) (string, error) {
 
 	hasher := sha256.New()
 	hasher.Write(pubkeyDER)
-	raw := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
+	raw := jwt.NewWithClaims(jwt.SigningMethodRS256, &claims)
 	raw.Header["kid"] = KeyIDEncode(hasher.Sum(nil)[:30])
 	token, err := raw.SignedString(opts.Privkey)
 	if err != nil {

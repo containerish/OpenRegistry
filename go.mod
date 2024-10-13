@@ -5,6 +5,7 @@ go 1.23
 toolchain go1.23.0
 
 require (
+	connectrpc.com/connect v1.17.0
 	github.com/alexliesenfeld/health v0.8.0
 	github.com/alphadose/haxmap v1.4.0
 	github.com/aws/aws-sdk-go-v2 v1.32.2
@@ -14,7 +15,6 @@ require (
 	github.com/aws/smithy-go v1.22.0
 	github.com/axiomhq/axiom-go v0.21.1
 	github.com/bradleyfalzon/ghinstallation/v2 v2.11.0
-	github.com/bufbuild/connect-go v1.10.0
 	github.com/fatih/color v1.17.0
 	github.com/go-playground/locales v0.14.1
 	github.com/go-playground/universal-translator v0.18.1
@@ -25,19 +25,21 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/honeycombio/otel-config-go v1.17.0
-	github.com/ipfs/boxo v0.24.0
+	github.com/ipfs/boxo v0.23.0
 	github.com/ipfs/kubo v0.30.0
-	github.com/jackc/pgx/v4 v4.18.3
+	github.com/jackc/pgx/v4 v4.12.1-0.20210724153913-640aa07df17c
 	github.com/labstack/echo-contrib v0.17.1
 	github.com/labstack/echo-jwt/v4 v4.2.0
 	github.com/labstack/echo/v4 v4.12.0
 	github.com/multiformats/go-multiaddr v0.13.0
+	github.com/oklog/ulid/v2 v2.1.0
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.1.0
+	github.com/rs/cors v1.10.1
 	github.com/rs/zerolog v1.33.0
 	github.com/sendgrid/sendgrid-go v3.16.0+incompatible
 	github.com/spf13/afero v1.11.0
-	github.com/spf13/viper v1.19.0
+	github.com/spf13/viper v1.18.2
 	github.com/uptrace/bun v1.2.3
 	github.com/uptrace/bun/dialect/pgdialect v1.2.3
 	github.com/uptrace/bun/dialect/sqlitedialect v1.2.3
@@ -48,11 +50,11 @@ require (
 	go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho v0.55.0
 	go.opentelemetry.io/contrib/processors/baggagecopy v0.3.0
 	go.opentelemetry.io/otel v1.31.0
-	golang.org/x/crypto v0.28.0
-	golang.org/x/net v0.30.0
-	golang.org/x/oauth2 v0.23.0
-	google.golang.org/protobuf v1.35.1
-	gopkg.in/yaml.v2 v2.4.0
+	golang.org/x/crypto v0.27.0
+	golang.org/x/net v0.29.0
+	golang.org/x/oauth2 v0.22.0
+	google.golang.org/protobuf v1.34.2
+	gopkg.in/yaml.v3 v3.0.1
 	storj.io/uplink v1.13.1
 )
 
@@ -127,7 +129,7 @@ require (
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgproto3/v2 v2.3.3 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20221227161230-091c0ba34f0a // indirect
-	github.com/jackc/pgtype v1.14.1 // indirect
+	github.com/jackc/pgtype v1.14.0 // indirect
 	github.com/jbenet/goprocess v0.1.4 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jtolio/noiseconn v0.0.0-20230111204749-d7ec1a08b0b8 // indirect
@@ -135,7 +137,6 @@ require (
 	github.com/klauspost/cpuid/v2 v2.2.8 // indirect
 	github.com/labstack/gommon v0.4.2 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect
-	github.com/lib/pq v1.10.9 // indirect
 	github.com/libp2p/go-buffer-pool v0.1.0 // indirect
 	github.com/libp2p/go-cidranger v1.1.0 // indirect
 	github.com/libp2p/go-libp2p v0.36.4 // indirect
@@ -178,7 +179,6 @@ require (
 	github.com/prometheus/procfs v0.15.1 // indirect
 	github.com/puzpuzpuz/xsync/v3 v3.4.0 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
-	github.com/rs/cors v1.11.0 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/sagikazarmark/locafero v0.4.0 // indirect
 	github.com/sagikazarmark/slog-shim v0.1.0 // indirect
@@ -241,7 +241,6 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240903143218-8af14fe29dc1 // indirect
 	google.golang.org/grpc v1.66.1 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
 	lukechampine.com/blake3 v1.3.0 // indirect
 	mellium.im/sasl v0.3.1 // indirect
 	modernc.org/gc/v3 v3.0.0-20240801135723-a856999a2e4a // indirect

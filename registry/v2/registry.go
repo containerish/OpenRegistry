@@ -15,6 +15,7 @@ import (
 	"time"
 
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	oci_digest "github.com/opencontainers/go-digest"
 	img_spec_v1 "github.com/opencontainers/image-spec/specs-go/v1"
@@ -23,9 +24,8 @@ import (
 	"github.com/containerish/OpenRegistry/config"
 	dfsImpl "github.com/containerish/OpenRegistry/dfs"
 	store_v2 "github.com/containerish/OpenRegistry/store/v1/registry"
-	types_v2 "github.com/containerish/OpenRegistry/store/v1/types"
+	"github.com/containerish/OpenRegistry/store/v1/types"
 	"github.com/containerish/OpenRegistry/telemetry"
-	"github.com/containerish/OpenRegistry/types"
 )
 
 func NewRegistry(
@@ -87,8 +87,9 @@ func (r *registry) ManifestExists(ctx echo.Context) error {
 		}
 
 		errMsg := common.RegistryErrorResponse(RegistryErrorCodeManifestBlobUnknown, err.Error(), details)
-		r.logger.Log(ctx, fmt.Errorf("%s", errMsg)).Send()
-		return ctx.NoContent(http.StatusNotFound)
+		echoErr := ctx.JSONBlob(http.StatusNotFound, errMsg.Bytes())
+		r.logger.Log(ctx, errMsg).Send()
+		return echoErr
 	}
 
 	ctx.Response().Header().Set("Content-Length", fmt.Sprintf("%d", manifest.Size))
@@ -360,7 +361,7 @@ func (r *registry) MonolithicUpload(ctx echo.Context) error {
 		return echoErr
 	}
 
-	layerV2 := &types_v2.ContainerImageLayer{
+	layerV2 := &types.ContainerImageLayer{
 		MediaType: ctx.Request().Header.Get("content-type"),
 		Digest:    imageDigest,
 		DFSLink:   dfsLink,
@@ -552,7 +553,7 @@ func (r *registry) MonolithicPut(ctx echo.Context) error {
 		return echoErr
 	}
 
-	layer := &types_v2.ContainerImageLayer{
+	layer := &types.ContainerImageLayer{
 		CreatedAt: time.Now(),
 		ID:        layerKey,
 		Digest:    digest,
@@ -683,7 +684,7 @@ func (r *registry) CompleteUpload(ctx echo.Context) error {
 		return echoErr
 	}
 
-	layer := &types_v2.ContainerImageLayer{
+	layer := &types.ContainerImageLayer{
 		MediaType: ctx.Request().Header.Get("content-type"),
 		Digest:    digest,
 		DFSLink:   dfsLink,
@@ -766,17 +767,17 @@ func (r *registry) PushManifest(ctx echo.Context) error {
 
 		}
 
-		repository = &types_v2.ContainerImageRepository{
+		repository = &types.ContainerImageRepository{
 			CreatedAt:  time.Now(),
 			OwnerID:    user.ID,
 			ID:         repositoryID,
 			Name:       strings.Split(namespace, "/")[1],
-			Visibility: types_v2.RepositoryVisibilityPrivate,
+			Visibility: types.RepositoryVisibilityPrivate,
 		}
 
 		// IPFS P2P repositories are public
-		if user.Username == types_v2.SystemUsernameIPFS {
-			repository.Visibility = types_v2.RepositoryVisibilityPublic
+		if user.Username == types.SystemUsernameIPFS {
+			repository.Visibility = types.RepositoryVisibilityPublic
 		}
 
 		idErr = r.store.CreateRepository(ctx.Request().Context(), repository)
@@ -793,10 +794,13 @@ func (r *registry) PushManifest(ctx echo.Context) error {
 	buf := &bytes.Buffer{}
 	_, err = io.Copy(buf, ctx.Request().Body)
 	if err != nil {
-		return ctx.JSON(http.StatusBadRequest, echo.Map{
+		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error":   err.Error(),
 			"message": "failed in push manifest while io Copy",
 		})
+
+		r.logger.Log(ctx, nil).Send()
+		return echoErr
 	}
 	defer ctx.Request().Body.Close()
 
@@ -812,7 +816,7 @@ func (r *registry) PushManifest(ctx echo.Context) error {
 		return echoErr
 	}
 
-	manifest := types_v2.ImageManifest{
+	manifest := types.ImageManifest{
 		CreatedAt:    time.Now(),
 		ID:           uuid,
 		RepositoryID: repository.ID,
@@ -884,7 +888,7 @@ func (r *registry) PushManifest(ctx echo.Context) error {
 func (r *registry) setPushManifestHaeders(
 	ctx echo.Context,
 	namespace, ref, digest string,
-	manifest *types_v2.ImageManifest,
+	manifest *types.ImageManifest,
 ) {
 	locationHeader := fmt.Sprintf("%s/v2/%s/manifests/%s", r.config.Endpoint(), namespace, ref)
 	ctx.Response().Header().Set("Location", locationHeader)
@@ -1003,37 +1007,60 @@ func (r *registry) ApiVersion(ctx echo.Context) error {
 func (r *registry) GetImageNamespace(ctx echo.Context) error {
 	ctx.Set(types.HandlerStartTime, time.Now())
 
+	userId := uuid.NullUUID{}.UUID
+	user, ok := ctx.Get(string(types.UserContextKey)).(*types.User)
+	if ok {
+		userId = user.ID
+	}
+
 	searchQuery := ctx.QueryParam("search_query")
 	if searchQuery == "" {
-		return ctx.JSON(http.StatusBadRequest, echo.Map{
-			"error": "search query must not be empty",
+		errMsg := fmt.Errorf("search query must not be empty")
+		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
+			"error": errMsg.Error(),
 		})
+
+		r.logger.Log(ctx, errMsg).Send()
+		return echoErr
 	}
-	result, err := r.store.GetImageNamespace(ctx.Request().Context(), searchQuery)
+
+	var visibility types.RepositoryVisibility
+	if ctx.QueryParam("public") == "true" {
+		visibility = types.RepositoryVisibilityPublic
+	}
+
+	result, err := r.store.GetImageNamespace(ctx.Request().Context(), searchQuery, visibility, userId)
 	if err != nil {
-		return ctx.JSON(http.StatusInternalServerError, echo.Map{
+		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error":   err.Error(),
 			"message": "error getting image namespace",
 		})
+
+		r.logger.Log(ctx, err).Send()
+		return echoErr
 	}
 
 	// empty namespace to pull full catalog list
 	total, err := r.store.GetCatalogCount(ctx.Request().Context(), "")
 	if err != nil {
-		return ctx.JSON(http.StatusInternalServerError, echo.Map{
+		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error":   err.Error(),
 			"message": "ERR_GET_CATALOG_COUNT",
 		})
+		r.logger.Log(ctx, err).Send()
+		return echoErr
 	}
 
-	return ctx.JSON(http.StatusOK, echo.Map{
+	echoErr := ctx.JSON(http.StatusOK, echo.Map{
 		"repositories": result,
 		"total":        total,
 	})
+	r.logger.Log(ctx, nil).Send()
+	return echoErr
 }
 
-func (r *registry) GetUserFromCtx(ctx echo.Context) (*types_v2.User, error) {
-	user, ok := ctx.Get(string(types_v2.UserContextKey)).(*types_v2.User)
+func (r *registry) GetUserFromCtx(ctx echo.Context) (*types.User, error) {
+	user, ok := ctx.Get(string(types.UserContextKey)).(*types.User)
 	if !ok {
 		return nil, fmt.Errorf("ERR_USER_NOT_PRESENT_IN_REQUEST_CTX")
 	}
@@ -1041,8 +1068,8 @@ func (r *registry) GetUserFromCtx(ctx echo.Context) (*types_v2.User, error) {
 	return user, nil
 }
 
-func (r *registry) GetRepositoryFromCtx(ctx echo.Context) *types_v2.ContainerImageRepository {
-	if repository, ok := ctx.Get(string(types_v2.UserRepositoryContextKey)).(*types_v2.ContainerImageRepository); ok {
+func (r *registry) GetRepositoryFromCtx(ctx echo.Context) *types.ContainerImageRepository {
+	if repository, ok := ctx.Get(string(types.UserRepositoryContextKey)).(*types.ContainerImageRepository); ok {
 		return repository
 	}
 	return nil
