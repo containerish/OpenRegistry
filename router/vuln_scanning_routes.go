@@ -63,9 +63,9 @@ func RegisterVulnScaningRoutes(
 			})
 
 			handler := h2c.NewHandler(vulnScanningCors.Handler(clairApi), &http2.Server{})
-			color.Green("connect-go Clair gRPC service running on: %s", addr)
+			color.Green("connectrpc Clair gRPC service running on: %s", addr)
 			if err := http.ListenAndServe(addr, handler); err != nil {
-				color.Red("connect-go listen error: %s", err)
+				color.Red("connectrpc listen error: %s", err)
 			}
 		}()
 	}

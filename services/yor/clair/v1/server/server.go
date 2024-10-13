@@ -6,7 +6,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/bufbuild/connect-go"
+	"connectrpc.com/connect"
+
 	"github.com/containerish/OpenRegistry/config"
 	connect_v1 "github.com/containerish/OpenRegistry/services/yor/clair/v1/clairconnect"
 	"github.com/containerish/OpenRegistry/store/v1/types"

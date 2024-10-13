@@ -8,11 +8,12 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/bufbuild/connect-go"
-	"github.com/containerish/OpenRegistry/auth"
-	"github.com/containerish/OpenRegistry/store/v1/types"
+	"connectrpc.com/connect"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
+
+	"github.com/containerish/OpenRegistry/auth"
+	"github.com/containerish/OpenRegistry/store/v1/types"
 )
 
 // NewJWTInterceptor is a UnaryInterceptorFunc that inspects and tries to parse a JWT from the request.

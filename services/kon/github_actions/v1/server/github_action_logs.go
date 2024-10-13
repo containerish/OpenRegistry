@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"sort"
 
-	connect_go "github.com/bufbuild/connect-go"
+	"connectrpc.com/connect"
 	"github.com/google/go-github/v56/github"
 )
 
@@ -21,14 +21,14 @@ func (ghs *GitHubActionsServer) getLogsToStream(
 	downloadLogsReq, err := http.NewRequestWithContext(ctx, http.MethodGet, logsURL, nil)
 	if err != nil {
 		ghs.logger.Debug().Err(err).Send()
-		return nil, connect_go.NewError(connect_go.CodeInternal, err)
+		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 
 	downloadLogsReq.Header.Set("Accept", "application/json")
 	downloadLogsResp, err := githubClient.BareDo(ctx, downloadLogsReq)
 	if err != nil {
 		ghs.logger.Debug().Err(err).Send()
-		return nil, connect_go.NewError(connect_go.CodeInternal, err)
+		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	defer downloadLogsResp.Body.Close()
 
@@ -36,14 +36,14 @@ func (ghs *GitHubActionsServer) getLogsToStream(
 	_, err = io.Copy(&buf, downloadLogsResp.Body)
 	if err != nil {
 		ghs.logger.Debug().Err(err).Send()
-		return nil, connect_go.NewError(connect_go.CodeInternal, err)
+		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 
 	reader := bytes.NewReader(buf.Bytes())
 	zipReader, err := zip.NewReader(reader, int64(buf.Len()))
 	if err != nil {
 		ghs.logger.Debug().Err(err).Send()
-		return nil, connect_go.NewError(connect_go.CodeInternal, err)
+		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 
 	logEvent := ghs.logger.Debug().Int("zip_file_count", len(zipReader.File))

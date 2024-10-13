@@ -52,7 +52,7 @@ func RegisterGitHubRoutes(
 		)
 		go func() {
 			addr := net.JoinHostPort(cfg.Host, fmt.Sprintf("%d", cfg.Port))
-			color.Green("connect-go GitHub Automation gRPC service running on: %s", addr)
+			color.Green("connectrpc GitHub Automation gRPC service running on: %s", addr)
 			ghCors := cors.New(cors.Options{
 				AllowedOrigins: allowedOrigins,
 				AllowOriginFunc: func(origin string) bool {
@@ -79,7 +79,7 @@ func RegisterGitHubRoutes(
 			})
 			handler := ghCors.Handler(h2c.NewHandler(githubMux, &http2.Server{}))
 			if err := http.ListenAndServe(addr, handler); err != nil {
-				color.Red("connect-go GitHub Automation service listen error: %s", err)
+				color.Red("connectrpc GitHub Automation service listen error: %s", err)
 			}
 		}()
 	}

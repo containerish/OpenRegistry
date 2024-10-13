@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/bufbuild/connect-go"
+	"connectrpc.com/connect"
 
 	"github.com/containerish/OpenRegistry/config"
 	"github.com/containerish/OpenRegistry/store/v1/types"

@@ -5,6 +5,7 @@ go 1.23
 toolchain go1.23.0
 
 require (
+	connectrpc.com/connect v1.17.0
 	github.com/alexliesenfeld/health v0.8.0
 	github.com/alphadose/haxmap v1.4.0
 	github.com/aws/aws-sdk-go-v2 v1.32.2
@@ -14,7 +15,6 @@ require (
 	github.com/aws/smithy-go v1.22.0
 	github.com/axiomhq/axiom-go v0.21.1
 	github.com/bradleyfalzon/ghinstallation/v2 v2.11.0
-	github.com/bufbuild/connect-go v1.10.0
 	github.com/fatih/color v1.17.0
 	github.com/go-playground/locales v0.14.1
 	github.com/go-playground/universal-translator v0.18.1
