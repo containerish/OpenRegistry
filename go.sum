@@ -142,8 +142,8 @@ github.com/envoyproxy/go-control-plane v0.9.4/go.mod h1:6rpuAdCZL397s3pYoYcLgu1m
 github.com/envoyproxy/protoc-gen-validate v0.1.0/go.mod h1:iSmxcyjqTsJpI2R4NaDN7+kN2VEUnK/pcBlmesArF7c=
 github.com/facebookgo/atomicfile v0.0.0-20151019160806-2de1f203e7d5 h1:BBso6MBKW8ncyZLv37o+KNyy0HrrHgfnOaGQC2qvN+A=
 github.com/facebookgo/atomicfile v0.0.0-20151019160806-2de1f203e7d5/go.mod h1:JpoxHjuQauoxiFMl1ie8Xc/7TfLuMZ5eOCONd1sUBHg=
-github.com/fatih/color v1.17.0 h1:GlRw1BRJxkpqUCBKzKOw098ed57fEsKeNjpTe3cSjK4=
-github.com/fatih/color v1.17.0/go.mod h1:YZ7TlrGPkiz6ku9fK3TLD/pl3CpsiFyu8N92HLgmosI=
+github.com/fatih/color v1.18.0 h1:S8gINlzdQ840/4pfAwic/ZE0djQEH3wM94VfqLTZcOM=
+github.com/fatih/color v1.18.0/go.mod h1:4FelSpRwEGDpQ12mAdzqdOukCy4u8WUtOY6lkT/6HfU=
 github.com/felixge/httpsnoop v1.0.4 h1:NFTV2Zj1bL4mc9sqWACXbQFVBBg2W3GPvqp8/ESS2Wg=
 github.com/felixge/httpsnoop v1.0.4/go.mod h1:m8KPJKqk1gH5J9DgRY2ASl2lWCfGKXixSwevea8zH2U=
 github.com/flynn/noise v1.1.0 h1:KjPQoQCEFdZDiP03phOvGi11+SVVhBG2wOWAorLsstg=
@@ -757,8 +757,8 @@ github.com/tmthrgd/go-hex v0.0.0-20190904060850-447a3041c3bc h1:9lRDQMhESg+zvGYm
 github.com/tmthrgd/go-hex v0.0.0-20190904060850-447a3041c3bc/go.mod h1:bciPuU6GHm1iF1pBvUfxfsH0Wmnc2VbpgvbI9ZWuIRs=
 github.com/ucarion/urlpath v0.0.0-20200424170820-7ccc79b76bbb h1:Ywfo8sUltxogBpFuMOFRrrSifO788kAFxmvVw31PtQQ=
 github.com/ucarion/urlpath v0.0.0-20200424170820-7ccc79b76bbb/go.mod h1:ikPs9bRWicNw3S7XpJ8sK/smGwU9WcSVU3dy9qahYBM=
-github.com/uptrace/bun v1.2.3 h1:6KDc6YiNlXde38j9ATKufb8o7MS8zllhAOeIyELKrk0=
-github.com/uptrace/bun v1.2.3/go.mod h1:8frYFHrO/Zol3I4FEjoXam0HoNk+t5k7aJRl3FXp0mk=
+github.com/uptrace/bun v1.2.5 h1:gSprL5xiBCp+tzcZHgENzJpXnmQwRM/A6s4HnBF85mc=
+github.com/uptrace/bun v1.2.5/go.mod h1:vkQMS4NNs4VNZv92y53uBSHXRqYyJp4bGhMHgaNCQpY=
 github.com/uptrace/bun/dialect/pgdialect v1.2.3 h1:YyCxxqeL0lgFWRZzKCOt6mnxUsjqITcxSo0mLqgwMUA=
 github.com/uptrace/bun/dialect/pgdialect v1.2.3/go.mod h1:Vx9TscyEq1iN4tnirn6yYGwEflz0KG3rBZTBCLpKAjc=
 github.com/uptrace/bun/dialect/sqlitedialect v1.2.3 h1:gCxqT9pFpZxc6iRokdS6QrPF894ycBLxnh/3m7qQeQ0=
@@ -767,8 +767,8 @@ github.com/uptrace/bun/driver/pgdriver v1.2.3 h1:VA5TKB0XW7EtreQq2R8Qu/vCAUX2ECa
 github.com/uptrace/bun/driver/pgdriver v1.2.3/go.mod h1:yDiYTZYd4FfXFtV01m4I/RkI33IGj9N254jLStaeJLs=
 github.com/uptrace/bun/driver/sqliteshim v1.2.3 h1:9xGBRmoUJYOUFfnylapoU2oGr3S7+KTGOgEPqQ/X5Lo=
 github.com/uptrace/bun/driver/sqliteshim v1.2.3/go.mod h1:hoS3aDbLz87d8Tq4FEGEjL7sWAPa5YZeTz/VL4nuWKs=
-github.com/uptrace/bun/extra/bundebug v1.2.3 h1:2QBykz9/u4SkN9dnraImDcbrMk2fUhuq2gL6hkh9qSc=
-github.com/uptrace/bun/extra/bundebug v1.2.3/go.mod h1:bihsYJxXxWZXwc1R3qALTHvp+npE0ElgaCvcjzyPPdw=
+github.com/uptrace/bun/extra/bundebug v1.2.5 h1:DsI/gl4jvq5tQ84yPqnlRYIQ4U6AouTqxJ8Y5Oijfz4=
+github.com/uptrace/bun/extra/bundebug v1.2.5/go.mod h1:JFeYvklf5p92ZILXx4siMe2tEVn5JLelww3IGcJb4yA=
 github.com/urfave/cli v1.22.10/go.mod h1:Gos4lmkARVdJ6EkW0WaNv/tZAAMe9V7XWyB60NtXRu0=
 github.com/urfave/cli/v2 v2.27.4 h1:o1owoI+02Eb+K107p27wEX9Bb8eqIoZCfLXloLUSWJ8=
 github.com/urfave/cli/v2 v2.27.4/go.mod h1:m4QzxcD2qpra4z7WhzEGn74WZLViBnMpb1ToCAKdGRQ=
