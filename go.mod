@@ -31,7 +31,7 @@ require (
 	github.com/labstack/echo-contrib v0.17.1
 	github.com/labstack/echo-jwt/v4 v4.2.0
 	github.com/labstack/echo/v4 v4.12.0
-	github.com/multiformats/go-multiaddr v0.13.0
+	github.com/multiformats/go-multiaddr v0.14.0
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.1.0
 	github.com/rs/zerolog v1.33.0
