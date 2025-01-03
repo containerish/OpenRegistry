@@ -15,7 +15,7 @@ require (
 	github.com/axiomhq/axiom-go v0.21.1
 	github.com/bradleyfalzon/ghinstallation/v2 v2.11.0
 	github.com/bufbuild/connect-go v1.10.0
-	github.com/fatih/color v1.17.0
+	github.com/fatih/color v1.18.0
 	github.com/go-playground/locales v0.14.1
 	github.com/go-playground/universal-translator v0.18.1
 	github.com/go-playground/validator/v10 v10.22.1
@@ -38,12 +38,12 @@ require (
 	github.com/sendgrid/sendgrid-go v3.16.0+incompatible
 	github.com/spf13/afero v1.11.0
 	github.com/spf13/viper v1.19.0
-	github.com/uptrace/bun v1.2.3
+	github.com/uptrace/bun v1.2.7
 	github.com/uptrace/bun/dialect/pgdialect v1.2.3
 	github.com/uptrace/bun/dialect/sqlitedialect v1.2.3
 	github.com/uptrace/bun/driver/pgdriver v1.2.3
 	github.com/uptrace/bun/driver/sqliteshim v1.2.3
-	github.com/uptrace/bun/extra/bundebug v1.2.3
+	github.com/uptrace/bun/extra/bundebug v1.2.7
 	github.com/urfave/cli/v2 v2.27.4
 	go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho v0.55.0
 	go.opentelemetry.io/contrib/processors/baggagecopy v0.3.0
@@ -231,7 +231,7 @@ require (
 	golang.org/x/exp v0.0.0-20240904232852-e7e105dedf7e // indirect
 	golang.org/x/mod v0.21.0 // indirect
 	golang.org/x/sync v0.8.0 // indirect
-	golang.org/x/sys v0.26.0 // indirect
+	golang.org/x/sys v0.28.0 // indirect
 	golang.org/x/text v0.19.0 // indirect
 	golang.org/x/time v0.6.0 // indirect
 	golang.org/x/tools v0.25.0 // indirect
