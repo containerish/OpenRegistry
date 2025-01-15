@@ -55,15 +55,27 @@ type (
 		Sessions            []*Session                  `bun:"rel:has-many,join:id=owner_id" json:"-"`
 		WebauthnSessions    []*WebauthnSession          `bun:"rel:has-many,join:id=user_id" json:"-"`
 		WebauthnCredentials []*WebauthnCredential       `bun:"rel:has-many,join:id=credential_owner_id" json:"-"`
-		Permissions         []*Permissions              `bun:"rel:has-many,join:id=user_id" json:"-"`
+		Permissions         []*Permissions              `bun:"rel:has-many,join:id=user_id" json:"permissions"`
 		Repositories        []*ContainerImageRepository `bun:"rel:has-many,join:id=owner_id" json:"-"`
+		Projects            []*RepositoryBuildProject   `bun:"rel:has-many,join:id=repository_owner_id" json:"-"`
+		AuthTokens          []*AuthTokens               `bun:"rel:has-many,join:id=owner_id" json:"-"`
 		// nolint:lll
-		FavoriteRepositories []uuid.UUID `bun:"favorite_repositories,type:uuid[],default:'{}'" json:"favorite_repositories"`
+		FavoriteRepositories []uuid.UUID `bun:"favorite_repositories,nullzero,type:uuid[],default:'{}'" json:"favorite_repositories"`
 		ID                   uuid.UUID   `bun:"id,type:uuid,pk" json:"id,omitempty" validate:"-"`
 		IsActive             bool        `bun:"is_active" json:"is_active,omitempty" validate:"-"`
 		WebauthnConnected    bool        `bun:"webauthn_connected" json:"webauthn_connected"`
 		GithubConnected      bool        `bun:"github_connected" json:"github_connected"`
 		IsOrgOwner           bool        `bun:"is_org_owner" json:"is_org_owner,omitempty"`
+	}
+
+	AuthTokens struct {
+		bun.BaseModel `bun:"table:auth_tokens,alias:s" json:"-"`
+
+		CreatedAt time.Time `bun:"created_at" json:"created_at,omitempty" validate:"-"`
+		ExpiresAt time.Time `bun:"expires_at" json:"expires_at,omitempty" validate:"-"`
+		Name      string    `bun:"name" json:"name"`
+		AuthToken string    `bun:"auth_token,type:text,pk" json:"-"`
+		OwnerID   uuid.UUID `bun:"owner_id,type:uuid" json:"-"`
 	}
 
 	// type here is string so that we can use it with echo.Context & std context.Context
@@ -94,6 +106,11 @@ type (
 		Token  uuid.UUID `bun:"token,pk,type:uuid" json:"-"`
 		UserId uuid.UUID `bun:"user_id,type:uuid" json:"-"`
 	}
+
+	CreateAuthTokenRequest struct {
+		ExpiresAt time.Time `json:"expires_at"`
+		Name      string    `json:"name"`
+	}
 )
 
 const (
@@ -119,6 +136,7 @@ func (*User) NewUserFromGitHubUser(ghUser github.User) *User {
 		Email:           ghUser.GetEmail(),
 		IsActive:        true,
 		GithubConnected: true,
+		UserType:        UserTypeRegular.String(),
 		Identities: map[string]*UserIdentity{
 			IdentityProviderGitHub: {
 				ID:             fmt.Sprintf("%d", ghUser.GetID()),

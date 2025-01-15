@@ -5,21 +5,20 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/url"
 	"strings"
 	"time"
+
+	"github.com/google/uuid"
+	"github.com/labstack/echo/v4"
+	"github.com/uptrace/bun"
 
 	"github.com/containerish/OpenRegistry/auth"
 	"github.com/containerish/OpenRegistry/auth/webauthn"
 	"github.com/containerish/OpenRegistry/config"
-	v2_types "github.com/containerish/OpenRegistry/store/v1/types"
+	"github.com/containerish/OpenRegistry/store/v1/types"
 	"github.com/containerish/OpenRegistry/store/v1/users"
 	webauthn_store "github.com/containerish/OpenRegistry/store/v1/webauthn"
 	"github.com/containerish/OpenRegistry/telemetry"
-	"github.com/containerish/OpenRegistry/types"
-	"github.com/google/uuid"
-	"github.com/labstack/echo/v4"
-	"github.com/uptrace/bun"
 )
 
 type (
@@ -86,7 +85,7 @@ func (wa *webauthn_server) webAuthNTxnCleanup() {
 func (wa *webauthn_server) BeginRegistration(ctx echo.Context) error {
 	ctx.Set(types.HandlerStartTime, time.Now())
 
-	user := v2_types.User{}
+	user := types.User{}
 
 	if err := json.NewDecoder(ctx.Request().Body).Decode(&user); err != nil {
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
@@ -97,7 +96,7 @@ func (wa *webauthn_server) BeginRegistration(ctx echo.Context) error {
 		return echoErr
 	}
 	defer ctx.Request().Body.Close()
-	user.Identities = make(v2_types.Identities)
+	user.Identities = make(types.Identities)
 
 	err := user.Validate(false)
 	if err != nil {
@@ -131,7 +130,8 @@ func (wa *webauthn_server) BeginRegistration(ctx echo.Context) error {
 		user.ID = uuid.New()
 		user.IsActive = true
 		user.WebauthnConnected = true
-		user.Identities[v2_types.IdentityProviderWebauthn] = &v2_types.UserIdentity{
+		user.UserType = types.UserTypeRegular.String()
+		user.Identities[types.IdentityProviderWebauthn] = &types.UserIdentity{
 			ID:       user.ID.String(),
 			Username: user.Username,
 			Email:    user.Email,
@@ -459,19 +459,11 @@ func (wa *webauthn_server) FinishLogin(ctx echo.Context) error {
 		return echoErr
 	}
 
-	domain := ""
-	url, err := url.Parse(wa.cfg.WebAuthnConfig.GetAllowedURLFromEchoContext(ctx, wa.cfg.Environment))
-	if err != nil {
-		domain = wa.cfg.WebAuthnConfig.RPOrigins[0]
-	} else {
-		domain = url.Hostname()
-	}
-
 	sessionIdCookie := auth.CreateCookie(&auth.CreateCookieOptions{
-		ExpiresAt:   time.Now().Add(time.Hour * 750), //one month
+		ExpiresAt:   time.Now().Add(time.Hour * 750), // one month
 		Name:        "session_id",
 		Value:       sessionId,
-		FQDN:        domain,
+		FQDN:        wa.cfg.Registry.FQDN,
 		Environment: wa.cfg.Environment,
 		HTTPOnly:    false,
 	})
@@ -480,16 +472,16 @@ func (wa *webauthn_server) FinishLogin(ctx echo.Context) error {
 		ExpiresAt:   time.Now().Add(time.Hour * 750),
 		Name:        auth.AccessCookieKey,
 		Value:       accessToken,
-		FQDN:        domain,
+		FQDN:        wa.cfg.Registry.FQDN,
 		Environment: wa.cfg.Environment,
 		HTTPOnly:    true,
 	})
 
 	refreshTokenCookie := auth.CreateCookie(&auth.CreateCookieOptions{
-		ExpiresAt:   time.Now().Add(time.Hour * 750), //one month
+		ExpiresAt:   time.Now().Add(time.Hour * 750), // one month
 		Name:        auth.RefreshCookKey,
 		Value:       refreshToken,
-		FQDN:        domain,
+		FQDN:        wa.cfg.Registry.FQDN,
 		Environment: wa.cfg.Environment,
 		HTTPOnly:    true,
 	})

@@ -1,0 +1,138 @@
+syntax = "proto3";
+
+package services.yor.clair.v1;
+
+import "common/v1/id.proto";
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/containerish/OpenRegistry/services/yor/clair/v1;clair";
+
+service ClairService {
+  rpc SubmitManifestToScan(SubmitManifestToScanRequest) returns (SubmitManifestToScanResponse) {}
+  rpc GetVulnerabilityReport(GetVulnerabilityReportRequest) returns (GetVulnerabilityReportResponse) {}
+  rpc EnableVulnerabilityScanning(EnableVulnerabilityScanningRequest) returns (EnableVulnerabilityScanningResponse) {}
+}
+
+message EnableVulnerabilityScanningRequest {
+  common.v1.UUID repository_id = 1;
+}
+
+message EnableVulnerabilityScanningResponse {
+  string message = 1;
+}
+
+message ClairReportPackage {
+  string id = 1;
+  string name = 2;
+  string version = 3;
+  string kind = 4;
+  string arch = 5;
+  ClairPackageSource source = 6;
+}
+
+message SubmitManifestToScanResponse {
+  bool success = 1;
+  string manifest_hash = 2;
+  string state = 3;
+  string err = 4;
+  map<string, ClairReportPackage> packages = 5;
+  map<string, ClairDistribution> distributions = 6;
+  map<string, ClairRepository> repository = 7;
+  map<string, google.protobuf.ListValue> environments = 8;
+}
+
+message ClairDescriptor {
+  string hash = 1;
+  string uri = 2;
+  map<string, google.protobuf.ListValue> headers = 3;
+}
+
+message SubmitManifestToScanRequest {
+  string hash = 1;
+}
+
+message GetVulnerabilityReportRequest {
+  string manifest_id = 1;
+}
+
+message ClairIndexManifestRequest {
+  string hash = 1;
+  repeated ClairDescriptor layers = 2;
+}
+
+message ClairPackageSource {
+  string id = 1;
+  string name = 2;
+  string version = 3;
+  string kind = 4;
+}
+
+message ClairPackage {
+  string id = 1;
+  string name = 2;
+  string version = 3;
+  string kind = 4;
+  ClairPackageSource source = 5;
+  string arch = 6;
+}
+
+message ClairDistribution {
+  string id = 1;
+  string did = 2;
+  string name = 3;
+  string version = 4;
+  string version_code_name = 5;
+  string version_id = 6;
+  string arch = 7;
+  string cpe = 8;
+  string pretty_name = 9;
+}
+
+message ClairEnvironmentItem {
+  string package_db = 1;
+  string introduced_in = 2;
+  string distribution_id = 3;
+  repeated string repository_ids = 4;
+}
+
+message ClairRepository {
+  string id = 1;
+}
+
+message ClairVulnerability {
+  string id = 1;
+  string updater = 2;
+  string name = 3;
+  string description = 4;
+  google.protobuf.Timestamp issued = 5;
+  string links = 6;
+  string severity = 7;
+  string normalized_severity = 8;
+  ClairPackage package = 9;
+  ClairDistribution distribution = 10;
+  ClairRepository repository = 11;
+  string fixed_in_version = 12;
+}
+
+message ClairEnrichment {
+  string id = 1;
+}
+
+message ClairVulnerabilityIdList {
+  repeated string ids = 1;
+}
+
+message GetVulnerabilityReportResponse {
+  string manifest_hash = 1;
+  string state = 2;
+  string err = 3;
+  bool success = 4;
+  map<string, ClairPackage> packages = 5;
+  map<string, ClairDistribution> distributions = 6;
+  map<string, google.protobuf.ListValue> environments = 7;
+  map<string, google.protobuf.ListValue> package_vulnerabilities = 8;
+  ClairEnrichment enrichments = 9;
+  map<string, ClairRepository> repository = 10;
+  map<string, ClairVulnerability> vulnerabilities = 11;
+}

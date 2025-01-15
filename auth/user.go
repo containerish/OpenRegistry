@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/containerish/OpenRegistry/types"
+	"github.com/containerish/OpenRegistry/store/v1/types"
 	"github.com/labstack/echo/v4"
 )
 

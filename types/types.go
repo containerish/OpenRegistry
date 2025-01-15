@@ -137,11 +137,6 @@ type (
 		Namespace string      `json:"namespace"`
 		Tags      []*ConfigV2 `json:"tags"`
 	}
-
-	Password struct {
-		OldPassword string `json:"old_password"`
-		NewPassword string `json:"new_password"`
-	}
 )
 
 func (md Metadata) GetManifestByRef(ref string) (*Config, error) {

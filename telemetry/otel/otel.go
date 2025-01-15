@@ -13,7 +13,7 @@ import (
 	"github.com/containerish/OpenRegistry/config"
 )
 
-func ConfigureOtel(config config.Telemetry, service string, e *echo.Echo) func() {
+func ConfigureOtel(config config.Honeycomb, service string, e *echo.Echo) func() {
 	if config.Enabled {
 		color.Green("OpenTelemetry: Enabled")
 		bsp := baggagecopy.NewSpanProcessor(func(member baggage.Member) bool { return true })

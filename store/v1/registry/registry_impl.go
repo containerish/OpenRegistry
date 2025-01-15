@@ -114,11 +114,11 @@ func (s *registryStore) GetRepositoryByName(
 		Str("name", name).
 		Str("user_id", userId.String())
 
-	var repository types.ContainerImageRepository
+	repository := &types.ContainerImageRepository{}
 	err := s.
 		db.
 		NewSelect().
-		Model(&repository).
+		Model(repository).
 		WhereGroup(" AND ", func(sq *bun.SelectQuery) *bun.SelectQuery {
 			return sq.Where("name = ?", name)
 		}).
@@ -132,7 +132,7 @@ func (s *registryStore) GetRepositoryByName(
 	}
 
 	logEvent.Bool("success", true).Send()
-	return &repository, nil
+	return repository, nil
 }
 
 func (s *registryStore) DeleteLayerByDigestWithTxn(ctx context.Context, txn *bun.Tx, digest string) error {
@@ -205,7 +205,7 @@ func (s *registryStore) GetCatalog(
 	pageSize int,
 	offset int,
 ) ([]string, error) {
-	var catalog []types.ContainerImageRepository
+	var catalog []*types.ContainerImageRepository
 
 	repositoryName := strings.Split(namespace, "/")[1]
 	err := s.
@@ -260,6 +260,9 @@ func (s *registryStore) GetUserRepositories(
 		db.
 		NewSelect().
 		Model(&repositories).
+		Relation("User", func(sq *bun.SelectQuery) *bun.SelectQuery {
+			return sq.ExcludeColumn("password").ExcludeColumn("github_connected").ExcludeColumn("webauthn_connected")
+		}).
 		WhereGroup(" AND ", func(q *bun.SelectQuery) *bun.SelectQuery {
 			if visibility != "" {
 				return q.Where("visibility = ?", visibility)
@@ -289,7 +292,7 @@ func (s *registryStore) GetCatalogCount(ctx context.Context, namespace string) (
 		repositoryName = parts[1]
 	}
 
-	stmnt := s.
+	q := s.
 		db.
 		NewSelect().
 		Model(&types.ImageManifest{}).
@@ -297,10 +300,10 @@ func (s *registryStore) GetCatalogCount(ctx context.Context, namespace string) (
 		Where("visibility = ?", types.RepositoryVisibilityPublic)
 
 	if repositoryName != "" {
-		stmnt.Where("name = ?", repositoryName)
+		q.Where("name = ?", repositoryName)
 	}
 
-	count, err := stmnt.Count(ctx)
+	count, err := q.Count(ctx)
 	if err != nil {
 		logEvent.Err(err).Send()
 		return 0, v1.WrapDatabaseError(err, v1.DatabaseOperationRead)
@@ -326,20 +329,21 @@ func (s *registryStore) GetCatalogDetail(
 		repositoryName = parts[1]
 	}
 
-	stmnt := s.
+	q := s.
 		db.
 		NewSelect().
 		Model(&repositoryList).
+		Relation("User").
 		Relation("ImageManifests").
 		Limit(pageSize).
 		Offset(offset).
 		Where("visibility = ?", types.RepositoryVisibilityPublic)
 
 	if repositoryName != "" {
-		stmnt.Where("name = ?", repositoryName)
+		q.Where("name = ?", repositoryName)
 	}
 
-	err := stmnt.Scan(ctx)
+	err := q.Scan(ctx)
 	if err != nil {
 		logEvent.Err(err).Send()
 		return nil, v1.WrapDatabaseError(err, v1.DatabaseOperationRead)
@@ -363,19 +367,48 @@ func (s *registryStore) GetContentHashById(ctx context.Context, uuid string) (st
 	return dfsLink, nil
 }
 
-// GetImageNamespace implements registry.RegistryStore.
-func (s *registryStore) GetImageNamespace(ctx context.Context, search string) ([]*types.ImageManifest, error) {
-	logEvent := s.logger.Debug().Str("method", "GetImageNamespace").Str("search_query", search)
-	var manifests []*types.ImageManifest
+func (s *registryStore) excludeUserSensitiveFieldsOnJoin(sq *bun.SelectQuery) *bun.SelectQuery {
+	return sq.ExcludeColumn("password").ExcludeColumn("created_at").ExcludeColumn("updated_at")
+}
 
-	err := s.db.NewSelect().Model(&manifests).Where("substr(namespace, 1, 50) LIKE ?", bun.Ident(search)).Scan(ctx)
-	if err != nil {
+// GetImageNamespace implements registry.RegistryStore.
+func (s *registryStore) GetImageNamespace(
+	ctx context.Context,
+	search string,
+	visibility types.RepositoryVisibility,
+	userID uuid.UUID,
+) ([]*types.ContainerImageRepository, error) {
+	logEvent := s.logger.Debug().Str("method", "GetImageNamespace").Str("search_query", search)
+	var repos []*types.ContainerImageRepository
+
+	q := s.
+		db.
+		NewSelect().
+		Model(&repos).
+		Relation("User", func(sq *bun.SelectQuery) *bun.SelectQuery {
+			return s.excludeUserSensitiveFieldsOnJoin(sq)
+		}).
+		WhereGroup(" AND ", func(sq *bun.SelectQuery) *bun.SelectQuery {
+			return sq.
+				WhereOr("visibility = ?", types.RepositoryVisibilityPublic.String()).
+				WhereOr("owner_id = ?", userID)
+		}).
+		WhereGroup(" AND ", func(sq *bun.SelectQuery) *bun.SelectQuery {
+			return sq.WhereOr("substr(username, 1, 50) ILIKE ?", search).
+				WhereOr("substr(name, 1, 50) ILIKE ?", search)
+		})
+
+	if visibility == types.RepositoryVisibilityPublic {
+		q.Where("visibility = ? ", visibility.String())
+	}
+
+	if err := q.Scan(ctx); err != nil {
 		logEvent.Err(err).Send()
 		return nil, v1.WrapDatabaseError(err, v1.DatabaseOperationRead)
 	}
 
 	logEvent.Bool("success", true).Send()
-	return manifests, nil
+	return repos, nil
 }
 
 // GetImageTags implements registry.RegistryStore.
@@ -409,27 +442,27 @@ func (s *registryStore) GetImageTags(ctx context.Context, namespace string) ([]s
 // GetLayer implements registry.RegistryStore.
 func (s *registryStore) GetLayer(ctx context.Context, digest string) (*types.ContainerImageLayer, error) {
 	logEvent := s.logger.Debug().Str("method", "GetLayer").Str("digest", digest)
-	var layer types.ContainerImageLayer
-	if err := s.db.NewSelect().Model(&layer).Where("digest = ?", digest).Scan(ctx); err != nil {
+	layer := &types.ContainerImageLayer{}
+	if err := s.db.NewSelect().Model(layer).Where("digest = ?", digest).Scan(ctx); err != nil {
 		logEvent.Err(err).Send()
 		return nil, v1.WrapDatabaseError(err, v1.DatabaseOperationRead)
 	}
 
 	logEvent.Bool("success", true).Send()
-	return &layer, nil
+	return layer, nil
 }
 
 // GetManifest implements registry.RegistryStore.
 func (s *registryStore) GetManifest(ctx context.Context, id string) (*types.ImageManifest, error) {
 	logEvent := s.logger.Debug().Str("method", "GetManifest").Str("id", id)
-	var manifest types.ImageManifest
-	if err := s.db.NewSelect().Model(&manifest).Where("id = ?", id).Scan(ctx); err != nil {
+	manifest := &types.ImageManifest{}
+	if err := s.db.NewSelect().Model(manifest).Where("id = ?", id).Scan(ctx); err != nil {
 		logEvent.Err(err).Send()
 		return nil, v1.WrapDatabaseError(err, v1.DatabaseOperationRead)
 	}
 
 	logEvent.Bool("success", true).Send()
-	return &manifest, nil
+	return manifest, nil
 }
 
 // GetManifestByReference implements registry.RegistryStore.
@@ -444,11 +477,11 @@ func (s *registryStore) GetManifestByReference(
 	nsParts := strings.Split(namespace, "/")
 	username, repoName := nsParts[0], nsParts[1]
 
-	var manifest types.ImageManifest
+	manifest := &types.ImageManifest{}
 	q := s.
 		db.
 		NewSelect().
-		Model(&manifest).
+		Model(manifest).
 		Relation("Repository", func(sq *bun.SelectQuery) *bun.SelectQuery {
 			return sq.Column("name")
 		}).
@@ -472,7 +505,7 @@ func (s *registryStore) GetManifestByReference(
 	}
 
 	logEvent.Bool("success", true).Send()
-	return &manifest, nil
+	return manifest, nil
 }
 
 // GetRepoDetail implements registry.RegistryStore.
@@ -483,13 +516,13 @@ func (s *registryStore) GetRepoDetail(
 	offset int,
 ) (*types.ContainerImageRepository, error) {
 	logEvent := s.logger.Debug().Str("method", "GetRepoDetail")
-	var repoDetail types.ContainerImageRepository
+	repoDetail := &types.ContainerImageRepository{}
 
 	repositoryName := strings.Split(namespace, "/")[1]
 	err := s.
 		db.
 		NewSelect().
-		Model(&repoDetail).
+		Model(repoDetail).
 		Relation("ImageManifests").
 		Where("name = ?", repositoryName).
 		Limit(pageSize).
@@ -502,13 +535,13 @@ func (s *registryStore) GetRepoDetail(
 	}
 
 	logEvent.Bool("success", true).Send()
-	return &repoDetail, nil
+	return repoDetail, nil
 }
 
 // SetContainerImageVisibility implements registry.RegistryStore.
 func (s *registryStore) SetContainerImageVisibility(
 	ctx context.Context,
-	imageId string,
+	imageId uuid.UUID,
 	visibility types.RepositoryVisibility,
 ) error {
 	logEvent := s.logger.Debug().Str("method", "SetContainerImageVisibility")
@@ -516,9 +549,9 @@ func (s *registryStore) SetContainerImageVisibility(
 	_, err := s.
 		db.
 		NewUpdate().
-		Model(&types.ContainerImageRepository{}).
-		Set("visibility = ?", visibility).
-		WherePK(imageId).
+		Model(&types.ContainerImageRepository{ID: imageId}).
+		Set("visibility = ?", visibility.String()).
+		WherePK().
 		Where("name != ?", types.SystemUsernameIPFS). // IPFS repositories cannot be set to private since they are P2P
 		Exec(ctx)
 	if err != nil {
@@ -704,11 +737,11 @@ func (s *registryStore) GetImageSizeByLayerIds(ctx context.Context, layerIDs []s
 }
 
 func (s *registryStore) IncrementRepositoryPullCounter(ctx context.Context, repoID uuid.UUID) error {
-	repo := types.ContainerImageRepository{
+	repo := &types.ContainerImageRepository{
 		ID: repoID,
 	}
 
-	_, err := s.db.NewUpdate().Model(&repo).WherePK().Set("pull_count = pull_count + 1").Exec(ctx)
+	_, err := s.db.NewUpdate().Model(repo).WherePK().Set("pull_count = pull_count + 1").Exec(ctx)
 	if err != nil {
 		return v1.WrapDatabaseError(err, v1.DatabaseOperationUpdate)
 	}
@@ -717,12 +750,12 @@ func (s *registryStore) IncrementRepositoryPullCounter(ctx context.Context, repo
 }
 
 func (s *registryStore) AddRepositoryToFavorites(ctx context.Context, repoID uuid.UUID, userID uuid.UUID) error {
-	user := types.User{}
+	user := &types.User{}
 
 	q := s.
 		db.
 		NewUpdate().
-		Model(&user).
+		Model(user).
 		Set("favorite_repositories = array_append(favorite_repositories, ?)", repoID).
 		Where("id = ?", userID).
 		Where("NOT (? = ANY(favorite_repositories))", repoID)
@@ -738,11 +771,11 @@ func (s *registryStore) AddRepositoryToFavorites(ctx context.Context, repoID uui
 	}
 
 	if rowsAffected == 1 {
-		repo := types.ContainerImageRepository{
+		repo := &types.ContainerImageRepository{
 			ID: repoID,
 		}
 
-		_, err = s.db.NewUpdate().Model(&repo).WherePK().Set("favorite_count = favorite_count + 1").Exec(ctx)
+		_, err = s.db.NewUpdate().Model(repo).WherePK().Set("favorite_count = favorite_count + 1").Exec(ctx)
 		if err != nil {
 			return v1.WrapDatabaseError(err, v1.DatabaseOperationUpdate)
 		}
@@ -754,11 +787,11 @@ func (s *registryStore) AddRepositoryToFavorites(ctx context.Context, repoID uui
 }
 
 func (s *registryStore) RemoveRepositoryFromFavorites(ctx context.Context, repoID uuid.UUID, userID uuid.UUID) error {
-	user := types.User{}
+	user := &types.User{}
 	q := s.
 		db.
 		NewUpdate().
-		Model(&user).
+		Model(user).
 		Set("favorite_repositories = array_remove(favorite_repositories, ?)", repoID).
 		Where("id = ?", userID).
 		Where("? = ANY(favorite_repositories)", repoID)
@@ -770,11 +803,11 @@ func (s *registryStore) RemoveRepositoryFromFavorites(ctx context.Context, repoI
 
 	rowsAffected, err := result.RowsAffected()
 	if err == nil && rowsAffected == 1 {
-		repo := types.ContainerImageRepository{
+		repo := &types.ContainerImageRepository{
 			ID: repoID,
 		}
 
-		_, err = s.db.NewUpdate().Model(&repo).WherePK().Set("favorite_count = favorite_count - 1").Exec(ctx)
+		_, err = s.db.NewUpdate().Model(repo).WherePK().Set("favorite_count = favorite_count - 1").Exec(ctx)
 		if err != nil {
 			return v1.WrapDatabaseError(err, v1.DatabaseOperationUpdate)
 		}
@@ -785,4 +818,75 @@ func (s *registryStore) RemoveRepositoryFromFavorites(ctx context.Context, repoI
 		fmt.Errorf("repository is not in favorites list"),
 		v1.DatabaseOperationUpdate,
 	)
+}
+
+func (s *registryStore) GetLayersLinksForManifest(
+	ctx context.Context,
+	manifestDigest string,
+) ([]*types.ContainerImageLayer, error) {
+	logEvent := s.logger.Debug().Str("method", "GetLayersLinksForManifest").Str("digest", manifestDigest)
+
+	manifest := &types.ImageManifest{}
+	err := s.db.NewSelect().Model(manifest).Where("digest = ?", manifestDigest).Scan(ctx)
+	if err != nil {
+		return nil, v1.WrapDatabaseError(err, v1.DatabaseOperationRead)
+	}
+
+	layerDigests := make([]string, len(manifest.Layers))
+	for i, l := range manifest.Layers {
+		layerDigests[i] = l.Digest.String()
+	}
+
+	var layers []*types.ContainerImageLayer
+	if err = s.
+		db.
+		NewSelect().
+		Model(&layers).
+		Where("digest in (?)", bun.In(layerDigests)).
+		Scan(ctx); err != nil {
+		logEvent.Err(err).Send()
+		return nil, v1.WrapDatabaseError(err, v1.DatabaseOperationRead)
+	}
+
+	logEvent.Bool("success", true).Send()
+	return layers, nil
+}
+func (s *registryStore) ListFavoriteRepositories(
+	ctx context.Context,
+	userID uuid.UUID,
+) ([]*types.ContainerImageRepository, error) {
+	logEvent := s.logger.Debug().Str("method", "ListFavoriteRepositories")
+
+	repositories := []*types.ContainerImageRepository{}
+	user := &types.User{ID: userID}
+	err := s.
+		db.
+		NewSelect().
+		Model(user).
+		WherePK().
+		Scan(ctx)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if len(user.FavoriteRepositories) == 0 {
+		return repositories, nil
+	}
+
+	q := s.
+		db.
+		NewSelect().
+		Model(&repositories).
+		Where(`"r"."id" in (?)`, bun.In(user.FavoriteRepositories)).
+		Relation("User", func(sq *bun.SelectQuery) *bun.SelectQuery {
+			return sq.ExcludeColumn("password").ExcludeColumn("github_connected").ExcludeColumn("webauthn_connected")
+		})
+
+	if err := q.Scan(ctx); err != nil {
+		logEvent.Err(err).Send()
+		return nil, v1.WrapDatabaseError(err, v1.DatabaseOperationRead)
+	}
+
+	return repositories, nil
 }

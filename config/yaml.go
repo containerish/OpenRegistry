@@ -11,7 +11,7 @@ import (
 	"github.com/fatih/color"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/spf13/viper"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 )
 
 func ReadYamlConfig(configPath string) (*OpenRegistryConfig, error) {
@@ -77,7 +77,7 @@ func ReadYamlConfig(configPath string) (*OpenRegistryConfig, error) {
 		githubConfig.Port = 5001
 	}
 
-	cfg.Integrations.SetGithubConfig(githubConfig)
+	// cfg.Integrations.SetGithubConfig(githubConfig)
 
 	if err := cfg.Validate(); err != nil {
 		return nil, err
@@ -150,6 +150,16 @@ func setDefaultsForDatabaseStore(cfg *OpenRegistryConfig) {
 }
 
 func parseAndSetMockStorageDriverOptions(cfg *OpenRegistryConfig) {
+	mockConfig := viper.GetStringMap("dfs.mock")
+	keys := make([]string, 0, len(mockConfig))
+	for k := range mockConfig {
+		keys = append(keys, k)
+	}
+
+	// skip is mock config is absent
+	if len(keys) == 0 {
+		return
+	}
 	mockDFSType := viper.GetString("dfs.mock.type")
 	if mockDFSType == "MemMapped" {
 		viper.Set("dfs.mock.type", MockStorageBackendMemMapped)

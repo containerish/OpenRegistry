@@ -17,7 +17,6 @@ import (
 	"github.com/containerish/OpenRegistry/config"
 	"github.com/containerish/OpenRegistry/dfs"
 	"github.com/containerish/OpenRegistry/store/v1/types"
-	core_types "github.com/containerish/OpenRegistry/types"
 )
 
 type storjUplink struct {
@@ -178,7 +177,7 @@ func (u *storjUplink) GetUploadProgress(identifier string, uploadID string) (*ty
 
 // Metadata implements dfs.DFS
 func (u *storjUplink) Metadata(layer *types.ContainerImageLayer) (*types.ObjectMetadata, error) {
-	identifier := core_types.GetLayerIdentifier(layer.ID)
+	identifier := types.GetLayerIdentifier(layer.ID)
 
 	metadata, err := u.client.StatObject(context.Background(), u.bucket, identifier)
 	if err != nil {

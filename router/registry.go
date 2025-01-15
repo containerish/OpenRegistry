@@ -105,5 +105,6 @@ func RegisterExtensionsRoutes(
 	group.Add(http.MethodPost, ChangeRepositoryVisibility, ext.ChangeContainerImageVisibility, middlewares...)
 	group.Add(http.MethodPost, CreateRepository, reg.CreateRepository, middlewares...)
 	group.Add(http.MethodPost, RepositoryFavorites, ext.AddRepositoryToFavorites, middlewares...)
-	group.Add(http.MethodDelete, RepositoryFavorites, ext.RemoveRepositoryFromFavorites, middlewares...)
+	group.Add(http.MethodGet, RepositoryFavorites, ext.ListFavoriteRepositories, middlewares...)
+	group.Add(http.MethodDelete, RemoveRepositoryFavorites, ext.RemoveRepositoryFromFavorites, middlewares...)
 }

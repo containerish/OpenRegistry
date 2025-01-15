@@ -13,7 +13,7 @@ import (
 	"github.com/labstack/echo/v4"
 	oci_digest "github.com/opencontainers/go-digest"
 
-	"github.com/containerish/OpenRegistry/types"
+	"github.com/containerish/OpenRegistry/store/v1/types"
 )
 
 func (b *blobs) errorResponse(code, msg string, detail map[string]interface{}) []byte {

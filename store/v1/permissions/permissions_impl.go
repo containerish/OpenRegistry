@@ -14,14 +14,31 @@ import (
 // AddPermission implements PermissionsStore.
 func (p *permissionStore) AddPermissions(
 	ctx context.Context,
-	perm *types.Permissions,
+	input *types.AddUsersToOrgRequest,
 ) error {
-	err := p.validatePermissionInput(perm)
+	err := p.validateAddOrgMembersInput(input)
 	if err != nil {
 		return v1.WrapDatabaseError(err, v1.DatabaseOperationWrite)
 	}
+	perms := make([]*types.Permissions, len(input.Users))
 
-	if _, err = p.db.NewInsert().Model(perm).Exec(ctx); err != nil {
+	for i, p := range input.Users {
+		perm := &types.Permissions{
+			UserID:         p.ID,
+			OrganizationID: input.OrganizationID,
+			Push:           p.Push,
+			Pull:           p.Pull,
+			IsAdmin:        p.IsAdmin,
+		}
+		if p.IsAdmin {
+			perm.Pull = true
+			perm.Push = true
+		}
+
+		perms[i] = perm
+	}
+
+	if _, err = p.db.NewInsert().Model(&perms).Exec(ctx); err != nil {
 		return err
 	}
 
@@ -48,12 +65,12 @@ func (p *permissionStore) GetUserPermissionsForOrg(
 	orgID uuid.UUID,
 	userID uuid.UUID,
 ) (*types.Permissions, error) {
-	var perm types.Permissions
+	perm := &types.Permissions{}
 
 	err := p.
 		db.
 		NewSelect().
-		Model(&perm).
+		Model(perm).
 		Where("user_id = ?", userID.String()).
 		Where("organization_id = ?", orgID).
 		Scan(ctx)
@@ -62,7 +79,7 @@ func (p *permissionStore) GetUserPermissionsForOrg(
 		return nil, v1.WrapDatabaseError(err, v1.DatabaseOperationRead)
 	}
 
-	return &perm, nil
+	return perm, nil
 }
 
 func (p *permissionStore) UpdatePermissions(ctx context.Context, perm *types.Permissions) error {
@@ -101,12 +118,30 @@ func (p *permissionStore) validatePermissionInput(perm *types.Permissions) error
 	return nil
 }
 
+func (p *permissionStore) validateAddOrgMembersInput(input *types.AddUsersToOrgRequest) error {
+	if input == nil {
+		return fmt.Errorf("permission set is nil")
+	}
+
+	if input.OrganizationID.String() == "" {
+		return fmt.Errorf("invalid organization id")
+	}
+
+	for _, u := range input.Users {
+		if u.ID.String() == "" {
+			return fmt.Errorf("invalid user id")
+		}
+	}
+
+	return nil
+}
+
 func (p *permissionStore) RemoveUserFromOrg(ctx context.Context, orgID, userID uuid.UUID) error {
-	var perm types.Permissions
+	perm := &types.Permissions{}
 	_, err := p.
 		db.
 		NewDelete().
-		Model(&perm).
+		Model(perm).
 		Where("organization_id = ?", orgID.String()).
 		Where("user_id = ?", userID.String()).
 		Exec(ctx)
@@ -122,18 +157,18 @@ func (p *permissionStore) GetUserPermissionsForNamespace(
 	ns string,
 	userID uuid.UUID,
 ) *types.Permissions {
-	perms := types.Permissions{}
+	perms := &types.Permissions{}
 
 	nsParts := strings.Split(ns, "/")
 	if len(nsParts) != 2 {
-		return &perms
+		return perms
 	}
 	orgName := nsParts[0]
 
 	q := p.
 		db.
 		NewSelect().
-		Model(&perms).
+		Model(perms).
 		Relation("Organization", func(sq *bun.SelectQuery) *bun.SelectQuery {
 			return sq.
 				Where(`"organization"."username" = ?`, orgName).
@@ -146,9 +181,9 @@ func (p *permissionStore) GetUserPermissionsForNamespace(
 		})
 
 	if err := q.Scan(ctx); err != nil {
-		return &perms
+		return perms
 	}
 
-	return &perms
+	return perms
 
 }

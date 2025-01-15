@@ -1,19 +1,26 @@
 package config
 
 import (
+	"bytes"
 	"crypto/rsa"
+	"crypto/sha256"
+	"crypto/x509"
+	"encoding/base32"
 	"errors"
 	"fmt"
 	"strings"
 	"time"
 
+	"github.com/fatih/color"
 	"github.com/go-playground/locales/en"
 	ut "github.com/go-playground/universal-translator"
 	"github.com/go-playground/validator/v10"
 	enTranslations "github.com/go-playground/validator/v10/translations/en"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/hashicorp/go-multierror"
 	"github.com/labstack/echo/v4"
 	"github.com/spf13/viper"
+	"gopkg.in/yaml.v3"
 )
 
 type (
@@ -76,7 +83,7 @@ type (
 	MockStorageBackend int
 
 	// just so that we can retrieve values easily
-	Integrations []*Integration
+	Integrations map[string]any
 
 	Registry struct {
 		DNSAddress string   `yaml:"dns_address" mapstructure:"dns_address" validate:"required"`
@@ -134,7 +141,8 @@ type (
 		Enabled       bool          `yaml:"enabled" mapstructure:"enabled"`
 		Timeout       time.Duration `yaml:"timeout" mapstructure:"timeout"`
 	}
-	Integration struct {
+
+	GithubIntegration struct {
 		Name                  string `yaml:"name" mapstructure:"name"`
 		ClientSecret          string `yaml:"client_secret" mapstructure:"client_secret"`
 		ClientID              string `yaml:"client_id" mapstructure:"client_id"`
@@ -146,6 +154,14 @@ type (
 		AppID                 int64  `yaml:"app_id" mapstructure:"app_id"`
 		Port                  int    `yaml:"port" mapstructure:"port"`
 		Enabled               bool   `yaml:"enabled" mapstructure:"enabled"`
+	}
+
+	ClairIntegration struct {
+		ClairEndpoint string `yaml:"clair_endpoint" mapstructure:"clair_endpoint"`
+		AuthToken     string `yaml:"auth_token" mapstructure:"auth_token"`
+		Host          string `yaml:"host" mapstructure:"host"`
+		Port          int    `yaml:"port" mapstructure:"port"`
+		Enabled       bool   `yaml:"enabled" mapstructure:"enabled"`
 	}
 
 	Auth struct {
@@ -183,9 +199,16 @@ type (
 	}
 
 	Telemetry struct {
-		Logging Logging `yaml:"logging" mapstructure:"logging"`
-		Otel    Otel    `yaml:"otel" mapstructure:"otel"`
-		Enabled bool    `yaml:"enabled" mapstructure:"enabled"`
+		Honeycomb Honeycomb `yaml:"honeycomb" mapstructure:"honeycomb"`
+		Logging   Logging   `yaml:"logging" mapstructure:"logging"`
+		Otel      Otel      `yaml:"otel" mapstructure:"otel"`
+		Enabled   bool      `yaml:"enabled" mapstructure:"enabled"`
+	}
+
+	Honeycomb struct {
+		ServiceName string `yaml:"service_name" mapstructure:"service_name"`
+		ApiKey      string `yaml:"api_key" mapstructure:"api_key"`
+		Enabled     bool   `yaml:"enabled" mapstructure:"enabled"`
 	}
 
 	IpfsDFS struct {
@@ -292,23 +315,70 @@ func (oc *OpenRegistryConfig) Endpoint() string {
 	}
 }
 
-func (itg Integrations) GetGithubConfig() *Integration {
-	for _, cfg := range itg {
-		if cfg.Name == "github" && cfg.Enabled {
-			return cfg
-		}
+func (itg Integrations) GetClairConfig() *ClairIntegration {
+	cfg := ClairIntegration{
+		Enabled: false,
+	}
+	clairCfg, ok := itg["clair"]
+	if !ok {
+		return &cfg
 	}
 
-	return &Integration{}
+	bz, err := yaml.Marshal(clairCfg)
+	if err != nil {
+		color.Red("error reading clair integration config as json: %s", err)
+		return nil
+	}
+
+	if err = yaml.Unmarshal(bz, &cfg); err != nil {
+		color.Red("error parsing Clair integration config: %s", err)
+		return nil
+	}
+
+	if cfg.Host == "" {
+		cfg.Host = "localhost"
+	}
+
+	if cfg.Port == 0 {
+		cfg.Port = 5004
+	}
+
+	return &cfg
 }
 
-func (itg Integrations) SetGithubConfig(config *Integration) {
-	for i, cfg := range itg {
-		if cfg.Name == "github" {
-			itg[i] = config
-			break
-		}
+func (itg Integrations) GetGithubConfig() *GithubIntegration {
+	cfg := GithubIntegration{
+		Enabled: false,
 	}
+	ghCfg, ok := itg["github"]
+	if !ok {
+		return &cfg
+	}
+
+	bz, err := yaml.Marshal(ghCfg)
+	if err != nil {
+		color.Red("error reading github integration config as json: %s", err)
+		return nil
+	}
+
+	if err = yaml.Unmarshal(bz, &cfg); err != nil {
+		color.Red("error parsing GitHub integration config: %s", err)
+		return nil
+	}
+
+	if cfg.Host == "" {
+		cfg.Host = "localhost"
+	}
+
+	if cfg.Port == 0 {
+		cfg.Port = 5001
+	}
+
+	return &cfg
+}
+
+func (itg Integrations) SetGithubConfig(config map[string]any) {
+	itg["github"] = config
 }
 
 type Environment int
@@ -378,7 +448,11 @@ func (cfg *WebAppConfig) GetAllowedURLFromEchoContext(ctx echo.Context, env Envi
 	return cfg.AllowedEndpoints[0]
 }
 
-func (itg *Integration) GetAllowedURLFromEchoContext(ctx echo.Context, env Environment, allowedURLs []string) string {
+func (itg *GithubIntegration) GetAllowedURLFromEchoContext(
+	ctx echo.Context,
+	env Environment,
+	allowedURLs []string,
+) string {
 	origin := ctx.Request().Header.Get("Origin")
 	if env == Staging {
 		return origin
@@ -418,4 +492,35 @@ func (wan *WebAuthnConfig) GetAllowedURLFromEchoContext(ctx echo.Context, env En
 	}
 
 	return wan.RPOrigins[0]
+}
+
+func (a *Auth) keyIDEncode(b []byte) string {
+	s := strings.TrimRight(base32.StdEncoding.EncodeToString(b), "=")
+	var buf bytes.Buffer
+	var i int
+	for i = 0; i < len(s)/4-1; i++ {
+		start := i * 4
+		end := start + 4
+		buf.WriteString(s[start:end] + ":")
+	}
+	buf.WriteString(s[i*4:])
+	return buf.String()
+}
+
+func (a *Auth) SignWithPubKey(claims jwt.Claims) (string, error) {
+	pubKeyDerBz, err := x509.MarshalPKIXPublicKey(a.JWTSigningPubKey)
+	if err != nil {
+		return "", err
+	}
+
+	hasher := sha256.New()
+	hasher.Write(pubKeyDerBz)
+	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
+	token.Header["kid"] = a.keyIDEncode(hasher.Sum(nil)[:30])
+	signed, err := token.SignedString(a.JWTSigningPrivateKey)
+	if err != nil {
+		return "", fmt.Errorf("error signing secret %w", err)
+	}
+
+	return signed, nil
 }

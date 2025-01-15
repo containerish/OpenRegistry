@@ -7,10 +7,11 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/containerish/OpenRegistry/store/v1/types"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v4"
 	"github.com/labstack/echo/v4"
+
+	"github.com/containerish/OpenRegistry/store/v1/types"
 )
 
 func (a *auth) SignIn(ctx echo.Context) error {
@@ -170,7 +171,7 @@ func (a *auth) SignIn(ctx echo.Context) error {
 	}
 
 	sessionId := fmt.Sprintf("%s:%s", id, userFromDb.ID)
-	sessionCookie := a.createCookie(ctx, "session_id", sessionId, false, time.Now().Add(time.Hour*750))
+	sessionCookie := a.createCookie(ctx, SessionCookieKey, sessionId, false, time.Now().Add(time.Hour*750))
 	accessCookie := a.createCookie(ctx, AccessCookieKey, access, true, time.Now().Add(time.Hour*750))
 	refreshCookie := a.createCookie(ctx, RefreshCookKey, refresh, true, time.Now().Add(time.Hour*750))
 
@@ -178,8 +179,9 @@ func (a *auth) SignIn(ctx echo.Context) error {
 	ctx.SetCookie(refreshCookie)
 	ctx.SetCookie(sessionCookie)
 	err = ctx.JSON(http.StatusOK, echo.Map{
-		"token":   access,
-		"refresh": refresh,
+		SessionCookieKey: sessionId,
+		AccessCookieKey:  access,
+		RefreshCookKey:   refresh,
 	})
 	a.logger.Log(ctx, err).Send()
 	return err

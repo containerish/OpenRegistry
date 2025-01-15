@@ -11,44 +11,6 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-func (a *auth) getImageNamespace(ctx echo.Context) (string, error) {
-	if ctx.Request().URL.Path == "/token" {
-		scope, err := a.getScopeFromQueryParams(ctx.QueryParam("scope"))
-		if err != nil {
-			return "", err
-		}
-
-		return scope.Name, nil
-	}
-	username := ctx.Param("username")
-	imageName := ctx.Param("imagename")
-	return username + "/" + imageName, nil
-}
-
-func (a *auth) populateUserFromPermissionsCheck(ctx echo.Context) error {
-	auth := ctx.Request().Header.Get(echo.HeaderAuthorization)
-	isTokenRequest := ctx.Request().URL.Path == "/token"
-
-	if len(auth) > len(authSchemeBasic)+1 && strings.EqualFold(auth[:len(authSchemeBasic)], authSchemeBasic) {
-		user, err := a.validateBasicAuthCredentials(auth)
-		if err != nil {
-			return err
-		}
-
-		ctx.Set(string(types.UserContextKey), user)
-		return nil
-	}
-
-	// Check if it's an OCI request
-	if !isTokenRequest {
-		if _, ok := ctx.Get(string(types.UserContextKey)).(*types.User); ok {
-			return nil
-		}
-	}
-
-	return fmt.Errorf("invalid user credentials: %s", auth)
-}
-
 func (a *auth) RepositoryPermissionsMiddleware() echo.MiddlewareFunc {
 	return func(handler echo.HandlerFunc) echo.HandlerFunc {
 		return func(ctx echo.Context) error {
@@ -125,14 +87,50 @@ func (a *auth) RepositoryPermissionsMiddleware() echo.MiddlewareFunc {
 	}
 }
 
+func (a *auth) getImageNamespace(ctx echo.Context) (string, error) {
+	if ctx.Request().URL.Path == "/token" {
+		scope, err := a.getScopeFromQueryParams(ctx.QueryParam("scope"))
+		if err != nil {
+			return "", err
+		}
+
+		return scope.Name, nil
+	}
+	username := ctx.Param("username")
+	imageName := ctx.Param("imagename")
+	return username + "/" + imageName, nil
+}
+
+func (a *auth) populateUserFromPermissionsCheck(ctx echo.Context) error {
+	auth := ctx.Request().Header.Get(echo.HeaderAuthorization)
+	isTokenRequest := ctx.Request().URL.Path == "/token"
+
+	if len(auth) > len(authSchemeBasic)+1 && strings.EqualFold(auth[:len(authSchemeBasic)], authSchemeBasic) {
+		user, err := a.validateBasicAuthCredentials(auth)
+		if err != nil {
+			return fmt.Errorf("ERR_USER_PERM_CHECK: %w", err)
+		}
+
+		ctx.Set(string(types.UserContextKey), user)
+		return nil
+	}
+
+	// Check if it's an OCI request
+	if !isTokenRequest {
+		if _, ok := ctx.Get(string(types.UserContextKey)).(*types.User); ok {
+			return nil
+		}
+	}
+
+	return fmt.Errorf("invalid user credentials: %s", auth)
+}
+
 func (a *auth) handleTokenRequest(ctx echo.Context, handler echo.HandlerFunc) (error, bool) {
 	if err := a.populateUserFromPermissionsCheck(ctx); err != nil {
 		registryErr := common.RegistryErrorResponse(
 			registry.RegistryErrorCodeUnauthorized,
-			"missing user credentials in request",
-			echo.Map{
-				"error": err.Error(),
-			},
+			err.Error(),
+			nil,
 		)
 
 		echoErr := ctx.JSONBlob(http.StatusUnauthorized, registryErr.Bytes())

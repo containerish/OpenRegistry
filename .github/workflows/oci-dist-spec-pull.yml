@@ -42,6 +42,7 @@ jobs:
         ports:
           - 5432:5432
     steps:
+      - run: sudo snap install --edge --classic just
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
@@ -58,7 +59,7 @@ jobs:
           yq e -i '.dfs.mock.type = "FS"' config.yaml
           go mod download
           go build
-          make certs
+          just certs
           ./OpenRegistry migrations init \
             --admin-db="postgres" \
             --admin-db-username="postgres" \

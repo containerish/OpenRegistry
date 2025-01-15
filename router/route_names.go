@@ -75,4 +75,5 @@ const (
 	ChangeRepositoryVisibility = Ext + "/repository/visibility"
 	CreateRepository           = Ext + "/repository/create"
 	RepositoryFavorites        = Ext + "/repository/favorites"
+	RemoveRepositoryFavorites  = Ext + "/repository/favorites/:repository_id"
 )

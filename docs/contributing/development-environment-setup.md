@@ -3,12 +3,14 @@
 ## Clone the repository
 
 We recommend using the Git method to clone the repository:
+
 ```bash
 git clone git@github.com:containerish/OpenRegistry.git
 cd OpenRegistry
 ```
 
 ## Configuration File
+
 OpenRegistry uses the standard yaml based configuration. This configuration file is named `config.yaml` and can be
 either in the current directory or `$HOME/.openregistry/config.yaml` directory. Some of the features are disabled by
 default just to keep the on-boarding process simple.
@@ -22,39 +24,39 @@ web_app_url: "http://localhost:3000"
 web_app_redirect_url: "/"
 web_app_error_redirect_path: "/auth/unhandled"
 registry:
-    dns_address: registry.local
-    version: master
-    fqdn: registry.local
-    host: registry.local
-    port: 5000
-    tls:
-        enabled: true
-        key: .certs/openregistry.key
-        cert: .certs/openregistry.cert
-    services:
-        - github
-        - token
+  dns_address: registry.local
+  version: master
+  fqdn: registry.local
+  host: registry.local
+  port: 5000
+  tls:
+    enabled: true
+    key: .certs/openregistry.key
+    cert: .certs/openregistry.cert
+  services:
+    - github
+    - token
 dfs:
-    s3_any:
-        access_key: <access-key>
-        secret_key: <access-secret-key>
-        endpoint: <s3-compatible-api-endpoint>
-        bucket_name: <s3-bucket-name>
-        dfs_link_resolver: <optional-dfs-link-resolver-url>
+  s3_any:
+    access_key: <access-key>
+    secret_key: <access-secret-key>
+    endpoint: <s3-compatible-api-endpoint>
+    bucket_name: <s3-bucket-name>
+    dfs_link_resolver: <optional-dfs-link-resolver-url>
 database:
-    kind: postgres
-    host: 0.0.0.0
-    port: 5432
-    username: postgres
-    password: Qwerty@123
-    name: open_registry
+  kind: postgres
+  host: 0.0.0.0
+  port: 5432
+  username: postgres
+  password: Qwerty@123
+  name: open_registry
 ```
 
 If you check the `registry.tls` section, you'll notice that we have enabled the TLS configuration, but we need to
 generate the TLS certificates before we move forward:
 
 ```bash
-make certs
+just certs
 ```
 
 ## Database Setup
@@ -79,12 +81,13 @@ Exit the Postgres shell.
 ### Create the tables
 
 We have a simple Makefile, which exposes the following commands:
+
 - `migup` - Populate all the migrations, create tables, schema changes
 - `migdown` - Teardown all the tables, schemas, etc
 - `cleanup` - Runs `migdown` first and then `migup`
 
 Before we begin setting up tables in our database, we need to use another tool called `golang-migrate`.
-This is a database migration tool that makes database migrations dead simple. Use either of the following links to 
+This is a database migration tool that makes database migrations dead simple. Use either of the following links to
 install `golang-migrate`:
 
 - [Homebrew Link](https://formulae.brew.sh/formula/golang-migrate#default)
@@ -93,7 +96,7 @@ install `golang-migrate`:
 To make sure that OpenRegistry can find all the required tables, schemas, etc, run the following command:
 
 ```bash
-make migup
+just migup
 ```
 
 ```bash

@@ -1,22 +1,22 @@
 package server
 
 import (
-	"net/url"
-
 	"archive/zip"
 	"bytes"
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
 
+	"connectrpc.com/connect"
 	"github.com/bradleyfalzon/ghinstallation/v2"
-	connect_go "github.com/bufbuild/connect-go"
+	"github.com/google/go-github/v56/github"
+
 	github_actions_v1 "github.com/containerish/OpenRegistry/services/kon/github_actions/v1"
 	github_impl "github.com/containerish/OpenRegistry/vcs/github"
-	"github.com/google/go-github/v56/github"
 )
 
 type WorkflowStep struct {
@@ -27,8 +27,8 @@ type WorkflowStep struct {
 
 func (ghs *GitHubActionsServer) streamPreviousRunLogs(
 	ctx context.Context,
-	req *connect_go.Request[github_actions_v1.StreamWorkflowRunLogsRequest],
-	stream *connect_go.ServerStream[github_actions_v1.StreamWorkflowRunLogsResponse],
+	req *connect.Request[github_actions_v1.StreamWorkflowRunLogsRequest],
+	stream *connect.ServerStream[github_actions_v1.StreamWorkflowRunLogsResponse],
 	githubClient *github.Client,
 ) error {
 	logEvent := ghs.logger.Debug().Str("method", "streamPreviousRunLogs")
@@ -44,19 +44,19 @@ func (ghs *GitHubActionsServer) streamPreviousRunLogs(
 	)
 	if err != nil {
 		logEvent.Err(err).Send()
-		return connect_go.NewError(connect_go.CodeUnavailable, err)
+		return connect.NewError(connect.CodeUnavailable, err)
 	}
 
 	if len(runs.WorkflowRuns) < 1 {
 		errMsg := fmt.Errorf("no github actions run found for this id")
 		logEvent.Err(errMsg).Send()
-		return connect_go.NewError(connect_go.CodeInvalidArgument, errMsg)
+		return connect.NewError(connect.CodeInvalidArgument, errMsg)
 	}
 
 	workflowSteps, err := ghs.getLogsToStream(ctx, githubClient, runs.WorkflowRuns[0].GetLogsURL())
 	if err != nil {
 		logEvent.Err(err).Send()
-		return connect_go.NewError(connect_go.CodeInvalidArgument, err)
+		return connect.NewError(connect.CodeInvalidArgument, err)
 	}
 
 	for _, step := range workflowSteps {
@@ -71,12 +71,12 @@ func (ghs *GitHubActionsServer) streamPreviousRunLogs(
 
 func (ghs *GitHubActionsServer) StreamWorkflowRunLogs(
 	ctx context.Context,
-	req *connect_go.Request[github_actions_v1.StreamWorkflowRunLogsRequest],
-	stream *connect_go.ServerStream[github_actions_v1.StreamWorkflowRunLogsResponse],
+	req *connect.Request[github_actions_v1.StreamWorkflowRunLogsRequest],
+	stream *connect.ServerStream[github_actions_v1.StreamWorkflowRunLogsResponse],
 ) error {
 	logEvent := ghs.logger.Debug().Str("procedure", req.Spec().Procedure)
 	if err := req.Msg.Validate(); err != nil {
-		return connect_go.NewError(connect_go.CodeInvalidArgument, err)
+		return connect.NewError(connect.CodeInvalidArgument, err)
 	}
 
 	logEvent.
@@ -89,8 +89,8 @@ func (ghs *GitHubActionsServer) StreamWorkflowRunLogs(
 	if !ok {
 		errMsg := fmt.Errorf("github app installation id not found for user")
 		logEvent.Err(errMsg).Send()
-		return connect_go.NewError(
-			connect_go.CodeInvalidArgument, errMsg,
+		return connect.NewError(
+			connect.CodeInvalidArgument, errMsg,
 		)
 	}
 
@@ -106,7 +106,7 @@ func (ghs *GitHubActionsServer) StreamWorkflowRunLogs(
 	err := ghs.waitForJobToFinish(ctx, githubClient, req, stream)
 	if err != nil {
 		logEvent.Err(err).Send()
-		return connect_go.NewError(connect_go.CodeInvalidArgument, err)
+		return connect.NewError(connect.CodeInvalidArgument, err)
 	}
 
 	delete(ghs.activeLogStreamJobs, ghs.getLogsEventKey(req.Msg))
@@ -119,7 +119,7 @@ func (ghs *GitHubActionsServer) StreamWorkflowRunLogs(
 	if !ok {
 		errMsg := fmt.Errorf("missing GitHub App installation ID")
 		logEvent.Err(errMsg).Send()
-		return connect_go.NewError(connect_go.CodeInternal, errMsg)
+		return connect.NewError(connect.CodeInternal, errMsg)
 	}
 	client := ghs.refreshGHClient(githubAppInstallation)
 
@@ -134,17 +134,16 @@ func (ghs *GitHubActionsServer) StreamWorkflowRunLogs(
 			},
 		},
 	)
-
 	if err != nil {
 		logEvent.Err(err).Send()
-		return connect_go.NewError(connect_go.CodeInternal, err)
+		return connect.NewError(connect.CodeInternal, err)
 	}
 
 	runID := actionRuns.WorkflowRuns[0].GetID()
 	uri, err := ghs.getWorkflowRunLogsURL(ctx, req.Msg.GetRepoOwner(), req.Msg.GetRepoName(), runID)
 	if err != nil {
 		logEvent.Err(err).Send()
-		return connect_go.NewError(connect_go.CodeNotFound, err)
+		return connect.NewError(connect.CodeNotFound, err)
 	}
 
 	workflowSteps, err := ghs.getLogsToStream(ctx, githubClient, uri.String())
@@ -158,7 +157,6 @@ func (ghs *GitHubActionsServer) StreamWorkflowRunLogs(
 			LogMessage: step.Buf.String(),
 			MsgType:    github_actions_v1.StreamWorkflowRunMessageType_STREAM_WORKFLOW_RUN_MESSAGE_TYPE_STEP,
 		})
-
 	}
 
 	logEvent.Bool("success", true).Send()
@@ -220,7 +218,6 @@ func (ghs *GitHubActionsServer) retryGetWorkflowRunLogsURL(
 	}
 
 	return logsUrl, logsErr
-
 }
 
 func (ghs *GitHubActionsServer) getWorkflowRunLogsURL(
@@ -236,22 +233,22 @@ func (ghs *GitHubActionsServer) getWorkflowRunLogsURL(
 
 func (ghs *GitHubActionsServer) DumpLogs(
 	ctx context.Context,
-	req *connect_go.Request[github_actions_v1.DumpLogsRequest],
+	req *connect.Request[github_actions_v1.DumpLogsRequest],
 ) (
-	*connect_go.Response[github_actions_v1.DumpLogsResponse],
+	*connect.Response[github_actions_v1.DumpLogsResponse],
 	error,
 ) {
 	logEvent := ghs.logger.Debug().Str("procedure", req.Spec().Procedure)
 	if err := req.Msg.Validate(); err != nil {
 		logEvent.Err(err).Send()
-		return nil, connect_go.NewError(connect_go.CodeInvalidArgument, err)
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 
 	ghAppInstallationID, ok := ctx.Value(github_impl.GithubInstallationIDContextKey).(int64)
 	if !ok {
 		errMsg := fmt.Errorf("github app installation id not found for user")
 		logEvent.Err(errMsg).Send()
-		return nil, connect_go.NewError(connect_go.CodeInvalidArgument, errMsg)
+		return nil, connect.NewError(connect.CodeInvalidArgument, errMsg)
 	}
 
 	githubClient := ghs.refreshGHClient(ghAppInstallationID)
@@ -268,19 +265,19 @@ func (ghs *GitHubActionsServer) DumpLogs(
 	)
 	if err != nil {
 		logEvent.Err(err).Send()
-		return nil, connect_go.NewError(connect_go.CodeUnavailable, err)
+		return nil, connect.NewError(connect.CodeUnavailable, err)
 	}
 
 	if len(runs.WorkflowRuns) < 1 {
 		errMsg := fmt.Errorf("no github actions run found for this id")
 		logEvent.Err(errMsg).Send()
-		return nil, connect_go.NewError(connect_go.CodeInvalidArgument, errMsg)
+		return nil, connect.NewError(connect.CodeInvalidArgument, errMsg)
 	}
 
 	workflowSteps, err := ghs.getLogsToStream(ctx, githubClient, runs.WorkflowRuns[0].GetLogsURL())
 	if err != nil {
 		logEvent.Err(err).Send()
-		return nil, connect_go.NewError(connect_go.CodeInvalidArgument, err)
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 	var logs []string
 	for _, step := range workflowSteps {
@@ -288,7 +285,7 @@ func (ghs *GitHubActionsServer) DumpLogs(
 	}
 
 	logEvent.Bool("success", true).Send()
-	return connect_go.NewResponse(&github_actions_v1.DumpLogsResponse{Logs: logs}), nil
+	return connect.NewResponse(&github_actions_v1.DumpLogsResponse{Logs: logs}), nil
 }
 
 func (ghs *GitHubActionsServer) getLogsEventKey(job *github_actions_v1.StreamWorkflowRunLogsRequest) string {
@@ -312,11 +309,15 @@ func (ghs *GitHubActionsServer) getFileInfo(fi *zip.File) (string, int64) {
 func (ghs *GitHubActionsServer) waitForJobToFinish(
 	ctx context.Context,
 	githubClient *github.Client,
-	req *connect_go.Request[github_actions_v1.StreamWorkflowRunLogsRequest],
-	stream *connect_go.ServerStream[github_actions_v1.StreamWorkflowRunLogsResponse],
+	req *connect.Request[github_actions_v1.StreamWorkflowRunLogsRequest],
+	stream *connect.ServerStream[github_actions_v1.StreamWorkflowRunLogsResponse],
 ) error {
 	now := time.Now()
-	logEvent := ghs.logger.Debug().Str("method", "waitForJobToFinish")
+	logEvent := ghs.logger.Debug().
+		Str("method", "waitForJobToFinish").
+		Int64("run_id", req.Msg.GetRunId()).
+		Str("repo_name", req.Msg.GetRepoName()).
+		Str("repo_owner", req.Msg.GetRepoOwner())
 
 	workflowRun, _, err := githubClient.Actions.GetWorkflowRunByID(
 		ctx,
@@ -326,7 +327,7 @@ func (ghs *GitHubActionsServer) waitForJobToFinish(
 	)
 	if err != nil {
 		logEvent.Err(err).Send()
-		return connect_go.NewError(connect_go.CodeInvalidArgument, err)
+		return connect.NewError(connect.CodeInvalidArgument, err)
 	}
 
 	logEvent.Str("status", workflowRun.GetStatus())

@@ -28,3 +28,28 @@ func (a *auth) validateUser(username, password string) (*types.User, error) {
 
 	return user, nil
 }
+
+func (a *auth) validateUserWithPAT(ctx context.Context, username, authToken string) (*types.User, error) {
+	user, err := a.userStore.GetUserByUsername(ctx, username)
+	if err != nil {
+		return nil, err
+	}
+
+	token, err := (&types.AuthToken{}).FromString(authToken)
+	if err != nil {
+		return nil, fmt.Errorf("ERR_PARSE_AUTH_TOKEN: %w", err)
+	}
+
+	hashedToken, err := GenerateSafeHash([]byte(token.RawString()))
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = a.userStore.GetAuthToken(ctx, user.ID, hashedToken)
+	if err != nil {
+		return nil, err
+	}
+
+	return user, nil
+
+}

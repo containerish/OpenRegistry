@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"regexp"
+	"strings"
 
 	"github.com/containerish/OpenRegistry/common"
 	"github.com/containerish/OpenRegistry/registry/v2"
@@ -20,12 +21,12 @@ func registryNamespaceValidator(logger telemetry.Logger) echo.MiddlewareFunc {
 	return func(handler echo.HandlerFunc) echo.HandlerFunc {
 		return func(ctx echo.Context) error {
 			// we skip the /v2/ path since it isn't a namespaced path
-			if ctx.Request().URL.Path == "/v2/" {
+			if ctx.Request().URL.Path == "/v2/" || strings.HasPrefix(ctx.Request().URL.Path, "/v2/ext/") {
 				return handler(ctx)
 			}
 
 			namespace := ctx.Param("username") + "/" + ctx.Param("imagename")
-			if namespace != "/" && !nsRegex.MatchString(namespace) {
+			if !nsRegex.MatchString(namespace) {
 				registryErr := common.RegistryErrorResponse(
 					registry.RegistryErrorCodeNameInvalid,
 					"invalid user namespace",

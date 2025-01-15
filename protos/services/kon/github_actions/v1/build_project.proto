@@ -25,11 +25,12 @@ message ListProjectsResponse {
 message CreateProjectRequest {
   common.v1.UUID id = 1;
   common.v1.UUID owner_id = 2;
-  string project_name = 3;
-  string production_branch = 4;
-  ProjectBuildSettingsMessage build_settings = 5;
-  ProjectEnvironmentVariableListMessage environment_variables = 6;
-  google.protobuf.Timestamp created_at = 7;
+  common.v1.UUID repository_id = 3;
+  string project_name = 4;
+  string production_branch = 5;
+  ProjectBuildSettingsMessage build_settings = 6;
+  ProjectEnvironmentVariableListMessage environment_variables = 7;
+  google.protobuf.Timestamp created_at = 8;
 }
 
 message GetProjectRequest {
@@ -52,6 +53,8 @@ message GetProjectResponse {
   ProjectEnvironmentVariableListMessage environment_variables = 5;
   google.protobuf.Timestamp created_at = 6;
   common.v1.UUID owner_id = 7;
+  common.v1.UUID repository_id = 8;
+  string repository_name = 9;
 }
 
 message ProjectEnvironmentVariableListMessage {

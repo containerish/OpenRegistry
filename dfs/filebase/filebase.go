@@ -16,7 +16,6 @@ import (
 	"github.com/containerish/OpenRegistry/config"
 	"github.com/containerish/OpenRegistry/dfs"
 	"github.com/containerish/OpenRegistry/store/v1/types"
-	core_types "github.com/containerish/OpenRegistry/types"
 )
 
 type filebase struct {
@@ -234,7 +233,7 @@ func (fb *filebase) Metadata(layer *types.ContainerImageLayer) (*types.ObjectMet
 	var resp *s3.HeadObjectOutput
 	var err error
 
-	identifier := core_types.GetLayerIdentifier(layer.ID)
+	identifier := types.GetLayerIdentifier(layer.ID)
 	for i := 3; i > 0; i-- {
 		resp, err = fb.client.HeadObject(context.Background(), &s3.HeadObjectInput{
 			Bucket:       &fb.bucket,
@@ -300,21 +299,8 @@ func (fb *filebase) AbortMultipartUpload(ctx context.Context, layerKey, uploadId
 }
 
 func (fb *filebase) GeneratePresignedURL(ctx context.Context, key string) (string, error) {
-	opts := &s3.GetObjectInput{
-		Bucket: &fb.bucket,
-		Key:    aws.String("layers/" + key),
-	}
-
-	duration := func(o *s3.PresignOptions) {
-		o.Expires = time.Minute * 20
-	}
-
-	resp, err := fb.preSigner.PresignGetObject(ctx, opts, duration)
-	if err != nil {
-		return "", fmt.Errorf("ERR_FILEBASE_GENERATE_PRESIGNED_URL: %w", err)
-	}
-
-	return resp.URL, nil
+	// Filebase+IPFS content can be directly resolved over an IPFS gateway
+	return fmt.Sprintf("%s/%s", fb.config.DFSLinkResolver, key), nil
 }
 
 func (fb *filebase) Config() *config.S3CompatibleDFS {
