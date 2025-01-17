@@ -7,7 +7,7 @@ toolchain go1.23.0
 require (
 	github.com/alexliesenfeld/health v0.8.0
 	github.com/alphadose/haxmap v1.4.1
-	github.com/aws/aws-sdk-go-v2 v1.32.8
+	github.com/aws/aws-sdk-go-v2 v1.33.0
 	github.com/aws/aws-sdk-go-v2/config v1.28.11
 	github.com/aws/aws-sdk-go-v2/credentials v1.17.52
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.72.3
