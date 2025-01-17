@@ -18,7 +18,7 @@ require (
 	github.com/fatih/color v1.18.0
 	github.com/go-playground/locales v0.14.1
 	github.com/go-playground/universal-translator v0.18.1
-	github.com/go-playground/validator/v10 v10.22.1
+	github.com/go-playground/validator/v10 v10.24.0
 	github.com/go-webauthn/webauthn v0.11.2
 	github.com/golang-jwt/jwt/v5 v5.2.1
 	github.com/google/go-github/v56 v56.0.0
@@ -91,7 +91,7 @@ require (
 	github.com/francoispqt/gojay v1.2.13 // indirect
 	github.com/fsnotify/fsnotify v1.7.0 // indirect
 	github.com/fxamacker/cbor/v2 v2.7.0 // indirect
-	github.com/gabriel-vasile/mimetype v1.4.6 // indirect
+	github.com/gabriel-vasile/mimetype v1.4.8 // indirect
 	github.com/gammazero/deque v1.0.0 // indirect
 	github.com/go-logr/logr v1.4.2 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
