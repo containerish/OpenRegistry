@@ -1,9 +1,6 @@
 module github.com/containerish/OpenRegistry
 
 go 1.23
-
-toolchain go1.23.0
-
 require (
 	github.com/alexliesenfeld/health v0.8.0
 	github.com/alphadose/haxmap v1.4.1
@@ -50,7 +47,7 @@ require (
 	go.opentelemetry.io/otel v1.33.0
 	golang.org/x/crypto v0.32.0
 	golang.org/x/net v0.34.0
-	golang.org/x/oauth2 v0.25.0
+	golang.org/x/oauth2 v0.28.0
 	google.golang.org/protobuf v1.36.3
 	gopkg.in/yaml.v2 v2.4.0
 	storj.io/uplink v1.13.1
