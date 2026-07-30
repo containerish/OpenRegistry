@@ -13,7 +13,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.73.1
 	github.com/aws/smithy-go v1.22.2
 	github.com/axiomhq/axiom-go v0.21.1
-	github.com/bradleyfalzon/ghinstallation/v2 v2.13.0
+	github.com/bradleyfalzon/ghinstallation/v2 v2.14.0
 	github.com/bufbuild/connect-go v1.10.0
 	github.com/fatih/color v1.18.0
 	github.com/go-playground/locales v0.14.1
@@ -100,7 +100,7 @@ require (
 	github.com/go-webauthn/x v0.1.14 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang-jwt/jwt/v4 v4.5.1 // indirect
-	github.com/google/go-github/v68 v68.0.0 // indirect
+	github.com/google/go-github/v69 v69.0.0 // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/google/go-tpm v0.9.1 // indirect
 	github.com/google/gopacket v1.1.19 // indirect
