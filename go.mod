@@ -1,9 +1,6 @@
 module github.com/containerish/OpenRegistry
 
 go 1.23
-
-toolchain go1.23.0
-
 require (
 	github.com/alexliesenfeld/health v0.8.0
 	github.com/alphadose/haxmap v1.4.1
@@ -42,14 +39,14 @@ require (
 	github.com/uptrace/bun/dialect/pgdialect v1.2.8
 	github.com/uptrace/bun/dialect/sqlitedialect v1.2.8
 	github.com/uptrace/bun/driver/pgdriver v1.2.8
-	github.com/uptrace/bun/driver/sqliteshim v1.2.8
+	github.com/uptrace/bun/driver/sqliteshim v1.2.11
 	github.com/uptrace/bun/extra/bundebug v1.2.8
 	github.com/urfave/cli/v2 v2.27.5
 	go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho v0.58.0
 	go.opentelemetry.io/contrib/processors/baggagecopy v0.6.0
 	go.opentelemetry.io/otel v1.33.0
-	golang.org/x/crypto v0.32.0
-	golang.org/x/net v0.34.0
+	golang.org/x/crypto v0.33.0
+	golang.org/x/net v0.35.0
 	golang.org/x/oauth2 v0.25.0
 	google.golang.org/protobuf v1.36.3
 	gopkg.in/yaml.v2 v2.4.0
@@ -276,13 +273,13 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
 	go4.org v0.0.0-20230225012048-214862532bf5 // indirect
-	golang.org/x/exp v0.0.0-20250103183323-7d7fa50e5329 // indirect
-	golang.org/x/mod v0.22.0 // indirect
-	golang.org/x/sync v0.10.0 // indirect
-	golang.org/x/sys v0.29.0 // indirect
-	golang.org/x/text v0.21.0 // indirect
+	golang.org/x/exp v0.0.0-20250228200357-dead58393ab7 // indirect
+	golang.org/x/mod v0.23.0 // indirect
+	golang.org/x/sync v0.11.0 // indirect
+	golang.org/x/sys v0.30.0 // indirect
+	golang.org/x/text v0.22.0 // indirect
 	golang.org/x/time v0.8.0 // indirect
-	golang.org/x/tools v0.28.0 // indirect
+	golang.org/x/tools v0.30.0 // indirect
 	golang.org/x/xerrors v0.0.0-20240903120638-7835f813f4da // indirect
 	gonum.org/v1/gonum v0.15.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20241209162323-e6fa225c2576 // indirect
@@ -292,13 +289,10 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	lukechampine.com/blake3 v1.3.0 // indirect
 	mellium.im/sasl v0.3.2 // indirect
-	modernc.org/gc/v3 v3.0.0-20250105121824-520be1a3aee6 // indirect
-	modernc.org/libc v1.61.6 // indirect
+	modernc.org/libc v1.61.13 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
-	modernc.org/memory v1.8.1 // indirect
-	modernc.org/sqlite v1.34.4 // indirect
-	modernc.org/strutil v1.2.1 // indirect
-	modernc.org/token v1.1.0 // indirect
+	modernc.org/memory v1.8.2 // indirect
+	modernc.org/sqlite v1.36.0 // indirect
 	storj.io/common v0.0.0-20240812101423-26b53789c348 // indirect
 	storj.io/drpc v0.0.35-0.20240709171858-0075ac871661 // indirect
 	storj.io/eventkit v0.0.0-20240415002644-1d9596fee086 // indirect
