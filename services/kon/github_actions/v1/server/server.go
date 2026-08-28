@@ -5,21 +5,22 @@ import (
 	"net/http"
 	"sync"
 
+	"connectrpc.com/connect"
 	"github.com/bradleyfalzon/ghinstallation/v2"
-	"github.com/bufbuild/connect-go"
+	"github.com/fatih/color"
+	"github.com/google/go-github/v56/github"
+
 	"github.com/containerish/OpenRegistry/config"
 	github_actions_v1 "github.com/containerish/OpenRegistry/services/kon/github_actions/v1"
 	connect_v1 "github.com/containerish/OpenRegistry/services/kon/github_actions/v1/github_actions_v1connect"
 	"github.com/containerish/OpenRegistry/store/v1/automation"
 	"github.com/containerish/OpenRegistry/telemetry"
 	"github.com/containerish/OpenRegistry/vcs"
-	"github.com/fatih/color"
-	"github.com/google/go-github/v56/github"
 )
 
 type GitHubActionsServer struct {
 	logger              telemetry.Logger
-	config              *config.Integration
+	config              *config.GithubIntegration
 	github              *github.Client
 	transport           *ghinstallation.AppsTransport
 	store               automation.BuildAutomationStore
@@ -33,7 +34,7 @@ type streamLogsJob struct {
 }
 
 func NewGithubActionsServer(
-	config *config.Integration,
+	config *config.GithubIntegration,
 	authConfig *config.Auth,
 	logger telemetry.Logger,
 	store automation.BuildAutomationStore,

@@ -1,12 +1,7 @@
 package auth
 
 import (
-	"bytes"
-	"crypto/sha256"
-	"crypto/x509"
-	"encoding/base32"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/containerish/OpenRegistry/store/v1/types"
@@ -43,19 +38,6 @@ type ServiceClaims struct {
 	Access AccessList
 }
 
-func (a *auth) keyIDEncode(b []byte) string {
-	s := strings.TrimRight(base32.StdEncoding.EncodeToString(b), "=")
-	var buf bytes.Buffer
-	var i int
-	for i = 0; i < len(s)/4-1; i++ {
-		start := i * 4
-		end := start + 4
-		buf.WriteString(s[start:end] + ":")
-	}
-	buf.WriteString(s[i*4:])
-	return buf.String()
-}
-
 func (a *auth) SignOAuthToken(userId uuid.UUID, payload *oauth2.Token) (string, string, error) {
 	return a.newOAuthToken(userId, payload)
 }
@@ -64,23 +46,12 @@ func (a *auth) newOAuthToken(userId uuid.UUID, payload *oauth2.Token) (string, s
 	accessClaims := a.createOAuthClaims(userId, payload)
 	refreshClaims := a.createRefreshClaims(userId)
 
-	pubKeyDerBz, err := x509.MarshalPKIXPublicKey(a.c.Registry.Auth.JWTSigningPubKey)
-	if err != nil {
-		return "", "", err
-	}
-
-	hasher := sha256.New()
-	hasher.Write(pubKeyDerBz)
-	accessToken := jwt.NewWithClaims(jwt.SigningMethodRS256, &accessClaims)
-	accessToken.Header["kid"] = a.keyIDEncode(hasher.Sum(nil)[:30])
-	accessSign, err := accessToken.SignedString(a.c.Registry.Auth.JWTSigningPrivateKey)
+	accessSign, err := a.c.Registry.Auth.SignWithPubKey(&accessClaims)
 	if err != nil {
 		return "", "", fmt.Errorf("ERR_ACCESS_TOKEN_SIGN: %w", err)
 	}
 
-	refreshToken := jwt.NewWithClaims(jwt.SigningMethodRS256, &refreshClaims)
-	refreshToken.Header["kid"] = a.keyIDEncode(hasher.Sum(nil)[:30])
-	refreshSign, err := refreshToken.SignedString(a.c.Registry.Auth.JWTSigningPrivateKey)
+	refreshSign, err := a.c.Registry.Auth.SignWithPubKey(&refreshClaims)
 	if err != nil {
 		return "", "", fmt.Errorf("ERR_REFRESH_TOKEN_SIGN: %w", err)
 	}
@@ -105,17 +76,7 @@ func (a *auth) newServiceToken(u types.User) (string, error) {
 		Acl:       acl,
 	}
 	claims := CreateClaims(opts)
-
-	pubKeyDerBz, err := x509.MarshalPKIXPublicKey(a.c.Registry.Auth.JWTSigningPubKey)
-	if err != nil {
-		return "", err
-	}
-
-	hasher := sha256.New()
-	hasher.Write(pubKeyDerBz)
-	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
-	token.Header["kid"] = a.keyIDEncode(hasher.Sum(nil)[:30])
-	sign, err := token.SignedString(a.c.Registry.Auth.JWTSigningPrivateKey)
+	sign, err := a.c.Registry.Auth.SignWithPubKey(&claims)
 	if err != nil {
 		return "", fmt.Errorf("error signing secret %w", err)
 	}
@@ -132,17 +93,7 @@ func (a *auth) newOCIToken(userID uuid.UUID, scopes types.OCITokenPermissonClaim
 		Acl:       scopes,
 	}
 	claims := CreateOCIClaims(opts)
-
-	pubKeyDerBz, err := x509.MarshalPKIXPublicKey(a.c.Registry.Auth.JWTSigningPubKey)
-	if err != nil {
-		return "", err
-	}
-
-	hasher := sha256.New()
-	hasher.Write(pubKeyDerBz)
-	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
-	token.Header["kid"] = a.keyIDEncode(hasher.Sum(nil)[:30])
-	sign, err := token.SignedString(a.c.Registry.Auth.JWTSigningPrivateKey)
+	sign, err := a.c.Registry.Auth.SignWithPubKey(&claims)
 	if err != nil {
 		return "", fmt.Errorf("error signing secret %w", err)
 	}

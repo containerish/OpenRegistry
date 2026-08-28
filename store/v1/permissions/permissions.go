@@ -17,7 +17,7 @@ type (
 		// It doesn't return any errors. If the user has permissions, they're be reflect in the returned
 		// *types.Permissions struct, otherwise, the returned type will be an empty, non-nil struct
 		GetUserPermissionsForNamespace(ctx context.Context, ns string, userID uuid.UUID) *types.Permissions
-		AddPermissions(ctx context.Context, perm *types.Permissions) error
+		AddPermissions(ctx context.Context, perm *types.AddUsersToOrgRequest) error
 		UpdatePermissions(ctx context.Context, perm *types.Permissions) error
 		RemoveUserFromOrg(ctx context.Context, orgID, userID uuid.UUID) error
 	}

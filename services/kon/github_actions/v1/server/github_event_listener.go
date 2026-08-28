@@ -21,7 +21,7 @@ func (ghs *GitHubActionsServer) Listen(resp http.ResponseWriter, req *http.Reque
 	)
 
 	if err != nil {
-		ghs.logger.Log(nil, nil).
+		ghs.logger.Debug().
 			Str("method", "Listen").
 			Str("error", err.Error()).
 			Send()
@@ -31,7 +31,7 @@ func (ghs *GitHubActionsServer) Listen(resp http.ResponseWriter, req *http.Reque
 
 	event, err := github.ParseWebHook(github.WebHookType(req), payload)
 	if err != nil {
-		ghs.logger.Log(nil, nil).
+		ghs.logger.Debug().
 			Str("method", "Listen").
 			Str("error", err.Error()).
 			Send()
@@ -51,7 +51,7 @@ func (ghs *GitHubActionsServer) Listen(resp http.ResponseWriter, req *http.Reque
 			action: event.GetAction(),
 		}
 		eventKey := ghs.getLogsEventKey(val.req)
-		ghs.logger.Log(nil, nil).
+		ghs.logger.Debug().
 			Str("method", "Listen").
 			Str("github_event", "WorkflowRunEvent").
 			Int64("workflow_id", event.GetWorkflowRun().GetID()).

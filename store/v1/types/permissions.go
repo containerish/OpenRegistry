@@ -13,15 +13,34 @@ type (
 	Permissions struct {
 		bun.BaseModel `bun:"table:permissions,alias:p" json:"-"`
 
-		UpdatedAt      time.Time `bun:"updated_at" json:"updated_at,omitempty" validate:"-"`
-		CreatedAt      time.Time `bun:"created_at" json:"created_at,omitempty" validate:"-"`
-		User           *User     `bun:"rel:belongs-to,join:user_id=id" json:"-"`
+		UpdatedAt      time.Time `bun:"updated_at" json:"updated_at,omitempty"`
+		CreatedAt      time.Time `bun:"created_at" json:"created_at,omitempty"`
+		User           *User     `bun:"rel:belongs-to,join:user_id=id" json:"user"`
 		Organization   *User     `bun:"rel:belongs-to,join:organization_id=id" json:"-"`
 		UserID         uuid.UUID `bun:"user_id,type:uuid" json:"user_id"`
 		OrganizationID uuid.UUID `bun:"organization_id,type:uuid" json:"organization_id"`
 		Push           bool      `bun:"push" json:"push"`
 		Pull           bool      `bun:"pull" json:"pull"`
 		IsAdmin        bool      `bun:"is_admin" json:"is_admin"`
+	}
+
+	MigrateToOrgRequest struct {
+		UserID uuid.UUID `json:"user_id"`
+	}
+
+	RemoveUserFromOrgRequest struct {
+		UserID         uuid.UUID `json:"user_id"`
+		OrganizationID uuid.UUID `json:"organization_id"`
+	}
+
+	AddUsersToOrgRequest struct {
+		Users []struct {
+			ID      uuid.UUID `json:"id"`
+			Pull    bool      `json:"pull"`
+			Push    bool      `json:"push"`
+			IsAdmin bool      `json:"is_admin"`
+		} `json:"users"`
+		OrganizationID uuid.UUID `json:"organization_id"`
 	}
 )
 

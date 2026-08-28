@@ -234,6 +234,10 @@ func (wa *webAuthnService) FinishRegistration(ctx context.Context, opts *FinishR
 		return fmt.Errorf("ERR_WEBAUTHN_ADD_CREDENTIAL: %w", err)
 	}
 
+	if err = wa.store.RemoveWebAuthSessionData(ctx, opts.User.ID); err != nil {
+		return fmt.Errorf("ERR_WEBAUTHN_ADD_CREDENTIAL: RemoveWebAuthSessionData: %w", err)
+	}
+
 	return nil
 }
 
@@ -302,6 +306,10 @@ func (wa *webAuthnService) FinishLogin(ctx context.Context, opts *FinishLoginOpt
 	_, err = wa.core.ValidateLogin(opts.User, *sessionData, parsedResponse)
 	if err != nil {
 		return fmt.Errorf("ERR_VALIDATE_WEBAUTHN_LOGIN: %w", err)
+	}
+
+	if err = wa.store.RemoveWebAuthSessionData(ctx, opts.User.ID); err != nil {
+		return fmt.Errorf("ERR_WEBAUTHN_ADD_CREDENTIAL: RemoveWebAuthSessionData: %w", err)
 	}
 
 	return nil

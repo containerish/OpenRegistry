@@ -8,13 +8,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/containerish/OpenRegistry/config"
-	v2_types "github.com/containerish/OpenRegistry/store/v1/types"
-	"github.com/containerish/OpenRegistry/types"
 	"github.com/google/go-github/v56/github"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	"golang.org/x/oauth2"
+
+	"github.com/containerish/OpenRegistry/config"
+	"github.com/containerish/OpenRegistry/store/v1/types"
 )
 
 func (a *auth) LoginWithGithub(ctx echo.Context) error {
@@ -116,6 +116,11 @@ func (a *auth) GithubLoginCallbackHandler(ctx echo.Context) error {
 	}
 
 	if user.GithubConnected {
+		ghIdentity := user.Identities.GetGitHubIdentity()
+		ghIdentity.Email = ghUser.GetEmail()
+		ghIdentity.Username = ghUser.GetLogin()
+		user.Identities[types.IdentityProviderGitHub] = ghIdentity
+
 		_, err = a.userStore.UpdateUser(ctx.Request().Context(), user)
 		if err != nil {
 			uri := a.getGitHubErrorURI(ctx, http.StatusConflict, err.Error())
@@ -136,7 +141,7 @@ func (a *auth) GithubLoginCallbackHandler(ctx echo.Context) error {
 		return err
 	}
 
-	user.Identities[v2_types.IdentityProviderGitHub] = &v2_types.UserIdentity{
+	user.Identities[types.IdentityProviderGitHub] = &types.UserIdentity{
 		ID:             fmt.Sprint(ghUser.GetID()),
 		Name:           ghUser.GetName(),
 		Username:       ghUser.GetLogin(),
@@ -172,18 +177,12 @@ func (a *auth) createCookie(
 ) *http.Cookie {
 	secure := true
 	sameSite := http.SameSiteNoneMode
-	domain := ""
-	url, err := url.Parse(a.c.WebAppConfig.GetAllowedURLFromEchoContext(ctx, a.c.Environment))
-	if err != nil {
-		domain = a.c.Registry.FQDN
-	} else {
-		domain = url.Hostname()
-	}
+	domain := a.c.Registry.FQDN
 
-	if a.c.Environment == config.Local {
+	if a.c.Environment == config.Local && domain == "" {
 		secure = false
 		sameSite = http.SameSiteLaxMode
-		url, err = url.Parse(a.c.WebAppConfig.GetAllowedURLFromEchoContext(ctx, a.c.Environment))
+		url, err := url.Parse(a.c.WebAppConfig.GetAllowedURLFromEchoContext(ctx, a.c.Environment))
 		if err != nil {
 			domain = "localhost"
 		} else {
@@ -211,14 +210,14 @@ func (a *auth) createCookie(
 }
 
 // makes an http request to get user info from token, if it's valid, it's all good :)
-func (a *auth) getUserWithGithubOauthToken(ctx context.Context, token string) (*v2_types.User, error) {
+func (a *auth) getUserWithGithubOauthToken(ctx context.Context, token string) (*types.User, error) {
 	req, err := a.ghClient.NewRequest(http.MethodGet, "/user", nil)
 	if err != nil {
 		return nil, fmt.Errorf("GH_AUTH_REQUEST_ERROR: %w", err)
 	}
 	req.Header.Set(AuthorizationHeaderKey, "token "+token)
 
-	var oauthUser v2_types.User
+	var oauthUser github.User
 	resp, err := a.ghClient.Do(ctx, req, &oauthUser)
 	if err != nil {
 		return nil, fmt.Errorf("GH_AUTH_ERROR: %w", err)
@@ -228,7 +227,7 @@ func (a *auth) getUserWithGithubOauthToken(ctx context.Context, token string) (*
 		return nil, fmt.Errorf("GHO_UNAUTHORIZED")
 	}
 
-	user, err := a.userStore.GetUserByEmail(ctx, oauthUser.Email)
+	user, err := a.userStore.GetUserByEmail(ctx, oauthUser.GetEmail())
 	if err != nil {
 		return nil, fmt.Errorf("PG_GET_USER_ERR: %w", err)
 	}
@@ -245,7 +244,7 @@ func (a *auth) getGitHubErrorURI(ctx echo.Context, status int, err string) strin
 	return fmt.Sprintf("%s%s?%s", webAppEndoint, a.c.WebAppConfig.ErrorRedirectPath, queryParams.Encode())
 }
 
-func (a *auth) finishGitHubCallback(ctx echo.Context, user *v2_types.User, oauthToken *oauth2.Token) error {
+func (a *auth) finishGitHubCallback(ctx echo.Context, user *types.User, oauthToken *oauth2.Token) error {
 	sessionId, err := uuid.NewRandom()
 	if err != nil {
 		return err
@@ -279,7 +278,7 @@ func (a *auth) finishGitHubCallback(ctx echo.Context, user *v2_types.User, oauth
 	return nil
 }
 
-func (a *auth) storeGitHubUserIfDoesntExist(ctx context.Context, pgErr error, user *v2_types.User) error {
+func (a *auth) storeGitHubUserIfDoesntExist(ctx context.Context, pgErr error, user *types.User) error {
 	if strings.HasSuffix(pgErr.Error(), "no rows in result set") {
 		id, err := uuid.NewRandom()
 		if err != nil {

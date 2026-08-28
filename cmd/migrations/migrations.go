@@ -156,6 +156,14 @@ func createOpenRegistryTables(ctx *cli.Context, db *bun.DB) error {
 	}
 	color.Green(`Table "permissions" created ✔︎`)
 
+	_, err = db.NewCreateTable().Model(&types.AuthTokens{}).Table().IfNotExists().Exec(ctx.Context)
+	if err != nil {
+		return errors.New(
+			color.RedString("Table=auth_tokens Created=❌ Error=%s", err),
+		)
+	}
+	color.Green(`Table "auth_tokens" created ✔︎`)
+
 	return nil
 }
 
@@ -223,7 +231,7 @@ func createOpenRegistryDatabase(ctx *cli.Context, opts *databaseOptions) (*bun.D
 	_, err = adminDB.
 		ExecContext(
 			ctx.Context,
-			"GRANT ALL PRIVILEGES ON DATABASE ?0 to ?1",
+			"GRANT ALL PRIVILEGES ON DATABASE ? to ?",
 			bun.Ident(opts.database),
 			bun.Ident(opts.username),
 		)

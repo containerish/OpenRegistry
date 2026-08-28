@@ -8,12 +8,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
+	"github.com/labstack/echo/v4"
+
 	"github.com/containerish/OpenRegistry/config"
 	"github.com/containerish/OpenRegistry/services/email"
 	store_err "github.com/containerish/OpenRegistry/store/v1"
 	"github.com/containerish/OpenRegistry/store/v1/types"
-	"github.com/google/uuid"
-	"github.com/labstack/echo/v4"
 )
 
 func (a *auth) parseSignUpRequest(ctx echo.Context) (*types.User, error) {
@@ -95,7 +96,7 @@ func (a *auth) SignUp(ctx echo.Context) error {
 		if strings.Contains(err.Error(), store_err.ErrDuplicateConstraintEmail) {
 			echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 				"error":   err.Error(),
-				"message": "this email already taken, try sign in?",
+				"message": "this email is already taken, try sign in?",
 			})
 			a.logger.Log(ctx, err).Send()
 			return echoErr

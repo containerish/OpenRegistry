@@ -20,6 +20,7 @@ type Extenion interface {
 	GetUserCatalog(ctx echo.Context) error
 	AddRepositoryToFavorites(ctx echo.Context) error
 	RemoveRepositoryFromFavorites(ctx echo.Context) error
+	ListFavoriteRepositories(ctx echo.Context) error
 }
 
 type extension struct {
@@ -198,15 +199,21 @@ func (ext *extension) PublicCatalog(ctx echo.Context) error {
 
 	repositories, total, err := ext.store.GetPublicRepositories(ctx.Request().Context(), pageSize, offset)
 	if err != nil {
-		return ctx.JSON(http.StatusInternalServerError, echo.Map{
+		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error": err.Error(),
 		})
+
+		ext.logger.Log(ctx, err).Send()
+		return echoErr
 	}
 
-	return ctx.JSON(http.StatusOK, echo.Map{
+	echoErr := ctx.JSON(http.StatusOK, echo.Map{
 		"repositories": repositories,
 		"total":        total,
 	})
+
+	ext.logger.Log(ctx, nil).Send()
+	return echoErr
 }
 
 func (ext *extension) GetUserCatalog(ctx echo.Context) error {
@@ -259,23 +266,27 @@ func (ext *extension) GetUserCatalog(ctx echo.Context) error {
 		visibility = types.RepositoryVisibilityPrivate
 	}
 
-	repositories, total, err := ext.
-		store.
-		GetUserRepositories(
-			ctx.Request().Context(),
-			user.ID,
-			visibility,
-			pageSize,
-			offset,
-		)
+	repositories, total, err := ext.store.GetUserRepositories(
+		ctx.Request().Context(),
+		user.ID,
+		visibility,
+		pageSize,
+		offset,
+	)
 	if err != nil {
-		return ctx.JSON(http.StatusInternalServerError, echo.Map{
+		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error": err.Error(),
 		})
+
+		ext.logger.Log(ctx, err).Send()
+		return echoErr
 	}
 
-	return ctx.JSON(http.StatusOK, echo.Map{
+	echoErr := ctx.JSON(http.StatusOK, echo.Map{
 		"repositories": repositories,
 		"total":        total,
 	})
+
+	ext.logger.Log(ctx, nil).Send()
+	return echoErr
 }

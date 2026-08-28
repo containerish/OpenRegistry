@@ -32,6 +32,7 @@ type (
 		CreatedAt            time.Time                 `bun:"created_at" json:"created_at,omitempty" validate:"-"`
 		EnvironmentVariables map[string]string         `bun:"environment_variables,type:jsonb" json:"environment_variables"`
 		Repository           *ContainerImageRepository `bun:"rel:belongs-to,join:repository_id=id" json:"-"`
+		User                 *User                     `bun:"rel:belongs-to,join:repository_owner_id=id" json:"-"`
 		Name                 string                    `bun:"name" json:"name"`
 		ProductionBranch     string                    `bun:"production_branch" json:"production_branch"`
 		BuildTool            string                    `bun:"build_tool" json:"build_tool"`
@@ -39,5 +40,6 @@ type (
 		WorkflowFile         string                    `bun:"workflow_file" json:"workflow_file"`
 		ID                   uuid.UUID                 `bun:"id,type:uuid,pk" json:"id,omitempty" validate:"-"`
 		RepositoryID         uuid.UUID                 `bun:"repository_id,type:uuid" json:"repository_id"`
+		RepositoryOwnerID    uuid.UUID                 `bun:"repository_owner_id,type:uuid" json:"repository_owner_id"`
 	}
 )

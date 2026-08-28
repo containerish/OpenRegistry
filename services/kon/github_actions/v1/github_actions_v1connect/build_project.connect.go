@@ -5,9 +5,9 @@
 package github_actions_v1connect
 
 import (
+	connect "connectrpc.com/connect"
 	context "context"
 	errors "errors"
-	connect_go "github.com/bufbuild/connect-go"
 	v1 "github.com/containerish/OpenRegistry/services/kon/github_actions/v1"
 	http "net/http"
 	strings "strings"
@@ -18,7 +18,7 @@ import (
 // generated with a version of connect newer than the one compiled into your binary. You can fix the
 // problem by either regenerating this code with an older version of connect or updating the connect
 // version compiled into your binary.
-const _ = connect_go.IsAtLeastVersion0_1_0
+const _ = connect.IsAtLeastVersion1_13_0
 
 const (
 	// GitHubActionsProjectServiceName is the fully-qualified name of the GitHubActionsProjectService
@@ -48,13 +48,22 @@ const (
 	GitHubActionsProjectServiceListProjectsProcedure = "/services.kon.github_actions.v1.GitHubActionsProjectService/ListProjects"
 )
 
+// These variables are the protoreflect.Descriptor objects for the RPCs defined in this package.
+var (
+	gitHubActionsProjectServiceServiceDescriptor             = v1.File_services_kon_github_actions_v1_build_project_proto.Services().ByName("GitHubActionsProjectService")
+	gitHubActionsProjectServiceCreateProjectMethodDescriptor = gitHubActionsProjectServiceServiceDescriptor.Methods().ByName("CreateProject")
+	gitHubActionsProjectServiceGetProjectMethodDescriptor    = gitHubActionsProjectServiceServiceDescriptor.Methods().ByName("GetProject")
+	gitHubActionsProjectServiceDeleteProjectMethodDescriptor = gitHubActionsProjectServiceServiceDescriptor.Methods().ByName("DeleteProject")
+	gitHubActionsProjectServiceListProjectsMethodDescriptor  = gitHubActionsProjectServiceServiceDescriptor.Methods().ByName("ListProjects")
+)
+
 // GitHubActionsProjectServiceClient is a client for the
 // services.kon.github_actions.v1.GitHubActionsProjectService service.
 type GitHubActionsProjectServiceClient interface {
-	CreateProject(context.Context, *connect_go.Request[v1.CreateProjectRequest]) (*connect_go.Response[v1.CreateProjectResponse], error)
-	GetProject(context.Context, *connect_go.Request[v1.GetProjectRequest]) (*connect_go.Response[v1.GetProjectResponse], error)
-	DeleteProject(context.Context, *connect_go.Request[v1.DeleteProjectRequest]) (*connect_go.Response[v1.DeleteProjectResponse], error)
-	ListProjects(context.Context, *connect_go.Request[v1.ListProjectsRequest]) (*connect_go.Response[v1.ListProjectsResponse], error)
+	CreateProject(context.Context, *connect.Request[v1.CreateProjectRequest]) (*connect.Response[v1.CreateProjectResponse], error)
+	GetProject(context.Context, *connect.Request[v1.GetProjectRequest]) (*connect.Response[v1.GetProjectResponse], error)
+	DeleteProject(context.Context, *connect.Request[v1.DeleteProjectRequest]) (*connect.Response[v1.DeleteProjectResponse], error)
+	ListProjects(context.Context, *connect.Request[v1.ListProjectsRequest]) (*connect.Response[v1.ListProjectsResponse], error)
 }
 
 // NewGitHubActionsProjectServiceClient constructs a client for the
@@ -65,67 +74,71 @@ type GitHubActionsProjectServiceClient interface {
 //
 // The URL supplied here should be the base URL for the Connect or gRPC server (for example,
 // http://api.acme.com or https://acme.com/grpc).
-func NewGitHubActionsProjectServiceClient(httpClient connect_go.HTTPClient, baseURL string, opts ...connect_go.ClientOption) GitHubActionsProjectServiceClient {
+func NewGitHubActionsProjectServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) GitHubActionsProjectServiceClient {
 	baseURL = strings.TrimRight(baseURL, "/")
 	return &gitHubActionsProjectServiceClient{
-		createProject: connect_go.NewClient[v1.CreateProjectRequest, v1.CreateProjectResponse](
+		createProject: connect.NewClient[v1.CreateProjectRequest, v1.CreateProjectResponse](
 			httpClient,
 			baseURL+GitHubActionsProjectServiceCreateProjectProcedure,
-			opts...,
+			connect.WithSchema(gitHubActionsProjectServiceCreateProjectMethodDescriptor),
+			connect.WithClientOptions(opts...),
 		),
-		getProject: connect_go.NewClient[v1.GetProjectRequest, v1.GetProjectResponse](
+		getProject: connect.NewClient[v1.GetProjectRequest, v1.GetProjectResponse](
 			httpClient,
 			baseURL+GitHubActionsProjectServiceGetProjectProcedure,
-			opts...,
+			connect.WithSchema(gitHubActionsProjectServiceGetProjectMethodDescriptor),
+			connect.WithClientOptions(opts...),
 		),
-		deleteProject: connect_go.NewClient[v1.DeleteProjectRequest, v1.DeleteProjectResponse](
+		deleteProject: connect.NewClient[v1.DeleteProjectRequest, v1.DeleteProjectResponse](
 			httpClient,
 			baseURL+GitHubActionsProjectServiceDeleteProjectProcedure,
-			opts...,
+			connect.WithSchema(gitHubActionsProjectServiceDeleteProjectMethodDescriptor),
+			connect.WithClientOptions(opts...),
 		),
-		listProjects: connect_go.NewClient[v1.ListProjectsRequest, v1.ListProjectsResponse](
+		listProjects: connect.NewClient[v1.ListProjectsRequest, v1.ListProjectsResponse](
 			httpClient,
 			baseURL+GitHubActionsProjectServiceListProjectsProcedure,
-			opts...,
+			connect.WithSchema(gitHubActionsProjectServiceListProjectsMethodDescriptor),
+			connect.WithClientOptions(opts...),
 		),
 	}
 }
 
 // gitHubActionsProjectServiceClient implements GitHubActionsProjectServiceClient.
 type gitHubActionsProjectServiceClient struct {
-	createProject *connect_go.Client[v1.CreateProjectRequest, v1.CreateProjectResponse]
-	getProject    *connect_go.Client[v1.GetProjectRequest, v1.GetProjectResponse]
-	deleteProject *connect_go.Client[v1.DeleteProjectRequest, v1.DeleteProjectResponse]
-	listProjects  *connect_go.Client[v1.ListProjectsRequest, v1.ListProjectsResponse]
+	createProject *connect.Client[v1.CreateProjectRequest, v1.CreateProjectResponse]
+	getProject    *connect.Client[v1.GetProjectRequest, v1.GetProjectResponse]
+	deleteProject *connect.Client[v1.DeleteProjectRequest, v1.DeleteProjectResponse]
+	listProjects  *connect.Client[v1.ListProjectsRequest, v1.ListProjectsResponse]
 }
 
 // CreateProject calls services.kon.github_actions.v1.GitHubActionsProjectService.CreateProject.
-func (c *gitHubActionsProjectServiceClient) CreateProject(ctx context.Context, req *connect_go.Request[v1.CreateProjectRequest]) (*connect_go.Response[v1.CreateProjectResponse], error) {
+func (c *gitHubActionsProjectServiceClient) CreateProject(ctx context.Context, req *connect.Request[v1.CreateProjectRequest]) (*connect.Response[v1.CreateProjectResponse], error) {
 	return c.createProject.CallUnary(ctx, req)
 }
 
 // GetProject calls services.kon.github_actions.v1.GitHubActionsProjectService.GetProject.
-func (c *gitHubActionsProjectServiceClient) GetProject(ctx context.Context, req *connect_go.Request[v1.GetProjectRequest]) (*connect_go.Response[v1.GetProjectResponse], error) {
+func (c *gitHubActionsProjectServiceClient) GetProject(ctx context.Context, req *connect.Request[v1.GetProjectRequest]) (*connect.Response[v1.GetProjectResponse], error) {
 	return c.getProject.CallUnary(ctx, req)
 }
 
 // DeleteProject calls services.kon.github_actions.v1.GitHubActionsProjectService.DeleteProject.
-func (c *gitHubActionsProjectServiceClient) DeleteProject(ctx context.Context, req *connect_go.Request[v1.DeleteProjectRequest]) (*connect_go.Response[v1.DeleteProjectResponse], error) {
+func (c *gitHubActionsProjectServiceClient) DeleteProject(ctx context.Context, req *connect.Request[v1.DeleteProjectRequest]) (*connect.Response[v1.DeleteProjectResponse], error) {
 	return c.deleteProject.CallUnary(ctx, req)
 }
 
 // ListProjects calls services.kon.github_actions.v1.GitHubActionsProjectService.ListProjects.
-func (c *gitHubActionsProjectServiceClient) ListProjects(ctx context.Context, req *connect_go.Request[v1.ListProjectsRequest]) (*connect_go.Response[v1.ListProjectsResponse], error) {
+func (c *gitHubActionsProjectServiceClient) ListProjects(ctx context.Context, req *connect.Request[v1.ListProjectsRequest]) (*connect.Response[v1.ListProjectsResponse], error) {
 	return c.listProjects.CallUnary(ctx, req)
 }
 
 // GitHubActionsProjectServiceHandler is an implementation of the
 // services.kon.github_actions.v1.GitHubActionsProjectService service.
 type GitHubActionsProjectServiceHandler interface {
-	CreateProject(context.Context, *connect_go.Request[v1.CreateProjectRequest]) (*connect_go.Response[v1.CreateProjectResponse], error)
-	GetProject(context.Context, *connect_go.Request[v1.GetProjectRequest]) (*connect_go.Response[v1.GetProjectResponse], error)
-	DeleteProject(context.Context, *connect_go.Request[v1.DeleteProjectRequest]) (*connect_go.Response[v1.DeleteProjectResponse], error)
-	ListProjects(context.Context, *connect_go.Request[v1.ListProjectsRequest]) (*connect_go.Response[v1.ListProjectsResponse], error)
+	CreateProject(context.Context, *connect.Request[v1.CreateProjectRequest]) (*connect.Response[v1.CreateProjectResponse], error)
+	GetProject(context.Context, *connect.Request[v1.GetProjectRequest]) (*connect.Response[v1.GetProjectResponse], error)
+	DeleteProject(context.Context, *connect.Request[v1.DeleteProjectRequest]) (*connect.Response[v1.DeleteProjectResponse], error)
+	ListProjects(context.Context, *connect.Request[v1.ListProjectsRequest]) (*connect.Response[v1.ListProjectsResponse], error)
 }
 
 // NewGitHubActionsProjectServiceHandler builds an HTTP handler from the service implementation. It
@@ -133,26 +146,30 @@ type GitHubActionsProjectServiceHandler interface {
 //
 // By default, handlers support the Connect, gRPC, and gRPC-Web protocols with the binary Protobuf
 // and JSON codecs. They also support gzip compression.
-func NewGitHubActionsProjectServiceHandler(svc GitHubActionsProjectServiceHandler, opts ...connect_go.HandlerOption) (string, http.Handler) {
-	gitHubActionsProjectServiceCreateProjectHandler := connect_go.NewUnaryHandler(
+func NewGitHubActionsProjectServiceHandler(svc GitHubActionsProjectServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
+	gitHubActionsProjectServiceCreateProjectHandler := connect.NewUnaryHandler(
 		GitHubActionsProjectServiceCreateProjectProcedure,
 		svc.CreateProject,
-		opts...,
+		connect.WithSchema(gitHubActionsProjectServiceCreateProjectMethodDescriptor),
+		connect.WithHandlerOptions(opts...),
 	)
-	gitHubActionsProjectServiceGetProjectHandler := connect_go.NewUnaryHandler(
+	gitHubActionsProjectServiceGetProjectHandler := connect.NewUnaryHandler(
 		GitHubActionsProjectServiceGetProjectProcedure,
 		svc.GetProject,
-		opts...,
+		connect.WithSchema(gitHubActionsProjectServiceGetProjectMethodDescriptor),
+		connect.WithHandlerOptions(opts...),
 	)
-	gitHubActionsProjectServiceDeleteProjectHandler := connect_go.NewUnaryHandler(
+	gitHubActionsProjectServiceDeleteProjectHandler := connect.NewUnaryHandler(
 		GitHubActionsProjectServiceDeleteProjectProcedure,
 		svc.DeleteProject,
-		opts...,
+		connect.WithSchema(gitHubActionsProjectServiceDeleteProjectMethodDescriptor),
+		connect.WithHandlerOptions(opts...),
 	)
-	gitHubActionsProjectServiceListProjectsHandler := connect_go.NewUnaryHandler(
+	gitHubActionsProjectServiceListProjectsHandler := connect.NewUnaryHandler(
 		GitHubActionsProjectServiceListProjectsProcedure,
 		svc.ListProjects,
-		opts...,
+		connect.WithSchema(gitHubActionsProjectServiceListProjectsMethodDescriptor),
+		connect.WithHandlerOptions(opts...),
 	)
 	return "/services.kon.github_actions.v1.GitHubActionsProjectService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
@@ -173,18 +190,18 @@ func NewGitHubActionsProjectServiceHandler(svc GitHubActionsProjectServiceHandle
 // UnimplementedGitHubActionsProjectServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedGitHubActionsProjectServiceHandler struct{}
 
-func (UnimplementedGitHubActionsProjectServiceHandler) CreateProject(context.Context, *connect_go.Request[v1.CreateProjectRequest]) (*connect_go.Response[v1.CreateProjectResponse], error) {
-	return nil, connect_go.NewError(connect_go.CodeUnimplemented, errors.New("services.kon.github_actions.v1.GitHubActionsProjectService.CreateProject is not implemented"))
+func (UnimplementedGitHubActionsProjectServiceHandler) CreateProject(context.Context, *connect.Request[v1.CreateProjectRequest]) (*connect.Response[v1.CreateProjectResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("services.kon.github_actions.v1.GitHubActionsProjectService.CreateProject is not implemented"))
 }
 
-func (UnimplementedGitHubActionsProjectServiceHandler) GetProject(context.Context, *connect_go.Request[v1.GetProjectRequest]) (*connect_go.Response[v1.GetProjectResponse], error) {
-	return nil, connect_go.NewError(connect_go.CodeUnimplemented, errors.New("services.kon.github_actions.v1.GitHubActionsProjectService.GetProject is not implemented"))
+func (UnimplementedGitHubActionsProjectServiceHandler) GetProject(context.Context, *connect.Request[v1.GetProjectRequest]) (*connect.Response[v1.GetProjectResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("services.kon.github_actions.v1.GitHubActionsProjectService.GetProject is not implemented"))
 }
 
-func (UnimplementedGitHubActionsProjectServiceHandler) DeleteProject(context.Context, *connect_go.Request[v1.DeleteProjectRequest]) (*connect_go.Response[v1.DeleteProjectResponse], error) {
-	return nil, connect_go.NewError(connect_go.CodeUnimplemented, errors.New("services.kon.github_actions.v1.GitHubActionsProjectService.DeleteProject is not implemented"))
+func (UnimplementedGitHubActionsProjectServiceHandler) DeleteProject(context.Context, *connect.Request[v1.DeleteProjectRequest]) (*connect.Response[v1.DeleteProjectResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("services.kon.github_actions.v1.GitHubActionsProjectService.DeleteProject is not implemented"))
 }
 
-func (UnimplementedGitHubActionsProjectServiceHandler) ListProjects(context.Context, *connect_go.Request[v1.ListProjectsRequest]) (*connect_go.Response[v1.ListProjectsResponse], error) {
-	return nil, connect_go.NewError(connect_go.CodeUnimplemented, errors.New("services.kon.github_actions.v1.GitHubActionsProjectService.ListProjects is not implemented"))
+func (UnimplementedGitHubActionsProjectServiceHandler) ListProjects(context.Context, *connect.Request[v1.ListProjectsRequest]) (*connect.Response[v1.ListProjectsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("services.kon.github_actions.v1.GitHubActionsProjectService.ListProjects is not implemented"))
 }

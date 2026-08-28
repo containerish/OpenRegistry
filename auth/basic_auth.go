@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"encoding/base64"
 	"fmt"
 	"net/http"
@@ -28,7 +29,6 @@ func (a *auth) BasicAuth() echo.MiddlewareFunc {
 		return func(ctx echo.Context) error {
 
 			if a.SkipBasicAuth(ctx) {
-				a.logger.DebugWithContext(ctx).Bool("skip_basic_auth", true).Send()
 				// Note: there might be other middlewares attached to this handler
 				return handler(ctx)
 			}
@@ -71,6 +71,10 @@ func (a *auth) BasicAuth() echo.MiddlewareFunc {
 
 func (a *auth) SkipBasicAuth(ctx echo.Context) bool {
 	authHeader := ctx.Request().Header.Get(echo.HeaderAuthorization)
+
+	if strings.HasPrefix(ctx.Request().URL.Path, "/v2/ext/") {
+		return true
+	}
 
 	hasJWT := a.checkJWT(authHeader, ctx.Request().Cookies())
 	if hasJWT {
@@ -156,6 +160,27 @@ func (a *auth) validateBasicAuthCredentials(auth string) (*types.User, error) {
 
 		basicAuthCredentials := strings.Split(string(decodedCredentials), ":")
 		username, password := basicAuthCredentials[0], basicAuthCredentials[1]
+
+		// try login with GitHub PAT
+		// 1. "github_pat_" prefix is for the new fine-grained, repo scoped tokens
+		// 2. "ghp_" prefix is for the old (classic) github tokens
+		if strings.HasPrefix(password, "github_pat_") || strings.HasPrefix(password, "ghp_") {
+			user, ghErr := a.getUserWithGithubOauthToken(context.Background(), password)
+			if ghErr != nil {
+				return nil, fmt.Errorf("ERR_READ_USER_WITH_GITHUB_TOKEN: %w", ghErr)
+			}
+
+			return user, nil
+		}
+
+		if strings.HasPrefix(password, types.OpenRegistryAuthTokenPrefix) {
+			user, err := a.validateUserWithPAT(context.Background(), username, password)
+			if err != nil {
+				return nil, err
+			}
+
+			return user, nil
+		}
 
 		user, err := a.validateUser(username, password)
 		if err != nil {

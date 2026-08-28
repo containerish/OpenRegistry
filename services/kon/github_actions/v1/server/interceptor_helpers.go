@@ -7,11 +7,12 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/bufbuild/connect-go"
-	"github.com/containerish/OpenRegistry/auth"
-	"github.com/containerish/OpenRegistry/telemetry"
+	"connectrpc.com/connect"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
+
+	"github.com/containerish/OpenRegistry/auth"
+	"github.com/containerish/OpenRegistry/telemetry"
 )
 
 func getTokenFromReq(req connect.AnyRequest, jwtSigningPubKey *rsa.PublicKey) (uuid.UUID, error) {

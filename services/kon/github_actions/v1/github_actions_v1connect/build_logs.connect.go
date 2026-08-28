@@ -5,9 +5,9 @@
 package github_actions_v1connect
 
 import (
+	connect "connectrpc.com/connect"
 	context "context"
 	errors "errors"
-	connect_go "github.com/bufbuild/connect-go"
 	v1 "github.com/containerish/OpenRegistry/services/kon/github_actions/v1"
 	http "net/http"
 	strings "strings"
@@ -18,7 +18,7 @@ import (
 // generated with a version of connect newer than the one compiled into your binary. You can fix the
 // problem by either regenerating this code with an older version of connect or updating the connect
 // version compiled into your binary.
-const _ = connect_go.IsAtLeastVersion0_1_0
+const _ = connect.IsAtLeastVersion1_13_0
 
 const (
 	// GitHubActionsLogsServiceName is the fully-qualified name of the GitHubActionsLogsService service.
@@ -41,11 +41,18 @@ const (
 	GitHubActionsLogsServiceDumpLogsProcedure = "/services.kon.github_actions.v1.GitHubActionsLogsService/DumpLogs"
 )
 
+// These variables are the protoreflect.Descriptor objects for the RPCs defined in this package.
+var (
+	gitHubActionsLogsServiceServiceDescriptor                     = v1.File_services_kon_github_actions_v1_build_logs_proto.Services().ByName("GitHubActionsLogsService")
+	gitHubActionsLogsServiceStreamWorkflowRunLogsMethodDescriptor = gitHubActionsLogsServiceServiceDescriptor.Methods().ByName("StreamWorkflowRunLogs")
+	gitHubActionsLogsServiceDumpLogsMethodDescriptor              = gitHubActionsLogsServiceServiceDescriptor.Methods().ByName("DumpLogs")
+)
+
 // GitHubActionsLogsServiceClient is a client for the
 // services.kon.github_actions.v1.GitHubActionsLogsService service.
 type GitHubActionsLogsServiceClient interface {
-	StreamWorkflowRunLogs(context.Context, *connect_go.Request[v1.StreamWorkflowRunLogsRequest]) (*connect_go.ServerStreamForClient[v1.StreamWorkflowRunLogsResponse], error)
-	DumpLogs(context.Context, *connect_go.Request[v1.DumpLogsRequest]) (*connect_go.Response[v1.DumpLogsResponse], error)
+	StreamWorkflowRunLogs(context.Context, *connect.Request[v1.StreamWorkflowRunLogsRequest]) (*connect.ServerStreamForClient[v1.StreamWorkflowRunLogsResponse], error)
+	DumpLogs(context.Context, *connect.Request[v1.DumpLogsRequest]) (*connect.Response[v1.DumpLogsResponse], error)
 }
 
 // NewGitHubActionsLogsServiceClient constructs a client for the
@@ -56,44 +63,46 @@ type GitHubActionsLogsServiceClient interface {
 //
 // The URL supplied here should be the base URL for the Connect or gRPC server (for example,
 // http://api.acme.com or https://acme.com/grpc).
-func NewGitHubActionsLogsServiceClient(httpClient connect_go.HTTPClient, baseURL string, opts ...connect_go.ClientOption) GitHubActionsLogsServiceClient {
+func NewGitHubActionsLogsServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) GitHubActionsLogsServiceClient {
 	baseURL = strings.TrimRight(baseURL, "/")
 	return &gitHubActionsLogsServiceClient{
-		streamWorkflowRunLogs: connect_go.NewClient[v1.StreamWorkflowRunLogsRequest, v1.StreamWorkflowRunLogsResponse](
+		streamWorkflowRunLogs: connect.NewClient[v1.StreamWorkflowRunLogsRequest, v1.StreamWorkflowRunLogsResponse](
 			httpClient,
 			baseURL+GitHubActionsLogsServiceStreamWorkflowRunLogsProcedure,
-			opts...,
+			connect.WithSchema(gitHubActionsLogsServiceStreamWorkflowRunLogsMethodDescriptor),
+			connect.WithClientOptions(opts...),
 		),
-		dumpLogs: connect_go.NewClient[v1.DumpLogsRequest, v1.DumpLogsResponse](
+		dumpLogs: connect.NewClient[v1.DumpLogsRequest, v1.DumpLogsResponse](
 			httpClient,
 			baseURL+GitHubActionsLogsServiceDumpLogsProcedure,
-			opts...,
+			connect.WithSchema(gitHubActionsLogsServiceDumpLogsMethodDescriptor),
+			connect.WithClientOptions(opts...),
 		),
 	}
 }
 
 // gitHubActionsLogsServiceClient implements GitHubActionsLogsServiceClient.
 type gitHubActionsLogsServiceClient struct {
-	streamWorkflowRunLogs *connect_go.Client[v1.StreamWorkflowRunLogsRequest, v1.StreamWorkflowRunLogsResponse]
-	dumpLogs              *connect_go.Client[v1.DumpLogsRequest, v1.DumpLogsResponse]
+	streamWorkflowRunLogs *connect.Client[v1.StreamWorkflowRunLogsRequest, v1.StreamWorkflowRunLogsResponse]
+	dumpLogs              *connect.Client[v1.DumpLogsRequest, v1.DumpLogsResponse]
 }
 
 // StreamWorkflowRunLogs calls
 // services.kon.github_actions.v1.GitHubActionsLogsService.StreamWorkflowRunLogs.
-func (c *gitHubActionsLogsServiceClient) StreamWorkflowRunLogs(ctx context.Context, req *connect_go.Request[v1.StreamWorkflowRunLogsRequest]) (*connect_go.ServerStreamForClient[v1.StreamWorkflowRunLogsResponse], error) {
+func (c *gitHubActionsLogsServiceClient) StreamWorkflowRunLogs(ctx context.Context, req *connect.Request[v1.StreamWorkflowRunLogsRequest]) (*connect.ServerStreamForClient[v1.StreamWorkflowRunLogsResponse], error) {
 	return c.streamWorkflowRunLogs.CallServerStream(ctx, req)
 }
 
 // DumpLogs calls services.kon.github_actions.v1.GitHubActionsLogsService.DumpLogs.
-func (c *gitHubActionsLogsServiceClient) DumpLogs(ctx context.Context, req *connect_go.Request[v1.DumpLogsRequest]) (*connect_go.Response[v1.DumpLogsResponse], error) {
+func (c *gitHubActionsLogsServiceClient) DumpLogs(ctx context.Context, req *connect.Request[v1.DumpLogsRequest]) (*connect.Response[v1.DumpLogsResponse], error) {
 	return c.dumpLogs.CallUnary(ctx, req)
 }
 
 // GitHubActionsLogsServiceHandler is an implementation of the
 // services.kon.github_actions.v1.GitHubActionsLogsService service.
 type GitHubActionsLogsServiceHandler interface {
-	StreamWorkflowRunLogs(context.Context, *connect_go.Request[v1.StreamWorkflowRunLogsRequest], *connect_go.ServerStream[v1.StreamWorkflowRunLogsResponse]) error
-	DumpLogs(context.Context, *connect_go.Request[v1.DumpLogsRequest]) (*connect_go.Response[v1.DumpLogsResponse], error)
+	StreamWorkflowRunLogs(context.Context, *connect.Request[v1.StreamWorkflowRunLogsRequest], *connect.ServerStream[v1.StreamWorkflowRunLogsResponse]) error
+	DumpLogs(context.Context, *connect.Request[v1.DumpLogsRequest]) (*connect.Response[v1.DumpLogsResponse], error)
 }
 
 // NewGitHubActionsLogsServiceHandler builds an HTTP handler from the service implementation. It
@@ -101,16 +110,18 @@ type GitHubActionsLogsServiceHandler interface {
 //
 // By default, handlers support the Connect, gRPC, and gRPC-Web protocols with the binary Protobuf
 // and JSON codecs. They also support gzip compression.
-func NewGitHubActionsLogsServiceHandler(svc GitHubActionsLogsServiceHandler, opts ...connect_go.HandlerOption) (string, http.Handler) {
-	gitHubActionsLogsServiceStreamWorkflowRunLogsHandler := connect_go.NewServerStreamHandler(
+func NewGitHubActionsLogsServiceHandler(svc GitHubActionsLogsServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
+	gitHubActionsLogsServiceStreamWorkflowRunLogsHandler := connect.NewServerStreamHandler(
 		GitHubActionsLogsServiceStreamWorkflowRunLogsProcedure,
 		svc.StreamWorkflowRunLogs,
-		opts...,
+		connect.WithSchema(gitHubActionsLogsServiceStreamWorkflowRunLogsMethodDescriptor),
+		connect.WithHandlerOptions(opts...),
 	)
-	gitHubActionsLogsServiceDumpLogsHandler := connect_go.NewUnaryHandler(
+	gitHubActionsLogsServiceDumpLogsHandler := connect.NewUnaryHandler(
 		GitHubActionsLogsServiceDumpLogsProcedure,
 		svc.DumpLogs,
-		opts...,
+		connect.WithSchema(gitHubActionsLogsServiceDumpLogsMethodDescriptor),
+		connect.WithHandlerOptions(opts...),
 	)
 	return "/services.kon.github_actions.v1.GitHubActionsLogsService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
@@ -127,10 +138,10 @@ func NewGitHubActionsLogsServiceHandler(svc GitHubActionsLogsServiceHandler, opt
 // UnimplementedGitHubActionsLogsServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedGitHubActionsLogsServiceHandler struct{}
 
-func (UnimplementedGitHubActionsLogsServiceHandler) StreamWorkflowRunLogs(context.Context, *connect_go.Request[v1.StreamWorkflowRunLogsRequest], *connect_go.ServerStream[v1.StreamWorkflowRunLogsResponse]) error {
-	return connect_go.NewError(connect_go.CodeUnimplemented, errors.New("services.kon.github_actions.v1.GitHubActionsLogsService.StreamWorkflowRunLogs is not implemented"))
+func (UnimplementedGitHubActionsLogsServiceHandler) StreamWorkflowRunLogs(context.Context, *connect.Request[v1.StreamWorkflowRunLogsRequest], *connect.ServerStream[v1.StreamWorkflowRunLogsResponse]) error {
+	return connect.NewError(connect.CodeUnimplemented, errors.New("services.kon.github_actions.v1.GitHubActionsLogsService.StreamWorkflowRunLogs is not implemented"))
 }
 
-func (UnimplementedGitHubActionsLogsServiceHandler) DumpLogs(context.Context, *connect_go.Request[v1.DumpLogsRequest]) (*connect_go.Response[v1.DumpLogsResponse], error) {
-	return nil, connect_go.NewError(connect_go.CodeUnimplemented, errors.New("services.kon.github_actions.v1.GitHubActionsLogsService.DumpLogs is not implemented"))
+func (UnimplementedGitHubActionsLogsServiceHandler) DumpLogs(context.Context, *connect.Request[v1.DumpLogsRequest]) (*connect.Response[v1.DumpLogsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("services.kon.github_actions.v1.GitHubActionsLogsService.DumpLogs is not implemented"))
 }

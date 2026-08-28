@@ -4,25 +4,26 @@ import (
 	"context"
 	"fmt"
 
-	connect_go "github.com/bufbuild/connect-go"
+	"connectrpc.com/connect"
+	"github.com/google/go-github/v56/github"
+	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
+
 	common_v1 "github.com/containerish/OpenRegistry/common/v1"
 	v1 "github.com/containerish/OpenRegistry/services/kon/github_actions/v1"
 	"github.com/containerish/OpenRegistry/store/v1/types"
-	"github.com/google/go-github/v56/github"
-	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // BulkDeleteBuildJobs implements github_actions_v1connect.GithubActionsBuildServiceHandler
 func (gha *GitHubActionsServer) BulkDeleteBuildJobs(
 	ctx context.Context,
-	req *connect_go.Request[v1.BulkDeleteBuildJobsRequest],
+	req *connect.Request[v1.BulkDeleteBuildJobsRequest],
 ) (
-	*connect_go.Response[v1.BulkDeleteBuildJobsResponse],
+	*connect.Response[v1.BulkDeleteBuildJobsResponse],
 	error,
 ) {
 	// githubClient := gha.getGithubClientFromContext(ctx)
 	// if err := req.Msg.Validate(); err != nil {
-	// 	return nil, connect_go.NewError(connect_go.CodeInvalidArgument, err)
+	// 	return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	// }
 	//
 	// errList := []error{}
@@ -34,16 +35,16 @@ func (gha *GitHubActionsServer) BulkDeleteBuildJobs(
 	// }
 	//
 	// if len(errList) > 0 {
-	// 	return nil, connect_go.NewError(connect_go.CodeInternal, fmt.Errorf("%v", errList))
+	// 	return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("%v", errList))
 	// }
 	//
-	// return connect_go.NewResponse(&v1.BulkDeleteBuildJobsResponse{
+	// return connect.NewResponse(&v1.BulkDeleteBuildJobsResponse{
 	// 	Message: fmt.Sprintf("%d build jobs deleted successfully", len(req.Msg.GetJobIds())),
 	// }), nil
 	gha.logger.Debug().Str("procedure", req.Spec().Procedure).Bool("method_not_implemented", true).Send()
 	return nil,
-		connect_go.NewError(
-			connect_go.CodeUnimplemented,
+		connect.NewError(
+			connect.CodeUnimplemented,
 			fmt.Errorf("bulk job deletion is not supported by GitHub Actions integration"),
 		)
 }
@@ -51,9 +52,9 @@ func (gha *GitHubActionsServer) BulkDeleteBuildJobs(
 // CancelBuild implements github_actions_v1connect.GithubActionsBuildServiceHandler
 func (gha *GitHubActionsServer) CancelBuild(
 	ctx context.Context,
-	req *connect_go.Request[v1.CancelBuildRequest],
+	req *connect.Request[v1.CancelBuildRequest],
 ) (
-	*connect_go.Response[v1.CancelBuildResponse],
+	*connect.Response[v1.CancelBuildResponse],
 	error,
 ) {
 	logEvent := gha.logger.Debug().Str("procedure", req.Spec().Procedure)
@@ -62,7 +63,7 @@ func (gha *GitHubActionsServer) CancelBuild(
 
 	if err := req.Msg.Validate(); err != nil {
 		logEvent.Err(err).Send()
-		return nil, connect_go.NewError(connect_go.CodeInvalidArgument, err)
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 
 	_, err := githubClient.Actions.CancelWorkflowRunByID(
@@ -73,11 +74,11 @@ func (gha *GitHubActionsServer) CancelBuild(
 	)
 	if err != nil {
 		logEvent.Err(err).Send()
-		return nil, connect_go.NewError(connect_go.CodeInvalidArgument, err)
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 
 	logEvent.Bool("success", true).Send()
-	return connect_go.NewResponse(&v1.CancelBuildResponse{
+	return connect.NewResponse(&v1.CancelBuildResponse{
 		Message: "build job canceled successfully",
 	}), nil
 }
@@ -87,26 +88,26 @@ func (gha *GitHubActionsServer) CancelBuild(
 // or deleting them isn't the best we can provide to the user.
 func (gha *GitHubActionsServer) DeleteJob(
 	ctx context.Context,
-	req *connect_go.Request[v1.DeleteJobRequest],
+	req *connect.Request[v1.DeleteJobRequest],
 ) (
-	*connect_go.Response[v1.DeleteJobResponse],
+	*connect.Response[v1.DeleteJobResponse],
 	error,
 ) {
 	// githubClient := gha.getGithubClientFromContext(ctx)
 	// user := ctx.Value(OpenRegistryUserContextKey).(*types.User)
 	// if err := req.Msg.Validate(); err != nil {
-	// 	return nil, connect_go.NewError(connect_go.CodeInvalidArgument, err)
+	// 	return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	// }
 
 	// _, err := githubClient.Actions.DeleteWorkflowRun(ctx, user.Username, req.Msg.GetRepo(), req.Msg.GetRunId())
 	// if err != nil {
-	// 	return nil, connect_go.NewError(connect_go.CodeInvalidArgument, err)
+	// 	return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	// }
 
 	gha.logger.Debug().Str("procedure", req.Spec().Procedure).Bool("method_not_implemented", true).Send()
 	return nil,
-		connect_go.NewError(
-			connect_go.CodeUnimplemented,
+		connect.NewError(
+			connect.CodeUnimplemented,
 			fmt.Errorf("job deletion is not supported by GitHub Actions integration"),
 		)
 }
@@ -114,16 +115,16 @@ func (gha *GitHubActionsServer) DeleteJob(
 // GetBuildJob implements github_actions_v1connect.GithubActionsBuildServiceHandler
 func (gha *GitHubActionsServer) GetBuildJob(
 	ctx context.Context,
-	req *connect_go.Request[v1.GetBuildJobRequest],
+	req *connect.Request[v1.GetBuildJobRequest],
 ) (
-	*connect_go.Response[v1.GetBuildJobResponse],
+	*connect.Response[v1.GetBuildJobResponse],
 	error,
 ) {
 	logEvent := gha.logger.Debug().Str("procedure", req.Spec().Procedure)
 	err := req.Msg.Validate()
 	if err != nil {
 		logEvent.Err(err).Send()
-		return nil, connect_go.NewError(connect_go.CodeInvalidArgument, err)
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 
 	user := ctx.Value(OpenRegistryUserContextKey).(*types.User)
@@ -139,10 +140,10 @@ func (gha *GitHubActionsServer) GetBuildJob(
 	)
 	if err != nil {
 		logEvent.Err(err).Send()
-		return nil, connect_go.NewError(connect_go.CodeInternal, err)
+		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 
-	resp := connect_go.NewResponse(&v1.GetBuildJobResponse{
+	resp := connect.NewResponse(&v1.GetBuildJobResponse{
 		// Id:          job.GetID(),
 		LogsUrl:     job.GetLogsURL(),
 		Status:      job.GetStatus(),
@@ -161,16 +162,16 @@ func (gha *GitHubActionsServer) GetBuildJob(
 // ListBuildJobs implements github_actions_v1connect.GithubActionsBuildServiceHandler
 func (gha *GitHubActionsServer) ListBuildJobs(
 	ctx context.Context,
-	req *connect_go.Request[v1.ListBuildJobsRequest],
+	req *connect.Request[v1.ListBuildJobsRequest],
 ) (
-	*connect_go.Response[v1.ListBuildJobsResponse],
+	*connect.Response[v1.ListBuildJobsResponse],
 	error,
 ) {
 	logEvent := gha.logger.Debug().Str("procedure", req.Spec().Procedure)
 	err := req.Msg.Validate()
 	if err != nil {
 		logEvent.Err(err).Send()
-		return nil, connect_go.NewError(connect_go.CodeInvalidArgument, err)
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 
 	user := ctx.Value(OpenRegistryUserContextKey).(*types.User)
@@ -183,10 +184,9 @@ func (gha *GitHubActionsServer) ListBuildJobs(
 			ListOptions: github.ListOptions{Page: 0, PerPage: 75},
 		},
 	)
-
 	if err != nil {
 		logEvent.Err(err).Any("request_body", req.Msg).Send()
-		return nil, connect_go.NewError(connect_go.CodeInternal, err)
+		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 
 	jobs := []*v1.GetBuildJobResponse{}
@@ -210,31 +210,31 @@ func (gha *GitHubActionsServer) ListBuildJobs(
 	}
 
 	logEvent.Bool("success", true).Send()
-	return connect_go.NewResponse(&v1.ListBuildJobsResponse{Jobs: jobs}), nil
+	return connect.NewResponse(&v1.ListBuildJobsResponse{Jobs: jobs}), nil
 }
 
 // StoreJob implements github_actions_v1connect.GithubActionsBuildServiceHandler
 func (gha *GitHubActionsServer) StoreJob(
 	ctx context.Context,
-	req *connect_go.Request[v1.StoreJobRequest],
-) (*connect_go.Response[v1.StoreJobResponse], error) {
+	req *connect.Request[v1.StoreJobRequest],
+) (*connect.Response[v1.StoreJobResponse], error) {
 	// err := req.Msg.Validate()
 	// if err != nil {
-	// 	return nil, connect_go.NewError(connect_go.CodeInvalidArgument, err)
+	// 	return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	// }
 	//
 	// req.Msg.TriggeredAt = timestamppb.New(time.Now())
 	// if err = gha.store.StoreJob(ctx, req.Msg); err != nil {
-	// 	return nil, connect_go.NewError(connect_go.CodeInternal, err)
+	// 	return nil, connect.NewError(connect.CodeInternal, err)
 	// }
 
-	// return connect_go.NewResponse(&v1.StoreJobResponse{
+	// return connect.NewResponse(&v1.StoreJobResponse{
 	// 	Message: "job stored successfully",
 	// }), nil
 
 	gha.logger.Debug().Str("procedure", req.Spec().Procedure).Bool("method_not_implemented", true).Send()
-	return nil, connect_go.NewError(
-		connect_go.CodeUnimplemented,
+	return nil, connect.NewError(
+		connect.CodeUnimplemented,
 		fmt.Errorf("job storing is not supported by GitHub Actions integration"),
 	)
 }
@@ -242,9 +242,9 @@ func (gha *GitHubActionsServer) StoreJob(
 // TriggerBuild implements github_actions_v1connect.GithubActionsBuildServiceHandler
 func (gha *GitHubActionsServer) TriggerBuild(
 	ctx context.Context,
-	req *connect_go.Request[v1.TriggerBuildRequest],
+	req *connect.Request[v1.TriggerBuildRequest],
 ) (
-	*connect_go.Response[v1.TriggerBuildResponse],
+	*connect.Response[v1.TriggerBuildResponse],
 	error,
 ) {
 	logEvent := gha.logger.Debug().Str("procedure", req.Spec().Procedure)
@@ -253,7 +253,7 @@ func (gha *GitHubActionsServer) TriggerBuild(
 
 	if err := req.Msg.Validate(); err != nil {
 		logEvent.Err(err).Send()
-		return nil, connect_go.NewError(connect_go.CodeInvalidArgument, err)
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 
 	_, err := githubClient.Actions.RerunWorkflowByID(
@@ -263,14 +263,13 @@ func (gha *GitHubActionsServer) TriggerBuild(
 		0,
 		// req.Msg.GetRunId(),
 	)
-
 	if err != nil {
 		logEvent.Err(err).Send()
-		return nil, connect_go.NewError(connect_go.CodeInvalidArgument, err)
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 
 	logEvent.Bool("success", true).Send()
-	return connect_go.NewResponse(&v1.TriggerBuildResponse{
+	return connect.NewResponse(&v1.TriggerBuildResponse{
 		Message: "job triggered successfully",
 	}), nil
 }

@@ -7,13 +7,13 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/containerish/OpenRegistry/services/email"
-	v2_types "github.com/containerish/OpenRegistry/store/v1/types"
-	"github.com/containerish/OpenRegistry/types"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v4"
 	"github.com/labstack/echo/v4"
+
+	"github.com/containerish/OpenRegistry/services/email"
+	"github.com/containerish/OpenRegistry/store/v1/types"
 )
 
 func (a *auth) ResetForgottenPassword(ctx echo.Context) error {
@@ -41,7 +41,7 @@ func (a *auth) ResetForgottenPassword(ctx echo.Context) error {
 		return echoErr
 	}
 
-	var pwd *types.Password
+	var pwd *types.ResetPasswordRequest
 	if err := json.NewDecoder(ctx.Request().Body).Decode(&pwd); err != nil {
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error":   err.Error(),
@@ -72,7 +72,7 @@ func (a *auth) ResetForgottenPassword(ctx echo.Context) error {
 		return echoErr
 	}
 
-	if err = v2_types.ValidatePassword(pwd.NewPassword); err != nil {
+	if err = types.ValidatePassword(pwd.NewPassword); err != nil {
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error": err.Error(),
 			"message": `password must be alphanumeric, at least 8 chars long, must have at least one special character
@@ -122,29 +122,17 @@ and an uppercase letter`,
 func (a *auth) ResetPassword(ctx echo.Context) error {
 	ctx.Set(types.HandlerStartTime, time.Now())
 
-	token, ok := ctx.Get("user").(*jwt.Token)
+	user, ok := ctx.Get(string(types.UserContextKey)).(*types.User)
 	if !ok {
-		err := fmt.Errorf("ERR_EMPTY_TOKEN")
+		err := fmt.Errorf("unauthorized: missing user auth credentials")
 		echoErr := ctx.JSON(http.StatusUnauthorized, echo.Map{
-			"error":   err.Error(),
-			"message": "JWT token can not be empty",
+			"error": err.Error(),
 		})
 		a.logger.Log(ctx, err).Send()
 		return echoErr
 	}
 
-	c, ok := token.Claims.(*Claims)
-	if !ok {
-		err := fmt.Errorf("ERR_INVALID_CLAIMS")
-		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
-			"error":   err.Error(),
-			"message": "invalid claims in JWT",
-		})
-		a.logger.Log(ctx, err).Send()
-		return echoErr
-	}
-
-	var pwd *types.Password
+	var pwd types.ResetPasswordRequest
 	err := json.NewDecoder(ctx.Request().Body).Decode(&pwd)
 	if err != nil {
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
@@ -155,26 +143,6 @@ func (a *auth) ResetPassword(ctx echo.Context) error {
 		return echoErr
 	}
 	defer ctx.Request().Body.Close()
-
-	userId, err := uuid.Parse(c.ID)
-	if err != nil {
-		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
-			"error":   err.Error(),
-			"message": "invalid user id format",
-		})
-		a.logger.Log(ctx, err).Send()
-		return echoErr
-	}
-
-	user, err := a.userStore.GetUserByID(ctx.Request().Context(), userId)
-	if err != nil {
-		echoErr := ctx.JSON(http.StatusNotFound, echo.Map{
-			"error":   err.Error(),
-			"message": "error getting user by ID from DB",
-		})
-		a.logger.Log(ctx, err).Send()
-		return echoErr
-	}
 
 	// compare the current password with password hash from DB
 	if !a.verifyPassword(user.Password, pwd.OldPassword) {
@@ -208,7 +176,7 @@ func (a *auth) ResetPassword(ctx echo.Context) error {
 		return echoErr
 	}
 
-	if err = v2_types.ValidatePassword(pwd.NewPassword); err != nil {
+	if err = types.ValidatePassword(pwd.NewPassword); err != nil {
 		echoErr := ctx.JSON(http.StatusBadRequest, echo.Map{
 			"error": err.Error(),
 			"message": `password must be alphanumeric, at least 8 chars long, must have at least one special character
@@ -218,7 +186,7 @@ and an uppercase letter`,
 		return echoErr
 	}
 
-	if err = a.userStore.UpdateUserPWD(ctx.Request().Context(), userId, hashPassword); err != nil {
+	if err = a.userStore.UpdateUserPWD(ctx.Request().Context(), user.ID, hashPassword); err != nil {
 		echoErr := ctx.JSON(http.StatusInternalServerError, echo.Map{
 			"error":   err.Error(),
 			"message": "error updating new password",
@@ -267,9 +235,13 @@ func (a *auth) ForgotPassword(ctx echo.Context) error {
 	}
 
 	if !user.IsActive {
-		return ctx.JSON(http.StatusUnauthorized, echo.Map{
-			"message": "account is inactive, please check your email and verify your account",
+		err = fmt.Errorf("account is inactive, please check your email and verify your account")
+		echoErr := ctx.JSON(http.StatusUnauthorized, echo.Map{
+			"message": err.Error(),
 		})
+
+		a.logger.Log(ctx, err).Send()
+		return echoErr
 	}
 
 	opts := &WebLoginJWTOptions{
