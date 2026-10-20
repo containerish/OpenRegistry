@@ -1,8 +1,6 @@
 module github.com/containerish/OpenRegistry
 
-go 1.23
-
-toolchain go1.23.0
+go 1.24
 
 require (
 	github.com/alexliesenfeld/health v0.8.0
@@ -143,7 +141,7 @@ require (
 	github.com/jbenet/goprocess v0.1.4 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jtolio/noiseconn v0.0.0-20230111204749-d7ec1a08b0b8 // indirect
-	github.com/klauspost/compress v1.17.11 // indirect
+	github.com/klauspost/compress v1.18.7 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.9 // indirect
 	github.com/koron/go-ssdp v0.0.4 // indirect
 	github.com/labstack/gommon v0.4.2 // indirect
