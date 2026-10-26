@@ -16,6 +16,13 @@ import (
 	"github.com/fatih/color"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/sdk/resource"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"github.com/spf13/afero"
 
 	"github.com/containerish/OpenRegistry/config"
@@ -59,6 +66,23 @@ func newMemMappedMockStorage(
 
 	go mocker.FileServer()
 	return mocker
+}
+
+func setupTelemetry(ctx context.Context) (*sdktrace.TracerProvider, error) {
+	exporter, err := otlptracehttp.New(ctx, otlptracehttp.WithEndpointURL("http://127.0.0.1:14318/v1/traces"))
+	if err != nil {
+		return nil, err
+	}
+	res := resource.NewSchemaless(
+		attribute.String("service.name", "openregistry"),
+		attribute.String("service.namespace", "containerish"),
+		attribute.String("service.version", os.Getenv("GIT_SHA")),
+		attribute.String("deployment.environment.name", os.Getenv("DEPLOYMENT_ENVIRONMENT")),
+	)
+	provider := sdktrace.NewTracerProvider(sdktrace.WithBatcher(exporter), sdktrace.WithResource(res))
+	otel.SetTracerProvider(provider)
+	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{}))
+	return provider, nil
 }
 
 func (ms *memMappedMockStorage) CreateMultipartUpload(layerKey string) (string, error) {
@@ -258,6 +282,17 @@ func (ms *memMappedMockStorage) FileServer() {
 	e := echo.New()
 	e.HideBanner = true
 	e.HidePort = true
+
+	provider, err := setupTelemetry(context.Background())
+	if err != nil {
+		color.Red("ERR_CONFIGURE_OTEL: %s", err)
+	} else {
+		defer provider.Shutdown(context.Background())
+		e.Use(otelecho.Middleware("openregistry"))
+		if serviceVersion := os.Getenv("GIT_SHA"); serviceVersion != "" {
+			color.Green("Mock storage service commit: %s", serviceVersion)
+		}
+	}
 
 	e.Add(http.MethodGet, "/:uuid", func(ctx echo.Context) error {
 		fileID := ctx.Param("uuid")

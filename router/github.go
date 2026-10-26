@@ -3,6 +3,7 @@ package router
 import (
 	"fmt"
 	"net/http"
+	"os"
 
 	"github.com/containerish/OpenRegistry/config"
 	github_actions_server "github.com/containerish/OpenRegistry/services/kon/github_actions/v1/server"
@@ -12,6 +13,7 @@ import (
 	"github.com/containerish/OpenRegistry/vcs/github"
 	"github.com/fatih/color"
 	"github.com/labstack/echo/v4"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 )
@@ -43,6 +45,16 @@ func RegisterGitHubRoutes(
 			automationStore,
 			usersStore,
 		)
+		provider, err := setupTelemetry(router.StdContext())
+		if err != nil {
+			color.Red("ERR_CONFIGURE_OTEL: %s", err)
+		} else {
+			defer provider.Shutdown(router.StdContext())
+			githubMux.Use(otelecho.Middleware("openregistry"))
+			if serviceVersion := os.Getenv("GIT_SHA"); serviceVersion != "" {
+				color.Green("GitHub service commit: %s", serviceVersion)
+			}
+		}
 		go func() {
 			hostPort := fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)
 			color.Green("connect-go gRPC running on: %s", hostPort)
