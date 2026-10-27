@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"os"
 
+	"github.com/XSAM/otelsql"
 	"github.com/containerish/OpenRegistry/config"
 	"github.com/fatih/color"
 	"github.com/uptrace/bun"
@@ -25,7 +26,7 @@ func New(cfg config.Store, env config.Environment) *bun.DB {
 	switch cfg.Kind {
 	case config.StoreKindPostgres:
 		dialect = pgdialect.New()
-		sqlDB = sql.OpenDB(pgdriver.NewConnector(pgdriver.WithDSN(cfg.Endpoint())))
+		sqlDB = otelsql.OpenDB(pgdriver.NewConnector(pgdriver.WithDSN(cfg.Endpoint())))
 	case config.StoreKindSQLite:
 		dialect = sqlitedialect.New()
 		sqliteDB, err := sql.Open(sqliteshim.ShimName, "file::memory:?cache=shared")
