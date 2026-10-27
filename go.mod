@@ -45,9 +45,11 @@ require (
 	github.com/uptrace/bun/driver/sqliteshim v1.2.8
 	github.com/uptrace/bun/extra/bundebug v1.2.8
 	github.com/urfave/cli/v2 v2.27.5
-	go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho v0.58.0
+	go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho v0.71.0
 	go.opentelemetry.io/contrib/processors/baggagecopy v0.6.0
-	go.opentelemetry.io/otel v1.33.0
+	go.opentelemetry.io/otel v1.46.0
+	go.opentelemetry.io/otel/sdk v1.46.0
+	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.46.0
 	golang.org/x/crypto v0.32.0
 	golang.org/x/net v0.34.0
 	golang.org/x/oauth2 v0.25.0

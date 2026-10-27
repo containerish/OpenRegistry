@@ -8,6 +8,7 @@ import (
 	github_actions_server "github.com/containerish/OpenRegistry/services/kon/github_actions/v1/server"
 	"github.com/containerish/OpenRegistry/store/v1/automation"
 	"github.com/containerish/OpenRegistry/telemetry"
+	"github.com/containerish/OpenRegistry/telemetry/otel"
 	"github.com/containerish/OpenRegistry/vcs"
 	"github.com/containerish/OpenRegistry/vcs/github"
 	"github.com/fatih/color"
@@ -44,6 +45,11 @@ func RegisterGitHubRoutes(
 			usersStore,
 		)
 		go func() {
+			otelShutdownFunc := otel.ConfigureServerOtel(cfg.Telemetry, "openregistry", nil)
+			if otelShutdownFunc != nil {
+				defer otelShutdownFunc()
+			}
+
 			hostPort := fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)
 			color.Green("connect-go gRPC running on: %s", hostPort)
 			if err := http.ListenAndServe(hostPort, h2c.NewHandler(githubMux, &http2.Server{})); err != nil {
