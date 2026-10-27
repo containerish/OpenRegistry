@@ -17,7 +17,10 @@ import (
 	"github.com/google/go-github/v56/github"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
+
+var githubHTTPClient = &http.Client{Transport: otelhttp.NewTransport(http.DefaultTransport), Timeout: time.Second * 30}
 
 type ghAppService struct {
 	store                vcs.VCSStore
@@ -166,18 +169,21 @@ func (gh *ghAppService) getGitubInstallationID(skipRoutes ...string) echo.Middle
 }
 
 func newGHClient(appID int64, privKeyPem string) (*ghinstallation.AppsTransport, *github.Client, error) {
-	transport, err := ghinstallation.NewAppsTransportKeyFromFile(http.DefaultTransport, appID, privKeyPem)
+	transport, err := ghinstallation.NewAppsTransportKeyFromFile(otelhttp.NewTransport(http.DefaultTransport), appID, privKeyPem)
 	if err != nil {
 		return nil, nil, fmt.Errorf("ERR_CREATE_NEW_TRANSPORT: %w", err)
 	}
 
-	client := github.NewClient(&http.Client{Transport: transport, Timeout: time.Second * 30})
+	client := github.NewClient(githubHTTPClient)
+	client.Client().Transport = transport
 	return transport, client, nil
 }
 
 func (gh *ghAppService) refreshGHClient(id int64) *github.Client {
 	transport := ghinstallation.NewFromAppsTransport(gh.ghAppTransport, id)
-	return github.NewClient(&http.Client{Transport: transport})
+	client := github.NewClient(githubHTTPClient)
+	client.Client().Transport = transport
+	return client
 }
 
 type AuthorizedRepository struct {

@@ -17,7 +17,10 @@ import (
 	github_actions_v1 "github.com/containerish/OpenRegistry/services/kon/github_actions/v1"
 	github_impl "github.com/containerish/OpenRegistry/vcs/github"
 	"github.com/google/go-github/v56/github"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
+
+var githubHTTPClient = &http.Client{Transport: otelhttp.NewTransport(http.DefaultTransport), Timeout: time.Second * 30}
 
 type WorkflowStep struct {
 	Title        string
@@ -166,18 +169,21 @@ func (ghs *GitHubActionsServer) StreamWorkflowRunLogs(
 }
 
 func newGHClient(appID int64, privKeyPem string) (*ghinstallation.AppsTransport, *github.Client, error) {
-	transport, err := ghinstallation.NewAppsTransportKeyFromFile(http.DefaultTransport, appID, privKeyPem)
+	transport, err := ghinstallation.NewAppsTransportKeyFromFile(otelhttp.NewTransport(http.DefaultTransport), appID, privKeyPem)
 	if err != nil {
 		return nil, nil, fmt.Errorf("ERR_CREATE_NEW_TRANSPORT: %w", err)
 	}
 
-	client := github.NewClient(&http.Client{Transport: transport, Timeout: time.Second * 30})
+	client := github.NewClient(githubHTTPClient)
+	client.Client().Transport = transport
 	return transport, client, nil
 }
 
 func (ghs *GitHubActionsServer) refreshGHClient(id int64) *github.Client {
 	transport := ghinstallation.NewFromAppsTransport(ghs.transport, id)
-	return github.NewClient(&http.Client{Transport: transport})
+	client := github.NewClient(githubHTTPClient)
+	client.Client().Transport = transport
+	return client
 }
 
 // getGithubClientFromContext returns github client refreshed with user's github app installation id.
