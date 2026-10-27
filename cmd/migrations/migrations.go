@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/XSAM/otelsql"
 	"github.com/containerish/OpenRegistry/store/v1/types"
 	"github.com/fatih/color"
 	"github.com/uptrace/bun"
@@ -42,7 +43,7 @@ Examples:
 }
 
 func getOpenRegistryDB(connector *pgdriver.Connector) *bun.DB {
-	sqlDB := sql.OpenDB(connector)
+	sqlDB := otelsql.OpenDB(connector)
 	bunWrappedDB := bun.NewDB(sqlDB, pgdialect.New())
 	if err := bunWrappedDB.Ping(); err != nil {
 		color.Red("error connecting to open_registry database: %s", err)
@@ -53,7 +54,7 @@ func getOpenRegistryDB(connector *pgdriver.Connector) *bun.DB {
 }
 
 func getAdminBunDB(connector *pgdriver.Connector) *bun.DB {
-	sqlDB := sql.OpenDB(connector)
+	sqlDB := otelsql.OpenDB(connector)
 	bunWrappedDB := bun.NewDB(sqlDB, pgdialect.New())
 	if err := bunWrappedDB.Ping(); err != nil {
 		color.Red("error connecting to admin (postgres) database: %s", err)
