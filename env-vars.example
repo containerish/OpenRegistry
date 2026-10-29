@@ -14,3 +14,5 @@ OPEN_REGISTRY_DB_PORT=5432
 OPEN_REGISTRY_DB_USER=postgres
 OPEN_REGISTRY_DB_PASSWORD=Qwerty@123
 OPEN_REGISTRY_DB_NAME=open_registry
+OTEL_RESOURCE_ATTRIBUTES=vcs.ref.head.revision=<the deployed commit SHA>
+DEPLOYMENT_ENVIRONMENT=<the deployment environment, e.g. production>

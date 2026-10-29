@@ -1,14 +1,18 @@
 package otel
 
 import (
+	"context"
 	"log"
+	"os"
 
 	"github.com/fatih/color"
 	"github.com/honeycombio/otel-config-go/otelconfig"
 	"github.com/labstack/echo/v4"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho" //nolint:staticcheck
 	"go.opentelemetry.io/contrib/processors/baggagecopy"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/baggage"
+	"go.opentelemetry.io/otel/sdk/resource"
 
 	"github.com/containerish/OpenRegistry/config"
 )
@@ -17,6 +21,16 @@ func ConfigureOtel(config config.Telemetry, service string, e *echo.Echo) func()
 	if config.Enabled {
 		color.Green("OpenTelemetry: Enabled")
 		bsp := baggagecopy.NewSpanProcessor(func(member baggage.Member) bool { return true })
+
+		_, err := resource.New(context.Background(),
+			resource.WithAttributes(
+				attribute.String("deployment.environment.name", os.Getenv("DEPLOYMENT_ENVIRONMENT")),
+			),
+			resource.WithFromEnv(),
+		)
+		if err != nil {
+			log.Fatalln(color.RedString("ERR_CONFIGURE_OTEL: %s", err))
+		}
 
 		otelShutdown, err := otelconfig.ConfigureOpenTelemetry(
 			otelconfig.WithServiceName(service),
