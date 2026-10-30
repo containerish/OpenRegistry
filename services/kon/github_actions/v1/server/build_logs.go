@@ -17,6 +17,7 @@ import (
 	github_actions_v1 "github.com/containerish/OpenRegistry/services/kon/github_actions/v1"
 	github_impl "github.com/containerish/OpenRegistry/vcs/github"
 	"github.com/google/go-github/v56/github"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 type WorkflowStep struct {
@@ -166,7 +167,7 @@ func (ghs *GitHubActionsServer) StreamWorkflowRunLogs(
 }
 
 func newGHClient(appID int64, privKeyPem string) (*ghinstallation.AppsTransport, *github.Client, error) {
-	transport, err := ghinstallation.NewAppsTransportKeyFromFile(http.DefaultTransport, appID, privKeyPem)
+	transport, err := ghinstallation.NewAppsTransportKeyFromFile(otelhttp.NewTransport(http.DefaultTransport), appID, privKeyPem)
 	if err != nil {
 		return nil, nil, fmt.Errorf("ERR_CREATE_NEW_TRANSPORT: %w", err)
 	}
