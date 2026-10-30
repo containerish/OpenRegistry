@@ -17,6 +17,7 @@ import (
 	"github.com/google/go-github/v56/github"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 type ghAppService struct {
@@ -166,7 +167,7 @@ func (gh *ghAppService) getGitubInstallationID(skipRoutes ...string) echo.Middle
 }
 
 func newGHClient(appID int64, privKeyPem string) (*ghinstallation.AppsTransport, *github.Client, error) {
-	transport, err := ghinstallation.NewAppsTransportKeyFromFile(http.DefaultTransport, appID, privKeyPem)
+	transport, err := ghinstallation.NewAppsTransportKeyFromFile(otelhttp.NewTransport(http.DefaultTransport), appID, privKeyPem)
 	if err != nil {
 		return nil, nil, fmt.Errorf("ERR_CREATE_NEW_TRANSPORT: %w", err)
 	}

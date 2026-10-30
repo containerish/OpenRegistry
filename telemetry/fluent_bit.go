@@ -11,6 +11,7 @@ import (
 
 	"github.com/containerish/OpenRegistry/config"
 	"github.com/rs/zerolog/diode"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 type (
@@ -23,7 +24,8 @@ type (
 
 func NewFluentBitWriter(config *config.FluentBitConfig) diode.Writer {
 	httpClient := &http.Client{
-		Timeout: time.Duration(time.Second * 15),
+		Transport: otelhttp.NewTransport(http.DefaultTransport),
+		Timeout:   time.Duration(time.Second * 15),
 	}
 
 	client := &fluentBit{
